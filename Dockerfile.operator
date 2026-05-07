@@ -1,0 +1,5 @@
+FROM gcr.io/distroless/static:nonroot
+ARG TARGETARCH
+COPY bin/linux-${TARGETARCH}/operator /operator
+USER nonroot:nonroot
+ENTRYPOINT ["/operator"]
