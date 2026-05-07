@@ -1,0 +1,28 @@
+# Binaries
+bin/
+
+# Go
+*.test
+*.out
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Build artifacts
+dist/
+.builder
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Claude Code
+.claude/
+CLAUDE.md
