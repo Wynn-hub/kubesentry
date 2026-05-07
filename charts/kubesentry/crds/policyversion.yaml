@@ -1,0 +1,54 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: policyversions.kubesentry.io
+spec:
+  group: kubesentry.io
+  names:
+    kind: PolicyVersion
+    listKind: PolicyVersionList
+    plural: policyversions
+    singular: policyversion
+    shortNames: [pv]
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                policyRef:
+                  type: string
+                version:
+                  type: integer
+                  format: int64
+                rego:
+                  type: string
+                match:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                enforcementMode:
+                  type: string
+                createdAt:
+                  type: string
+                  format: date-time
+                createdBy:
+                  type: string
+      additionalPrinterColumns:
+        - name: Policy
+          type: string
+          jsonPath: .spec.policyRef
+        - name: Version
+          type: integer
+          jsonPath: .spec.version
+        - name: Mode
+          type: string
+          jsonPath: .spec.enforcementMode
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

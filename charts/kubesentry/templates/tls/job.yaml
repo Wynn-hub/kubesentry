@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubesentry-tls-setup
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      serviceAccountName: kubesentry-tls-setup
+      restartPolicy: OnFailure
+      containers:
+        - name: tls-setup
+          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+          command: ["/operator", "tls-setup"]
+          env:
+            - name: NAMESPACE
+              value: {{ .Values.namespace }}
+            - name: SECRET_NAME
+              value: {{ .Values.tls.secretName }}
+            - name: VWC_NAME
+              value: kubesentry

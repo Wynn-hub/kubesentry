@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubesentry-webhook
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: kubesentry-webhook
+  ports:
+    - name: https
+      port: 443
+      targetPort: 8443

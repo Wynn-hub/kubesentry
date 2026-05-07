@@ -1,0 +1,42 @@
+namespace: kubesentry-system
+
+webhook:
+  replicas: 2
+  image:
+    repository: wynnhub/kubesentry-webhook
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+operator:
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-operator
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+tls:
+  secretName: kubesentry-tls
+
+policy:
+  versionHistoryLimit: 20
+
+failurePolicy: Fail
+
+webhookNamespaceSelector:
+  matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values:
+        - kube-system
+        - kubesentry-system

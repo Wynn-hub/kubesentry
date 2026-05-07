@@ -1,0 +1,6 @@
+apiVersion: v2
+name: kubesentry
+description: Kubernetes Validating Admission Webhook with OPA/Rego policy engine
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

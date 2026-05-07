@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubesentry-operator
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.operator.replicas }}
+  selector:
+    matchLabels:
+      app: kubesentry-operator
+  template:
+    metadata:
+      labels:
+        app: kubesentry-operator
+    spec:
+      serviceAccountName: kubesentry-operator
+      containers:
+        - name: operator
+          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+          env:
+            - name: VWC_NAME
+              value: kubesentry
+          resources:
+            {{- toYaml .Values.operator.resources | nindent 12 }}
