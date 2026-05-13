@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-privileged
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-privileged
+  template:
+    metadata:
+      labels:
+        app: test-privileged
+    spec:
+      containers:
+        - name: app
+          image: nginx:alpine
+          securityContext:
+            privileged: true

@@ -69,6 +69,28 @@ spec:
     }
 ```
 
+See [`examples/`](examples/) for more ready-to-use policies.
+
+### Pod interception vs. Deployment interception
+
+By default policies match `pods`, which covers all workload types. When a
+`Deployment` is applied, `kubectl apply` succeeds immediately — the webhook
+only fires when the Deployment controller later tries to create the Pod, so
+rejection appears in `kubectl describe deployment` events rather than on the
+command line.
+
+If you want `kubectl apply` on a Deployment to fail immediately, add
+`deployments` to the match rules **and** write separate Rego rules for each
+resource type, because the container path differs:
+
+| Resource | Container path in Rego |
+|---|---|
+| `pods` | `input.request.object.spec.containers[_]` |
+| `deployments` | `input.request.object.spec.template.spec.containers[_]` |
+
+Example policy that intercepts both — see
+[`examples/policy-no-privileged-with-deployments.yaml`](examples/policy-no-privileged-with-deployments.yaml).
+
 ## Rollback
 
 Set `spec.rollbackTo.version` — the Operator restores `spec.rego`, `spec.match`, and `spec.enforcementMode` from the target `PolicyVersion` and clears the field automatically:

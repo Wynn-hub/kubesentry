@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-normal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-normal
+  template:
+    metadata:
+      labels:
+        app: test-normal
+    spec:
+      containers:
+        - name: app
+          image: nginx:alpine

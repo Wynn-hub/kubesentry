@@ -69,6 +69,26 @@ spec:
     }
 ```
 
+更多开箱即用的策略示例见 [`examples/`](examples/) 目录。
+
+### Pod 拦截与 Deployment 拦截的区别
+
+默认情况下策略匹配 `pods`，可以覆盖所有工作负载类型。当 apply 一个
+`Deployment` 时，`kubectl apply` 会立即成功——Webhook 只有在 Deployment
+控制器随后尝试创建 Pod 时才会触发，因此拒绝信息会出现在
+`kubectl describe deployment` 的事件中，而不是命令行输出里。
+
+如果希望 apply Deployment 时立即报错，需要在 match 规则中同时添加
+`deployments`，**并且**为每种资源类型分别编写 Rego 规则，因为容器路径不同：
+
+| 资源 | Rego 中的容器路径 |
+|---|---|
+| `pods` | `input.request.object.spec.containers[_]` |
+| `deployments` | `input.request.object.spec.template.spec.containers[_]` |
+
+同时拦截两种资源的策略示例见
+[`examples/policy-no-privileged-with-deployments.yaml`](examples/policy-no-privileged-with-deployments.yaml)。
+
 ## 策略回滚
 
 设置 `spec.rollbackTo.version`，Operator 自动从对应的 `PolicyVersion` 恢复 `spec.rego`、`spec.match` 和 `spec.enforcementMode`，并清除该字段：

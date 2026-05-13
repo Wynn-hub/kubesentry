@@ -1,0 +1,47 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: no-privileged-containers
+spec:
+  enforcementMode: enforce
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        resources: ["deployments"]
+  rego: |
+    package kubesentry
+
+    # Deny privileged containers in Pods
+    deny[msg] {
+      input.request.resource.resource == "pods"
+      container := input.request.object.spec.containers[_]
+      container.securityContext.privileged == true
+      msg := sprintf("container %q is not allowed to run as privileged", [container.name])
+    }
+
+    deny[msg] {
+      input.request.resource.resource == "pods"
+      container := input.request.object.spec.initContainers[_]
+      container.securityContext.privileged == true
+      msg := sprintf("initContainer %q is not allowed to run as privileged", [container.name])
+    }
+
+    # Deny privileged containers in Deployments (containers are under spec.template.spec)
+    deny[msg] {
+      input.request.resource.resource == "deployments"
+      container := input.request.object.spec.template.spec.containers[_]
+      container.securityContext.privileged == true
+      msg := sprintf("container %q is not allowed to run as privileged", [container.name])
+    }
+
+    deny[msg] {
+      input.request.resource.resource == "deployments"
+      container := input.request.object.spec.template.spec.initContainers[_]
+      container.securityContext.privileged == true
+      msg := sprintf("initContainer %q is not allowed to run as privileged", [container.name])
+    }
