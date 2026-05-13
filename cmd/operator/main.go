@@ -33,7 +33,12 @@ func main() {
 func runOperator() {
 	scheme := buildScheme()
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:           scheme,
+		Scheme: scheme,
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{&corev1.Secret{}},
+			},
+		},
 		LeaderElection:   true,
 		LeaderElectionID: "kubesentry-operator-leader",
 	})
@@ -48,7 +53,9 @@ func runOperator() {
 		os.Exit(1)
 	}
 	vwcName := envOrDefault("VWC_NAME", "kubesentry")
-	if err := operator.NewWebhookConfigReconciler(mgr.GetClient(), vwcName).SetupWithManager(mgr); err != nil {
+	tlsSecretName := envOrDefault("SECRET_NAME", "kubesentry-tls")
+	tlsNamespace := envOrDefault("NAMESPACE", "kubesentry-system")
+	if err := operator.NewWebhookConfigReconciler(mgr.GetClient(), vwcName, tlsSecretName, tlsNamespace).SetupWithManager(mgr); err != nil {
 		slog.Error("setup webhookconfig reconciler", "error", err)
 		os.Exit(1)
 	}
@@ -111,6 +118,11 @@ func runTLSSetup() {
 
 	var vwc admissionregv1.ValidatingWebhookConfiguration
 	if err := c.Get(ctx, types.NamespacedName{Name: vwcName}, &vwc); err != nil {
+		if apierrors.IsNotFound(err) {
+			// VWC is deployed after this pre-install hook; the operator will sync caBundle on startup.
+			slog.Info("VWC not found, caBundle will be synced by operator")
+			return
+		}
 		slog.Error("get VWC", "error", err)
 		os.Exit(1)
 	}
