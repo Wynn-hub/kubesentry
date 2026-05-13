@@ -40,6 +40,11 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return r.handleRollback(ctx, &policy)
 	}
 
+	// Already reconciled at this generation — nothing to do.
+	if policy.Status.ObservedGeneration == policy.Generation && policy.Status.Phase == v1alpha1.PhaseReady {
+		return ctrl.Result{}, nil
+	}
+
 	// Validate Rego.
 	if _, err := webhook.CompileRego(policy.Spec.Rego); err != nil {
 		return ctrl.Result{}, r.setInvalid(ctx, &policy, err.Error())

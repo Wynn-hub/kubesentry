@@ -60,6 +60,26 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	review.Response = resp
 	review.Request = nil
 
+	allowed := resp.Allowed
+	if allowed {
+		slog.Info("admission allowed",
+			"resource", req.Resource.Resource,
+			"namespace", req.Namespace,
+			"name", req.Name,
+			"operation", string(req.Operation),
+			"user", req.UserInfo.Username,
+		)
+	} else {
+		slog.Warn("admission denied",
+			"resource", req.Resource.Resource,
+			"namespace", req.Namespace,
+			"name", req.Name,
+			"operation", string(req.Operation),
+			"user", req.UserInfo.Username,
+			"reason", resp.Result.Message,
+		)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(review)
 }
