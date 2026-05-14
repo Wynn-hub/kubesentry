@@ -2,41 +2,50 @@
 
 English | [中文](README_zh.md)
 
-A Kubernetes Validating Admission Webhook that enforces OPA/Rego policies defined as CRDs, with an Operator for lifecycle management and version control.
+A Kubernetes Validating Admission Webhook that enforces OPA/Rego policies defined as CRDs, with an Operator for lifecycle management, version control, and built-in policy groups.
 
 ## Architecture
 
 Two independent Go binaries share the same CRD API types:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Kubernetes Cluster                    │
-│                                                         │
-│  ┌──────────────────┐      ┌──────────────────────────┐ │
-│  │  kubesentry-     │      │   kubesentry-operator    │ │
-│  │  webhook         │      │                          │ │
-│  │                  │      │  PolicyReconciler        │ │
-│  │  - OPA evaluator │      │  - validates Rego        │ │
-│  │  - Policy cache  │      │  - creates PolicyVersion │ │
-│  │  - /validate     │      │  - handles rollback      │ │
-│  │  - /healthz      │      │                          │ │
-│  │  - /readyz       │      │  WebhookConfigReconciler │ │
-│  └────────┬─────────┘      │  - aggregates rules      │ │
-│           │                │  - patches VWC           │ │
-│           │ watches        └──────────────────────────┘ │
-│           ▼                                             │
-│  ┌──────────────────┐      ┌──────────────────────────┐ │
-│  │   Policy CRD     │      │  PolicyVersion CRD       │ │
-│  │   (cluster-scope)│      │  (immutable snapshots)   │ │
-│  └──────────────────┘      └──────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                       Kubernetes Cluster                        │
+│                                                                 │
+│  ┌──────────────────┐      ┌────────────────────────────────┐  │
+│  │  kubesentry-     │      │     kubesentry-operator        │  │
+│  │  webhook         │      │                                │  │
+│  │                  │      │  PolicyGroupReconciler         │  │
+│  │  - OPA evaluator │      │  - creates child Policy CRDs  │  │
+│  │  - Policy cache  │      │  - built-in library (37 rules) │  │
+│  │  - /validate     │      │  - conflict detection          │  │
+│  │  - /healthz      │      │                                │  │
+│  │  - /readyz       │      │  PolicyReconciler              │  │
+│  └────────┬─────────┘      │  - validates Rego              │  │
+│           │                │  - creates PolicyVersion        │  │
+│           │ watches        │  - handles rollback             │  │
+│           ▼                │                                │  │
+│  ┌──────────────────┐      │  WebhookConfigReconciler       │  │
+│  │   Policy CRD     │      │  - aggregates rules            │  │
+│  │   (cluster-scope)│      │  - patches VWC                 │  │
+│  └──────────────────┘      └────────────────────────────────┘  │
+│                                                                 │
+│  ┌──────────────────┐      ┌────────────────────────────────┐  │
+│  │  PolicyGroup CRD │      │  PolicyVersion CRD             │  │
+│  │  (cluster-scope) │      │  (immutable snapshots)         │  │
+│  └──────────────────┘      └────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## Features
 
 - **OPA/Rego policy engine** — embeds OPA directly, no sidecar needed
 - **CRD-based policies** — define policies as `Policy` Kubernetes resources
-- **Enforcement modes** — `enforce` (blocks) or `audit` (logs only)
+- **Built-in policy groups** — 37 curated rules across Security, Efficiency, and Reliability groups, deployed automatically at install time
+- **Policy groups** — group policies together with per-group and per-policy enable/disable switches
+- **Custom policy groups** — create your own `PolicyGroup` CRDs; when a custom policy shares the same key as a built-in, the custom one wins
+- **Structured violation messages** — denials include `[group/key] message` and a description field; audit violations appear as `AdmissionResponse.Warnings`
+- **Enforcement modes** — `enforce` (blocks) or `audit` (logs + warnings only)
 - **Version control** — every policy change creates an immutable `PolicyVersion` snapshot
 - **Rollback** — set `spec.rollbackTo.version` to restore any previous version
 - **Dynamic webhook rules** — Operator automatically updates `ValidatingWebhookConfiguration` based on Ready policies
@@ -45,7 +54,127 @@ Two independent Go binaries share the same CRD API types:
 - **Leader election** — Operator runs with leader election for HA
 - **Multi-platform** — images support `linux/amd64` and `linux/arm64`
 
-## Policy Example
+## Built-in Policy Groups
+
+KubeSentry ships 37 built-in policies across three groups, enabled by default:
+
+### Security (23 policies)
+
+| Key | Default Mode | Description |
+|---|---|---|
+| `runAsPrivileged` | enforce | Blocks containers running as privileged |
+| `privilegeEscalationAllowed` | enforce | Blocks `allowPrivilegeEscalation: true` |
+| `runAsRootAllowed` | audit | Warns when `runAsNonRoot` is not set |
+| `notReadOnlyRootFilesystem` | audit | Warns when `readOnlyRootFilesystem` is not set |
+| `linuxHardening` | enforce | Requires at least one of: seccompProfile, seLinuxOptions, capabilities.drop |
+| `insecureCapabilities` | audit | Warns on insecure capability additions |
+| `dangerousCapabilities` | enforce | Blocks dangerous capabilities (SYS_ADMIN, NET_ADMIN, …) |
+| `hostPIDSet` | enforce | Blocks `hostPID: true` |
+| `hostIPCSet` | enforce | Blocks `hostIPC: true` |
+| `hostNetworkSet` | audit | Warns on `hostNetwork: true` |
+| `hostPortSet` | audit | Warns when `hostPort` is set |
+| `sensitiveContainerEnvVar` | enforce | Blocks env vars with names matching sensitive patterns |
+| `automountServiceAccountToken` | audit | Warns when service account token is auto-mounted |
+| `sensitiveConfigmapContent` | enforce | Blocks ConfigMaps with sensitive-looking keys |
+| `tlsSettingsMissing` | audit | Warns on Ingresses without TLS |
+| `clusterrolePodExecAttach` | enforce | Blocks ClusterRoles granting pods/exec or pods/attach |
+| `rolePodExecAttach` | enforce | Blocks Roles granting pods/exec or pods/attach |
+| `clusterrolebindingPodExecAttach` | enforce | Blocks ClusterRoleBindings referencing exec/attach roles by name |
+| `rolebindingRolePodExecAttach` | enforce | Blocks RoleBindings referencing exec/attach roles by name |
+| `rolebindingClusterRolePodExecAttach` | enforce | Blocks RoleBindings referencing exec/attach ClusterRoles by name |
+| `clusterrolebindingClusterAdmin` | enforce | Blocks ClusterRoleBindings to cluster-admin |
+| `rolebindingClusterAdminClusterRole` | enforce | Blocks RoleBindings to cluster-admin ClusterRole |
+| `rolebindingClusterAdminRole` | enforce | Blocks RoleBindings to Roles named cluster-admin |
+
+### Efficiency (4 policies)
+
+| Key | Default Mode | Description |
+|---|---|---|
+| `cpuRequestsMissing` | audit | Warns when CPU requests are not set |
+| `memoryRequestsMissing` | audit | Warns when memory requests are not set |
+| `cpuLimitsMissing` | audit | Warns when CPU limits are not set |
+| `memoryLimitsMissing` | audit | Warns when memory limits are not set |
+
+### Reliability (10 policies)
+
+| Key | Default Mode | Description |
+|---|---|---|
+| `readinessProbeMissing` | audit | Warns when readiness probe is absent |
+| `livenessProbeMissing` | audit | Warns when liveness probe is absent |
+| `tagNotSpecified` | enforce | Blocks images without a tag or using `:latest` |
+| `pullPolicyNotAlways` | audit | Warns when imagePullPolicy is not Always |
+| `priorityClassNotSet` | audit | Warns when priorityClassName is not set |
+| `deploymentMissingReplicas` | audit | Warns when a Deployment has fewer than 2 replicas |
+| `metadataAndInstanceMismatched` | audit | Warns when `metadata.name` and `app.kubernetes.io/instance` differ |
+| `topologySpreadConstraint` | audit | Warns when no topology spread constraints are defined |
+| `hpaMaxAvailability` | audit | Warns when HPA maxReplicas ≤ minReplicas |
+| `hpaMinAvailability` | audit | Warns when HPA minReplicas ≤ 1 |
+
+### Customizing built-in groups
+
+Disable a whole group or individual policies via Helm values:
+
+```yaml
+builtinGroups:
+  security:
+    enabled: true
+    policies:
+      hostNetworkSet:
+        enabled: false       # disable this policy
+      runAsRootAllowed:
+        mode: enforce        # override mode to enforce
+  efficiency:
+    enabled: false           # disable the entire group
+```
+
+## PolicyGroup CRD
+
+You can also create your own groups with a mix of built-in and custom policies:
+
+```yaml
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyGroup
+metadata:
+  name: my-policies
+spec:
+  enabled: true
+  displayName: "My Custom Policies"
+  policies:
+    # use a built-in policy with mode override
+    - key: runAsPrivileged
+      mode: enforce
+    # custom policy not in the built-in library
+    - key: noDebugContainers
+      mode: enforce
+      rego: |
+        package kubesentry
+        deny[msg] {
+          c := input.request.object.spec.containers[_]
+          c.name == "debug"
+          msg := "debug containers are not allowed"
+        }
+      match:
+        operations: [CREATE, UPDATE]
+        resources:
+          - apiGroups: [""]
+            apiVersions: ["v1"]
+            resources: ["pods"]
+```
+
+When a `PolicyGroup` entry shares a `key` with an existing standalone `Policy` (one with no `OwnerReference` to any `PolicyGroup`), the standalone policy takes priority and the group entry is skipped.
+
+### Violation messages
+
+When a policy triggers, the response includes the group, key, and description:
+
+```
+[security/runAsPrivileged] container "app" must not run as privileged
+  描述：Fails when securityContext.privileged is true.
+```
+
+`audit`-mode violations appear as `AdmissionResponse.Warnings` (request is allowed).
+
+## Standalone Policy Example
 
 ```yaml
 apiVersion: kubesentry.io/v1alpha1
@@ -146,6 +275,11 @@ helm install kubesentry charts/kubesentry \
 | `failurePolicy` | `Fail` | Webhook failure policy |
 | `policy.versionHistoryLimit` | `20` | Max `PolicyVersion` objects per Policy |
 | `webhookNamespaceSelector` | excludes `kube-system`, `kubesentry-system` | Namespace selector |
+| `builtinGroups.security.enabled` | `true` | Enable the Security policy group |
+| `builtinGroups.efficiency.enabled` | `true` | Enable the Efficiency policy group |
+| `builtinGroups.reliability.enabled` | `true` | Enable the Reliability policy group |
+| `builtinGroups.<group>.policies.<key>.enabled` | — | Enable/disable a single built-in policy |
+| `builtinGroups.<group>.policies.<key>.mode` | — | Override mode (`enforce`\|`audit`) for a single policy |
 
 ## Development
 
@@ -204,11 +338,13 @@ kubesentry/
 │   └── operator/main.go      # operator + tls-setup subcommand
 ├── internal/
 │   ├── api/v1alpha1/         # CRD type definitions
+│   ├── builtins/             # embedded Rego library (37 built-in policies)
+│   │   └── rego/             # .rego files (one per policy)
 │   ├── webhook/              # OPA evaluator, cache, HTTP handler
-│   ├── operator/             # Policy and WebhookConfig reconcilers
+│   ├── operator/             # Policy, PolicyGroup, and WebhookConfig reconcilers
 │   └── tlssetup/             # ECDSA cert generation
 ├── charts/kubesentry/        # Helm chart
-│   ├── crds/                 # CRD manifests
+│   ├── crds/                 # CRD manifests (Policy, PolicyVersion, PolicyGroup)
 │   └── templates/            # K8s resource templates
 ├── Dockerfile.webhook        # runtime-only, no build step
 └── Dockerfile.operator

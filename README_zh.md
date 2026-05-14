@@ -2,41 +2,50 @@
 
 [English](README.md) | 中文
 
-基于 OPA/Rego 策略引擎的 Kubernetes Validating Admission Webhook，通过 CRD 管理策略生命周期，支持版本控制与回滚。
+基于 OPA/Rego 策略引擎的 Kubernetes Validating Admission Webhook，通过 CRD 管理策略生命周期，支持内置策略组、版本控制与回滚。
 
 ## 架构
 
 两个独立的 Go 二进制程序共享相同的 CRD API 类型：
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Kubernetes 集群                       │
-│                                                         │
-│  ┌──────────────────┐      ┌──────────────────────────┐ │
-│  │  kubesentry-     │      │   kubesentry-operator    │ │
-│  │  webhook         │      │                          │ │
-│  │                  │      │  PolicyReconciler        │ │
-│  │  - OPA 评估器    │      │  - 验证 Rego             │ │
-│  │  - 策略缓存      │      │  - 创建 PolicyVersion    │ │
-│  │  - /validate     │      │  - 处理回滚              │ │
-│  │  - /healthz      │      │                          │ │
-│  │  - /readyz       │      │  WebhookConfigReconciler │ │
-│  └────────┬─────────┘      │  - 聚合规则              │ │
-│           │                │  - 更新 VWC              │ │
-│           │ 监听           └──────────────────────────┘ │
-│           ▼                                             │
-│  ┌──────────────────┐      ┌──────────────────────────┐ │
-│  │   Policy CRD     │      │  PolicyVersion CRD       │ │
-│  │   （集群级别）    │      │  （不可变快照）           │ │
-│  └──────────────────┘      └──────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                         Kubernetes 集群                         │
+│                                                                 │
+│  ┌──────────────────┐      ┌────────────────────────────────┐  │
+│  │  kubesentry-     │      │     kubesentry-operator        │  │
+│  │  webhook         │      │                                │  │
+│  │                  │      │  PolicyGroupReconciler         │  │
+│  │  - OPA 评估器    │      │  - 创建子 Policy CRD           │  │
+│  │  - 策略缓存      │      │  - 内置策略库（37 条规则）      │  │
+│  │  - /validate     │      │  - 冲突检测                    │  │
+│  │  - /healthz      │      │                                │  │
+│  │  - /readyz       │      │  PolicyReconciler              │  │
+│  └────────┬─────────┘      │  - 验证 Rego                   │  │
+│           │                │  - 创建 PolicyVersion          │  │
+│           │ 监听           │  - 处理回滚                    │  │
+│           ▼                │                                │  │
+│  ┌──────────────────┐      │  WebhookConfigReconciler       │  │
+│  │   Policy CRD     │      │  - 聚合规则                    │  │
+│  │   （集群级别）    │      │  - 更新 VWC                    │  │
+│  └──────────────────┘      └────────────────────────────────┘  │
+│                                                                 │
+│  ┌──────────────────┐      ┌────────────────────────────────┐  │
+│  │  PolicyGroup CRD │      │  PolicyVersion CRD             │  │
+│  │  （集群级别）     │      │  （不可变快照）                 │  │
+│  └──────────────────┘      └────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## 功能特性
 
 - **嵌入式 OPA 引擎** — 直接内嵌 OPA，无需 sidecar
 - **CRD 策略管理** — 以 `Policy` Kubernetes 资源定义策略
-- **双执行模式** — `enforce`（拦截）或 `audit`（仅记录日志）
+- **内置策略组** — 37 条精选规则，覆盖 Security、Efficiency、Reliability 三个分组，安装时自动部署
+- **策略组管理** — 支持分组级别和单条策略的独立开关
+- **自定义策略组** — 创建自己的 `PolicyGroup` CRD；当自定义策略与内置策略的 key 相同时，自定义策略优先
+- **结构化违规消息** — 拒绝响应包含 `[组/key] 消息` 和描述字段；audit 模式违规以 `AdmissionResponse.Warnings` 返回
+- **双执行模式** — `enforce`（拦截）或 `audit`（仅记录/告警）
 - **版本控制** — 每次策略变更自动创建不可变的 `PolicyVersion` 快照
 - **一键回滚** — 设置 `spec.rollbackTo.version` 即可还原任意历史版本
 - **动态规则同步** — Operator 自动根据 Ready 状态的策略更新 `ValidatingWebhookConfiguration`
@@ -45,7 +54,127 @@
 - **Leader 选举** — Operator 支持高可用 Leader 选举
 - **多平台镜像** — 同时支持 `linux/amd64` 和 `linux/arm64`
 
-## 策略示例
+## 内置策略组
+
+KubeSentry 内置 37 条策略，分为三个组，默认全部启用：
+
+### Security（23 条）
+
+| Key | 默认模式 | 说明 |
+|---|---|---|
+| `runAsPrivileged` | enforce | 禁止容器以特权模式运行 |
+| `privilegeEscalationAllowed` | enforce | 禁止 `allowPrivilegeEscalation: true` |
+| `runAsRootAllowed` | audit | 未设置 `runAsNonRoot` 时告警 |
+| `notReadOnlyRootFilesystem` | audit | 未设置 `readOnlyRootFilesystem` 时告警 |
+| `linuxHardening` | enforce | 要求至少配置 seccompProfile、seLinuxOptions 或 capabilities.drop 之一 |
+| `insecureCapabilities` | audit | 添加不安全 capability 时告警 |
+| `dangerousCapabilities` | enforce | 禁止危险 capability（SYS_ADMIN、NET_ADMIN 等） |
+| `hostPIDSet` | enforce | 禁止 `hostPID: true` |
+| `hostIPCSet` | enforce | 禁止 `hostIPC: true` |
+| `hostNetworkSet` | audit | 使用 `hostNetwork: true` 时告警 |
+| `hostPortSet` | audit | 设置 `hostPort` 时告警 |
+| `sensitiveContainerEnvVar` | enforce | 禁止环境变量名包含敏感关键词 |
+| `automountServiceAccountToken` | audit | 自动挂载服务账号令牌时告警 |
+| `sensitiveConfigmapContent` | enforce | 禁止 ConfigMap 包含疑似敏感内容的键 |
+| `tlsSettingsMissing` | audit | Ingress 未配置 TLS 时告警 |
+| `clusterrolePodExecAttach` | enforce | 禁止 ClusterRole 授予 pods/exec 或 pods/attach |
+| `rolePodExecAttach` | enforce | 禁止 Role 授予 pods/exec 或 pods/attach |
+| `clusterrolebindingPodExecAttach` | enforce | 禁止 ClusterRoleBinding 引用名称包含 exec/attach 的角色 |
+| `rolebindingRolePodExecAttach` | enforce | 禁止 RoleBinding 引用名称包含 exec/attach 的 Role |
+| `rolebindingClusterRolePodExecAttach` | enforce | 禁止 RoleBinding 引用名称包含 exec/attach 的 ClusterRole |
+| `clusterrolebindingClusterAdmin` | enforce | 禁止 ClusterRoleBinding 绑定 cluster-admin |
+| `rolebindingClusterAdminClusterRole` | enforce | 禁止 RoleBinding 绑定 cluster-admin ClusterRole |
+| `rolebindingClusterAdminRole` | enforce | 禁止 RoleBinding 绑定名为 cluster-admin 的 Role |
+
+### Efficiency（4 条）
+
+| Key | 默认模式 | 说明 |
+|---|---|---|
+| `cpuRequestsMissing` | audit | 未设置 CPU requests 时告警 |
+| `memoryRequestsMissing` | audit | 未设置内存 requests 时告警 |
+| `cpuLimitsMissing` | audit | 未设置 CPU limits 时告警 |
+| `memoryLimitsMissing` | audit | 未设置内存 limits 时告警 |
+
+### Reliability（10 条）
+
+| Key | 默认模式 | 说明 |
+|---|---|---|
+| `readinessProbeMissing` | audit | 未配置 readiness probe 时告警 |
+| `livenessProbeMissing` | audit | 未配置 liveness probe 时告警 |
+| `tagNotSpecified` | enforce | 禁止镜像不带 tag 或使用 `:latest` |
+| `pullPolicyNotAlways` | audit | imagePullPolicy 非 Always 时告警 |
+| `priorityClassNotSet` | audit | 未设置 priorityClassName 时告警 |
+| `deploymentMissingReplicas` | audit | Deployment 副本数不足 2 时告警 |
+| `metadataAndInstanceMismatched` | audit | `metadata.name` 与 `app.kubernetes.io/instance` 不一致时告警 |
+| `topologySpreadConstraint` | audit | 未配置拓扑分布约束时告警 |
+| `hpaMaxAvailability` | audit | HPA maxReplicas ≤ minReplicas 时告警 |
+| `hpaMinAvailability` | audit | HPA minReplicas ≤ 1 时告警 |
+
+### 自定义内置组行为
+
+通过 Helm values 关闭整个组或单条策略：
+
+```yaml
+builtinGroups:
+  security:
+    enabled: true
+    policies:
+      hostNetworkSet:
+        enabled: false       # 禁用该策略
+      runAsRootAllowed:
+        mode: enforce        # 将模式覆盖为 enforce
+  efficiency:
+    enabled: false           # 禁用整个组
+```
+
+## PolicyGroup CRD
+
+也可以创建自己的策略组，混合使用内置策略和自定义策略：
+
+```yaml
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyGroup
+metadata:
+  name: my-policies
+spec:
+  enabled: true
+  displayName: "我的自定义策略"
+  policies:
+    # 使用内置策略并覆盖模式
+    - key: runAsPrivileged
+      mode: enforce
+    # 不在内置库中的自定义策略
+    - key: noDebugContainers
+      mode: enforce
+      rego: |
+        package kubesentry
+        deny[msg] {
+          c := input.request.object.spec.containers[_]
+          c.name == "debug"
+          msg := "不允许运行 debug 容器"
+        }
+      match:
+        operations: [CREATE, UPDATE]
+        resources:
+          - apiGroups: [""]
+            apiVersions: ["v1"]
+            resources: ["pods"]
+```
+
+当 `PolicyGroup` 中的某个 key 与已存在的独立 `Policy`（即没有 `OwnerReference` 指向任何 `PolicyGroup` 的策略）相同时，独立策略优先，组内该条目被跳过。
+
+### 违规消息格式
+
+策略触发时，响应中包含所属组、key 和描述：
+
+```
+[security/runAsPrivileged] container "app" must not run as privileged
+  描述：Fails when securityContext.privileged is true.
+```
+
+`audit` 模式的违规以 `AdmissionResponse.Warnings` 返回（请求被放行）。
+
+## 独立策略示例
 
 ```yaml
 apiVersion: kubesentry.io/v1alpha1
@@ -144,6 +273,11 @@ helm install kubesentry charts/kubesentry \
 | `failurePolicy` | `Fail` | Webhook 失败策略 |
 | `policy.versionHistoryLimit` | `20` | 每个策略保留的最大版本数 |
 | `webhookNamespaceSelector` | 排除 `kube-system`、`kubesentry-system` | 命名空间选择器 |
+| `builtinGroups.security.enabled` | `true` | 启用 Security 策略组 |
+| `builtinGroups.efficiency.enabled` | `true` | 启用 Efficiency 策略组 |
+| `builtinGroups.reliability.enabled` | `true` | 启用 Reliability 策略组 |
+| `builtinGroups.<组>.policies.<key>.enabled` | — | 启用/禁用单条内置策略 |
+| `builtinGroups.<组>.policies.<key>.mode` | — | 覆盖单条策略的模式（`enforce`\|`audit`） |
 
 ## 开发
 
@@ -202,11 +336,13 @@ kubesentry/
 │   └── operator/main.go      # Operator + tls-setup 子命令
 ├── internal/
 │   ├── api/v1alpha1/         # CRD 类型定义
+│   ├── builtins/             # 内置 Rego 策略库（37 条规则）
+│   │   └── rego/             # .rego 文件（每条策略一个）
 │   ├── webhook/              # OPA 评估器、缓存、HTTP Handler
-│   ├── operator/             # Policy 和 WebhookConfig 协调器
+│   ├── operator/             # Policy、PolicyGroup 和 WebhookConfig 协调器
 │   └── tlssetup/             # ECDSA 证书生成
 ├── charts/kubesentry/        # Helm Chart
-│   ├── crds/                 # CRD 清单
+│   ├── crds/                 # CRD 清单（Policy、PolicyVersion、PolicyGroup）
 │   └── templates/            # Kubernetes 资源模板
 ├── Dockerfile.webhook        # 仅运行时镜像，不含构建步骤
 └── Dockerfile.operator
