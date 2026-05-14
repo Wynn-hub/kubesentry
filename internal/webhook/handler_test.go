@@ -154,3 +154,27 @@ func TestHandlerAuditModeAllows(t *testing.T) {
 
 // Compile-time check: PolicyCache satisfies PolicyStore.
 var _ webhook.PolicyStore = (*webhook.PolicyCache)(nil)
+
+func TestCompiledPolicyMetadataFields(t *testing.T) {
+	q, err := webhook.CompileRego(denyPrivilegedRego)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &webhook.CompiledPolicy{
+		Name:            "run-as-privileged",
+		Key:             "runAsPrivileged",
+		GroupName:       "security",
+		Description:     "Fails when privileged is true",
+		EnforcementMode: v1alpha1.ModeEnforce,
+		Query:           q,
+	}
+	if p.Key != "runAsPrivileged" {
+		t.Error("Key field not set")
+	}
+	if p.GroupName != "security" {
+		t.Error("GroupName field not set")
+	}
+	if p.Description == "" {
+		t.Error("Description field not set")
+	}
+}

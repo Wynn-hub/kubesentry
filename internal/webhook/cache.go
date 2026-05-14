@@ -11,6 +11,9 @@ import (
 // CompiledPolicy holds a pre-compiled OPA query and its match criteria.
 type CompiledPolicy struct {
 	Name            string
+	Key             string                // kubesentry.io/key label value
+	GroupName       string                // kubesentry.io/group label value
+	Description     string                // spec.description
 	EnforcementMode string
 	Match           v1alpha1.PolicyMatch
 	Query           rego.PreparedEvalQuery

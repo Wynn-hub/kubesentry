@@ -86,6 +86,9 @@ func syncPolicy(c *webhook.PolicyCache, obj interface{}) {
 	}
 	c.Set(p.Name, &webhook.CompiledPolicy{
 		Name:            p.Name,
+		Key:             p.Labels[v1alpha1.LabelKey],
+		GroupName:       p.Labels[v1alpha1.LabelGroup],
+		Description:     p.Spec.Description,
 		EnforcementMode: p.Spec.EnforcementMode,
 		Match:           p.Spec.Match,
 		Query:           q,
