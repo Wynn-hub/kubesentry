@@ -1,5 +1,6 @@
 ---
-# insecureCapabilities: Container with insecure capabilities
+# insecureCapabilities: Container adding insecure capability NET_BIND_SERVICE (audit mode)
+# satisfies: linuxHardening (capabilities.drop), privilegeEscalation=false
 apiVersion: v1
 kind: Pod
 metadata:
@@ -10,5 +11,7 @@ spec:
   - name: app
     image: nginx:1.19
     securityContext:
+      allowPrivilegeEscalation: false
       capabilities:
-        add: ["NET_RAW", "SYS_PTRACE"]
+        add: ["NET_BIND_SERVICE"]       # insecure capability — triggers audit rule
+        drop: ["ALL"]

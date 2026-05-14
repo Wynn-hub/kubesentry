@@ -1,5 +1,5 @@
 ---
-# priorityClassNotSet: Deployment without priorityClassName
+# priorityClassNotSet: Deployment without priorityClassName (audit mode)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,7 +15,12 @@ spec:
       labels:
         app: web
     spec:
+      automountServiceAccountToken: false
+      # priorityClassName NOT set — triggers audit rule
       containers:
       - name: app
         image: nginx:1.19
-      # missing priorityClassName
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]

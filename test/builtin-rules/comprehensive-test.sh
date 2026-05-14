@@ -2,8 +2,6 @@
 
 # 完整验证脚本 - 测试所有 37 条规则
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_NS="test-builtin-rules"
 KUBESENTRY_NS="kubesentry-system"
@@ -15,9 +13,9 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # 测试结果统计
-declare -i total=0
-declare -i passed=0
-declare -i failed=0
+total=0
+passed=0
+failed=0
 declare -a results=()
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -31,11 +29,11 @@ test_rule() {
     local yaml_file=$2
     local expected_behavior=$3  # "deny" 或 "allow"
 
-    ((total++))
+    total=$((total + 1))
 
     if [ ! -f "$SCRIPT_DIR/$yaml_file" ]; then
         log_fail "$rule_name (文件不存在: $yaml_file)"
-        ((failed++))
+        failed=$((failed + 1))
         results+=("SKIP|$rule_name|文件不存在")
         return
     fi
@@ -47,11 +45,11 @@ test_rule() {
         # 期望被拒绝
         if echo "$output" | grep -qE "denied|Forbidden"; then
             log_pass "$rule_name (被正确拒绝)"
-            ((passed++))
+            passed=$((passed + 1))
             results+=("PASS|$rule_name|规则正确触发，资源被拒绝")
         else
             log_fail "$rule_name (应该被拒绝但被接受)"
-            ((failed++))
+            failed=$((failed + 1))
             results+=("FAIL|$rule_name|规则未触发")
             kubectl delete -f "$SCRIPT_DIR/$yaml_file" -n $TEST_NS 2>/dev/null || true
         fi
@@ -59,12 +57,12 @@ test_rule() {
         # 期望被接受
         if echo "$output" | grep -qE "created|configured"; then
             log_pass "$rule_name (被正确接受 - audit 模式)"
-            ((passed++))
+            passed=$((passed + 1))
             results+=("PASS|$rule_name|审计模式：资源被接受（需检查日志）")
             kubectl delete -f "$SCRIPT_DIR/$yaml_file" -n $TEST_NS 2>/dev/null || true
         else
             log_fail "$rule_name (应该被接受但被拒绝)"
-            ((failed++))
+            failed=$((failed + 1))
             results+=("FAIL|$rule_name|不应该被拒绝")
         fi
     fi

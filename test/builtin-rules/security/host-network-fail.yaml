@@ -1,12 +1,17 @@
 ---
-# hostNetworkSet: Pod with hostNetwork=true
+# hostNetworkSet: Pod with hostNetwork=true (audit mode)
+# satisfies: linuxHardening, privilegeEscalation=false
 apiVersion: v1
 kind: Pod
 metadata:
   name: host-network-pod
   namespace: test-builtin-rules
 spec:
-  hostNetwork: true
+  hostNetwork: true                  # triggers audit rule
   containers:
   - name: app
     image: nginx:1.19
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

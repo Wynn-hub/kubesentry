@@ -1,5 +1,5 @@
 ---
-# topologySpreadConstraint: Deployment without topology spread constraint
+# topologySpreadConstraint: Deployment without topology spread constraint (audit mode)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,7 +15,12 @@ spec:
       labels:
         app: web
     spec:
+      automountServiceAccountToken: false
+      # topologySpreadConstraints NOT set — triggers audit rule
       containers:
       - name: app
         image: nginx:1.19
-      # missing topologySpreadConstraints
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]

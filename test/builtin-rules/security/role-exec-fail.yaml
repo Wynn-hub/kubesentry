@@ -1,11 +1,11 @@
 ---
-# rolePodExecAttach: Role with pods/attach
+# rolePodExecAttach: Role with pods/attach create permission
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: dangerous-role
+  name: test-dangerous-role
   namespace: test-builtin-rules
 rules:
 - apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list", "watch", "attach"]
+  resources: ["pods/attach"]
+  verbs: ["create"]

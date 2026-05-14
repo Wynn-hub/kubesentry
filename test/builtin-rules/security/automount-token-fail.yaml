@@ -1,12 +1,17 @@
 ---
-# automountServiceAccountToken: Pod without automountServiceAccountToken=false
+# automountServiceAccountToken: Pod without automountServiceAccountToken=false (audit mode)
+# satisfies: linuxHardening, privilegeEscalation=false
 apiVersion: v1
 kind: Pod
 metadata:
   name: automount-token-pod
   namespace: test-builtin-rules
 spec:
+  # automountServiceAccountToken NOT set to false — triggers audit rule
   containers:
   - name: app
     image: nginx:1.19
-  # automountServiceAccountToken 默认为 true
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

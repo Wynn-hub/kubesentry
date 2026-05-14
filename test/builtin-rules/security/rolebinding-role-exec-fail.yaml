@@ -1,14 +1,14 @@
 ---
-# rolebindingRolePodExecAttach: RoleBinding to Role with exec
+# rolebindingRolePodExecAttach: RoleBinding to Role named "pod-exec-role"
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: dangerous-role-binding
+  name: test-role-exec-binding
   namespace: test-builtin-rules
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: dangerous-role
+  name: pod-exec-role
 subjects:
 - kind: ServiceAccount
   name: default

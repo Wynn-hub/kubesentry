@@ -1,5 +1,6 @@
 ---
-# notReadOnlyRootFilesystem: Container without readOnlyRootFilesystem
+# notReadOnlyRootFilesystem: Container with readOnlyRootFilesystem=false (audit mode)
+# satisfies: linuxHardening (capabilities.drop), privilegeEscalation=false
 apiVersion: v1
 kind: Pod
 metadata:
@@ -10,4 +11,7 @@ spec:
   - name: app
     image: nginx:1.19
     securityContext:
-      readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: false    # triggers audit rule
+      capabilities:
+        drop: ["ALL"]

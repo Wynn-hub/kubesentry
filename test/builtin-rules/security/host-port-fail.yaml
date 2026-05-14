@@ -1,5 +1,6 @@
 ---
-# hostPortSet: Container with hostPort
+# hostPortSet: Container with hostPort (audit mode)
+# satisfies: linuxHardening, privilegeEscalation=false
 apiVersion: v1
 kind: Pod
 metadata:
@@ -11,4 +12,8 @@ spec:
     image: nginx:1.19
     ports:
     - containerPort: 8080
-      hostPort: 8080
+      hostPort: 8080                  # triggers audit rule
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

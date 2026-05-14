@@ -1,5 +1,5 @@
 ---
-# memoryLimitsMissing: Pod without memory limits
+# memoryLimitsMissing: Pod without memory limits (audit mode)
 apiVersion: v1
 kind: Pod
 metadata:
@@ -15,4 +15,8 @@ spec:
         memory: "128Mi"
       limits:
         cpu: "500m"
-      # missing memory limits
+      # missing memory limits — triggers audit rule
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

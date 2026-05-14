@@ -1,12 +1,12 @@
 ---
-# deploymentMissingReplicas: Deployment with only one replica
+# deploymentMissingReplicas: Deployment with only one replica (audit mode)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: single-replica
   namespace: test-builtin-rules
 spec:
-  replicas: 1
+  replicas: 1                        # triggers audit rule
   selector:
     matchLabels:
       app: web
@@ -15,6 +15,11 @@ spec:
       labels:
         app: web
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: app
         image: nginx:1.19
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]

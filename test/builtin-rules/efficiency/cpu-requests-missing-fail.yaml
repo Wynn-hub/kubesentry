@@ -1,5 +1,5 @@
 ---
-# cpuRequestsMissing: Pod without CPU requests
+# cpuRequestsMissing: Pod without CPU requests (audit mode)
 apiVersion: v1
 kind: Pod
 metadata:
@@ -13,4 +13,8 @@ spec:
       limits:
         cpu: "1"
         memory: "128Mi"
-      # missing requests
+      # missing cpu requests — triggers audit rule
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

@@ -1,10 +1,10 @@
 ---
-# clusterrolePodExecAttach: ClusterRole with pods/exec
+# clusterrolePodExecAttach: ClusterRole with pods/exec create permission
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: dangerous-clusterrole
+  name: test-dangerous-clusterrole
 rules:
 - apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list", "watch", "exec"]
+  resources: ["pods/exec"]
+  verbs: ["create"]

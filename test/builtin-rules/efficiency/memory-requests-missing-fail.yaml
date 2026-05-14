@@ -1,5 +1,5 @@
 ---
-# memoryRequestsMissing: Pod without memory requests
+# memoryRequestsMissing: Pod without memory requests (audit mode)
 apiVersion: v1
 kind: Pod
 metadata:
@@ -13,5 +13,10 @@ spec:
       requests:
         cpu: "100m"
       limits:
+        cpu: "500m"
         memory: "256Mi"
-      # missing memory requests
+      # missing memory requests — triggers audit rule
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

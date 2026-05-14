@@ -1,5 +1,5 @@
 ---
-# readinessProbeMissing: Deployment without readiness probe
+# readinessProbeMissing: Deployment without readiness probe (audit mode)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,7 +15,12 @@ spec:
       labels:
         app: web
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: app
         image: nginx:1.19
-        # missing readiness probe
+        # missing readiness probe — triggers audit rule
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]

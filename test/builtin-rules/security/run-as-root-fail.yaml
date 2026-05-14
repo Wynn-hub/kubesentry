@@ -1,5 +1,6 @@
 ---
-# runAsRootAllowed: Container without runAsNonRoot
+# runAsRootAllowed: Container without runAsNonRoot=true (audit mode)
+# satisfies: linuxHardening (capabilities.drop), privilegeEscalation=false
 apiVersion: v1
 kind: Pod
 metadata:
@@ -9,4 +10,8 @@ spec:
   containers:
   - name: app
     image: nginx:1.19
-    # 不设置 securityContext.runAsNonRoot，默认以root运行
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+      # runAsNonRoot NOT set — triggers audit rule

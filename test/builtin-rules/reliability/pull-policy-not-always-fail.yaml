@@ -1,12 +1,17 @@
 ---
-# pullPolicyNotAlways: Pod with imagePullPolicy != Always
+# pullPolicyNotAlways: Pod with imagePullPolicy != Always (audit mode)
 apiVersion: v1
 kind: Pod
 metadata:
   name: pull-policy-pod
   namespace: test-builtin-rules
 spec:
+  automountServiceAccountToken: false
   containers:
   - name: app
     image: nginx:1.19
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: IfNotPresent    # triggers audit rule
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

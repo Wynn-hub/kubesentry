@@ -1,9 +1,9 @@
 ---
-# clusterrolebindingClusterAdmin: ClusterRoleBinding to cluster-admin
+# clusterrolebindingClusterAdmin: ClusterRoleBinding to cluster-admin ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: admin-binding
+  name: test-admin-clusterrolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

@@ -1,12 +1,17 @@
 ---
-# livenessProbeMissing: Pod without liveness probe
+# livenessProbeMissing: Pod without liveness probe (audit mode)
 apiVersion: v1
 kind: Pod
 metadata:
   name: no-liveness-probe
   namespace: test-builtin-rules
 spec:
+  automountServiceAccountToken: false
   containers:
   - name: app
     image: nginx:1.19
-    # missing liveness probe
+    # missing liveness probe — triggers audit rule
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
