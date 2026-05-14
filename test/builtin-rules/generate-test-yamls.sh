@@ -13,6 +13,22 @@ echo "Creating test namespace: $NAMESPACE"
 
 # ==================== 安全规则 ====================
 
+cat > "$TEST_DIR/security/run-as-privileged-fail.yaml" << 'EOF'
+---
+# runAsPrivileged: Pod with privileged container (should FAIL)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: privileged-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: privileged-container
+    image: nginx:1.19
+    securityContext:
+      privileged: true
+EOF
+
 cat > "$TEST_DIR/security/privilege-escalation-fail.yaml" << 'EOF'
 ---
 # privilegeEscalationAllowed: Container with allowPrivilegeEscalation=true
