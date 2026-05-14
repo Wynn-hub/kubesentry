@@ -1,0 +1,14 @@
+---
+# insecureCapabilities: Container with insecure capabilities
+apiVersion: v1
+kind: Pod
+metadata:
+  name: insecure-caps-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    securityContext:
+      capabilities:
+        add: ["NET_RAW", "SYS_PTRACE"]

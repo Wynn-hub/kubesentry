@@ -1,0 +1,12 @@
+---
+# pullPolicyNotAlways: Pod with imagePullPolicy != Always
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pull-policy-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    imagePullPolicy: IfNotPresent

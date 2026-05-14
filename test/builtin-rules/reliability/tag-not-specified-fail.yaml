@@ -1,0 +1,11 @@
+---
+# tagNotSpecified: Pod with image tag as 'latest'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: latest-tag-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:latest

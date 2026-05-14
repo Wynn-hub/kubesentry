@@ -1,0 +1,11 @@
+---
+# sensitiveConfigmapContent: ConfigMap with sensitive content
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sensitive-config
+  namespace: test-builtin-rules
+data:
+  DATABASE_PASSWORD: "secret123"
+  AWS_SECRET_ACCESS_KEY: "myawssecret"
+  PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----"

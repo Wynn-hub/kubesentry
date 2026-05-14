@@ -1,0 +1,17 @@
+---
+# memoryRequestsMissing: Pod without memory requests
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-memory-request-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    resources:
+      requests:
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+      # missing memory requests

@@ -1,0 +1,12 @@
+---
+# linuxHardening: Container without Seccomp, SELinux, or capabilities.drop
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-hardening-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    # 没有Seccomp、SELinux或capabilities配置

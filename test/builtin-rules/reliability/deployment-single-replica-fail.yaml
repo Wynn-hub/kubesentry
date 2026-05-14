@@ -1,0 +1,20 @@
+---
+# deploymentMissingReplicas: Deployment with only one replica
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: single-replica
+  namespace: test-builtin-rules
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.19

@@ -1,0 +1,11 @@
+---
+# rolebindingClusterAdminRole: RoleBinding to Role with wildcard permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wildcard-role
+  namespace: test-builtin-rules
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]

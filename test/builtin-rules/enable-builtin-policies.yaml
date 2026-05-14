@@ -1,0 +1,87 @@
+---
+# PolicyGroup to enable all 37 built-in rules for testing
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyGroup
+metadata:
+  name: builtin-rules-test
+  namespace: kubesentry-system
+spec:
+  # Enable all built-in policies
+  policies:
+  # ==================== Security Rules ====================
+  - key: runAsPrivileged
+    enforceMode: enforce
+  - key: privilegeEscalationAllowed
+    enforceMode: enforce
+  - key: runAsRootAllowed
+    enforceMode: audit
+  - key: notReadOnlyRootFilesystem
+    enforceMode: audit
+  - key: linuxHardening
+    enforceMode: enforce
+  - key: insecureCapabilities
+    enforceMode: audit
+  - key: dangerousCapabilities
+    enforceMode: enforce
+  - key: hostPIDSet
+    enforceMode: enforce
+  - key: hostIPCSet
+    enforceMode: enforce
+  - key: hostNetworkSet
+    enforceMode: audit
+  - key: hostPortSet
+    enforceMode: audit
+  - key: sensitiveContainerEnvVar
+    enforceMode: enforce
+  - key: automountServiceAccountToken
+    enforceMode: audit
+  - key: sensitiveConfigmapContent
+    enforceMode: enforce
+  - key: tlsSettingsMissing
+    enforceMode: audit
+  - key: clusterrolePodExecAttach
+    enforceMode: enforce
+  - key: rolePodExecAttach
+    enforceMode: enforce
+  - key: clusterrolebindingPodExecAttach
+    enforceMode: enforce
+  - key: rolebindingRolePodExecAttach
+    enforceMode: enforce
+  - key: rolebindingClusterRolePodExecAttach
+    enforceMode: enforce
+  - key: clusterrolebindingClusterAdmin
+    enforceMode: enforce
+  - key: rolebindingClusterAdminClusterRole
+    enforceMode: enforce
+  - key: rolebindingClusterAdminRole
+    enforceMode: enforce
+  # ==================== Efficiency Rules ====================
+  - key: cpuRequestsMissing
+    enforceMode: audit
+  - key: memoryRequestsMissing
+    enforceMode: audit
+  - key: cpuLimitsMissing
+    enforceMode: audit
+  - key: memoryLimitsMissing
+    enforceMode: audit
+  # ==================== Reliability Rules ====================
+  - key: readinessProbeMissing
+    enforceMode: audit
+  - key: livenessProbeMissing
+    enforceMode: audit
+  - key: tagNotSpecified
+    enforceMode: enforce
+  - key: pullPolicyNotAlways
+    enforceMode: audit
+  - key: priorityClassNotSet
+    enforceMode: audit
+  - key: deploymentMissingReplicas
+    enforceMode: audit
+  - key: metadataAndInstanceMismatched
+    enforceMode: audit
+  - key: topologySpreadConstraint
+    enforceMode: audit
+  - key: hpaMaxAvailability
+    enforceMode: audit
+  - key: hpaMinAvailability
+    enforceMode: audit

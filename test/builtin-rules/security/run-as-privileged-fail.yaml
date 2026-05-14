@@ -1,0 +1,13 @@
+---
+# runAsPrivileged: Pod with privileged container (should FAIL)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: privileged-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: privileged-container
+    image: nginx:1.19
+    securityContext:
+      privileged: true

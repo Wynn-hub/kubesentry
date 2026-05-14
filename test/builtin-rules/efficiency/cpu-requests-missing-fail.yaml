@@ -1,0 +1,16 @@
+---
+# cpuRequestsMissing: Pod without CPU requests
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-cpu-request-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    resources:
+      limits:
+        cpu: "1"
+        memory: "128Mi"
+      # missing requests

@@ -1,0 +1,11 @@
+---
+# tagNotSpecified: Pod with image without tag
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-tag-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx

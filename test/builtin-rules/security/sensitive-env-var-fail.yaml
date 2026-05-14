@@ -1,0 +1,16 @@
+---
+# sensitiveContainerEnvVar: Container with sensitive env var
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sensitive-env-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    env:
+    - name: DATABASE_PASSWORD
+      value: "secret123"
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "secret456"

@@ -1,0 +1,12 @@
+---
+# hostIPCSet: Pod with hostIPC=true
+apiVersion: v1
+kind: Pod
+metadata:
+  name: host-ipc-pod
+  namespace: test-builtin-rules
+spec:
+  hostIPC: true
+  containers:
+  - name: app
+    image: nginx:1.19

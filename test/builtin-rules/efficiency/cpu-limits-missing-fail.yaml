@@ -1,0 +1,18 @@
+---
+# cpuLimitsMissing: Pod without CPU limits
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-cpu-limits-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        memory: "256Mi"
+      # missing cpu limits

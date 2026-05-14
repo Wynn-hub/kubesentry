@@ -1,0 +1,14 @@
+---
+# dangerousCapabilities: Container with dangerous capabilities
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dangerous-caps-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    securityContext:
+      capabilities:
+        add: ["SYS_ADMIN", "NET_ADMIN"]

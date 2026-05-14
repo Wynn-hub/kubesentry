@@ -1,0 +1,12 @@
+---
+# automountServiceAccountToken: Pod without automountServiceAccountToken=false
+apiVersion: v1
+kind: Pod
+metadata:
+  name: automount-token-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+  # automountServiceAccountToken 默认为 true

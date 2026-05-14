@@ -1,0 +1,12 @@
+---
+# hostNetworkSet: Pod with hostNetwork=true
+apiVersion: v1
+kind: Pod
+metadata:
+  name: host-network-pod
+  namespace: test-builtin-rules
+spec:
+  hostNetwork: true
+  containers:
+  - name: app
+    image: nginx:1.19

@@ -1,0 +1,12 @@
+---
+# hostPIDSet: Pod with hostPID=true
+apiVersion: v1
+kind: Pod
+metadata:
+  name: host-pid-pod
+  namespace: test-builtin-rules
+spec:
+  hostPID: true
+  containers:
+  - name: app
+    image: nginx:1.19

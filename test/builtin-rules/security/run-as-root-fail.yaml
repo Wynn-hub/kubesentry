@@ -1,0 +1,12 @@
+---
+# runAsRootAllowed: Container without runAsNonRoot
+apiVersion: v1
+kind: Pod
+metadata:
+  name: run-as-root-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    # 不设置 securityContext.runAsNonRoot，默认以root运行

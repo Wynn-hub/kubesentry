@@ -1,0 +1,13 @@
+---
+# notReadOnlyRootFilesystem: Container without readOnlyRootFilesystem
+apiVersion: v1
+kind: Pod
+metadata:
+  name: not-readonly-fs-pod
+  namespace: test-builtin-rules
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
+    securityContext:
+      readOnlyRootFilesystem: false

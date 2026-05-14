@@ -1,0 +1,13 @@
+---
+# metadataAndInstanceMismatched: Pod where app.kubernetes.io/instance != metadata.name
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+  namespace: test-builtin-rules
+  labels:
+    app.kubernetes.io/instance: different-name
+spec:
+  containers:
+  - name: app
+    image: nginx:1.19
