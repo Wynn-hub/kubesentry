@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: Pod
-metadata:
-  name: latest-tag-test
-  namespace: test-builtin-rules
-spec:
-  containers:
-  - name: app
-    image: nginx:latest
