@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: host-ipc-test
+  namespace: test-builtin-rules
+spec:
+  hostIPC: true
+  containers:
+  - name: app
+    image: nginx:1.19
+    securityContext:
+      privileged: false
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
