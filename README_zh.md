@@ -2,7 +2,23 @@
 
 [English](README.md) | 中文
 
+[![Go Version](https://img.shields.io/badge/go-1.26+-blue)](https://golang.org)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+[![Docker Hub](https://img.shields.io/docker/pulls/wynnhub/kubesentry-webhook?label=webhook%20pulls)](https://hub.docker.com/r/wynnhub/kubesentry-webhook)
+[![Docker Hub](https://img.shields.io/docker/pulls/wynnhub/kubesentry-operator?label=operator%20pulls)](https://hub.docker.com/r/wynnhub/kubesentry-operator)
+
 基于 OPA/Rego 策略引擎的 Kubernetes Validating Admission Webhook，通过 CRD 管理策略生命周期，支持内置策略组、版本控制与回滚。
+
+## 快速开始
+
+```bash
+helm install kubesentry \
+  oci://registry-1.docker.io/wynnhub/kubesentry \
+  --namespace kubesentry-system \
+  --create-namespace
+```
+
+无需登录——镜像和 Helm Chart 均在 Docker Hub 公开发布。Helm pre-install Job 会自动生成 TLS 证书并注入 `ValidatingWebhookConfiguration`。
 
 ## 架构
 
@@ -240,12 +256,18 @@ spec:
 - Helm 3.8+（支持 OCI）
 - 已配置的 `kubectl`
 
-### 从 Docker Hub 安装
+### 安装最新版本
 
 ```bash
-# 首次登录（私有仓库需要）
-helm registry login registry-1.docker.io -u wynnhub
+helm install kubesentry \
+  oci://registry-1.docker.io/wynnhub/kubesentry \
+  --namespace kubesentry-system \
+  --create-namespace
+```
 
+### 安装指定版本
+
+```bash
 helm install kubesentry \
   oci://registry-1.docker.io/wynnhub/kubesentry \
   --version 0.1.0 \
@@ -253,7 +275,14 @@ helm install kubesentry \
   --create-namespace
 ```
 
-Helm pre-install Job 会自动生成自签 CA 和服务端证书，存入 Secret，并将 `caBundle` 注入 `ValidatingWebhookConfiguration`。
+### Docker Hub 镜像
+
+| 镜像 | 标签 |
+|---|---|
+| [`wynnhub/kubesentry-webhook`](https://hub.docker.com/r/wynnhub/kubesentry-webhook) | `latest`、`v0.1.0` |
+| [`wynnhub/kubesentry-operator`](https://hub.docker.com/r/wynnhub/kubesentry-operator) | `latest`、`v0.1.0` |
+
+两个镜像均为公开仓库，支持 `linux/amd64` 和 `linux/arm64`。
 
 ### 从源码安装
 
@@ -268,7 +297,9 @@ helm install kubesentry charts/kubesentry \
 | 参数 | 默认值 | 说明 |
 |---|---|---|
 | `webhook.replicas` | `2` | Webhook 副本数 |
+| `webhook.image.tag` | *(chart appVersion)* | 覆盖镜像 tag |
 | `operator.replicas` | `1` | Operator 副本数 |
+| `operator.image.tag` | *(chart appVersion)* | 覆盖镜像 tag |
 | `tls.secretName` | `kubesentry-tls` | TLS Secret 名称 |
 | `failurePolicy` | `Fail` | Webhook 失败策略 |
 | `policy.versionHistoryLimit` | `20` | 每个策略保留的最大版本数 |
@@ -299,13 +330,13 @@ make helm-package  # lint + 打包 chart → dist/kubesentry-<version>.tgz
 ### 发布流程
 
 ```bash
-# 首次需要登录
+# 首次需要登录 Docker Hub（推送时需要）
 docker login -u wynnhub
 helm registry login registry-1.docker.io -u wynnhub
 
 # 打 tag 并发布
 git tag v0.1.0
-make release
+make release VERSION=v0.1.0
 ```
 
 `make release` 按顺序执行：
@@ -314,7 +345,7 @@ make release
 |---|---|---|
 | 1. 测试 | `go test ./...` | — |
 | 2. 交叉编译 | 容器内 `go build` | `bin/linux-amd64/`、`bin/linux-arm64/` |
-| 3. 推送镜像 | `docker buildx ... --push` | `wynnhub/kubesentry-webhook:v0.1.0`（amd64 + arm64 manifest） |
+| 3. 推送镜像 | `docker buildx ... --push` | `wynnhub/kubesentry-webhook:v0.1.0` + `:latest` |
 | 4. 打包 Chart | `helm package` | `dist/kubesentry-0.1.0.tgz` |
 | 5. 推送 Chart | `helm push ... oci://` | `oci://registry-1.docker.io/wynnhub/kubesentry:0.1.0` |
 
@@ -324,7 +355,7 @@ make release
 
 ```bash
 # 查看已发布的平台信息
-docker buildx imagetools inspect wynnhub/kubesentry-webhook:v0.1.0
+docker buildx imagetools inspect wynnhub/kubesentry-webhook:latest
 ```
 
 ### 项目结构

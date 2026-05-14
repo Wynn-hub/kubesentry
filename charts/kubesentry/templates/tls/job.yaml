@@ -14,7 +14,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: tls-setup
-          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
           command: ["/operator", "tls-setup"]
           env:

@@ -94,12 +94,14 @@ image: .builder build-linux
 	  .
 
 # Build and push multi-platform manifest to registry.
+# Always pushes both a versioned tag and :latest.
 image-push: .builder build-linux
 	docker buildx build \
 	  --builder $(BUILDER) \
 	  --platform $(PLATFORMS) \
 	  --file Dockerfile.webhook \
 	  --tag $(WEBHOOK_IMAGE) \
+	  --tag $(REGISTRY)/kubesentry-webhook:latest \
 	  --push \
 	  .
 	docker buildx build \
@@ -107,6 +109,7 @@ image-push: .builder build-linux
 	  --platform $(PLATFORMS) \
 	  --file Dockerfile.operator \
 	  --tag $(OPERATOR_IMAGE) \
+	  --tag $(REGISTRY)/kubesentry-operator:latest \
 	  --push \
 	  .
 

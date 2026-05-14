@@ -2,7 +2,23 @@
 
 English | [中文](README_zh.md)
 
+[![Go Version](https://img.shields.io/badge/go-1.26+-blue)](https://golang.org)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+[![Docker Hub](https://img.shields.io/docker/pulls/wynnhub/kubesentry-webhook?label=webhook%20pulls)](https://hub.docker.com/r/wynnhub/kubesentry-webhook)
+[![Docker Hub](https://img.shields.io/docker/pulls/wynnhub/kubesentry-operator?label=operator%20pulls)](https://hub.docker.com/r/wynnhub/kubesentry-operator)
+
 A Kubernetes Validating Admission Webhook that enforces OPA/Rego policies defined as CRDs, with an Operator for lifecycle management, version control, and built-in policy groups.
+
+## Quick Start
+
+```bash
+helm install kubesentry \
+  oci://registry-1.docker.io/wynnhub/kubesentry \
+  --namespace kubesentry-system \
+  --create-namespace
+```
+
+No login required — images and chart are publicly available on Docker Hub. The Helm pre-install Job auto-generates TLS certificates and patches the `ValidatingWebhookConfiguration`.
 
 ## Architecture
 
@@ -239,23 +255,27 @@ spec:
 ### Prerequisites
 
 - Kubernetes 1.28+
-- Helm 3.8+ (OCI support)
+- Helm 3.8+
 - `kubectl` configured
 
-### Install from Docker Hub
+### Install (latest)
 
 ```bash
-# Login once (only needed for private repositories)
-helm registry login registry-1.docker.io -u wynnhub
+helm install kubesentry \
+  oci://registry-1.docker.io/wynnhub/kubesentry \
+  --namespace kubesentry-system \
+  --create-namespace
+```
 
+### Install a specific version
+
+```bash
 helm install kubesentry \
   oci://registry-1.docker.io/wynnhub/kubesentry \
   --version 0.1.0 \
   --namespace kubesentry-system \
   --create-namespace
 ```
-
-The Helm pre-install Job generates a self-signed CA and server certificate, stores them in a Secret, and patches the `ValidatingWebhookConfiguration` `caBundle` automatically.
 
 ### Install from source
 
@@ -265,12 +285,23 @@ helm install kubesentry charts/kubesentry \
   --create-namespace
 ```
 
+### Docker Hub images
+
+| Image | Tags |
+|---|---|
+| [`wynnhub/kubesentry-webhook`](https://hub.docker.com/r/wynnhub/kubesentry-webhook) | `latest`, `v0.1.0` |
+| [`wynnhub/kubesentry-operator`](https://hub.docker.com/r/wynnhub/kubesentry-operator) | `latest`, `v0.1.0` |
+
+Both images are public and support `linux/amd64` and `linux/arm64`.
+
 ## Configuration
 
 | Value | Default | Description |
 |---|---|---|
 | `webhook.replicas` | `2` | Webhook server replicas |
+| `webhook.image.tag` | *(chart appVersion)* | Override image tag |
 | `operator.replicas` | `1` | Operator replicas |
+| `operator.image.tag` | *(chart appVersion)* | Override image tag |
 | `tls.secretName` | `kubesentry-tls` | TLS Secret name |
 | `failurePolicy` | `Fail` | Webhook failure policy |
 | `policy.versionHistoryLimit` | `20` | Max `PolicyVersion` objects per Policy |
@@ -307,7 +338,7 @@ helm registry login registry-1.docker.io -u wynnhub
 
 # Tag and release
 git tag v0.1.0
-make release
+make release VERSION=v0.1.0
 ```
 
 `make release` runs in order:
@@ -316,17 +347,17 @@ make release
 |---|---|---|
 | 1. Test | `go test ./...` | — |
 | 2. Cross-compile | `docker run golang:1.26-alpine go build` | `bin/linux-amd64/`, `bin/linux-arm64/` |
-| 3. Push images | `docker buildx ... --push` | `wynnhub/kubesentry-webhook:v0.1.0` (amd64 + arm64 manifest) |
+| 3. Push images | `docker buildx ... --push` | `wynnhub/kubesentry-webhook:v0.1.0` + `:latest` |
 | 4. Package chart | `helm package` | `dist/kubesentry-0.1.0.tgz` |
 | 5. Push chart | `helm push ... oci://` | `oci://registry-1.docker.io/wynnhub/kubesentry:0.1.0` |
 
 ### Multi-platform images
 
-Images are published as OCI Manifest Lists. Kubernetes selects the correct platform automatically at pull time based on the node architecture — no chart configuration needed.
+Images are published as OCI Manifest Lists. Kubernetes selects the correct platform automatically at pull time — no chart configuration needed.
 
 ```bash
 # Inspect published platforms
-docker buildx imagetools inspect wynnhub/kubesentry-webhook:v0.1.0
+docker buildx imagetools inspect wynnhub/kubesentry-webhook:latest
 ```
 
 ### Project structure
