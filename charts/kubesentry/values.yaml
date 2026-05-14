@@ -40,3 +40,20 @@ webhookNamespaceSelector:
       values:
         - kube-system
         - kubesentry-system
+
+builtinGroups:
+  security:
+    enabled: true
+    displayName: "Security"
+    description: "Security policies for Kubernetes workloads"
+    policies: {}
+  efficiency:
+    enabled: true
+    displayName: "Efficiency"
+    description: "Resource efficiency policies"
+    policies: {}
+  reliability:
+    enabled: true
+    displayName: "Reliability"
+    description: "Reliability and availability policies"
+    policies: {}
