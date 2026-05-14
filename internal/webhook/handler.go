@@ -3,6 +3,7 @@ package webhook
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -84,6 +85,26 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(review)
 }
 
+type policyResult struct {
+	policy *CompiledPolicy
+	msgs   []string
+}
+
+func formatViolation(p *CompiledPolicy, msg string) string {
+	groupKey := p.Name
+	if p.Key != "" {
+		groupKey = p.Key
+		if p.GroupName != "" {
+			groupKey = p.GroupName + "/" + p.Key
+		}
+	}
+	s := fmt.Sprintf("[%s] %s", groupKey, msg)
+	if p.Description != "" {
+		s += "\n  描述：" + p.Description
+	}
+	return s
+}
+
 func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionRequest, policies []*CompiledPolicy) *admissionv1.AdmissionResponse {
 	if len(policies) == 0 {
 		return &admissionv1.AdmissionResponse{UID: req.UID, Allowed: true}
@@ -95,8 +116,9 @@ func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionReques
 	defer cancel()
 
 	var (
-		mu      sync.Mutex
-		denials []string
+		mu             sync.Mutex
+		enforceResults []policyResult
+		auditResults   []policyResult
 	)
 
 	var wg sync.WaitGroup
@@ -110,7 +132,7 @@ func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionReques
 				slog.Error("policy eval error", "policy", p.Name, "error", err)
 				if p.EnforcementMode == v1alpha1.ModeEnforce {
 					mu.Lock()
-					denials = append(denials, "policy evaluation error: "+p.Name)
+					enforceResults = append(enforceResults, policyResult{p, []string{"policy evaluation error: " + p.Name}})
 					mu.Unlock()
 				}
 				return
@@ -118,27 +140,53 @@ func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionReques
 			if len(msgs) == 0 {
 				return
 			}
-			if p.EnforcementMode == v1alpha1.ModeAudit {
-				slog.Warn("audit policy violation", "policy", p.Name, "denials", msgs)
-				return
-			}
 			mu.Lock()
-			denials = append(denials, msgs...)
-			mu.Unlock()
+			defer mu.Unlock()
+			if p.EnforcementMode == v1alpha1.ModeAudit {
+				auditResults = append(auditResults, policyResult{p, msgs})
+			} else {
+				enforceResults = append(enforceResults, policyResult{p, msgs})
+			}
 		}()
 	}
 	wg.Wait()
 
-	if len(denials) > 0 {
+	if len(enforceResults) > 0 {
+		var parts []string
+		for _, r := range enforceResults {
+			for _, msg := range r.msgs {
+				parts = append(parts, formatViolation(r.policy, msg))
+			}
+		}
+		for _, r := range auditResults {
+			for _, msg := range r.msgs {
+				parts = append(parts, formatViolation(r.policy, msg))
+			}
+		}
 		return &admissionv1.AdmissionResponse{
 			UID:     req.UID,
 			Allowed: false,
 			Result: &metav1.Status{
 				Code:    http.StatusForbidden,
-				Message: strings.Join(denials, "; "),
+				Message: strings.Join(parts, "\n\n"),
 			},
 		}
 	}
+
+	if len(auditResults) > 0 {
+		var warnings []string
+		for _, r := range auditResults {
+			for _, msg := range r.msgs {
+				warnings = append(warnings, formatViolation(r.policy, msg))
+			}
+		}
+		return &admissionv1.AdmissionResponse{
+			UID:      req.UID,
+			Allowed:  true,
+			Warnings: warnings,
+		}
+	}
+
 	return &admissionv1.AdmissionResponse{UID: req.UID, Allowed: true}
 }
 

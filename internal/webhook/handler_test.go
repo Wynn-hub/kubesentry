@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -176,5 +177,108 @@ func TestCompiledPolicyMetadataFields(t *testing.T) {
 	}
 	if p.Description == "" {
 		t.Error("Description field not set")
+	}
+}
+
+func TestHandlerEnforceMessageContainsGroupKey(t *testing.T) {
+	q, _ := webhook.CompileRego(denyPrivilegedRego)
+	policy := &webhook.CompiledPolicy{
+		Name:            "run-as-privileged",
+		Key:             "runAsPrivileged",
+		GroupName:       "security",
+		Description:     "Fails when privileged is true",
+		EnforcementMode: v1alpha1.ModeEnforce,
+		Query:           q,
+	}
+	store := &stubStore{ready: true, policies: []*webhook.CompiledPolicy{policy}}
+	h := webhook.NewHandler(store)
+
+	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(buildAdmissionRequest("CREATE", true)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	var resp admissionv1.AdmissionReview
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Response.Allowed {
+		t.Fatal("expected denied")
+	}
+	msg := resp.Response.Result.Message
+	if !strings.Contains(msg, "[security/runAsPrivileged]") {
+		t.Errorf("message missing [group/key] prefix, got: %q", msg)
+	}
+	if !strings.Contains(msg, "Fails when privileged is true") {
+		t.Errorf("message missing description, got: %q", msg)
+	}
+}
+
+func TestHandlerAuditModeReturnsWarnings(t *testing.T) {
+	q, _ := webhook.CompileRego(denyPrivilegedRego)
+	policy := &webhook.CompiledPolicy{
+		Name:            "host-network-set",
+		Key:             "hostNetworkSet",
+		GroupName:       "security",
+		Description:     "Fails when hostNetwork is configured",
+		EnforcementMode: v1alpha1.ModeAudit,
+		Query:           q,
+	}
+	store := &stubStore{ready: true, policies: []*webhook.CompiledPolicy{policy}}
+	h := webhook.NewHandler(store)
+
+	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(buildAdmissionRequest("CREATE", true)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	var resp admissionv1.AdmissionReview
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if !resp.Response.Allowed {
+		t.Fatal("audit mode should allow")
+	}
+	if len(resp.Response.Warnings) == 0 {
+		t.Error("expected warnings for audit violation")
+	}
+	if !strings.Contains(resp.Response.Warnings[0], "[security/hostNetworkSet]") {
+		t.Errorf("warning missing [group/key], got: %q", resp.Response.Warnings[0])
+	}
+}
+
+func TestHandlerEnforceAndAuditBothInMessage(t *testing.T) {
+	q, _ := webhook.CompileRego(denyPrivilegedRego)
+	enforcePolicy := &webhook.CompiledPolicy{
+		Name:            "run-as-privileged",
+		Key:             "runAsPrivileged",
+		GroupName:       "security",
+		Description:     "enforce description",
+		EnforcementMode: v1alpha1.ModeEnforce,
+		Query:           q,
+	}
+	auditPolicy := &webhook.CompiledPolicy{
+		Name:            "host-network-set",
+		Key:             "hostNetworkSet",
+		GroupName:       "security",
+		Description:     "audit description",
+		EnforcementMode: v1alpha1.ModeAudit,
+		Query:           q,
+	}
+	store := &stubStore{ready: true, policies: []*webhook.CompiledPolicy{enforcePolicy, auditPolicy}}
+	h := webhook.NewHandler(store)
+
+	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(buildAdmissionRequest("CREATE", true)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	var resp admissionv1.AdmissionReview
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Response.Allowed {
+		t.Fatal("expected denied")
+	}
+	msg := resp.Response.Result.Message
+	if !strings.Contains(msg, "runAsPrivileged") {
+		t.Errorf("enforce policy missing from message: %q", msg)
+	}
+	if !strings.Contains(msg, "hostNetworkSet") {
+		t.Errorf("audit policy missing from message: %q", msg)
 	}
 }
