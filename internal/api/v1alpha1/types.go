@@ -3,12 +3,24 @@ package v1alpha1
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 const (
-	PhaseReady   = "Ready"
-	PhaseInvalid = "Invalid"
-	PhaseSyncing = "Syncing"
+	PhaseReady     = "Ready"
+	PhaseInvalid   = "Invalid"
+	PhaseSyncing   = "Syncing"
+	PhaseDisabled  = "Disabled"
+	PhaseDegraded  = "Degraded"
 
 	ModeEnforce = "enforce"
 	ModeAudit   = "audit"
+)
+
+// Label keys used on Policy objects created by PolicyGroupReconciler.
+const (
+	LabelKey    = "kubesentry.io/key"
+	LabelGroup  = "kubesentry.io/group"
+	LabelSource = "kubesentry.io/source"
+
+	SourceBuiltin = "builtin"
+	SourceCustom  = "custom"
 )
 
 // MatchResource defines a resource rule for policy matching.
@@ -35,6 +47,7 @@ type PolicySpec struct {
 	Match           PolicyMatch `json:"match"`
 	EnforcementMode string      `json:"enforcementMode"`
 	Rego            string      `json:"rego"`
+	Description     string      `json:"description,omitempty"`
 	RollbackTo      *RollbackTo `json:"rollbackTo,omitempty"`
 }
 
@@ -96,4 +109,46 @@ type PolicyVersionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []PolicyVersion `json:"items"`
+}
+
+// PolicyInGroup is a single policy entry inside a PolicyGroup spec.
+type PolicyInGroup struct {
+	Key     string       `json:"key"`
+	Enabled *bool        `json:"enabled,omitempty"` // nil = true
+	Mode    string       `json:"mode,omitempty"`    // "enforce"|"audit"; empty = library default
+	Rego    string       `json:"rego,omitempty"`    // required if key not in built-in library
+	Match   *PolicyMatch `json:"match,omitempty"`   // required if key not in built-in library
+}
+
+// PolicyGroupSpec defines the desired state of a PolicyGroup.
+type PolicyGroupSpec struct {
+	DisplayName string          `json:"displayName,omitempty"`
+	Description string          `json:"description,omitempty"`
+	Enabled     bool            `json:"enabled"`
+	Policies    []PolicyInGroup `json:"policies,omitempty"`
+}
+
+// PolicyGroupStatus defines the observed state of a PolicyGroup.
+type PolicyGroupStatus struct {
+	Phase           string             `json:"phase,omitempty"`
+	ActivePolicies  int                `json:"activePolicies,omitempty"`
+	SkippedPolicies int                `json:"skippedPolicies,omitempty"`
+	Conditions      []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster,shortName=pg
+type PolicyGroup struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              PolicyGroupSpec   `json:"spec,omitempty"`
+	Status            PolicyGroupStatus `json:"status,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+type PolicyGroupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PolicyGroup `json:"items"`
 }

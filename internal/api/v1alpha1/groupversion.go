@@ -14,4 +14,5 @@ var (
 func init() {
 	SchemeBuilder.Register(&Policy{}, &PolicyList{})
 	SchemeBuilder.Register(&PolicyVersion{}, &PolicyVersionList{})
+	SchemeBuilder.Register(&PolicyGroup{}, &PolicyGroupList{})
 }

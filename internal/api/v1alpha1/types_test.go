@@ -81,3 +81,54 @@ func TestPolicyRollbackTo(t *testing.T) {
 		t.Error("rollbackTo not preserved")
 	}
 }
+
+func TestPolicyGroupDeepCopy(t *testing.T) {
+	enabled := true
+	orig := &v1alpha1.PolicyGroup{
+		ObjectMeta: metav1.ObjectMeta{Name: "security"},
+		Spec: v1alpha1.PolicyGroupSpec{
+			DisplayName: "Security",
+			Enabled:     true,
+			Policies: []v1alpha1.PolicyInGroup{
+				{Key: "runAsPrivileged", Enabled: &enabled, Mode: "enforce"},
+			},
+		},
+		Status: v1alpha1.PolicyGroupStatus{
+			Phase:           v1alpha1.PhaseReady,
+			ActivePolicies:  1,
+			SkippedPolicies: 0,
+		},
+	}
+	cp := orig.DeepCopy()
+	if cp.Name != "security" {
+		t.Error("name not copied")
+	}
+	if len(cp.Spec.Policies) != 1 {
+		t.Error("policies not copied")
+	}
+	cp.Spec.Policies[0].Key = "changed"
+	if orig.Spec.Policies[0].Key == "changed" {
+		t.Error("DeepCopy shares slice backing array")
+	}
+	if cp.Spec.Policies[0].Enabled == orig.Spec.Policies[0].Enabled {
+		t.Error("DeepCopy shares Enabled pointer")
+	}
+}
+
+func TestPolicySpecDescriptionField(t *testing.T) {
+	spec := v1alpha1.PolicySpec{
+		Description:     "test description",
+		EnforcementMode: v1alpha1.ModeEnforce,
+	}
+	cp := new(v1alpha1.PolicySpec)
+	spec.DeepCopyInto(cp)
+	if cp.Description != "test description" {
+		t.Errorf("Description not copied: %q", cp.Description)
+	}
+}
+
+func TestLabelConstants(t *testing.T) {
+	if v1alpha1.LabelKey == "" || v1alpha1.LabelGroup == "" || v1alpha1.LabelSource == "" {
+		t.Error("label constants must not be empty")
+	}
+}

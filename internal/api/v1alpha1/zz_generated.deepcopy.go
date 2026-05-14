@@ -3,6 +3,7 @@
 package v1alpha1
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -174,6 +175,88 @@ func (in *PolicyVersionList) DeepCopy() *PolicyVersionList {
 }
 
 func (in *PolicyVersionList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+func (in *PolicyInGroup) DeepCopyInto(out *PolicyInGroup) {
+	*out = *in
+	if in.Enabled != nil {
+		b := *in.Enabled
+		out.Enabled = &b
+	}
+	if in.Match != nil {
+		out.Match = new(PolicyMatch)
+		in.Match.DeepCopyInto(out.Match)
+	}
+}
+
+func (in *PolicyGroupSpec) DeepCopyInto(out *PolicyGroupSpec) {
+	*out = *in
+	if in.Policies != nil {
+		out.Policies = make([]PolicyInGroup, len(in.Policies))
+		for i := range in.Policies {
+			in.Policies[i].DeepCopyInto(&out.Policies[i])
+		}
+	}
+}
+
+func (in *PolicyGroupStatus) DeepCopyInto(out *PolicyGroupStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		out.Conditions = make([]metav1.Condition, len(in.Conditions))
+		copy(out.Conditions, in.Conditions)
+	}
+}
+
+func (in *PolicyGroup) DeepCopyInto(out *PolicyGroup) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+func (in *PolicyGroup) DeepCopy() *PolicyGroup {
+	if in == nil {
+		return nil
+	}
+	out := new(PolicyGroup)
+	in.DeepCopyInto(out)
+	return out
+}
+
+func (in *PolicyGroup) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+func (in *PolicyGroupList) DeepCopyInto(out *PolicyGroupList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		out.Items = make([]PolicyGroup, len(in.Items))
+		for i := range in.Items {
+			in.Items[i].DeepCopyInto(&out.Items[i])
+		}
+	}
+}
+
+func (in *PolicyGroupList) DeepCopy() *PolicyGroupList {
+	if in == nil {
+		return nil
+	}
+	out := new(PolicyGroupList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+func (in *PolicyGroupList) DeepCopyObject() runtime.Object {
 	if c := in.DeepCopy(); c != nil {
 		return c
 	}
