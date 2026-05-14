@@ -25,3 +25,11 @@ dist/
 
 # Claude Code
 .claude/
+
+# Generated coverage reports
+*.html
+coverage.out
+*.out
+
+# Misc
+rules.xlsx
