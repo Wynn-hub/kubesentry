@@ -176,6 +176,7 @@ func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionReques
 	if len(auditResults) > 0 {
 		var warnings []string
 		for _, r := range auditResults {
+			slog.Warn("audit violation", "policy", r.policy.Key, "group", r.policy.GroupName, "count", len(r.msgs))
 			for _, msg := range r.msgs {
 				warnings = append(warnings, formatViolation(r.policy, msg))
 			}
