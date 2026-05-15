@@ -376,7 +376,13 @@ make release VERSION=vx.y.z
 git checkout -b release-x.y.z vx.y.z
 git push origin release-x.y.z
 
-# 6. GitHub Release
+# 6. Pin image tags on release branch (this commit stays here — never cherry-pick to main)
+#    Edit charts/kubesentry/values.yaml: set both image tags to "vx.y.z"
+git add charts/kubesentry/values.yaml
+git commit -m "chore(helm): pin image tags to vx.y.z for release"
+git push origin release-x.y.z
+
+# 7. GitHub Release
 gh release create vx.y.z --title "vx.y.z" --target main --notes-file <notes.md> --latest
 ```
 
@@ -421,6 +427,13 @@ git branch -d hotfix/<description>
 | **MAJOR** | ① Breaking: CRD fields removed/renamed, migration required; ② Milestone: production-ready or architectural milestone (team decision) |
 
 These three must stay in sync on every release: Git tag · `Chart.yaml` version/appVersion · GitHub Release title.
+
+### Image Tag Policy
+
+| Branch | `values.yaml` image tag | Rule |
+|--------|------------------------|------|
+| `main` | `"latest"` | Always tracks the latest build. Never change to a specific version. |
+| `release-x.y.z` | `"vx.y.z"` | Pinned during release (step 6). This commit must not be cherry-picked back to `main`. |
 
 ## Questions?
 

@@ -120,12 +120,17 @@ These rules apply to every git operation in this repository.
 
 **Hotfix rule:** A hotfix commit must be in `main` before it is cherry-picked to any release branch. Never patch a release branch without backporting.
 
+**Image tag policy:**
+- `main` `values.yaml` always has `tag: "latest"` — never change to a specific version
+- On release branch only: pin both image tags to `"vx.y.z"`, commit as `chore(helm): pin image tags to vx.y.z for release` — this commit must NOT be cherry-picked to `main`
+
 **Release checklist (run on `main`):**
 1. `make test` passes
 2. Bump `charts/kubesentry/Chart.yaml` `version` + `appVersion`, commit
 3. `git tag vx.y.z && git push origin main && git push origin vx.y.z`
 4. `make release VERSION=vx.y.z`
 5. `git checkout -b release-x.y.z vx.y.z && git push origin release-x.y.z`
-6. `gh release create vx.y.z --title "vx.y.z" --target main --notes-file <notes> --latest`
+6. On release branch: set both `values.yaml` image tags to `"vx.y.z"`, commit `chore(helm): pin image tags to vx.y.z for release`, push
+7. `gh release create vx.y.z --title "vx.y.z" --target main --notes-file <notes> --latest`
 
 **Version bumps:** PATCH = bugfix only · MINOR = new feature · MAJOR = breaking change or milestone
