@@ -1,6 +1,7 @@
 export GOROOT := /opt/homebrew/Cellar/go/1.26.2/libexec
 
-.PHONY: build build-linux image image-push helm-package helm-push release login clean test lint help
+.PHONY: build build-linux image image-push helm-package helm-push release login clean \
+        test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -8,6 +9,7 @@ PLATFORMS ?= linux/amd64,linux/arm64
 BUILDER   ?= kubesentry-builder
 CHART_DIR  = charts/kubesentry
 DIST_DIR   = dist
+REPORT_DIR = $(DIST_DIR)/test-reports
 
 # VERSION is the single source of truth for all artifact naming.
 # Override at the command line: make release VERSION=v0.1.0
@@ -32,6 +34,15 @@ WEBHOOK_IMAGE  = $(REGISTRY)/kubesentry-webhook:$(TAG)
 OPERATOR_IMAGE = $(REGISTRY)/kubesentry-operator:$(TAG)
 
 CMDS = webhook operator
+
+# Test tooling — auto-installed to GOPATH/bin on first use.
+GOTESTSUM = $(shell go env GOPATH)/bin/gotestsum
+
+$(GOTESTSUM):
+	go install gotest.tools/gotestsum@latest
+
+# Install all test tooling in one shot.
+tools: $(GOTESTSUM)
 
 # ── Step 1: Build (local native arch, for development) ───────────────────────
 build:
@@ -63,6 +74,7 @@ build-linux:
 	done
 
 # ── Test & Lint ───────────────────────────────────────────────────────────────
+# Quick run for local development — no report files produced.
 test:
 	go test ./... -count=1
 
@@ -77,12 +89,51 @@ build-image-e2e: build-linux
 	docker build -f Dockerfile.webhook -t wynnhub/kubesentry-webhook:e2e-test .
 	docker build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
 
-# Run E2E tests against docker-desktop k8s (requires e2e-test images)
+# Run E2E tests against docker-desktop k8s (requires e2e-test images).
+# Quick run for local development — no report files produced.
 test-e2e:
 	go test ./test/e2e/... -v -tags e2e -timeout 15m
 
-# Full release gate: unit tests + build + E2E (all must pass before release)
-test-all: test build-image-e2e test-e2e
+# ── Regression Test Reports ───────────────────────────────────────────────────
+# Run unit tests and emit JUnit XML + HTML report to $(REPORT_DIR).
+# The HTML report is generated even when tests fail so failures are inspectable.
+test-report: $(GOTESTSUM)
+	@mkdir -p $(REPORT_DIR)
+	$(GOTESTSUM) \
+	  --junitfile $(REPORT_DIR)/unit-tests.xml \
+	  --jsonfile  $(REPORT_DIR)/unit-tests.json \
+	  --format    pkgname \
+	  -- ./... -count=1; \
+	  EXIT=$$?; \
+	  python3 scripts/junit2html.py \
+	    $(REPORT_DIR)/unit-tests.xml \
+	    $(REPORT_DIR)/unit-tests.html \
+	    "KubeSentry Unit Tests — $(VERSION)"; \
+	  exit $$EXIT
+
+# Run E2E tests and emit JUnit XML + HTML report to $(REPORT_DIR).
+test-e2e-report: $(GOTESTSUM)
+	@mkdir -p $(REPORT_DIR)
+	$(GOTESTSUM) \
+	  --junitfile $(REPORT_DIR)/e2e-tests.xml \
+	  --jsonfile  $(REPORT_DIR)/e2e-tests.json \
+	  --format    pkgname \
+	  -- ./test/e2e/... -v -tags e2e -timeout 15m; \
+	  EXIT=$$?; \
+	  python3 scripts/junit2html.py \
+	    $(REPORT_DIR)/e2e-tests.xml \
+	    $(REPORT_DIR)/e2e-tests.html \
+	    "KubeSentry E2E Tests — $(VERSION)"; \
+	  exit $$EXIT
+
+# Full release gate: unit tests + build + E2E, all with report generation.
+test-all: test-report build-image-e2e test-e2e-report
+	@echo ""
+	@echo "All tests passed. Reports saved to $(REPORT_DIR)/"
+	@printf "  %-40s (HTML)\n" "$(REPORT_DIR)/unit-tests.html"
+	@printf "  %-40s (HTML)\n" "$(REPORT_DIR)/e2e-tests.html"
+	@printf "  %-40s (JUnit XML)\n" "$(REPORT_DIR)/unit-tests.xml"
+	@printf "  %-40s (JUnit XML)\n" "$(REPORT_DIR)/e2e-tests.xml"
 
 # ── Step 3: Package into multi-platform images ────────────────────────────────
 # buildx reads bin/linux-{amd64,arm64}/ via TARGETARCH injected at build time.
@@ -164,6 +215,7 @@ login:
 clean:
 	rm -rf bin/ $(DIST_DIR)/ .builder
 	docker buildx rm $(BUILDER) 2>/dev/null || true
+	go clean -testcache
 
 # ── Help ──────────────────────────────────────────────────────────────────────
 help:
@@ -176,21 +228,28 @@ help:
 	@printf "  %-20s %s\n" "GO_IMAGE" "Go builder image (default: golang:1.26-alpine)"
 	@echo ""
 	@echo "Development:"
-	@printf "  %-20s %s\n" "build"        "Compile for local arch → bin/webhook, bin/operator"
-	@printf "  %-20s %s\n" "test"         "Run all tests"
-	@printf "  %-20s %s\n" "lint"         "Run go vet"
+	@printf "  %-22s %s\n" "build"           "Compile for local arch → bin/webhook, bin/operator"
+	@printf "  %-22s %s\n" "test"            "Run unit tests (no report)"
+	@printf "  %-22s %s\n" "test-e2e"        "Run E2E tests (no report, requires e2e-test images)"
+	@printf "  %-22s %s\n" "lint"            "Run go vet"
+	@printf "  %-22s %s\n" "tools"           "Install test tooling (gotestsum)"
+	@echo ""
+	@echo "Regression Reports:"
+	@printf "  %-22s %s\n" "test-report"     "Unit tests + HTML/JUnit report → dist/test-reports/"
+	@printf "  %-22s %s\n" "test-e2e-report" "E2E tests + HTML/JUnit report  → dist/test-reports/"
+	@printf "  %-22s %s\n" "test-all"        "Full regression: unit + e2e with reports (used by release)"
 	@echo ""
 	@echo "Release:"
-	@printf "  %-20s %s\n" "build-linux"  "Cross-compile in Docker → bin/linux-amd64/, bin/linux-arm64/"
-	@printf "  %-20s %s\n" "image"        "Build multi-platform images and load into local daemon"
-	@printf "  %-20s %s\n" "image-push"   "Build and push multi-platform images to registry"
-	@printf "  %-20s %s\n" "helm-package" "Lint and package Helm chart → dist/kubesentry-<version>.tgz"
-	@printf "  %-20s %s\n" "helm-push"    "Push Helm chart to oci://registry-1.docker.io/\$$REGISTRY"
-	@printf "  %-20s %s\n" "release"      "Full pipeline: test → image-push → helm-push"
+	@printf "  %-22s %s\n" "build-linux"  "Cross-compile in Docker → bin/linux-amd64/, bin/linux-arm64/"
+	@printf "  %-22s %s\n" "image"        "Build multi-platform images and load into local daemon"
+	@printf "  %-22s %s\n" "image-push"   "Build and push multi-platform images to registry"
+	@printf "  %-22s %s\n" "helm-package" "Lint and package Helm chart → dist/kubesentry-<version>.tgz"
+	@printf "  %-22s %s\n" "helm-push"    "Push Helm chart to oci://registry-1.docker.io/\$$REGISTRY"
+	@printf "  %-22s %s\n" "release"      "Full pipeline: test-all → image-push → helm-push"
 	@echo ""
 	@echo "Maintenance:"
-	@printf "  %-20s %s\n" "login"        "Login to Docker Hub (run once before release)"
-	@printf "  %-20s %s\n" "clean"        "Remove bin/, dist/, buildx builder"
+	@printf "  %-22s %s\n" "login"        "Login to Docker Hub (run once before release)"
+	@printf "  %-22s %s\n" "clean"        "Remove bin/, dist/, buildx builder, test cache"
 	@echo ""
 	@echo "Examples:"
 	@printf "  %s\n" "  make release VERSION=v0.1.0"
