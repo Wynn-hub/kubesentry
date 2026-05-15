@@ -69,6 +69,19 @@ test:
 lint:
 	go vet ./...
 
+# ── E2E Tests ─────────────────────────────────────────────────────────────────
+# Build images tagged e2e-test (local only, no push to registry)
+build-image-e2e:
+	docker build -f Dockerfile.webhook -t wynnhub/kubesentry-webhook:e2e-test .
+	docker build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
+
+# Run E2E tests against docker-desktop k8s (requires e2e-test images)
+test-e2e:
+	go test ./test/e2e/... -v -tags e2e -timeout 15m
+
+# Full release gate: unit tests + build + E2E (all must pass before release)
+test-all: test build-image-e2e test-e2e
+
 # ── Step 3: Package into multi-platform images ────────────────────────────────
 # buildx reads bin/linux-{amd64,arm64}/ via TARGETARCH injected at build time.
 .builder:
