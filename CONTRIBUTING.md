@@ -264,11 +264,11 @@ The webhook evaluates `data.kubesentry.deny` to collect violations.
    - Reference any related issues (e.g., "Closes #123")
    - Test plan listing manual steps to verify the change
 
-3. **Merge requirements:**
-   - All CI checks pass (tests, lint, type checks)
+3. **Land requirements:**
+   - All CI checks pass (tests, lint)
+   - No conflicts with `main` (rebase first if behind)
+   - Commit history is linear — no merge commits
    - At least one code review approval
-   - No merge conflicts with `main`
-   - Commit history is clean (squash if needed)
 
 ### Code Review Checklist
 
