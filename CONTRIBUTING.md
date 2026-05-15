@@ -280,6 +280,22 @@ Reviewers will verify:
 - ✓ No breaking API changes (or documented breaking changes)
 - ✓ Documentation updated if needed
 
+## Branch Protection
+
+The following GitHub branch protection settings are recommended for `main`:
+
+| Setting | Value |
+|---------|-------|
+| Require status checks before merging | ✓ (CI tests + lint) |
+| Require branches to be up to date | ✓ |
+| Restrict force pushes | ✓ (block all) |
+| Restrict deletions | ✓ |
+| Allow rebase merging only | ✓ (disable merge commits and squash) |
+
+Configure at: **Settings → Branches → Branch protection rules → `main`**
+
+`release-x.y.z` branches follow the same rules, with the addition that only maintainers may push (to enforce the hotfix-only policy).
+
 ## Reporting Issues
 
 ### Security Vulnerabilities
