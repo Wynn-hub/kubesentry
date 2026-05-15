@@ -358,8 +358,8 @@ Releases are cut by maintainers from `main`. Full spec: [`docs/superpowers/specs
 ### Normal Release (MINOR / PATCH / MAJOR)
 
 ```bash
-# 1. All tests pass
-make test
+# 1. All tests pass (unit + E2E)
+make test-all
 
 # 2. Bump Chart.yaml (version + appVersion)
 git add charts/kubesentry/Chart.yaml

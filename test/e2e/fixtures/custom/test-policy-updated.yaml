@@ -1,0 +1,23 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: e2e-forbidden-label
+spec:
+  enforcementMode: enforce
+  description: "E2E test: denies pods with forbidden app labels (updated)"
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+  rego: |
+    package kubesentry
+    deny[msg] {
+      input.request.object.metadata.labels["app"] == "forbidden-app"
+      msg := "pods with app=forbidden-app label are not allowed"
+    }
+    deny[msg] {
+      input.request.object.metadata.labels["app"] == "also-forbidden"
+      msg := "pods with app=also-forbidden label are not allowed"
+    }

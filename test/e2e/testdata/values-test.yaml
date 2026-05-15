@@ -11,3 +11,57 @@ operator:
     repository: wynnhub/kubesentry-operator
     tag: "e2e-test"
     pullPolicy: Never
+
+builtinGroups:
+  security:
+    enabled: true
+    displayName: "Security"
+    description: "Security policies for Kubernetes workloads"
+    policies:
+      runAsPrivileged: {}
+      privilegeEscalationAllowed: {}
+      runAsRootAllowed: {}
+      notReadOnlyRootFilesystem: {}
+      linuxHardening: {}
+      insecureCapabilities: {}
+      dangerousCapabilities: {}
+      hostPIDSet: {}
+      hostIPCSet: {}
+      hostNetworkSet: {}
+      hostPortSet: {}
+      sensitiveContainerEnvVar: {}
+      automountServiceAccountToken: {}
+      sensitiveConfigmapContent: {}
+      tlsSettingsMissing: {}
+      clusterrolePodExecAttach: {}
+      rolePodExecAttach: {}
+      clusterrolebindingPodExecAttach: {}
+      rolebindingRolePodExecAttach: {}
+      rolebindingClusterRolePodExecAttach: {}
+      clusterrolebindingClusterAdmin: {}
+      rolebindingClusterAdminClusterRole: {}
+      rolebindingClusterAdminRole: {}
+  efficiency:
+    enabled: true
+    displayName: "Efficiency"
+    description: "Resource efficiency policies"
+    policies:
+      cpuRequestsMissing: {}
+      memoryRequestsMissing: {}
+      cpuLimitsMissing: {}
+      memoryLimitsMissing: {}
+  reliability:
+    enabled: true
+    displayName: "Reliability"
+    description: "Reliability and availability policies"
+    policies:
+      readinessProbeMissing: {}
+      livenessProbeMissing: {}
+      tagNotSpecified: {}
+      pullPolicyNotAlways: {}
+      priorityClassNotSet: {}
+      deploymentMissingReplicas: {}
+      metadataAndInstanceMismatched: {}
+      topologySpreadConstraint: {}
+      hpaMaxAvailability: {}
+      hpaMinAvailability: {}
