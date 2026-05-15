@@ -1,0 +1,17 @@
+# metadataAndInstanceMismatched: Pod where instance label matches name (audit mode, should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-app-pod
+  namespace: test-builtin-rules
+  labels:
+    app.kubernetes.io/instance: my-app-pod
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

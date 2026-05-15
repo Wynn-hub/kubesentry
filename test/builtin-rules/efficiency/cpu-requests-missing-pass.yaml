@@ -1,0 +1,22 @@
+# cpuRequestsMissing: Pod with cpu requests set (audit mode, should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-cpu-requests-pod
+  namespace: test-builtin-rules
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "256Mi"
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

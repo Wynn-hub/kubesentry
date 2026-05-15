@@ -1,0 +1,17 @@
+# runAsRootAllowed: Pod with runAsNonRoot=true (audit mode, should PASS with no warning)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-nonroot-pod
+  namespace: test-builtin-rules
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 1000
+      capabilities:
+        drop: ["ALL"]

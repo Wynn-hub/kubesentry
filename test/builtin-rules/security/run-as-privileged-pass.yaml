@@ -1,0 +1,16 @@
+# runAsPrivileged: Pod with privileged=false (should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-privileged-pod
+  namespace: test-builtin-rules
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    securityContext:
+      privileged: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

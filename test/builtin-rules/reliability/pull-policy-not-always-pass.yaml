@@ -1,0 +1,16 @@
+# pullPolicyNotAlways: Pod with imagePullPolicy=Always (audit mode, should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-pull-policy-pod
+  namespace: test-builtin-rules
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    imagePullPolicy: Always
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

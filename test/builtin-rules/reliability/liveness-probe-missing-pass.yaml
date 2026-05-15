@@ -1,0 +1,21 @@
+# livenessProbeMissing: Pod with liveness probe (audit mode, should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-liveness-pod
+  namespace: test-builtin-rules
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    livenessProbe:
+      httpGet:
+        path: /
+        port: 80
+      initialDelaySeconds: 10
+      periodSeconds: 10
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

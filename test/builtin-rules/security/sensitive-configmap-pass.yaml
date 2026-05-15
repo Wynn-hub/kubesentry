@@ -1,0 +1,10 @@
+# sensitiveConfigmapContent: ConfigMap with only safe keys (should PASS)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: safe-config
+  namespace: test-builtin-rules
+data:
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  REPLICAS: "3"

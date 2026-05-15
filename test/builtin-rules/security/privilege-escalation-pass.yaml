@@ -1,0 +1,15 @@
+# privilegeEscalationAllowed: Pod with allowPrivilegeEscalation=false (should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-no-escalation-pod
+  namespace: test-builtin-rules
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

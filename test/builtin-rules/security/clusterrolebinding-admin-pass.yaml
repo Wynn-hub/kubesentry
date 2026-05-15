@@ -1,0 +1,13 @@
+# clusterrolebindingClusterAdmin: ClusterRoleBinding not to cluster-admin (should PASS)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: test-safe-clusterrolebinding-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: test-builtin-rules

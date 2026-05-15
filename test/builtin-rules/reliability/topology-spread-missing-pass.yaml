@@ -1,0 +1,31 @@
+# topologySpreadConstraint: Deployment with topologySpreadConstraints (audit mode, should PASS)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: safe-topology-spread
+  namespace: test-builtin-rules
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      automountServiceAccountToken: false
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: web
+      containers:
+      - name: app
+        image: nginx:1.25.0
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]

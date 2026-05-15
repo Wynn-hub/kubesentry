@@ -1,0 +1,9 @@
+# clusterrolePodExecAttach: ClusterRole without pods/exec create permission (should PASS)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: test-safe-clusterrole
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]

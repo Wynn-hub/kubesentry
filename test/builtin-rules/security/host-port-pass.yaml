@@ -1,0 +1,17 @@
+# hostPortSet: Pod without hostPort (audit mode, should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-no-host-port-pod
+  namespace: test-builtin-rules
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    ports:
+    - containerPort: 8080
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

@@ -1,0 +1,17 @@
+# linuxHardening: Pod with seccomp profile and capabilities.drop (should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-hardened-pod
+  namespace: test-builtin-rules
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    securityContext:
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
+      capabilities:
+        drop: ["ALL"]

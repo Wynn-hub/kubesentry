@@ -1,0 +1,16 @@
+# notReadOnlyRootFilesystem: Pod with readOnlyRootFilesystem=true (audit mode, should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-readonly-fs-pod
+  namespace: test-builtin-rules
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]

@@ -1,0 +1,16 @@
+# hostPIDSet: Pod without hostPID (should PASS)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: safe-no-host-pid-pod
+  namespace: test-builtin-rules
+spec:
+  hostPID: false
+  automountServiceAccountToken: false
+  containers:
+  - name: app
+    image: nginx:1.25.0
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
