@@ -40,20 +40,56 @@ make build
 
 ### 1. Branching Strategy
 
-- Create a feature branch from `main`:
-  ```bash
-  git checkout -b feat/my-feature
-  ```
-- Use branch names matching the commit type: `feat/`, `fix/`, `refactor/`, `docs/`, `test/`
+Five branch types are used. **No merges — always rebase.**
 
-### 2. Making Changes
+| Branch | Pattern | Lifetime | Purpose |
+|--------|---------|---------|---------|
+| `main` | `main` | Permanent | Source of truth. Contains every merged feature and fix. |
+| release | `release-x.y.z` | Long-lived | Cut from `main` at release time. Accepts hotfix cherry-picks only. |
+| feature | `feat/<description>` | Short | New functionality. Rebase onto `main`, delete after landing. |
+| fix | `fix/<description>` | Short | Bug fixes against `main`. Rebase onto `main`, delete after landing. |
+| hotfix | `hotfix/<description>` | Short | Urgent fixes for old releases. Must land in `main` first. Delete after landing. |
+
+**Naming rules:**
+- Use kebab-case for `<description>`: `feat/policy-dry-run`, `fix/rbac-policygroups`, `hotfix/crd-schema-description`
+- Avoid vague names: `dev`, `test`, `wip` are not allowed
+
+### 2. Rebase Workflow
+
+**Feature / fix branches → `main`:**
+
+```bash
+# Sync with latest main before landing
+git fetch origin
+git rebase origin/main          # run on your feat/fix branch
+
+# Push rebased branch (use --force-with-lease, never bare --force)
+git push --force-with-lease origin feat/<name>
+
+# Fast-forward main
+git checkout main
+git rebase feat/<name>
+git push origin main
+
+# Clean up
+git push origin --delete feat/<name>
+git branch -d feat/<name>
+```
+
+**Rules:**
+- Rebase onto `main` HEAD before every landing — no exceptions
+- `--force-with-lease` only when pushing rebased branches to remote
+- `main` itself is never force-pushed
+- One logical change per commit; do not bundle unrelated changes
+
+### 3. Making Changes
 
 - **Single responsibility**: Each commit should represent a single logical change
 - **Test-driven development**: Write tests before or alongside implementation
 - **Keep commits small**: Aim for commits that can be reviewed in ~5 minutes
 - **No debug statements**: Remove all `console.log` and debug code before committing
 
-### 3. Running Tests
+### 4. Running Tests
 
 ```bash
 # Run all tests with coverage
@@ -66,7 +102,7 @@ GOROOT=/opt/homebrew/Cellar/go/1.26.2/libexec go test ./internal/webhook/... -v
 GOROOT=/opt/homebrew/Cellar/go/1.26.2/libexec go test ./internal/webhook/... -run TestHandlerDeniesPrivilegedPod -v
 ```
 
-### 4. Code Quality
+### 5. Code Quality
 
 Before committing, ensure:
 
