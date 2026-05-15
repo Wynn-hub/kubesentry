@@ -11,6 +11,7 @@ import (
 
 	v1alpha1 "github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/test/e2e/helpers"
+	admregv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,9 +21,9 @@ import (
 )
 
 var (
-	K8sClient      client.Client
-	K8sClientset   *kubernetes.Clientset
-	WebhookPodName string
+	k8sClient      client.Client
+	k8sClientset   *kubernetes.Clientset
+	webhookPodName string
 )
 
 func TestMain(m *testing.M) {
@@ -51,34 +52,35 @@ func TestMain(m *testing.M) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	_ = appsv1.AddToScheme(scheme)
+	_ = admregv1.AddToScheme(scheme)
 	_ = v1alpha1.AddToScheme(scheme)
 
-	K8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
 		panic("create k8s client: " + err.Error())
 	}
 
-	K8sClientset, err = kubernetes.NewForConfig(cfg)
+	k8sClientset, err = kubernetes.NewForConfig(cfg)
 	if err != nil {
 		panic("create clientset: " + err.Error())
 	}
 
-	if err := helpers.WaitForDeploymentReady(ctx, K8sClient, "kubesentry-system", "kubesentry-webhook", 2*time.Minute); err != nil {
+	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-webhook", 2*time.Minute); err != nil {
 		panic("webhook deployment not ready: " + err.Error())
 	}
-	if err := helpers.WaitForDeploymentReady(ctx, K8sClient, "kubesentry-system", "kubesentry-operator", 2*time.Minute); err != nil {
+	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-operator", 2*time.Minute); err != nil {
 		panic("operator deployment not ready: " + err.Error())
 	}
 
-	if err := helpers.CreateNamespace(ctx, K8sClient, helpers.TestNamespace); err != nil {
+	if err := helpers.CreateNamespace(ctx, k8sClient, helpers.TestNamespace); err != nil {
 		panic("create test namespace: " + err.Error())
 	}
 
-	if err := helpers.WaitForAllPoliciesReady(ctx, K8sClient, 2*time.Minute); err != nil {
+	if err := helpers.WaitForAllPoliciesReady(ctx, k8sClient, 2*time.Minute); err != nil {
 		panic("policies not ready: " + err.Error())
 	}
 
-	WebhookPodName, err = helpers.GetWebhookPodName(ctx, K8sClient)
+	webhookPodName, err = helpers.GetWebhookPodName(ctx, k8sClient)
 	if err != nil {
 		panic("get webhook pod: " + err.Error())
 	}

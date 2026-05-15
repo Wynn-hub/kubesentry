@@ -14,13 +14,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const webhookNamespace = "kubesentry-system"
+const WebhookNamespace = "kubesentry-system"
 
 // GetWebhookPodName returns the name of the first running webhook pod.
 func GetWebhookPodName(ctx context.Context, c client.Client) (string, error) {
 	var podList corev1.PodList
 	if err := c.List(ctx, &podList,
-		client.InNamespace(webhookNamespace),
+		client.InNamespace(WebhookNamespace),
 		client.MatchingLabels{"app": "kubesentry-webhook"},
 	); err != nil {
 		return "", fmt.Errorf("list webhook pods: %w", err)
@@ -30,13 +30,13 @@ func GetWebhookPodName(ctx context.Context, c client.Client) (string, error) {
 			return p.Name, nil
 		}
 	}
-	return "", fmt.Errorf("no running webhook pod found in %s", webhookNamespace)
+	return "", fmt.Errorf("no running webhook pod found in %s", WebhookNamespace)
 }
 
 // GetWebhookLogs returns the webhook container logs since the given time.
 func GetWebhookLogs(ctx context.Context, cs *kubernetes.Clientset, podName string, since time.Time) (string, error) {
 	sinceTime := metav1.NewTime(since)
-	req := cs.CoreV1().Pods(webhookNamespace).GetLogs(podName, &corev1.PodLogOptions{
+	req := cs.CoreV1().Pods(WebhookNamespace).GetLogs(podName, &corev1.PodLogOptions{
 		Container: "webhook",
 		SinceTime: &sinceTime,
 	})
