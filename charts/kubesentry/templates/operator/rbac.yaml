@@ -4,7 +4,7 @@ metadata:
   name: kubesentry-operator
 rules:
   - apiGroups: [kubesentry.io]
-    resources: [policies, policies/status, policyversions]
+    resources: [policies, policies/status, policyversions, policygroups, policygroups/status]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [admissionregistration.k8s.io]
     resources: [validatingwebhookconfigurations]
