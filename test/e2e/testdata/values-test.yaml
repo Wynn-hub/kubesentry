@@ -1,0 +1,13 @@
+webhook:
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-webhook
+    tag: "e2e-test"
+    pullPolicy: Never
+
+operator:
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-operator
+    tag: "e2e-test"
+    pullPolicy: Never
