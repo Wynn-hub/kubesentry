@@ -70,8 +70,10 @@ lint:
 	go vet ./...
 
 # ── E2E Tests ─────────────────────────────────────────────────────────────────
-# Build images tagged e2e-test (local only, no push to registry)
-build-image-e2e:
+# Build images tagged e2e-test (local only, no push to registry).
+# Depends on build-linux so e2e images are built from the same binaries
+# that will be published — the test validates the exact release artifact.
+build-image-e2e: build-linux
 	docker build -f Dockerfile.webhook -t wynnhub/kubesentry-webhook:e2e-test .
 	docker build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
 
@@ -144,7 +146,7 @@ helm-push: helm-package
 	@echo "Chart pushed: oci://registry-1.docker.io/$(REGISTRY)/kubesentry:$(CHART_VERSION)"
 
 # ── Full release pipeline ─────────────────────────────────────────────────────
-release: test image-push helm-push
+release: test-all image-push helm-push
 	@echo ""
 	@echo "Release complete:"
 	@echo "  webhook:  $(WEBHOOK_IMAGE)"

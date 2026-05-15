@@ -125,7 +125,7 @@ These rules apply to every git operation in this repository.
 - On release branch only: pin both image tags to `"vx.y.z"`, commit as `chore(helm): pin image tags to vx.y.z for release` — this commit must NOT be cherry-picked to `main`
 
 **Release checklist (run on `main`):**
-1. `make test` passes
+1. `make test-all` passes (unit tests + e2e — `make release` enforces this automatically)
 2. Bump `charts/kubesentry/Chart.yaml` `version` + `appVersion`, commit
 3. `git tag vx.y.z && git push origin main && git push origin vx.y.z`
 4. `make release VERSION=vx.y.z`
