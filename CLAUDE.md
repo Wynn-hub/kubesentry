@@ -101,3 +101,31 @@ charts/kubesentry/       Helm chart (CRDs in crds/, templates split by component
 ## IDE Diagnostics Note
 
 The gopls LSP may report false-positive "undefined" errors for symbols defined in the same compilation (e.g. after a `go build` succeeds). Always verify with `go build ./...` or `go test ./...` — if the compiler is happy, the IDE error is a stale cache and can be ignored.
+
+## Branching & Release Rules
+
+These rules apply to every git operation in this repository.
+
+**Branches:**
+- `main` — source of truth; every fix and feature must land here
+- `release-x.y.z` — cut from `main` at release time; accepts hotfix cherry-picks only
+- `feat/<name>` — feature work; rebase onto `main`, delete after landing
+- `fix/<name>` — bug fixes; rebase onto `main`, delete after landing
+- `hotfix/<name>` — patches for old releases; land in `main` first, then cherry-pick
+
+**Rebase only — no merge commits:**
+- Always `git rebase origin/main` before landing a branch
+- Use `--force-with-lease` when pushing rebased branches; never bare `--force`
+- Never force-push `main`
+
+**Hotfix rule:** A hotfix commit must be in `main` before it is cherry-picked to any release branch. Never patch a release branch without backporting.
+
+**Release checklist (run on `main`):**
+1. `make test` passes
+2. Bump `charts/kubesentry/Chart.yaml` `version` + `appVersion`, commit
+3. `git tag vx.y.z && git push origin main && git push origin vx.y.z`
+4. `make release VERSION=vx.y.z`
+5. `git checkout -b release-x.y.z vx.y.z && git push origin release-x.y.z`
+6. `gh release create vx.y.z --title "vx.y.z" --target main --notes-file <notes> --latest`
+
+**Version bumps:** PATCH = bugfix only · MINOR = new feature · MAJOR = breaking change or milestone
