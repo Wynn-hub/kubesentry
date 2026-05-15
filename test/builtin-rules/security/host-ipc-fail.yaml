@@ -1,5 +1,6 @@
 ---
-# hostIPCSet: Pod with hostIPC=true
+# hostIPCSet: Pod with hostIPC=true (should FAIL)
+# Only violates hostIPCSet. All other enforce-mode policies are satisfied.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -7,6 +8,11 @@ metadata:
   namespace: test-builtin-rules
 spec:
   hostIPC: true
+  automountServiceAccountToken: false
   containers:
   - name: app
     image: nginx:1.19
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

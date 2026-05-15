@@ -1,21 +1,20 @@
----
-# memoryRequestsMissing: Pod without memory requests (audit mode)
+# memoryRequestsMissing: Pod without memory requests or limits (audit mode)
+# No limits.memory either — prevents K8s from defaulting requests.memory = limits.memory
 apiVersion: v1
 kind: Pod
 metadata:
   name: no-memory-request-pod
   namespace: test-builtin-rules
 spec:
+  automountServiceAccountToken: false
   containers:
   - name: app
-    image: nginx:1.19
+    image: nginx:1.25.0
     resources:
       requests:
         cpu: "100m"
       limits:
         cpu: "500m"
-        memory: "256Mi"
-      # missing memory requests — triggers audit rule
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:

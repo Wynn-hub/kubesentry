@@ -1,19 +1,20 @@
----
-# cpuRequestsMissing: Pod without CPU requests (audit mode)
+# cpuRequestsMissing: Pod without CPU requests or limits (audit mode)
+# No limits.cpu either — prevents K8s from defaulting requests.cpu = limits.cpu
 apiVersion: v1
 kind: Pod
 metadata:
   name: no-cpu-request-pod
   namespace: test-builtin-rules
 spec:
+  automountServiceAccountToken: false
   containers:
   - name: app
-    image: nginx:1.19
+    image: nginx:1.25.0
     resources:
-      limits:
-        cpu: "1"
+      requests:
         memory: "128Mi"
-      # missing cpu requests — triggers audit rule
+      limits:
+        memory: "256Mi"
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:

@@ -1,13 +1,17 @@
 ---
 # runAsPrivileged: Pod with privileged container (should FAIL)
+# Only violates runAsPrivileged. All other enforce-mode policies are satisfied.
 apiVersion: v1
 kind: Pod
 metadata:
   name: privileged-pod
   namespace: test-builtin-rules
 spec:
+  automountServiceAccountToken: false
   containers:
   - name: privileged-container
     image: nginx:1.19
     securityContext:
       privileged: true
+      capabilities:
+        drop: ["ALL"]
