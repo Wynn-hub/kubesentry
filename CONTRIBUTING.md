@@ -337,14 +337,74 @@ kubectl logs -n kubesentry-system -l app=webhook -f
 
 ## Release Process
 
-Releases are handled by maintainers using the release Makefile:
+Releases are cut by maintainers from `main`. Full spec: [`docs/superpowers/specs/2026-05-15-branching-and-release-design.md`](docs/superpowers/specs/2026-05-15-branching-and-release-design.md).
+
+### Normal Release (MINOR / PATCH / MAJOR)
 
 ```bash
-git tag v0.2.0
-make release  # Cross-compile, push images, publish chart
+# 1. All tests pass
+make test
+
+# 2. Bump Chart.yaml (version + appVersion)
+git add charts/kubesentry/Chart.yaml
+git commit -m "chore(helm): bump chart and appVersion to x.y.z"
+
+# 3. Tag and push
+git tag vx.y.z
+git push origin main && git push origin vx.y.z
+
+# 4. Build and push images + chart
+make release VERSION=vx.y.z
+
+# 5. Cut release branch
+git checkout -b release-x.y.z vx.y.z
+git push origin release-x.y.z
+
+# 6. GitHub Release
+gh release create vx.y.z --title "vx.y.z" --target main --notes-file <notes.md> --latest
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md#release-process) for detailed release steps.
+### Hotfix Release (patching an old version)
+
+```bash
+# 1. Branch from the target release
+git checkout release-x.y.z
+git checkout -b hotfix/<description>
+
+# 2. Fix and commit
+
+# 3. Land in main first (main must always be most complete)
+git checkout main
+git rebase hotfix/<description>
+git push origin main
+
+# 4. Cherry-pick to the release branch
+git checkout release-x.y.z
+git cherry-pick <commit-hash>
+git push origin release-x.y.z
+
+# 5. Tag the patch and run normal release steps 4–6
+git tag vx.y.(z+1)
+
+# 6. Delete hotfix branch
+git push origin --delete hotfix/<description>
+git branch -d hotfix/<description>
+```
+
+**Critical rules:**
+- A hotfix **must land in `main` before** cherry-picking to any release branch
+- Never patch a release branch without backporting to `main`
+- Release branches accept no commits other than hotfix cherry-picks
+
+### Versioning (Semver)
+
+| Bump | When |
+|------|------|
+| **PATCH** | Backward-compatible bug fix, no new features, no API change |
+| **MINOR** | New functionality, backward-compatible, new optional CRD fields |
+| **MAJOR** | ① Breaking: CRD fields removed/renamed, migration required; ② Milestone: production-ready or architectural milestone (team decision) |
+
+These three must stay in sync on every release: Git tag · `Chart.yaml` version/appVersion · GitHub Release title.
 
 ## Questions?
 
