@@ -4,7 +4,7 @@ webhook:
   replicas: 2
   image:
     repository: wynnhub/kubesentry-webhook
-    tag: ""
+    tag: "v1.0.0"
     pullPolicy: IfNotPresent
   resources:
     requests:
@@ -18,7 +18,7 @@ operator:
   replicas: 1
   image:
     repository: wynnhub/kubesentry-operator
-    tag: ""
+    tag: "v1.0.0"
     pullPolicy: IfNotPresent
   resources:
     requests:
