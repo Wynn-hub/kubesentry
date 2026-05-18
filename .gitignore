@@ -31,5 +31,8 @@ dist/
 coverage.out
 *.out
 
+# Internal planning docs (not for public repo)
+docs/superpowers/
+
 # Misc
 rules.xlsx
