@@ -58,8 +58,11 @@ func (r *ExceptionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	// 3. Parse duration.
 	d, err := time.ParseDuration(pex.Spec.Duration)
-	if err != nil || d <= 0 {
-		return ctrl.Result{}, r.setInvalid(ctx, &pex, fmt.Sprintf("spec.duration invalid: %v", err))
+	if err != nil {
+		return ctrl.Result{}, r.setInvalid(ctx, &pex, fmt.Sprintf("spec.duration %q: %v", pex.Spec.Duration, err))
+	}
+	if d <= 0 {
+		return ctrl.Result{}, r.setInvalid(ctx, &pex, fmt.Sprintf("spec.duration must be positive, got %q", pex.Spec.Duration))
 	}
 	// 4. Parse retainAfterExpiry (default 0).
 	var retain time.Duration
@@ -96,7 +99,9 @@ func (r *ExceptionReconciler) handleExpired(ctx context.Context, pex *v1alpha1.P
 		// Defensive: shouldn't happen.
 		now := metav1.NewTime(r.now())
 		pex.Status.ExpiresAt = &now
-		_ = r.client.Status().Update(ctx, pex)
+		if err := r.client.Status().Update(ctx, pex); err != nil {
+			return ctrl.Result{}, fmt.Errorf("update status (Expired, missing ExpiresAt): %w", err)
+		}
 	}
 	deleteAt := pex.Status.ExpiresAt.Add(retain)
 	now := r.now()

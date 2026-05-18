@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -177,7 +178,7 @@ func TestExceptionReconcileExpiredTerminalEvenIfDurationExtended(t *testing.T) {
 	}
 	policy := newPolicy("run-as-privileged", validRego)
 	c := fake.NewClientBuilder().WithScheme(buildScheme()).WithObjects(pex, policy).WithStatusSubresource(pex).Build()
-	if _, err := operator.NewExceptionReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "ex1"}}); err != nil && !apierrorIsNotFound(err) {
+	if _, err := operator.NewExceptionReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "ex1"}}); err != nil && !apierrors.IsNotFound(err) {
 		t.Fatalf("reconcile: %v", err)
 	}
 	var got v1alpha1.PolicyException
@@ -188,4 +189,3 @@ func TestExceptionReconcileExpiredTerminalEvenIfDurationExtended(t *testing.T) {
 	}
 }
 
-func apierrorIsNotFound(err error) bool { return err != nil && strings.Contains(err.Error(), "not found") }
