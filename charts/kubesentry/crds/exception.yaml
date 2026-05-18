@@ -42,6 +42,12 @@ spec:
                   type: boolean
                 match:
                   type: object
+                  x-kubernetes-validations:
+                    - rule: >
+                        (has(self.namespaces) && size(self.namespaces) > 0) ||
+                        has(self.namespaceSelector) ||
+                        has(self.resourceSelector)
+                      message: "At least one of match.namespaces, match.namespaceSelector, or match.resourceSelector must be set."
                   properties:
                     namespaces:
                       type: array

@@ -44,6 +44,9 @@ func TestPolicyExceptionDeepCopy(t *testing.T) {
 	if out.Spec.Match.NamespaceSelector == in.Spec.Match.NamespaceSelector {
 		t.Error("Match.NamespaceSelector not deep-copied")
 	}
+	if out.Spec.Match.ResourceSelector == in.Spec.Match.ResourceSelector {
+		t.Error("Match.ResourceSelector not deep-copied")
+	}
 }
 
 func TestPolicyExceptionListDeepCopy(t *testing.T) {

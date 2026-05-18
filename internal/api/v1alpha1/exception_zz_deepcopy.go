@@ -61,7 +61,10 @@ func (in *PolicyException) DeepCopy() *PolicyException {
 }
 
 func (in *PolicyException) DeepCopyObject() runtime.Object {
-	return in.DeepCopy()
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
 }
 
 func (in *PolicyExceptionList) DeepCopyInto(out *PolicyExceptionList) {
@@ -86,5 +89,8 @@ func (in *PolicyExceptionList) DeepCopy() *PolicyExceptionList {
 }
 
 func (in *PolicyExceptionList) DeepCopyObject() runtime.Object {
-	return in.DeepCopy()
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
 }
