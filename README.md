@@ -272,7 +272,7 @@ helm install kubesentry \
 ```bash
 helm install kubesentry \
   oci://registry-1.docker.io/wynnhub/kubesentry \
-  --version 0.1.0 \
+  --version 1.0.1 \
   --namespace kubesentry-system \
   --create-namespace
 ```
@@ -289,8 +289,8 @@ helm install kubesentry charts/kubesentry \
 
 | Image | Tags |
 |---|---|
-| [`wynnhub/kubesentry-webhook`](https://hub.docker.com/r/wynnhub/kubesentry-webhook) | `latest`, `v0.1.0` |
-| [`wynnhub/kubesentry-operator`](https://hub.docker.com/r/wynnhub/kubesentry-operator) | `latest`, `v0.1.0` |
+| [`wynnhub/kubesentry-webhook`](https://hub.docker.com/r/wynnhub/kubesentry-webhook) | `latest`, `v1.0.1`, `v1.0.0` |
+| [`wynnhub/kubesentry-operator`](https://hub.docker.com/r/wynnhub/kubesentry-operator) | `latest`, `v1.0.1`, `v1.0.0` |
 
 Both images are public and support `linux/amd64` and `linux/arm64`.
 
@@ -337,8 +337,8 @@ docker login -u wynnhub
 helm registry login registry-1.docker.io -u wynnhub
 
 # Tag and release
-git tag v0.1.0
-make release VERSION=v0.1.0
+git tag v1.0.1
+make release VERSION=v1.0.1
 ```
 
 `make release` runs in order:
@@ -347,9 +347,9 @@ make release VERSION=v0.1.0
 |---|---|---|
 | 1. Test | `go test ./...` | — |
 | 2. Cross-compile | `docker run golang:1.26-alpine go build` | `bin/linux-amd64/`, `bin/linux-arm64/` |
-| 3. Push images | `docker buildx ... --push` | `wynnhub/kubesentry-webhook:v0.1.0` + `:latest` |
-| 4. Package chart | `helm package` | `dist/kubesentry-0.1.0.tgz` |
-| 5. Push chart | `helm push ... oci://` | `oci://registry-1.docker.io/wynnhub/kubesentry:0.1.0` |
+| 3. Push images | `docker buildx ... --push` | `wynnhub/kubesentry-webhook:v1.0.1` + `:latest` |
+| 4. Package chart | `helm package` | `dist/kubesentry-1.0.1.tgz` |
+| 5. Push chart | `helm push ... oci://` | `oci://registry-1.docker.io/wynnhub/kubesentry:1.0.1` |
 
 ### Multi-platform images
 
