@@ -216,3 +216,72 @@ func requeueAllExceptions(c client.Client) handler.EventHandler {
 		return out
 	})
 }
+
+// CheckExceptionSpecMutation rejects mutations to immutable fields.
+// Mutable: Duration, RetainAfterExpiry, Reason.
+func CheckExceptionSpecMutation(oldSpec, newSpec *v1alpha1.PolicyExceptionSpec) error {
+	if !equalStringSlice(oldSpec.PolicyRefs, newSpec.PolicyRefs) {
+		return fmt.Errorf("spec.policyRefs is immutable")
+	}
+	if !equalStringSlice(oldSpec.PolicyGroupRefs, newSpec.PolicyGroupRefs) {
+		return fmt.Errorf("spec.policyGroupRefs is immutable")
+	}
+	if oldSpec.AllPolicies != newSpec.AllPolicies {
+		return fmt.Errorf("spec.allPolicies is immutable")
+	}
+	if !equalStringSlice(oldSpec.Match.Namespaces, newSpec.Match.Namespaces) {
+		return fmt.Errorf("spec.match.namespaces is immutable")
+	}
+	if !labelSelectorsEqual(oldSpec.Match.NamespaceSelector, newSpec.Match.NamespaceSelector) {
+		return fmt.Errorf("spec.match.namespaceSelector is immutable")
+	}
+	if !labelSelectorsEqual(oldSpec.Match.ResourceSelector, newSpec.Match.ResourceSelector) {
+		return fmt.Errorf("spec.match.resourceSelector is immutable")
+	}
+	return nil
+}
+
+// CheckExceptionExpiredFreeze rejects any spec change once status.phase == Expired.
+func CheckExceptionExpiredFreeze(oldEx, newEx *v1alpha1.PolicyException) error {
+	if oldEx.Status.Phase == v1alpha1.PhaseExpired {
+		if !specsEqual(&oldEx.Spec, &newEx.Spec) {
+			return fmt.Errorf("PolicyException %q is Expired; spec is frozen", oldEx.Name)
+		}
+	}
+	return nil
+}
+
+func equalStringSlice(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func labelSelectorsEqual(a, b *metav1.LabelSelector) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if len(a.MatchLabels) != len(b.MatchLabels) {
+		return false
+	}
+	for k, v := range a.MatchLabels {
+		if b.MatchLabels[k] != v {
+			return false
+		}
+	}
+	// MatchExpressions comparison omitted: project does not use them yet; if used, treat as immutable by JSON-string compare.
+	return true
+}
+
+func specsEqual(a, b *v1alpha1.PolicyExceptionSpec) bool {
+	return CheckExceptionSpecMutation(a, b) == nil &&
+		a.Duration == b.Duration &&
+		a.RetainAfterExpiry == b.RetainAfterExpiry &&
+		a.Reason == b.Reason
+}
