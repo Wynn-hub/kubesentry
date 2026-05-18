@@ -4,7 +4,6 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // PolicyException phases.
 const (
-	PhasePending = "Pending"
 	PhaseActive  = "Active"
 	PhaseExpired = "Expired"
 	// PhaseInvalid is reused from policy phases (already declared in types.go).
