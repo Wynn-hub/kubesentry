@@ -22,13 +22,33 @@ const pexNamespace = "pex-hr-system"
 
 func setupPexNamespace(t *testing.T, ctx context.Context) {
 	t.Helper()
+	waitForNamespaceGone(t, ctx, pexNamespace, 30*time.Second)
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: pexNamespace}}
 	if err := k8sClient.Create(ctx, ns); err != nil && !apierrors.IsAlreadyExists(err) {
 		t.Fatalf("create namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		_ = k8sClient.Delete(context.Background(), ns)
+		// Best-effort: wait for the namespace to actually go away so the next
+		// test does not race against Terminating-phase admission rejection.
+		waitForNamespaceGone(t, context.Background(), pexNamespace, 60*time.Second)
 	})
+}
+
+// waitForNamespaceGone polls until the namespace is fully deleted (not
+// Terminating). Returns silently on timeout — the caller will likely fail
+// downstream with a clearer error.
+func waitForNamespaceGone(t *testing.T, ctx context.Context, name string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		var existing corev1.Namespace
+		err := k8sClient.Get(ctx, types.NamespacedName{Name: name}, &existing)
+		if apierrors.IsNotFound(err) {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func deletePex(ctx context.Context, name string) {
@@ -254,7 +274,10 @@ func TestT5_MatchingNamespaceAndOR(t *testing.T) {
 	pex2 := &v1alpha1.PolicyException{
 		ObjectMeta: metav1.ObjectMeta{Name: "pex-or-b"},
 		Spec: v1alpha1.PolicyExceptionSpec{
-			PolicyRefs: []string{"run-as-root-allowed"},
+			// A privileged container also violates privilege-escalation-allowed
+			// (K8s rejects privileged:true with allowPrivilegeEscalation:false).
+			// Split across the two pex to exercise OR-semantics.
+			PolicyRefs: []string{"privilege-escalation-allowed"},
 			Match:      v1alpha1.PolicyExceptionMatch{Namespaces: []string{pexNamespace}},
 			Duration:   "5m",
 			Reason:     "or-b",
@@ -296,7 +319,7 @@ func TestT5_NamespaceSelectorMatch(t *testing.T) {
 	pex := &v1alpha1.PolicyException{
 		ObjectMeta: metav1.ObjectMeta{Name: "pex-selector"},
 		Spec: v1alpha1.PolicyExceptionSpec{
-			PolicyRefs: []string{"run-as-privileged"},
+			PolicyRefs: []string{"run-as-privileged", "privilege-escalation-allowed"},
 			Match: v1alpha1.PolicyExceptionMatch{
 				NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"env": "legacy"}},
 			},
@@ -326,7 +349,7 @@ func TestT5_ResourceSelectorMatch(t *testing.T) {
 	pex := &v1alpha1.PolicyException{
 		ObjectMeta: metav1.ObjectMeta{Name: "pex-reslabel"},
 		Spec: v1alpha1.PolicyExceptionSpec{
-			PolicyRefs: []string{"run-as-privileged"},
+			PolicyRefs: []string{"run-as-privileged", "privilege-escalation-allowed"},
 			Match: v1alpha1.PolicyExceptionMatch{
 				Namespaces:       []string{pexNamespace},
 				ResourceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "legacy-billing"}},
