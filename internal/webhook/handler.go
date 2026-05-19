@@ -26,32 +26,48 @@ type PolicyStore interface {
 
 // ExceptionStore is the read interface the handler needs from ExceptionCache.
 type ExceptionStore interface {
-	ExemptedKeys(namespace string, resourceLabels map[string]string, policies []*CompiledPolicy) map[string]bool
+	ExemptedKeys(namespace string, namespaceLabels, resourceLabels map[string]string, policies []*CompiledPolicy) map[string]bool
 	IsReady() bool
+}
+
+// NamespaceLister resolves a namespace name to its metadata.labels. Used by
+// the Handler so PolicyExceptions with `match.namespaceSelector` can be
+// evaluated. Implementations should be backed by an informer cache and return
+// (nil, false) when the namespace is not in the local cache.
+type NamespaceLister interface {
+	GetLabels(name string) (map[string]string, bool)
 }
 
 type noExemptions struct{}
 
-func (noExemptions) ExemptedKeys(string, map[string]string, []*CompiledPolicy) map[string]bool {
+func (noExemptions) ExemptedKeys(string, map[string]string, map[string]string, []*CompiledPolicy) map[string]bool {
 	return nil
 }
 func (noExemptions) IsReady() bool { return true }
+
+type noNamespaceLister struct{}
+
+func (noNamespaceLister) GetLabels(string) (map[string]string, bool) { return nil, false }
 
 // Handler processes admission review requests.
 type Handler struct {
 	store      PolicyStore
 	exceptions ExceptionStore
+	nsLister   NamespaceLister
 }
 
 func NewHandler(store PolicyStore) *Handler {
-	return &Handler{store: store, exceptions: noExemptions{}}
+	return &Handler{store: store, exceptions: noExemptions{}, nsLister: noNamespaceLister{}}
 }
 
-func NewHandlerWithExceptions(store PolicyStore, exceptions ExceptionStore) *Handler {
+func NewHandlerWithExceptions(store PolicyStore, exceptions ExceptionStore, nsLister NamespaceLister) *Handler {
 	if exceptions == nil {
 		exceptions = noExemptions{}
 	}
-	return &Handler{store: store, exceptions: exceptions}
+	if nsLister == nil {
+		nsLister = noNamespaceLister{}
+	}
+	return &Handler{store: store, exceptions: exceptions, nsLister: nsLister}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +96,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if len(policies) > 0 {
 		objLabels := extractObjectLabels(req)
-		exempt := h.exceptions.ExemptedKeys(req.Namespace, objLabels, policies)
+		var nsLabels map[string]string
+		if req.Namespace != "" {
+			if l, ok := h.nsLister.GetLabels(req.Namespace); ok {
+				nsLabels = l
+				if nsLabels == nil {
+					// Distinguish "namespace has no labels" from "namespace not
+					// found": an empty map is non-nil and means "evaluated".
+					nsLabels = map[string]string{}
+				}
+			}
+		}
+		exempt := h.exceptions.ExemptedKeys(req.Namespace, nsLabels, objLabels, policies)
 		if len(exempt) > 0 {
 			filtered := make([]*CompiledPolicy, 0, len(policies))
 			for _, p := range policies {
