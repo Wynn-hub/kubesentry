@@ -44,9 +44,26 @@ func TestExceptionExpiredFreeze(t *testing.T) {
 		Spec:   v1alpha1.PolicyExceptionSpec{Duration: "1h", Reason: "ok"},
 		Status: v1alpha1.PolicyExceptionStatus{Phase: v1alpha1.PhaseExpired},
 	}
+
+	// Expired + spec change → reject.
 	upd := old.DeepCopy()
 	upd.Spec.Duration = "2h"
 	if err := operator.CheckExceptionExpiredFreeze(old, upd); err == nil {
 		t.Error("expected error patching spec on Expired exception")
+	}
+
+	// Expired + identical spec → allowed.
+	unchanged := old.DeepCopy()
+	if err := operator.CheckExceptionExpiredFreeze(old, unchanged); err != nil {
+		t.Errorf("Expired with no spec change must be allowed: %v", err)
+	}
+
+	// Non-Expired (Active) + spec change → allowed.
+	active := old.DeepCopy()
+	active.Status.Phase = v1alpha1.PhaseActive
+	updActive := active.DeepCopy()
+	updActive.Spec.Duration = "2h"
+	if err := operator.CheckExceptionExpiredFreeze(active, updActive); err != nil {
+		t.Errorf("non-Expired exception must not be frozen: %v", err)
 	}
 }
