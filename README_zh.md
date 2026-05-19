@@ -225,6 +225,7 @@ spec:
 - 时间起点为 `metadata.creationTimestamp`。修改 `duration` 会重新计算 `status.expiresAt`，`status.effectiveAt` 永不变动。
 - `Expired` 是终态 — 已过期的豁免无法通过修改 `duration` 复活，需新建对象续期。
 - 只有 `duration`、`retainAfterExpiry`、`reason` 可变更；其他字段（目标、match）在创建后不可修改。
+- 不可变性通过 `ValidatingAdmissionPolicy` (CEL) 强制执行，其列表字段比较（`policyRefs`、`policyGroupRefs`、`match.namespaces`）是 **有序敏感** 的。即使集合等价，重排元素的 patch 也会被判为违反不可变性。如果工具会在 apply 时对 JSON 数组重新排序，请配置为保留原顺序，或直接重建对象而非 patch。
 
 ## 独立策略示例
 
