@@ -10,7 +10,7 @@ import (
 
 func TestHealthzAlwaysOK(t *testing.T) {
 	store := &stubStore{ready: false}
-	s := webhook.NewServer(store, webhook.ServerConfig{})
+	s := webhook.NewServer(store, nil, webhook.ServerConfig{})
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
@@ -23,7 +23,7 @@ func TestHealthzAlwaysOK(t *testing.T) {
 
 func TestReadyzReflectsCache(t *testing.T) {
 	store := &stubStore{ready: false}
-	s := webhook.NewServer(store, webhook.ServerConfig{})
+	s := webhook.NewServer(store, nil, webhook.ServerConfig{})
 
 	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	w := httptest.NewRecorder()

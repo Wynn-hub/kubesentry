@@ -24,17 +24,38 @@ type PolicyStore interface {
 	IsReady() bool
 }
 
+// ExceptionStore is the read interface the handler needs from ExceptionCache.
+type ExceptionStore interface {
+	ExemptedKeys(namespace string, resourceLabels map[string]string, policies []*CompiledPolicy) map[string]bool
+	IsReady() bool
+}
+
+type noExemptions struct{}
+
+func (noExemptions) ExemptedKeys(string, map[string]string, []*CompiledPolicy) map[string]bool {
+	return nil
+}
+func (noExemptions) IsReady() bool { return true }
+
 // Handler processes admission review requests.
 type Handler struct {
-	store PolicyStore
+	store      PolicyStore
+	exceptions ExceptionStore
 }
 
 func NewHandler(store PolicyStore) *Handler {
-	return &Handler{store: store}
+	return &Handler{store: store, exceptions: noExemptions{}}
+}
+
+func NewHandlerWithExceptions(store PolicyStore, exceptions ExceptionStore) *Handler {
+	if exceptions == nil {
+		exceptions = noExemptions{}
+	}
+	return &Handler{store: store, exceptions: exceptions}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !h.store.IsReady() {
+	if !h.store.IsReady() || !h.exceptions.IsReady() {
 		http.Error(w, "cache not ready", http.StatusServiceUnavailable)
 		return
 	}
@@ -56,6 +77,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		string(req.Operation),
 		req.Namespace,
 	)
+
+	if len(policies) > 0 {
+		objLabels := extractObjectLabels(req)
+		exempt := h.exceptions.ExemptedKeys(req.Namespace, objLabels, policies)
+		if len(exempt) > 0 {
+			filtered := make([]*CompiledPolicy, 0, len(policies))
+			for _, p := range policies {
+				if !exempt[p.Name] {
+					filtered = append(filtered, p)
+				}
+			}
+			policies = filtered
+		}
+	}
 
 	resp := h.evaluate(r.Context(), req, policies)
 	review.Response = resp
@@ -189,6 +224,21 @@ func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionReques
 	}
 
 	return &admissionv1.AdmissionResponse{UID: req.UID, Allowed: true}
+}
+
+func extractObjectLabels(req *admissionv1.AdmissionRequest) map[string]string {
+	if len(req.Object.Raw) == 0 {
+		return nil
+	}
+	var meta struct {
+		Metadata struct {
+			Labels map[string]string `json:"labels"`
+		} `json:"metadata"`
+	}
+	if err := json.Unmarshal(req.Object.Raw, &meta); err != nil {
+		return nil
+	}
+	return meta.Metadata.Labels
 }
 
 func buildInput(req *admissionv1.AdmissionRequest) map[string]interface{} {

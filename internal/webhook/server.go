@@ -17,16 +17,19 @@ type Server struct {
 	config  ServerConfig
 }
 
-func NewServer(store PolicyStore, cfg ServerConfig) *Server {
+func NewServer(store PolicyStore, exceptions ExceptionStore, cfg ServerConfig) *Server {
+	if exceptions == nil {
+		exceptions = noExemptions{}
+	}
 	mux := http.NewServeMux()
 	s := &Server{Handler: mux, config: cfg}
 
-	mux.Handle("/validate", NewHandler(store))
+	mux.Handle("/validate", NewHandlerWithExceptions(store, exceptions))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		if store.IsReady() {
+		if store.IsReady() && exceptions.IsReady() {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
