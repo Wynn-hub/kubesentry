@@ -58,6 +58,10 @@ func runOperator() {
 		slog.Error("setup policygroup reconciler", "error", err)
 		os.Exit(1)
 	}
+	if err := operator.NewExceptionReconciler(mgr.GetClient()).SetupWithManager(mgr); err != nil {
+		slog.Error("setup exception reconciler", "error", err)
+		os.Exit(1)
+	}
 	vwcName := envOrDefault("VWC_NAME", "kubesentry")
 	tlsSecretName := envOrDefault("SECRET_NAME", "kubesentry-tls")
 	tlsNamespace := envOrDefault("NAMESPACE", "kubesentry-system")
