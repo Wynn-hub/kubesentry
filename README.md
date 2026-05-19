@@ -230,6 +230,12 @@ spec:
   editing `duration`. Renew by creating a new object.
 - Only `duration`, `retainAfterExpiry`, and `reason` are mutable. Everything
   else (targets, match) is locked at creation.
+- Immutability is enforced via a `ValidatingAdmissionPolicy` whose CEL
+  comparison treats list fields (`policyRefs`, `policyGroupRefs`,
+  `match.namespaces`) as **ordered**. Patches that reorder elements without
+  changing the set are rejected as immutability violations. Tools that
+  re-sort JSON arrays during apply should be configured to preserve the
+  original order, or you should re-create the object instead of patching.
 
 ## Standalone Policy Example
 
