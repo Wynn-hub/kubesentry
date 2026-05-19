@@ -68,8 +68,11 @@ func (r *ExceptionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	var retain time.Duration
 	if pex.Spec.RetainAfterExpiry != "" {
 		retain, err = time.ParseDuration(pex.Spec.RetainAfterExpiry)
-		if err != nil || retain < 0 {
-			return ctrl.Result{}, r.setInvalid(ctx, &pex, fmt.Sprintf("spec.retainAfterExpiry invalid: %v", err))
+		if err != nil {
+			return ctrl.Result{}, r.setInvalid(ctx, &pex, fmt.Sprintf("spec.retainAfterExpiry %q: %v", pex.Spec.RetainAfterExpiry, err))
+		}
+		if retain < 0 {
+			return ctrl.Result{}, r.setInvalid(ctx, &pex, fmt.Sprintf("spec.retainAfterExpiry must be non-negative, got %q", pex.Spec.RetainAfterExpiry))
 		}
 	}
 	// 5. Validate references exist.
@@ -115,6 +118,17 @@ func (r *ExceptionReconciler) handleExpired(ctx context.Context, pex *v1alpha1.P
 }
 
 func (r *ExceptionReconciler) setActive(ctx context.Context, pex *v1alpha1.PolicyException, effective, expires *metav1.Time) (ctrl.Result, error) {
+	requeueAfter := expires.Sub(r.now())
+	// Idempotency guard: skip the status write if nothing changed. Prevents a
+	// reconcile→watch→reconcile churn loop for Active exceptions between
+	// scheduled RequeueAfter ticks.
+	if pex.Status.Phase == v1alpha1.PhaseActive &&
+		pex.Status.Message == "" &&
+		pex.Status.ObservedGeneration == pex.Generation &&
+		timeEqual(pex.Status.EffectiveAt, effective) &&
+		timeEqual(pex.Status.ExpiresAt, expires) {
+		return ctrl.Result{RequeueAfter: requeueAfter}, nil
+	}
 	pex.Status.Phase = v1alpha1.PhaseActive
 	pex.Status.Message = ""
 	pex.Status.EffectiveAt = effective
@@ -123,7 +137,14 @@ func (r *ExceptionReconciler) setActive(ctx context.Context, pex *v1alpha1.Polic
 	if err := r.client.Status().Update(ctx, pex); err != nil {
 		return ctrl.Result{}, fmt.Errorf("update status (Active): %w", err)
 	}
-	return ctrl.Result{RequeueAfter: expires.Sub(r.now())}, nil
+	return ctrl.Result{RequeueAfter: requeueAfter}, nil
+}
+
+func timeEqual(a, b *metav1.Time) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Equal(b)
 }
 
 func (r *ExceptionReconciler) setExpired(ctx context.Context, pex *v1alpha1.PolicyException, effective, expires *metav1.Time, retain time.Duration) (ctrl.Result, error) {
