@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	v1alpha1 "github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
@@ -102,4 +104,43 @@ func CountPolicyVersions(ctx context.Context, c client.Client, policyName string
 		return 0, fmt.Errorf("list policy versions for %s: %w", policyName, err)
 	}
 	return len(list.Items), nil
+}
+
+// WaitForExceptionPhase polls until the PolicyException has the desired phase.
+func WaitForExceptionPhase(ctx context.Context, c client.Client, name, phase string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		var pex v1alpha1.PolicyException
+		if err := c.Get(ctx, types.NamespacedName{Name: name}, &pex); err != nil {
+			if apierrors.IsNotFound(err) {
+				return phase == "Deleted", nil
+			}
+			return false, err
+		}
+		return pex.Status.Phase == phase, nil
+	})
+}
+
+// MustReadFile reads a file and returns its contents as a string.
+func MustReadFile(t interface{ Fatal(args ...interface{}) }, path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+		return ""
+	}
+	return string(b)
+}
+
+// KubectlApplyStdin applies a YAML manifest provided as a string via stdin.
+func KubectlApplyStdin(ctx context.Context, manifest string) (string, error) {
+	cmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", "-")
+	cmd.Stdin = strings.NewReader(manifest)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+// KubectlDeleteStdin deletes resources from a YAML manifest string (best-effort).
+func KubectlDeleteStdin(ctx context.Context, manifest string) {
+	cmd := exec.CommandContext(ctx, "kubectl", "delete", "-f", "-", "--ignore-not-found")
+	cmd.Stdin = strings.NewReader(manifest)
+	_ = cmd.Run()
 }

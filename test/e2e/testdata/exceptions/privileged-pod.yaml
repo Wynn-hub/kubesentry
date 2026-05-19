@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pex-test-pod
+  namespace: pex-hr-system
+  labels:
+    app: legacy-billing
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.27
+      securityContext:
+        privileged: true

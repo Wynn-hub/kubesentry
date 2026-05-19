@@ -1,0 +1,10 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyException
+metadata:
+  name: pex-dangling
+spec:
+  policyRefs: ["this-policy-does-not-exist"]
+  match:
+    namespaces: ["pex-hr-system"]
+  duration: 5m
+  reason: "e2e: dangling"

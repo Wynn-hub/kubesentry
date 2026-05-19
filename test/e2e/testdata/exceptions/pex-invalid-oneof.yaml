@@ -1,0 +1,11 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyException
+metadata:
+  name: pex-oneof
+spec:
+  policyRefs: ["run-as-privileged"]
+  allPolicies: true
+  match:
+    namespaces: ["pex-hr-system"]
+  duration: 1h
+  reason: "should fail"

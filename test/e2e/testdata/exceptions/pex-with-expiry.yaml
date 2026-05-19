@@ -1,0 +1,12 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyException
+metadata:
+  name: pex-short
+spec:
+  policyRefs:
+    - run-as-privileged
+  match:
+    namespaces: ["pex-hr-system"]
+  duration: 10s
+  retainAfterExpiry: 30s
+  reason: "e2e: short-lived"

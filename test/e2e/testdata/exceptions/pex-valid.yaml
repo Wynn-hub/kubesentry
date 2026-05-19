@@ -1,0 +1,11 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyException
+metadata:
+  name: pex-valid-hr
+spec:
+  policyRefs:
+    - run-as-privileged
+  match:
+    namespaces: ["pex-hr-system"]
+  duration: 5m
+  reason: "e2e: valid exemption"
