@@ -6,8 +6,49 @@ metadata:
   labels:
     app: legacy-billing
 spec:
+  automountServiceAccountToken: false
+  priorityClassName: system-cluster-critical
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app: legacy-billing
   containers:
     - name: nginx
       image: nginx:1.27
+      imagePullPolicy: Always
       securityContext:
         privileged: true
+        runAsNonRoot: true
+        runAsUser: 1000
+        readOnlyRootFilesystem: true
+        # NOTE: allowPrivilegeEscalation is intentionally omitted (defaults to
+        # true). Kubernetes API rejects `privileged:true` combined with
+        # `allowPrivilegeEscalation:false`, so a privileged pod always violates
+        # both `run-as-privileged` and `privilege-escalation-allowed` policies.
+        # pex-valid.yaml exempts both.
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+      livenessProbe:
+        httpGet:
+          path: /
+          port: 80
+        initialDelaySeconds: 5
+        periodSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /
+          port: 80
+        initialDelaySeconds: 5
+        periodSeconds: 10

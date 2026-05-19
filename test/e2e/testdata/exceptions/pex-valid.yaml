@@ -4,7 +4,11 @@ metadata:
   name: pex-valid-hr
 spec:
   policyRefs:
+    # A privileged container inherently violates both policies because the K8s
+    # API rejects `privileged:true` with `allowPrivilegeEscalation:false`. The
+    # exemption must cover both to admit the test fixture.
     - run-as-privileged
+    - privilege-escalation-allowed
   match:
     namespaces: ["pex-hr-system"]
   duration: 5m
