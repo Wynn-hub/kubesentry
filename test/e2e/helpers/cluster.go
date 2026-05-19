@@ -23,6 +23,7 @@ func Cleanup(ctx context.Context) {
 		"policies.kubesentry.io",
 		"policygroups.kubesentry.io",
 		"policyversions.kubesentry.io",
+		"policyexceptions.kubesentry.io",
 	} {
 		run(ctx, "kubectl", "delete", "crd", crd, "--ignore-not-found")
 	}
