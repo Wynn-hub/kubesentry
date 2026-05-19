@@ -12,13 +12,16 @@ spec:
         operations:  ["UPDATE"]
   validations:
     - expression: |
-        oldObject.spec.policyRefs == object.spec.policyRefs
+        (has(oldObject.spec.policyRefs) ? oldObject.spec.policyRefs : []) ==
+        (has(object.spec.policyRefs) ? object.spec.policyRefs : [])
       message: "spec.policyRefs is immutable"
     - expression: |
-        oldObject.spec.policyGroupRefs == object.spec.policyGroupRefs
+        (has(oldObject.spec.policyGroupRefs) ? oldObject.spec.policyGroupRefs : []) ==
+        (has(object.spec.policyGroupRefs) ? object.spec.policyGroupRefs : [])
       message: "spec.policyGroupRefs is immutable"
     - expression: |
-        oldObject.spec.allPolicies == object.spec.allPolicies
+        (has(oldObject.spec.allPolicies) && oldObject.spec.allPolicies) ==
+        (has(object.spec.allPolicies) && object.spec.allPolicies)
       message: "spec.allPolicies is immutable"
     - expression: |
         oldObject.spec.match == object.spec.match
