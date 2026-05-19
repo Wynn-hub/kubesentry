@@ -1,0 +1,15 @@
+# PolicyException example: temporarily allow privileged pods in hr-system
+# for 24 hours while a legacy migration runs.
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyException
+metadata:
+  name: hr-system-legacy-migration
+spec:
+  policyRefs:
+    - run-as-privileged
+  match:
+    namespaces:
+      - hr-system
+  duration: 24h
+  retainAfterExpiry: 7d
+  reason: "Legacy billing component migration; ticket OPS-1245"

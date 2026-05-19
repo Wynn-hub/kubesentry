@@ -520,6 +520,27 @@ make release       # Full release pipeline (tests, images, chart)
 
 All `make` targets use the correct GOROOT automatically.
 
+## Running the t5 PolicyException suite
+
+`t5_exception_test.go` exercises PolicyException end-to-end. It is included in
+`make test-e2e` and `make test-e2e-report` automatically.
+
+To run just t5:
+
+```bash
+make build-image-e2e
+GOROOT=/opt/homebrew/Cellar/go/1.26.2/libexec \
+  go test -tags=e2e ./test/e2e/... -run TestT5 -v -timeout 5m
+```
+
+The suite uses wall-clock waits for expiry (≈60s). To skip during local
+iteration, exclude the run pattern:
+
+```bash
+GOROOT=/opt/homebrew/Cellar/go/1.26.2/libexec \
+  go test -tags=e2e ./test/e2e/... -run "TestT[1-4]_" -v
+```
+
 ## Further Reading
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Contribution guidelines

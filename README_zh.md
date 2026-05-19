@@ -190,6 +190,42 @@ spec:
 
 `audit` 模式的违规以 `AdmissionResponse.Warnings` 返回（请求被放行）。
 
+## PolicyException — 时限豁免
+
+`PolicyException` 允许你在一定时间窗口内，针对特定命名空间或资源，绕过指定的 Policy、整个 PolicyGroup，甚至所有策略。
+
+### 快速示例
+
+```yaml
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyException
+metadata:
+  name: hr-system-legacy-migration
+spec:
+  policyRefs:
+    - run-as-privileged
+  match:
+    namespaces: [hr-system]
+  duration: 24h
+  reason: "遗留计费系统迁移；工单 OPS-1245"
+```
+
+### 字段说明
+
+- `policyRefs` / `policyGroupRefs` / `allPolicies` — 三选一。分别对应具体 Policy、整个 PolicyGroup 或所有策略。
+- `match.namespaces` — 精确命名空间名称列表（不支持通配符）。
+- `match.namespaceSelector` — 匹配 Namespace 对象的 labels。
+- `match.resourceSelector` — 匹配被准入对象本身的 labels。
+- `duration` — 必填，Go `time.Duration` 格式（如 `24h`、`30m`）。
+- `retainAfterExpiry` — 可选，过期后保留时长，默认 `0`（立即删除）。
+- `reason` — 必填，非空的审计说明字符串。
+
+### 规则
+
+- 时间起点为 `metadata.creationTimestamp`。修改 `duration` 会重新计算 `status.expiresAt`，`status.effectiveAt` 永不变动。
+- `Expired` 是终态 — 已过期的豁免无法通过修改 `duration` 复活，需新建对象续期。
+- 只有 `duration`、`retainAfterExpiry`、`reason` 可变更；其他字段（目标、match）在创建后不可修改。
+
 ## 独立策略示例
 
 ```yaml
