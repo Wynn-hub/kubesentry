@@ -190,6 +190,47 @@ When a policy triggers, the response includes the group, key, and description:
 
 `audit`-mode violations appear as `AdmissionResponse.Warnings` (request is allowed).
 
+## PolicyException — time-bound, audited exemptions
+
+`PolicyException` lets you bypass specific Policies (or whole PolicyGroups, or
+even every policy) for a scoped set of resources, for a bounded amount of time.
+
+### Quick example
+
+```yaml
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyException
+metadata:
+  name: hr-system-legacy-migration
+spec:
+  policyRefs:
+    - run-as-privileged
+  match:
+    namespaces: [hr-system]
+  duration: 24h
+  reason: "Legacy billing migration; ticket OPS-1245"
+```
+
+### Fields
+
+- `policyRefs` / `policyGroupRefs` / `allPolicies` — exactly one. Choose specific
+  Policies, a whole PolicyGroup, or whitelist everything.
+- `match.namespaces` — exact namespace names (no glob).
+- `match.namespaceSelector` — labels on the `Namespace` object.
+- `match.resourceSelector` — labels on the admitted object itself.
+- `duration` — required, Go `time.Duration` (e.g. `24h`, `30m`).
+- `retainAfterExpiry` — optional; default `0` (delete immediately at expiry).
+- `reason` — required, non-empty audit string.
+
+### Rules
+
+- Time origin is `metadata.creationTimestamp`. Editing `duration` recomputes
+  `status.expiresAt`; `status.effectiveAt` never moves.
+- `Expired` is terminal — a once-expired exception cannot be revived by
+  editing `duration`. Renew by creating a new object.
+- Only `duration`, `retainAfterExpiry`, and `reason` are mutable. Everything
+  else (targets, match) is locked at creation.
+
 ## Standalone Policy Example
 
 ```yaml
