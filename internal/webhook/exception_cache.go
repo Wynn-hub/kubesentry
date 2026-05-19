@@ -38,7 +38,11 @@ func NewExceptionCache() *ExceptionCache {
 	}
 }
 
-func (c *ExceptionCache) SetReady() { c.mu.Lock(); c.ready = true; c.mu.Unlock() }
+func (c *ExceptionCache) SetReady() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ready = true
+}
 func (c *ExceptionCache) IsReady() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -91,7 +95,7 @@ func (c *ExceptionCache) removeUnlocked(name string) {
 }
 
 func removeEntry(list []*exemptEntry, target *exemptEntry) []*exemptEntry {
-	out := list[:0]
+	out := make([]*exemptEntry, 0, len(list))
 	for _, e := range list {
 		if e != target {
 			out = append(out, e)
@@ -122,10 +126,11 @@ func (c *ExceptionCache) ExemptedKeys(namespace string, resourceLabels map[strin
 		if entry.hasResourceSel && !entry.resourceSel.Matches(resLabels) {
 			continue
 		}
-		// NOTE: namespaceSelector matching against Namespace labels requires
-		// a namespace lister at evaluation time; integration is wired in
-		// Task 5 via the Handler. For unit tests we treat hasNsSelector as
-		// "always match" if not provided by the caller.
+		// TODO(task5): evaluate entry.namespaceSel against namespace labels via lister.
+		// Until then, skip entries that require namespaceSelector evaluation (fail-closed).
+		if entry.hasNsSelector {
+			continue
+		}
 		if entry.allPolicies {
 			for _, p := range policies {
 				out[p.Name] = true
@@ -154,14 +159,16 @@ func compile(pex *v1alpha1.PolicyException) *exemptEntry {
 		namespaces:      stringSliceToSet(pex.Spec.Match.Namespaces),
 	}
 	if pex.Spec.Match.NamespaceSelector != nil {
-		sel, _ := metav1.LabelSelectorAsSelector(pex.Spec.Match.NamespaceSelector)
-		e.namespaceSel = sel
-		e.hasNsSelector = true
+		if sel, err := metav1.LabelSelectorAsSelector(pex.Spec.Match.NamespaceSelector); err == nil {
+			e.namespaceSel = sel
+			e.hasNsSelector = true
+		}
 	}
 	if pex.Spec.Match.ResourceSelector != nil {
-		sel, _ := metav1.LabelSelectorAsSelector(pex.Spec.Match.ResourceSelector)
-		e.resourceSel = sel
-		e.hasResourceSel = true
+		if sel, err := metav1.LabelSelectorAsSelector(pex.Spec.Match.ResourceSelector); err == nil {
+			e.resourceSel = sel
+			e.hasResourceSel = true
+		}
 	}
 	return e
 }
