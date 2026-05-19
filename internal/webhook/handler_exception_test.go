@@ -19,10 +19,22 @@ type stubExceptionStore struct {
 	ready    bool
 }
 
-func (s *stubExceptionStore) ExemptedKeys(namespace string, labels map[string]string, policies []*webhook.CompiledPolicy) map[string]bool {
+func (s *stubExceptionStore) ExemptedKeys(namespace string, namespaceLabels, resourceLabels map[string]string, policies []*webhook.CompiledPolicy) map[string]bool {
 	return s.exempted
 }
 func (s *stubExceptionStore) IsReady() bool { return s.ready }
+
+type stubNamespaceLister struct {
+	labels map[string]map[string]string
+}
+
+func (s *stubNamespaceLister) GetLabels(name string) (map[string]string, bool) {
+	if s == nil {
+		return nil, false
+	}
+	l, ok := s.labels[name]
+	return l, ok
+}
 
 func makePodReview(t *testing.T, privileged bool) []byte {
 	t.Helper()
@@ -64,6 +76,7 @@ func TestHandlerSkipsExemptedPolicy(t *testing.T) {
 	h := webhook.NewHandlerWithExceptions(
 		&stubStore{policies: policies, ready: true},
 		&stubExceptionStore{exempted: map[string]bool{"run-as-privileged": true}, ready: true},
+		nil,
 	)
 
 	rec := httptest.NewRecorder()
@@ -91,6 +104,7 @@ func TestHandlerEvaluatesNonExempted(t *testing.T) {
 	h := webhook.NewHandlerWithExceptions(
 		&stubStore{policies: policies, ready: true},
 		&stubExceptionStore{exempted: nil, ready: true},
+		nil,
 	)
 
 	rec := httptest.NewRecorder()
@@ -104,11 +118,69 @@ func TestHandlerEvaluatesNonExempted(t *testing.T) {
 	}
 }
 
+// Verifies the Handler resolves namespace labels via NamespaceLister and
+// passes them to the ExceptionStore. Uses a recording stub to capture what
+// the Handler actually passes through.
+type recordingExceptionStore struct {
+	gotNamespaceLabels map[string]string
+	exempted           map[string]bool
+}
+
+func (s *recordingExceptionStore) ExemptedKeys(_ string, nsLabels, _ map[string]string, _ []*webhook.CompiledPolicy) map[string]bool {
+	s.gotNamespaceLabels = nsLabels
+	return s.exempted
+}
+func (s *recordingExceptionStore) IsReady() bool { return true }
+
+func TestHandlerPassesNamespaceLabelsToStore(t *testing.T) {
+	q, err := webhook.CompileRego(denyPrivilegedRego)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policies := []*webhook.CompiledPolicy{{Name: "run-as-privileged", Query: q, EnforcementMode: "enforce"}}
+	rec := &recordingExceptionStore{}
+	lister := &stubNamespaceLister{labels: map[string]map[string]string{
+		"hr": {"env": "legacy"},
+	}}
+	h := webhook.NewHandlerWithExceptions(&stubStore{policies: policies, ready: true}, rec, lister)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(makePodReview(t, true)))
+	h.ServeHTTP(rr, req)
+
+	if rec.gotNamespaceLabels == nil {
+		t.Fatal("expected non-nil namespace labels passed through")
+	}
+	if rec.gotNamespaceLabels["env"] != "legacy" {
+		t.Errorf("expected env=legacy, got %v", rec.gotNamespaceLabels)
+	}
+}
+
+func TestHandlerPassesNilWhenNamespaceUnknown(t *testing.T) {
+	q, err := webhook.CompileRego(denyPrivilegedRego)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policies := []*webhook.CompiledPolicy{{Name: "run-as-privileged", Query: q, EnforcementMode: "enforce"}}
+	rec := &recordingExceptionStore{}
+	lister := &stubNamespaceLister{labels: map[string]map[string]string{}} // empty cache
+	h := webhook.NewHandlerWithExceptions(&stubStore{policies: policies, ready: true}, rec, lister)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(makePodReview(t, true)))
+	h.ServeHTTP(rr, req)
+
+	if rec.gotNamespaceLabels != nil {
+		t.Errorf("expected nil (unresolved) namespace labels, got %v", rec.gotNamespaceLabels)
+	}
+}
+
 func TestHandlerNotReadyWhenExceptionCacheNotReady(t *testing.T) {
 	policies := []*webhook.CompiledPolicy{{Name: "x"}}
 	h := webhook.NewHandlerWithExceptions(
 		&stubStore{policies: policies, ready: true},
 		&stubExceptionStore{ready: false},
+		nil,
 	)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(makePodReview(t, true)))

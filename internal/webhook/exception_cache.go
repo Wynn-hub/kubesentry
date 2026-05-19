@@ -105,12 +105,14 @@ func removeEntry(list []*exemptEntry, target *exemptEntry) []*exemptEntry {
 }
 
 // ExemptedKeys returns a set of policy names that are exempted for the given
-// admission context. `resourceLabels` is the admitted object's metadata.labels
-// (may be nil). `policies` is the candidate list already filtered by PolicyCache.
+// admission context. `namespaceLabels` is the labels on the Namespace object
+// (may be nil if the caller cannot resolve them). `resourceLabels` is the
+// admitted object's metadata.labels (may be nil). `policies` is the candidate
+// list already filtered by PolicyCache.
 //
 // Caller treats a returned set as: "skip Rego evaluation for each policy whose
 // .Name is present in the set".
-func (c *ExceptionCache) ExemptedKeys(namespace string, resourceLabels map[string]string, policies []*CompiledPolicy) map[string]bool {
+func (c *ExceptionCache) ExemptedKeys(namespace string, namespaceLabels, resourceLabels map[string]string, policies []*CompiledPolicy) map[string]bool {
 	c.mu.RLock()
 	candidates := append([]*exemptEntry(nil), c.global...)
 	candidates = append(candidates, c.nsIndex[namespace]...)
@@ -120,16 +122,24 @@ func (c *ExceptionCache) ExemptedKeys(namespace string, resourceLabels map[strin
 		return nil
 	}
 	out := make(map[string]bool, len(policies))
+	nsLabelSet := labels.Set(namespaceLabels)
 	resLabels := labels.Set(resourceLabels)
 
 	for _, entry := range candidates {
 		if entry.hasResourceSel && !entry.resourceSel.Matches(resLabels) {
 			continue
 		}
-		// TODO(task5): evaluate entry.namespaceSel against namespace labels via lister.
-		// Until then, skip entries that require namespaceSelector evaluation (fail-closed).
+		// Fail-closed: if a namespaceSelector is set but the caller couldn't
+		// resolve namespace labels (namespaceLabels == nil), the entry does
+		// not match. An explicit empty map (len==0, non-nil) means "namespace
+		// has no labels" and is evaluated normally.
 		if entry.hasNsSelector {
-			continue
+			if namespaceLabels == nil {
+				continue
+			}
+			if !entry.namespaceSel.Matches(nsLabelSet) {
+				continue
+			}
 		}
 		if entry.allPolicies {
 			for _, p := range policies {
