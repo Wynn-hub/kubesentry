@@ -45,6 +45,22 @@ func main() {
 		},
 	})
 
+	exceptionCache := webhook.NewExceptionCache()
+	exInformer, err := c.GetInformer(context.Background(), &v1alpha1.PolicyException{})
+	if err != nil {
+		slog.Error("get exception informer", "error", err)
+		os.Exit(1)
+	}
+	exInformer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
+		AddFunc:    func(obj interface{}) { syncException(exceptionCache, obj) },
+		UpdateFunc: func(_, obj interface{}) { syncException(exceptionCache, obj) },
+		DeleteFunc: func(obj interface{}) {
+			if pex, ok := obj.(*v1alpha1.PolicyException); ok {
+				exceptionCache.Delete(pex.Name)
+			}
+		},
+	})
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -56,8 +72,10 @@ func main() {
 	c.WaitForCacheSync(ctx)
 	policyCache.SetReady()
 	slog.Info("policy cache ready")
+	exceptionCache.SetReady()
+	slog.Info("exception cache ready")
 
-	srv := webhook.NewServer(policyCache, webhook.ServerConfig{
+	srv := webhook.NewServer(policyCache, exceptionCache, webhook.ServerConfig{
 		Addr:     envOrDefault("ADDR", ":8443"),
 		CertFile: "/tls/tls.crt",
 		KeyFile:  "/tls/tls.key",
@@ -67,6 +85,14 @@ func main() {
 		slog.Error("server error", "error", err)
 		os.Exit(1)
 	}
+}
+
+func syncException(c *webhook.ExceptionCache, obj interface{}) {
+	pex, ok := obj.(*v1alpha1.PolicyException)
+	if !ok {
+		return
+	}
+	c.Upsert(pex)
 }
 
 func syncPolicy(c *webhook.PolicyCache, obj interface{}) {
