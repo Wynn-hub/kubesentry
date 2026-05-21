@@ -23,7 +23,7 @@ spec:
           properties:
             spec:
               type: object
-              required: [enabled]
+              required: [enabled, policies]
               properties:
                 displayName:
                   type: string
@@ -31,24 +31,29 @@ spec:
                   type: string
                 enabled:
                   type: boolean
+                namespaceSelector:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
                 policies:
-                  type: array
-                  items:
-                    type: object
-                    required: [key]
-                    properties:
-                      key:
-                        type: string
-                      enabled:
-                        type: boolean
-                      mode:
-                        type: string
-                        enum: [enforce, audit]
-                      rego:
-                        type: string
-                      match:
+                  type: object
+                  properties:
+                    byName:
+                      type: array
+                      items:
                         type: object
-                        x-kubernetes-preserve-unknown-fields: true
+                        required: [name]
+                        properties:
+                          name:
+                            type: string
+                          enforcementMode:
+                            type: string
+                            enum: [enforce, audit]
+                    bySelector:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                selectorEnforcementMode:
+                  type: string
+                  enum: [enforce, audit]
             status:
               type: object
               x-kubernetes-preserve-unknown-fields: true
@@ -56,15 +61,12 @@ spec:
         - name: Enabled
           type: boolean
           jsonPath: .spec.enabled
+        - name: Policies
+          type: integer
+          jsonPath: .status.resolvedPolicies.length
         - name: Phase
           type: string
           jsonPath: .status.phase
-        - name: Active
-          type: integer
-          jsonPath: .status.activePolicies
-        - name: Skipped
-          type: integer
-          jsonPath: .status.skippedPolicies
         - name: Age
           type: date
           jsonPath: .metadata.creationTimestamp

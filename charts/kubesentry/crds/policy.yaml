@@ -49,9 +49,6 @@ spec:
                           resources:
                             type: array
                             items: {type: string}
-                    namespaceSelector:
-                      type: object
-                      x-kubernetes-preserve-unknown-fields: true
                 enforcementMode:
                   type: string
                   enum: [enforce, audit]
@@ -69,15 +66,18 @@ spec:
               type: object
               x-kubernetes-preserve-unknown-fields: true
       additionalPrinterColumns:
+        - name: Mode
+          type: string
+          jsonPath: .spec.enforcementMode
+        - name: ReferencedBy
+          type: string
+          jsonPath: .status.referencedBy
         - name: Phase
           type: string
           jsonPath: .status.phase
         - name: Version
           type: integer
           jsonPath: .status.currentVersion
-        - name: Mode
-          type: string
-          jsonPath: .spec.enforcementMode
         - name: Age
           type: date
           jsonPath: .metadata.creationTimestamp
