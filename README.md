@@ -154,6 +154,15 @@ builtinNamespaceSelector:
         - my-exempt-namespace
 ```
 
+> ⚠️ **bySelector dynamic capture.** Built-in groups bind members through
+> both `byName` (the explicit list) **and** `bySelector` (`kubesentry.io/category=<group>`).
+> Setting `builtinPolicies.<name>.enabled=false` only stops Helm from rendering
+> that Policy CR — if anyone later applies a CR of the same name with the
+> matching category label, `bySelector` will re-include it on the next group
+> reconcile. To permanently keep a policy out of a group, also remove the
+> `kubesentry.io/category` label from any future copies, or disable the
+> whole group.
+
 ## PolicyGroup CRD
 
 `PolicyGroup` is a pure reference object — it does **not** own or create `Policy` CRs. You can create your own groups referencing built-in or custom policies:
