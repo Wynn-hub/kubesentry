@@ -32,9 +32,9 @@ Two independent Go binaries share the same CRD API types:
 │  │  kubesentry-     │      │     kubesentry-operator        │  │
 │  │  webhook         │      │                                │  │
 │  │                  │      │  PolicyGroupReconciler         │  │
-│  │  - OPA evaluator │      │  - creates child Policy CRDs  │  │
-│  │  - Policy cache  │      │  - built-in library (37 rules) │  │
-│  │  - /validate     │      │  - conflict detection          │  │
+│  │  - OPA evaluator │      │  - resolves byName+bySelector  │  │
+│  │  - Policy cache  │      │  - computes effective mode     │  │
+│  │  - /validate     │      │  - writes status.resolvedPols  │  │
 │  │  - /healthz      │      │                                │  │
 │  │  - /readyz       │      │  PolicyReconciler              │  │
 │  └────────┬─────────┘      │  - validates Rego              │  │
@@ -126,26 +126,37 @@ KubeSentry ships 37 built-in policies across three groups, enabled by default:
 | `hpaMaxAvailability` | audit | Warns when HPA maxReplicas ≤ minReplicas |
 | `hpaMinAvailability` | audit | Warns when HPA minReplicas ≤ 1 |
 
-### Customizing built-in groups
+### Customizing built-in policies
 
-Disable a whole group or individual policies via Helm values:
+Disable a whole group, individual policies, or override enforcement modes via Helm values:
 
 ```yaml
+# Disable an entire built-in group
 builtinGroups:
-  security:
-    enabled: true
-    policies:
-      hostNetworkSet:
-        enabled: false       # disable this policy
-      runAsRootAllowed:
-        mode: enforce        # override mode to enforce
   efficiency:
-    enabled: false           # disable the entire group
+    enabled: false
+
+# Disable or override individual built-in policies (kebab-case names)
+builtinPolicies:
+  host-network-set:
+    enabled: false         # remove this policy entirely
+  run-as-root-allowed:
+    mode: enforce          # upgrade from audit → enforce
+
+# Override the namespace exclusion list for all built-in groups
+builtinNamespaceSelector:
+  matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values:
+        - kube-system
+        - kube-public
+        - my-exempt-namespace
 ```
 
 ## PolicyGroup CRD
 
-You can also create your own groups with a mix of built-in and custom policies:
+`PolicyGroup` is a pure reference object — it does **not** own or create `Policy` CRs. You can create your own groups referencing built-in or custom policies:
 
 ```yaml
 apiVersion: kubesentry.io/v1alpha1
@@ -155,36 +166,60 @@ metadata:
 spec:
   enabled: true
   displayName: "My Custom Policies"
+  namespaceSelector:
+    matchExpressions:
+      - key: kubernetes.io/metadata.name
+        operator: NotIn
+        values: [kube-system, kube-public]
   policies:
-    # use a built-in policy with mode override
-    - key: runAsPrivileged
-      mode: enforce
-    # custom policy not in the built-in library
-    - key: noDebugContainers
-      mode: enforce
-      rego: |
-        package kubesentry
-        deny[msg] {
-          c := input.request.object.spec.containers[_]
-          c.name == "debug"
-          msg := "debug containers are not allowed"
-        }
-      match:
-        operations: [CREATE, UPDATE]
-        resources:
-          - apiGroups: [""]
-            apiVersions: ["v1"]
-            resources: ["pods"]
+    byName:
+      # reference a built-in or custom Policy by name, with optional mode override
+      - name: run-as-privileged
+        enforcementMode: enforce
+      - name: no-debug-containers   # your own custom Policy CR
+    bySelector:
+      # dynamically include every Policy labeled kubesentry.io/category=custom
+      matchLabels:
+        kubesentry.io/category: custom
+  selectorEnforcementMode: audit   # applies to all bySelector members
 ```
 
-When a `PolicyGroup` entry shares a `key` with an existing standalone `Policy` (one with no `OwnerReference` to any `PolicyGroup`), the standalone policy takes priority and the group entry is skipped.
+**Per-request strictest mode.** If multiple groups match the same request namespace and reference the same Policy with different modes, the webhook takes the strictest (enforce > audit).
+
+### Custom Policy CR
+
+Define a standalone `Policy` CR and add it to a group:
+
+```yaml
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: no-debug-containers
+  labels:
+    kubesentry.io/category: custom   # picked up by bySelector groups
+spec:
+  enforcementMode: enforce
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+  rego: |
+    package kubesentry
+    deny[msg] {
+      c := input.request.object.spec.containers[_]
+      c.name == "debug"
+      msg := "debug containers are not allowed"
+    }
+```
 
 ### Violation messages
 
-When a policy triggers, the response includes the group, key, and description:
+When a policy triggers, the response includes the policy name, contributing groups, and description:
 
 ```
-[security/runAsPrivileged] container "app" must not run as privileged
+[run-as-privileged via security,my-policies] container "app" must not run as privileged
   描述：Fails when securityContext.privileged is true.
 ```
 
@@ -352,12 +387,15 @@ Both images are public and support `linux/amd64` and `linux/arm64`.
 | `tls.secretName` | `kubesentry-tls` | TLS Secret name |
 | `failurePolicy` | `Fail` | Webhook failure policy |
 | `policy.versionHistoryLimit` | `20` | Max `PolicyVersion` objects per Policy |
-| `webhookNamespaceSelector` | excludes `kube-system`, `kubesentry-system` | Namespace selector |
+| `webhookNamespaceSelector` | excludes `kube-system`, `kubesentry-system` | Namespace selector for the VWC |
+| `builtinNamespaceSelector` | excludes `kube-system`, `kube-public`, `kube-node-lease`, `kubesentry-system` | Default namespace selector applied to all built-in groups |
 | `builtinGroups.security.enabled` | `true` | Enable the Security policy group |
 | `builtinGroups.efficiency.enabled` | `true` | Enable the Efficiency policy group |
 | `builtinGroups.reliability.enabled` | `true` | Enable the Reliability policy group |
-| `builtinGroups.<group>.policies.<key>.enabled` | — | Enable/disable a single built-in policy |
-| `builtinGroups.<group>.policies.<key>.mode` | — | Override mode (`enforce`\|`audit`) for a single policy |
+| `builtinGroups.<group>.namespaceSelector` | *(inherits builtinNamespaceSelector)* | Per-group namespace selector override |
+| `builtinGroups.<group>.selectorEnforcementMode` | — | Default mode for bySelector members of this group |
+| `builtinPolicies.<name>.enabled` | `true` | Enable/disable a single built-in Policy CR |
+| `builtinPolicies.<name>.mode` | — | Override enforcement mode (`enforce`\|`audit`) for a single policy |
 
 ## Development
 
@@ -416,14 +454,16 @@ kubesentry/
 │   └── operator/main.go      # operator + tls-setup subcommand
 ├── internal/
 │   ├── api/v1alpha1/         # CRD type definitions
-│   ├── builtins/             # embedded Rego library (37 built-in policies)
-│   │   └── rego/             # .rego files (one per policy)
 │   ├── webhook/              # OPA evaluator, cache, HTTP handler
 │   ├── operator/             # Policy, PolicyGroup, and WebhookConfig reconcilers
 │   └── tlssetup/             # ECDSA cert generation
 ├── charts/kubesentry/        # Helm chart
 │   ├── crds/                 # CRD manifests (Policy, PolicyVersion, PolicyGroup)
-│   └── templates/            # K8s resource templates
+│   ├── builtin-policies/     # source-of-truth for built-in catalogue
+│   │   ├── policies/         # 37 standalone Policy CRs (one yaml per policy)
+│   │   └── groups/           # 3 PolicyGroup member manifests
+│   └── templates/            # Helm renderers (builtin-policies.yaml + builtin-groups.yaml)
+├── test/builtins/            # helm template + CompileRego smoke test
 ├── Dockerfile.webhook        # runtime-only, no build step
 └── Dockerfile.operator
 ```
