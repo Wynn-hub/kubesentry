@@ -169,6 +169,12 @@ deploy-local: build-image-local
 undeploy-local:
 	helm uninstall kubesentry --namespace $(LOCAL_NAMESPACE) || true
 	kubectl delete namespace $(LOCAL_NAMESPACE) --ignore-not-found
+	kubectl delete crd \
+	  policies.kubesentry.io \
+	  policygroups.kubesentry.io \
+	  policyversions.kubesentry.io \
+	  policyexceptions.kubesentry.io \
+	  --ignore-not-found
 
 # ── Step 3: Package into multi-platform images ────────────────────────────────
 # buildx reads bin/linux-{amd64,arm64}/ via TARGETARCH injected at build time.
@@ -271,7 +277,7 @@ help:
 	@echo ""
 	@echo "Local Deploy:"
 	@printf "  %-22s %s\n" "deploy-local"    "Build images + helm install to current kubectl context"
-	@printf "  %-22s %s\n" "undeploy-local"  "helm uninstall + delete namespace"
+	@printf "  %-22s %s\n" "undeploy-local"  "helm uninstall + delete namespace + delete CRDs"
 	@printf "  %-22s %s\n" "build-image-local" "Build local-tagged images (no deploy)"
 	@echo ""
 	@echo "Regression Reports:"
