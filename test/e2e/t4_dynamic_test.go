@@ -11,12 +11,15 @@ import (
 
 	v1alpha1 "github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/test/e2e/helpers"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // TestT4_EnforceToAudit: switch a policy from enforce to audit.
 // After switching, a previously-blocked pod should be admitted.
+// In the new model Policy is first-class; the operator no longer owns
+// Policy objects, so we patch the Policy directly instead of via the group.
 func TestT4_EnforceToAudit(t *testing.T) {
 	ctx := context.Background()
 	policyName := "run-as-privileged"
@@ -29,53 +32,31 @@ func TestT4_EnforceToAudit(t *testing.T) {
 	}
 	t.Logf("T4-1: confirmed enforce mode blocks pod. Output: %s", out)
 
-	// Patch the PolicyGroup entry — the operator owns child Policies and will
-	// immediately revert direct patches to Policy objects.
-	var pg v1alpha1.PolicyGroup
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &pg); err != nil {
-		t.Fatalf("get PolicyGroup security: %v", err)
+	var pol v1alpha1.Policy
+	if err := k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol); err != nil {
+		t.Fatalf("get policy %s: %v", policyName, err)
 	}
-	pgPatch := client.MergeFrom(pg.DeepCopy())
-	found := false
-	for i, entry := range pg.Spec.Policies {
-		if entry.Key == "runAsPrivileged" {
-			pg.Spec.Policies[i].Mode = string(v1alpha1.ModeAudit)
-			found = true
-			break
-		}
-	}
-	if !found {
-		pg.Spec.Policies = append(pg.Spec.Policies, v1alpha1.PolicyInGroup{
-			Key:  "runAsPrivileged",
-			Mode: string(v1alpha1.ModeAudit),
-		})
-	}
-	if err := k8sClient.Patch(ctx, &pg, pgPatch); err != nil {
-		t.Fatalf("patch PolicyGroup to set runAsPrivileged mode=audit: %v", err)
+	patch := client.MergeFrom(pol.DeepCopy())
+	pol.Spec.EnforcementMode = v1alpha1.ModeAudit
+	if err := k8sClient.Patch(ctx, &pol, patch); err != nil {
+		t.Fatalf("patch policy to audit: %v", err)
 	}
 	t.Cleanup(func() {
-		var pg2 v1alpha1.PolicyGroup
-		if k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &pg2) != nil {
+		var pol2 v1alpha1.Policy
+		if k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol2) != nil {
 			return
 		}
-		pt := client.MergeFrom(pg2.DeepCopy())
-		for i, entry := range pg2.Spec.Policies {
-			if entry.Key == "runAsPrivileged" {
-				pg2.Spec.Policies[i].Mode = ""
-				break
-			}
-		}
-		k8sClient.Patch(ctx, &pg2, pt) //nolint:errcheck
+		pt := client.MergeFrom(pol2.DeepCopy())
+		pol2.Spec.EnforcementMode = v1alpha1.ModeEnforce
+		k8sClient.Patch(ctx, &pol2, pt) //nolint:errcheck
 	})
 
-	// Retry applying the fail fixture until it is admitted (or 30s timeout).
-	// The operator must reconcile the Policy to audit, then the webhook cache must sync.
 	deadline := time.Now().Add(30 * time.Second)
 	passed := false
 	for time.Now().Before(deadline) {
-		var pol v1alpha1.Policy
-		if k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol) == nil {
-			t.Logf("T4-1: policy enforcement mode = %s", pol.Spec.EnforcementMode)
+		var p v1alpha1.Policy
+		if k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &p) == nil {
+			t.Logf("T4-1: policy enforcement mode = %s", p.Spec.EnforcementMode)
 		}
 		applyOut, applyErr := helpers.KubectlApply(ctx, failPath)
 		if applyErr == nil {
@@ -120,69 +101,43 @@ func TestT4_AuditToEnforce(t *testing.T) {
 	}
 }
 
-// TestT4_DisablePolicy: disable a policy in its PolicyGroup.
-// After disabling, the previously-blocked resource should be admitted.
+// TestT4_DisablePolicy: switch a policy to audit to stop enforcement.
+// In the new model there is no per-Policy enabled toggle in PolicyGroup;
+// the closest equivalent is switching the Policy's own enforcementMode to audit.
+// After switching, the previously-blocked resource should be admitted.
 func TestT4_DisablePolicy(t *testing.T) {
 	ctx := context.Background()
+	policyName := "host-ipc-set"
 
-	var pg v1alpha1.PolicyGroup
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &pg); err != nil {
-		t.Fatalf("get PolicyGroup security: %v", err)
+	var pol v1alpha1.Policy
+	if err := k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol); err != nil {
+		t.Fatalf("get policy %s: %v", policyName, err)
 	}
+	originalMode := pol.Spec.EnforcementMode
 
-	// Add or update the hostIPCSet entry to set Enabled=false.
-	patch := client.MergeFrom(pg.DeepCopy())
-	falseVal := false
-	found := false
-	for i, entry := range pg.Spec.Policies {
-		if entry.Key == "hostIPCSet" {
-			pg.Spec.Policies[i].Enabled = &falseVal
-			found = true
-			break
-		}
+	patch := client.MergeFrom(pol.DeepCopy())
+	pol.Spec.EnforcementMode = v1alpha1.ModeAudit
+	if err := k8sClient.Patch(ctx, &pol, patch); err != nil {
+		t.Fatalf("patch policy to audit: %v", err)
 	}
-	if !found {
-		pg.Spec.Policies = append(pg.Spec.Policies, v1alpha1.PolicyInGroup{
-			Key:     "hostIPCSet",
-			Enabled: &falseVal,
-		})
-	}
-	if err := k8sClient.Patch(ctx, &pg, patch); err != nil {
-		t.Fatalf("patch PolicyGroup to disable hostIPCSet: %v", err)
-	}
-
 	t.Cleanup(func() {
-		// Re-enable: remove the hostIPCSet entry (operator will re-create with default enabled)
-		var pg2 v1alpha1.PolicyGroup
-		if k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &pg2) != nil {
+		var pol2 v1alpha1.Policy
+		if k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol2) != nil {
 			return
 		}
-		patch2 := client.MergeFrom(pg2.DeepCopy())
-		filtered := pg2.Spec.Policies[:0]
-		for _, entry := range pg2.Spec.Policies {
-			if entry.Key != "hostIPCSet" {
-				filtered = append(filtered, entry)
-			}
-		}
-		pg2.Spec.Policies = filtered
-		k8sClient.Patch(ctx, &pg2, patch2) //nolint:errcheck
+		pt := client.MergeFrom(pol2.DeepCopy())
+		pol2.Spec.EnforcementMode = originalMode
+		k8sClient.Patch(ctx, &pol2, pt) //nolint:errcheck
 	})
 
 	failPath := "../builtin-rules/security/host-ipc-fail.yaml"
-
-	// Retry applying the fail fixture until it is admitted (or 30s timeout).
-	// The operator must delete the Policy, then the webhook cache must sync the deletion.
 	deadline := time.Now().Add(30 * time.Second)
 	passed := false
 	for time.Now().Before(deadline) {
-		var p v1alpha1.Policy
-		exists := k8sClient.Get(ctx, types.NamespacedName{Name: "host-ipc-set"}, &p) == nil
-		t.Logf("T4-3: policy host-ipc-set exists=%v", exists)
-
 		applyOut, applyErr := helpers.KubectlApply(ctx, failPath)
 		if applyErr == nil {
 			helpers.KubectlDelete(ctx, failPath)
-			t.Log("T4-3 PASS: disabled policy — previously-blocked resource now admitted")
+			t.Log("T4-3 PASS: policy switched to audit — previously-blocked resource now admitted")
 			passed = true
 			break
 		}
@@ -190,13 +145,14 @@ func TestT4_DisablePolicy(t *testing.T) {
 		time.Sleep(2 * time.Second)
 	}
 	if !passed {
-		t.Errorf("T4-3: after disabling hostIPCSet, deny fixture still blocked after 30s")
+		t.Errorf("T4-3: after switching to audit, deny fixture still blocked after 30s")
 	}
 }
 
-// TestT4_AddCustomPolicy: apply a new custom Policy CRD, verify it blocks matching pods.
-// NOTE: does NOT clean up the policy — TestT4_RegoHotUpdate and TestT4_VersionRollback
-// depend on it being present.
+// TestT4_AddCustomPolicy: apply a new custom Policy CRD and create a PolicyGroup
+// that references it, then verify it blocks matching pods.
+// NOTE: does NOT clean up the policy or group — TestT4_RegoHotUpdate and
+// TestT4_VersionRollback depend on them being present.
 func TestT4_AddCustomPolicy(t *testing.T) {
 	ctx := context.Background()
 	policyFile := "fixtures/custom/test-policy.yaml"
@@ -209,7 +165,23 @@ func TestT4_AddCustomPolicy(t *testing.T) {
 	if err := helpers.WaitForPolicyPhase(ctx, k8sClient, "e2e-forbidden-label", v1alpha1.PhaseReady, 30*time.Second); err != nil {
 		t.Fatalf("T4-4: custom policy did not reach Ready: %v", err)
 	}
-	time.Sleep(3 * time.Second) // let webhook cache sync the new policy
+
+	// Policy must belong to at least one enabled PolicyGroup to be evaluated.
+	grp := &v1alpha1.PolicyGroup{
+		ObjectMeta: metav1.ObjectMeta{Name: "e2e-custom-group"},
+		Spec: v1alpha1.PolicyGroupSpec{
+			Enabled: true,
+			Policies: v1alpha1.PolicyGroupPolicies{
+				ByName: []v1alpha1.PolicyRef{{Name: "e2e-forbidden-label"}},
+			},
+		},
+	}
+	if err := k8sClient.Create(ctx, grp); err != nil {
+		t.Fatalf("T4-4: create PolicyGroup: %v", err)
+	}
+	// NOTE: not cleaning up grp — subsequent tests depend on it.
+
+	time.Sleep(5 * time.Second) // let operator sync + webhook cache update
 
 	forbiddenPod := `apiVersion: v1
 kind: Pod
@@ -229,7 +201,7 @@ spec:
         drop: ["ALL"]
 `
 	podFile := fmt.Sprintf("/tmp/e2e-forbidden-pod-%d.yaml", time.Now().UnixNano())
-	if err := os.WriteFile(podFile, []byte(forbiddenPod), 0600); err != nil {
+	if err := os.WriteFile(podFile, []byte(forbiddenPod), 0o600); err != nil {
 		t.Fatalf("write temp pod file: %v", err)
 	}
 	defer os.Remove(podFile)
@@ -296,7 +268,7 @@ spec:
         drop: ["ALL"]
 `
 	podFile := fmt.Sprintf("/tmp/e2e-also-forbidden-%d.yaml", time.Now().UnixNano())
-	if err := os.WriteFile(podFile, []byte(alsoForbiddenPod), 0600); err != nil {
+	if err := os.WriteFile(podFile, []byte(alsoForbiddenPod), 0o600); err != nil {
 		t.Fatalf("write temp pod file: %v", err)
 	}
 	defer os.Remove(podFile)
@@ -351,7 +323,7 @@ spec:
         drop: ["ALL"]
 `
 	podFile := fmt.Sprintf("/tmp/e2e-rollback-%d.yaml", time.Now().UnixNano())
-	if err := os.WriteFile(podFile, []byte(alsoForbiddenPod), 0600); err != nil {
+	if err := os.WriteFile(podFile, []byte(alsoForbiddenPod), 0o600); err != nil {
 		t.Fatalf("write temp pod file: %v", err)
 	}
 	defer os.Remove(podFile)
