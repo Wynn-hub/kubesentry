@@ -14,11 +14,12 @@ import (
 // Note: Key + GroupName labels are no longer used (the old owner→child model
 // is gone). Description still surfaces in violation messages.
 type CompiledPolicy struct {
-	Name        string
-	Description string
-	DefaultMode string // spec.enforcementMode — falls back here if no group overrides
-	Match       v1alpha1.PolicyMatch
-	Query       rego.PreparedEvalQuery
+	Name         string
+	Description  string
+	DefaultMode  string // spec.enforcementMode — falls back here if no group overrides
+	Match        v1alpha1.PolicyMatch
+	Query        rego.PreparedEvalQuery
+	ReferencedBy []string // mirrors Policy.status.referencedBy; maintained by PolicyGroupReconciler
 }
 
 // CompiledGroup is the cached view of a PolicyGroup resolved by the operator.

@@ -46,6 +46,21 @@ func main() {
 		},
 	})
 
+	pgInformer, err := c.GetInformer(context.Background(), &v1alpha1.PolicyGroup{})
+	if err != nil {
+		slog.Error("get policygroup informer", "error", err)
+		os.Exit(1)
+	}
+	pgInformer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
+		AddFunc:    func(obj interface{}) { syncGroup(policyCache, obj) },
+		UpdateFunc: func(_, obj interface{}) { syncGroup(policyCache, obj) },
+		DeleteFunc: func(obj interface{}) {
+			if g, ok := extractPolicyGroup(obj); ok {
+				policyCache.DeleteGroup(g.Name)
+			}
+		},
+	})
+
 	exceptionCache := webhook.NewExceptionCache()
 	exInformer, err := c.GetInformer(context.Background(), &v1alpha1.PolicyException{})
 	if err != nil {
@@ -176,12 +191,39 @@ func syncPolicy(c *webhook.PolicyCache, obj interface{}) {
 		return
 	}
 	c.SetPolicy(p.Name, &webhook.CompiledPolicy{
-		Name:        p.Name,
-		Description: p.Spec.Description,
-		DefaultMode: p.Spec.EnforcementMode,
-		Match:       p.Spec.Match,
-		Query:       q,
+		Name:         p.Name,
+		Description:  p.Spec.Description,
+		DefaultMode:  p.Spec.EnforcementMode,
+		Match:        p.Spec.Match,
+		Query:        q,
+		ReferencedBy: append([]string(nil), p.Status.ReferencedBy...),
 	})
+}
+
+func syncGroup(c *webhook.PolicyCache, obj interface{}) {
+	g, ok := obj.(*v1alpha1.PolicyGroup)
+	if !ok {
+		return
+	}
+	cg, err := webhook.CompileGroup(g)
+	if err != nil {
+		slog.Error("compile group", "name", g.Name, "error", err)
+		c.DeleteGroup(g.Name)
+		return
+	}
+	c.SetGroup(g.Name, cg)
+}
+
+func extractPolicyGroup(obj interface{}) (*v1alpha1.PolicyGroup, bool) {
+	if g, ok := obj.(*v1alpha1.PolicyGroup); ok {
+		return g, true
+	}
+	if tombstone, ok := obj.(toolscache.DeletedFinalStateUnknown); ok {
+		if g, ok := tombstone.Obj.(*v1alpha1.PolicyGroup); ok {
+			return g, true
+		}
+	}
+	return nil, false
 }
 
 func buildConfig() (*rest.Config, error) {

@@ -153,9 +153,12 @@ func (c *ExceptionCache) ExemptedKeys(namespace string, namespaceLabels, resourc
 				out[p.Name] = true
 				continue
 			}
-			// NOTE: policyGroupRefs matching via CompiledPolicy.GroupName is
-			// removed in the new reference model. Task 3.4+3.5 will restore
-			// group-based exemption using the Resolved.Groups slice.
+			for _, group := range p.ReferencedBy {
+				if _, ok := entry.policyGroupRefs[group]; ok {
+					out[p.Name] = true
+					break
+				}
+			}
 		}
 	}
 	return out
