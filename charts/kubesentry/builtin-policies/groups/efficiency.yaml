@@ -1,0 +1,10 @@
+metadata:
+  name: efficiency
+spec:
+  displayName: "Efficiency"
+  description: "Resource efficiency policies"
+  members:
+    - cpu-requests-missing
+    - memory-requests-missing
+    - cpu-limits-missing
+    - memory-limits-missing

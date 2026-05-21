@@ -1,0 +1,19 @@
+{{- /*
+Render every Policy CR under builtin-policies/policies/*.yaml, honoring
+values.builtinPolicies.<name>.enabled (default true) and .mode override.
+*/ -}}
+{{- range $path, $_ := .Files.Glob "builtin-policies/policies/*.yaml" }}
+{{- $pol := $.Files.Get $path | fromYaml }}
+{{- $name := $pol.metadata.name }}
+{{- $u := index $.Values.builtinPolicies $name | default dict }}
+{{- $enabled := hasKey $u "enabled" | ternary $u.enabled true }}
+{{- if $enabled }}
+{{- if and (hasKey $u "mode") (ne (default "" $u.mode) "") }}
+{{- $_ := set $pol.spec "enforcementMode" $u.mode }}
+{{- end }}
+{{- $base := dict "app.kubernetes.io/managed-by" "Helm" "helm.sh/chart" (printf "%s-%s" $.Chart.Name $.Chart.Version) "app.kubernetes.io/version" $.Chart.AppVersion }}
+{{- $_ := set $pol.metadata "labels" (merge ($pol.metadata.labels | default dict) $base) }}
+---
+{{ $pol | toYaml }}
+{{- end }}
+{{- end }}

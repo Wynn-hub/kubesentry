@@ -1,0 +1,46 @@
+{{- /*
+Render PolicyGroup CRs from builtin-policies/groups/*.yaml; honor
+values.builtinGroups.<name>.enabled / namespaceSelector / selectorEnforcementMode.
+Each group's byName list reflects only currently-enabled builtin Policies.
+*/ -}}
+{{- range $path, $_ := .Files.Glob "builtin-policies/groups/*.yaml" }}
+{{- $g := $.Files.Get $path | fromYaml }}
+{{- $name := $g.metadata.name }}
+{{- $u := index $.Values.builtinGroups $name | default dict }}
+{{- if $u.enabled }}
+---
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyGroup
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: {{ printf "%s-%s" $.Chart.Name $.Chart.Version }}
+    app.kubernetes.io/version: {{ $.Chart.AppVersion }}
+    kubesentry.io/source: builtin
+spec:
+  displayName: {{ $g.spec.displayName | quote }}
+  description: {{ $g.spec.description | quote }}
+  enabled: true
+  namespaceSelector:
+{{ default $.Values.builtinNamespaceSelector $u.namespaceSelector | toYaml | indent 4 }}
+  policies:
+    byName:
+    {{- range $member := $g.spec.members }}
+    {{- $po := index $.Values.builtinPolicies $member | default dict }}
+    {{- $polEnabled := hasKey $po "enabled" | ternary $po.enabled true }}
+    {{- if $polEnabled }}
+      - name: {{ $member }}
+        {{- if and (hasKey $po "mode") (ne (default "" $po.mode) "") }}
+        enforcementMode: {{ $po.mode }}
+        {{- end }}
+    {{- end }}
+    {{- end }}
+    bySelector:
+      matchLabels:
+        kubesentry.io/category: {{ $name }}
+  {{- if $u.selectorEnforcementMode }}
+  selectorEnforcementMode: {{ $u.selectorEnforcementMode }}
+  {{- end }}
+{{- end }}
+{{- end }}

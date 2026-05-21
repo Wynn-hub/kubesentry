@@ -1,0 +1,16 @@
+metadata:
+  name: reliability
+spec:
+  displayName: "Reliability"
+  description: "Reliability and availability policies"
+  members:
+    - readiness-probe-missing
+    - liveness-probe-missing
+    - tag-not-specified
+    - pull-policy-not-always
+    - priority-class-not-set
+    - deployment-missing-replicas
+    - metadata-and-instance-mismatched
+    - topology-spread-constraint
+    - hpa-max-availability
+    - hpa-min-availability

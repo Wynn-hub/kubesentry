@@ -33,27 +33,46 @@ policy:
 
 failurePolicy: Fail
 
+# Common namespaceSelector applied to all built-in PolicyGroups by default.
+# Override per-group via builtinGroups.<name>.namespaceSelector.
+builtinNamespaceSelector:
+  matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values:
+        - kube-system
+        - kube-public
+        - kube-node-lease
+        - kubesentry-system
+
+# Per-group toggle and optional overrides.
+builtinGroups:
+  security:
+    enabled: true
+    # namespaceSelector: null      # set to override builtinNamespaceSelector
+    # selectorEnforcementMode: ""  # affects bySelector-matched future user policies only
+  efficiency:
+    enabled: true
+  reliability:
+    enabled: true
+
+# Per-policy toggles and per-entry mode overrides.
+# Keys are the Policy.metadata.name (kebab-case) of each built-in policy.
+# Omitted keys default to enabled=true with the mode declared in the policy yaml.
+builtinPolicies: {}
+#   run-as-privileged:
+#     enabled: true   # set false to drop this Policy + remove from group.byName
+#     mode: ""        # "enforce" | "audit" — overrides the policy's default
+
+# Webhook-level namespace exclusion (forwarded to ValidatingWebhookConfiguration).
+# Kept separate from builtinNamespaceSelector: this filters which requests reach
+# the webhook server; the group selector filters which groups evaluate them.
 webhookNamespaceSelector:
   matchExpressions:
     - key: kubernetes.io/metadata.name
       operator: NotIn
       values:
         - kube-system
+        - kube-public
+        - kube-node-lease
         - kubesentry-system
-
-builtinGroups:
-  security:
-    enabled: true
-    displayName: "Security"
-    description: "Security policies for Kubernetes workloads"
-    policies: {}
-  efficiency:
-    enabled: true
-    displayName: "Efficiency"
-    description: "Resource efficiency policies"
-    policies: {}
-  reliability:
-    enabled: true
-    displayName: "Reliability"
-    description: "Reliability and availability policies"
-    policies: {}
