@@ -97,6 +97,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				nsLabels = map[string]string{}
 			}
 		}
+	} else {
+		// Cluster-scoped resources have no namespace. Pass an empty non-nil
+		// label set so namespaceSelector checks in MatchingForRequest still
+		// run (an empty set satisfies NotIn selectors). Passing nil would
+		// cause groups with namespaceSelector to be skipped (fail-open).
+		nsLabels = map[string]string{}
 	}
 	resolved := h.store.MatchingForRequest(
 		req.Resource.Resource,
