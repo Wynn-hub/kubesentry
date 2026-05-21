@@ -6,7 +6,9 @@ import (
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -77,7 +79,20 @@ func main() {
 		},
 	})
 
+	// API fallback for namespace lookups that miss the informer cache.
+	// Without this, requests against a freshly-created namespace would
+	// silently fail-open against any PolicyGroup whose namespaceSelector
+	// is set (i.e. all built-in groups). Direct typed-client bypasses the
+	// runtime cache, so it always hits the live API server.
+	apiClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		slog.Error("create kubernetes client", "error", err)
+		os.Exit(1)
+	}
 	namespaceCache := webhook.NewNamespaceCache()
+	namespaceCache.SetFetcher(func(ctx context.Context, name string) (*corev1.Namespace, error) {
+		return apiClient.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+	})
 	nsInformer, err := c.GetInformer(context.Background(), &corev1.Namespace{})
 	if err != nil {
 		slog.Error("get namespace informer", "error", err)

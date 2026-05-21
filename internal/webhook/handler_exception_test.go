@@ -2,6 +2,7 @@ package webhook_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -29,7 +30,7 @@ type stubNamespaceLister struct {
 	labels map[string]map[string]string
 }
 
-func (s *stubNamespaceLister) GetLabels(name string) (map[string]string, bool) {
+func (s *stubNamespaceLister) GetLabels(_ context.Context, name string) (map[string]string, bool) {
 	if s == nil {
 		return nil, false
 	}

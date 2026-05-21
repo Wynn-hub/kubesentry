@@ -31,11 +31,18 @@ type ExceptionStore interface {
 }
 
 // NamespaceLister resolves a namespace name to its metadata.labels. Used by
-// the Handler so PolicyExceptions with `match.namespaceSelector` can be
-// evaluated. Implementations should be backed by an informer cache and return
-// (nil, false) when the namespace is not in the local cache.
+// the Handler so PolicyGroups and PolicyExceptions with `namespaceSelector`
+// can be evaluated. Implementations should be backed by an informer cache
+// with an API-server fallback for cache misses (otherwise a freshly-created
+// namespace would silently bypass any group whose selector is set).
+//
+// Return (nil, false) only if both the local cache and any configured
+// fallback failed. The Handler treats that case as fail-closed for
+// ExceptionCache (never exempt) and fail-open for PolicyCache (skip the
+// group); the combination yields the same end behavior as "no rules
+// evaluated", but with a Warn log for diagnosability.
 type NamespaceLister interface {
-	GetLabels(name string) (map[string]string, bool)
+	GetLabels(ctx context.Context, name string) (map[string]string, bool)
 }
 
 type noExemptions struct{}
@@ -47,7 +54,9 @@ func (noExemptions) IsReady() bool { return true }
 
 type noNamespaceLister struct{}
 
-func (noNamespaceLister) GetLabels(string) (map[string]string, bool) { return nil, false }
+func (noNamespaceLister) GetLabels(context.Context, string) (map[string]string, bool) {
+	return nil, false
+}
 
 // Handler processes admission review requests.
 type Handler struct {
@@ -89,13 +98,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	req := review.Request
 	var nsLabels map[string]string
 	if req.Namespace != "" {
-		if l, ok := h.nsLister.GetLabels(req.Namespace); ok {
+		if l, ok := h.nsLister.GetLabels(r.Context(), req.Namespace); ok {
 			nsLabels = l
 			if nsLabels == nil {
 				// Distinguish "namespace has no labels" from "namespace not
 				// found": an empty map is non-nil and means "evaluated".
 				nsLabels = map[string]string{}
 			}
+		} else {
+			// Namespace lookup failed in both local cache AND the API-server
+			// fallback. This is unusual — log a warning so the operator can
+			// investigate, then leave nsLabels==nil so MatchingForRequest
+			// skips namespaceSelector groups (fail-open) and ExemptedKeys
+			// rejects namespaceSelector exceptions (fail-closed). The two
+			// directions cancel to "no rules evaluated" — same as if the
+			// request never matched any group.
+			slog.Warn("namespace lookup failed; admission running without namespace labels",
+				"namespace", req.Namespace, "resource", req.Resource.Resource, "name", req.Name)
 		}
 	} else {
 		// Cluster-scoped resources have no namespace. Pass an empty non-nil
