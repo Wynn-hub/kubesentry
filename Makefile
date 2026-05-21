@@ -1,7 +1,8 @@
 export GOROOT := /opt/homebrew/Cellar/go/1.26.2/libexec
 
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
-        test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help
+        test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \
+        build-image-local deploy-local undeploy-local
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -135,6 +136,40 @@ test-all: test-report build-image-e2e test-e2e-report
 	@printf "  %-40s (JUnit XML)\n" "$(REPORT_DIR)/unit-tests.xml"
 	@printf "  %-40s (JUnit XML)\n" "$(REPORT_DIR)/e2e-tests.xml"
 
+# ── Local Deploy ──────────────────────────────────────────────────────────────
+# One-shot: build → image → helm upgrade --install to the current kubectl context.
+# Targets docker-desktop / kind / minikube where kubelet shares the local image store.
+# Uses tag "local" with pullPolicy=Never so kubelet never tries to pull from a registry.
+LOCAL_TAG        ?= local
+LOCAL_NAMESPACE  ?= kubesentry-system
+LOCAL_WEBHOOK_IMAGE  = $(REGISTRY)/kubesentry-webhook:$(LOCAL_TAG)
+LOCAL_OPERATOR_IMAGE = $(REGISTRY)/kubesentry-operator:$(LOCAL_TAG)
+
+# Build single-arch images (host arch only) for local k8s — faster than buildx.
+build-image-local: build-linux
+	docker build -f Dockerfile.webhook  -t $(LOCAL_WEBHOOK_IMAGE)  .
+	docker build -f Dockerfile.operator -t $(LOCAL_OPERATOR_IMAGE) .
+
+# Build images + helm install/upgrade in one shot.
+deploy-local: build-image-local
+	@echo "→ Deploying to kube context: $$(kubectl config current-context)"
+	helm upgrade --install kubesentry $(CHART_DIR) \
+	  --namespace $(LOCAL_NAMESPACE) --create-namespace \
+	  --set webhook.image.repository=$(REGISTRY)/kubesentry-webhook \
+	  --set webhook.image.tag=$(LOCAL_TAG) \
+	  --set webhook.image.pullPolicy=Never \
+	  --set operator.image.repository=$(REGISTRY)/kubesentry-operator \
+	  --set operator.image.tag=$(LOCAL_TAG) \
+	  --set operator.image.pullPolicy=Never \
+	  --wait --timeout 5m
+	@echo ""
+	@echo "Deployed. Inspect with:"
+	@echo "  kubectl -n $(LOCAL_NAMESPACE) get pods"
+
+undeploy-local:
+	helm uninstall kubesentry --namespace $(LOCAL_NAMESPACE) || true
+	kubectl delete namespace $(LOCAL_NAMESPACE) --ignore-not-found
+
 # ── Step 3: Package into multi-platform images ────────────────────────────────
 # buildx reads bin/linux-{amd64,arm64}/ via TARGETARCH injected at build time.
 .builder:
@@ -233,6 +268,11 @@ help:
 	@printf "  %-22s %s\n" "test-e2e"        "Run E2E tests (no report, requires e2e-test images)"
 	@printf "  %-22s %s\n" "lint"            "Run go vet"
 	@printf "  %-22s %s\n" "tools"           "Install test tooling (gotestsum)"
+	@echo ""
+	@echo "Local Deploy:"
+	@printf "  %-22s %s\n" "deploy-local"    "Build images + helm install to current kubectl context"
+	@printf "  %-22s %s\n" "undeploy-local"  "helm uninstall + delete namespace"
+	@printf "  %-22s %s\n" "build-image-local" "Build local-tagged images (no deploy)"
 	@echo ""
 	@echo "Regression Reports:"
 	@printf "  %-22s %s\n" "test-report"     "Unit tests + HTML/JUnit report → dist/test-reports/"
