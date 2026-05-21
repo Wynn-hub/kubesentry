@@ -167,8 +167,10 @@ func (r *PolicyReconciler) buildHistory(existing []v1alpha1.PolicyVersionSummary
 		Phase:     phase,
 	}
 	history := append([]v1alpha1.PolicyVersionSummary{entry}, existing...)
-	if len(history) > 10 {
-		history = history[:10]
+	// Match the PolicyVersion retention so status.versionHistory and the
+	// retained PolicyVersion CRs always describe the same range.
+	if len(history) > r.versionHistoryLimit {
+		history = history[:r.versionHistoryLimit]
 	}
 	return history
 }
