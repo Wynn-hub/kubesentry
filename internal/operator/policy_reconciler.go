@@ -3,6 +3,7 @@ package operator
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"time"
@@ -10,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -17,6 +19,13 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
+
+// maxVersionCollisionRetries bounds how many sequential version numbers we
+// will probe when an idempotency-driven AlreadyExists is detected but the
+// existing PolicyVersion does not match the current Policy spec. Each retry
+// indicates an in-flight spec change collided with a partially-completed
+// previous reconcile — practically capped at 1-2 in normal operation.
+const maxVersionCollisionRetries = 8
 
 // PolicyReconciler reconciles Policy objects.
 type PolicyReconciler struct {
@@ -51,12 +60,48 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, r.setInvalid(ctx, &policy, err.Error())
 	}
 
-	// Create PolicyVersion snapshot (idempotent: already-exists is fine if a
-	// previous reconcile created it but failed before updating status).
+	// Create PolicyVersion snapshot.
+	//
+	// Idempotency: a previous reconcile may have created PolicyVersion vN but
+	// crashed before writing status.currentVersion=N. Naively swallowing
+	// AlreadyExists would lose history if the user then changed Policy.Spec
+	// between attempts — vN on disk would hold the OLD spec while the live
+	// Policy has the NEW spec, with no version capturing the new one.
+	//
+	// Strategy:
+	//   1. Try Create at nextVersion = status.currentVersion + 1.
+	//   2. On AlreadyExists, Get the existing PolicyVersion:
+	//      - if its spec matches the current Policy spec, the previous attempt
+	//        succeeded at that version; reuse it.
+	//      - if its spec differs, increment nextVersion and retry — the
+	//        existing one captures a stale snapshot we cannot overwrite (PV is
+	//        immutable by design).
+	//   3. Cap at maxVersionCollisionRetries to prevent runaway loops.
 	nextVersion := policy.Status.CurrentVersion + 1
-	pv := r.buildPolicyVersion(&policy, nextVersion)
-	if err := r.client.Create(ctx, pv); err != nil && !apierrors.IsAlreadyExists(err) {
-		return ctrl.Result{}, fmt.Errorf("create PolicyVersion: %w", err)
+	settled := false
+	for attempt := 0; attempt < maxVersionCollisionRetries; attempt++ {
+		pv := r.buildPolicyVersion(&policy, nextVersion)
+		err := r.client.Create(ctx, pv)
+		if err == nil {
+			settled = true
+			break
+		}
+		if !apierrors.IsAlreadyExists(err) {
+			return ctrl.Result{}, fmt.Errorf("create PolicyVersion: %w", err)
+		}
+		// AlreadyExists — fetch and compare.
+		var existing v1alpha1.PolicyVersion
+		if getErr := r.client.Get(ctx, types.NamespacedName{Name: pv.Name}, &existing); getErr != nil {
+			return ctrl.Result{}, fmt.Errorf("get conflicting PolicyVersion %q: %w", pv.Name, getErr)
+		}
+		if policyVersionMatchesSpec(&existing, &policy) {
+			settled = true // previous reconcile captured this exact spec at this version
+			break
+		}
+		nextVersion++
+	}
+	if !settled {
+		return ctrl.Result{}, fmt.Errorf("PolicyVersion creation could not converge after %d attempts (policy=%s)", maxVersionCollisionRetries, policy.Name)
 	}
 
 	// Cleanup old versions.
@@ -106,6 +151,16 @@ func (r *PolicyReconciler) setInvalid(ctx context.Context, policy *v1alpha1.Poli
 	policy.Status.Phase = v1alpha1.PhaseInvalid
 	policy.Status.Message = msg
 	return r.client.Status().Update(ctx, policy)
+}
+
+// policyVersionMatchesSpec reports whether an existing PolicyVersion snapshot
+// captures the same rego/match/enforcementMode as the current Policy spec.
+// CreatedAt/CreatedBy are intentionally ignored — they describe the snapshot
+// event, not policy content.
+func policyVersionMatchesSpec(pv *v1alpha1.PolicyVersion, policy *v1alpha1.Policy) bool {
+	return pv.Spec.Rego == policy.Spec.Rego &&
+		pv.Spec.EnforcementMode == policy.Spec.EnforcementMode &&
+		reflect.DeepEqual(pv.Spec.Match, policy.Spec.Match)
 }
 
 func (r *PolicyReconciler) buildPolicyVersion(policy *v1alpha1.Policy, version int64) *v1alpha1.PolicyVersion {
