@@ -195,7 +195,12 @@ func syncPolicy(c *webhook.PolicyCache, obj interface{}) {
 	if !ok {
 		return
 	}
-	if p.Status.Phase == v1alpha1.PhaseInvalid {
+	// Only PhaseReady policies are admissible. Any other state — Invalid
+	// (validation failed), Syncing (operator hasn't processed yet), or empty
+	// (just created, never reconciled) — must NOT participate in admission,
+	// otherwise an unvalidated Rego could enter the decision path before the
+	// operator has had a chance to reject it.
+	if p.Status.Phase != v1alpha1.PhaseReady {
 		c.DeletePolicy(p.Name)
 		return
 	}
