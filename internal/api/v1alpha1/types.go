@@ -126,11 +126,12 @@ type PolicyGroupPolicies struct {
 
 // PolicyGroupSpec defines the desired state of a PolicyGroup.
 type PolicyGroupSpec struct {
-	DisplayName             string              `json:"displayName,omitempty"`
-	Description             string              `json:"description,omitempty"`
-	Enabled                 bool                `json:"enabled"`
-	Policies                PolicyGroupPolicies `json:"policies,omitempty"`
-	SelectorEnforcementMode string              `json:"selectorEnforcementMode,omitempty"`
+	DisplayName             string                `json:"displayName,omitempty"`
+	Description             string                `json:"description,omitempty"`
+	Enabled                 bool                  `json:"enabled"`
+	NamespaceSelector       *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+	Policies                PolicyGroupPolicies   `json:"policies,omitempty"`
+	SelectorEnforcementMode string                `json:"selectorEnforcementMode,omitempty"`
 }
 
 // EffectiveMember describes a single resolved member of a PolicyGroup.

@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
@@ -72,9 +73,13 @@ func TestHandlerSkipsExemptedPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policies := []*webhook.CompiledPolicy{{Name: "run-as-privileged", Query: q, EnforcementMode: "enforce"}}
+	resolved := []*webhook.Resolved{{
+		Policy: &webhook.CompiledPolicy{Name: "run-as-privileged", Query: q},
+		Mode:   v1alpha1.ModeEnforce,
+		Groups: []string{"security"},
+	}}
 	h := webhook.NewHandlerWithExceptions(
-		&stubStore{policies: policies, ready: true},
+		&stubStore{resolved: resolved, ready: true},
 		&stubExceptionStore{exempted: map[string]bool{"run-as-privileged": true}, ready: true},
 		nil,
 	)
@@ -100,9 +105,13 @@ func TestHandlerEvaluatesNonExempted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policies := []*webhook.CompiledPolicy{{Name: "run-as-privileged", Query: q, EnforcementMode: "enforce"}}
+	resolved := []*webhook.Resolved{{
+		Policy: &webhook.CompiledPolicy{Name: "run-as-privileged", Query: q},
+		Mode:   v1alpha1.ModeEnforce,
+		Groups: []string{"security"},
+	}}
 	h := webhook.NewHandlerWithExceptions(
-		&stubStore{policies: policies, ready: true},
+		&stubStore{resolved: resolved, ready: true},
 		&stubExceptionStore{exempted: nil, ready: true},
 		nil,
 	)
@@ -137,12 +146,16 @@ func TestHandlerPassesNamespaceLabelsToStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policies := []*webhook.CompiledPolicy{{Name: "run-as-privileged", Query: q, EnforcementMode: "enforce"}}
+	resolved := []*webhook.Resolved{{
+		Policy: &webhook.CompiledPolicy{Name: "run-as-privileged", Query: q},
+		Mode:   v1alpha1.ModeEnforce,
+		Groups: []string{"security"},
+	}}
 	rec := &recordingExceptionStore{}
 	lister := &stubNamespaceLister{labels: map[string]map[string]string{
 		"hr": {"env": "legacy"},
 	}}
-	h := webhook.NewHandlerWithExceptions(&stubStore{policies: policies, ready: true}, rec, lister)
+	h := webhook.NewHandlerWithExceptions(&stubStore{resolved: resolved, ready: true}, rec, lister)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(makePodReview(t, true)))
@@ -161,10 +174,14 @@ func TestHandlerPassesNilWhenNamespaceUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policies := []*webhook.CompiledPolicy{{Name: "run-as-privileged", Query: q, EnforcementMode: "enforce"}}
+	resolved := []*webhook.Resolved{{
+		Policy: &webhook.CompiledPolicy{Name: "run-as-privileged", Query: q},
+		Mode:   v1alpha1.ModeEnforce,
+		Groups: []string{"security"},
+	}}
 	rec := &recordingExceptionStore{}
 	lister := &stubNamespaceLister{labels: map[string]map[string]string{}} // empty cache
-	h := webhook.NewHandlerWithExceptions(&stubStore{policies: policies, ready: true}, rec, lister)
+	h := webhook.NewHandlerWithExceptions(&stubStore{resolved: resolved, ready: true}, rec, lister)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(makePodReview(t, true)))
@@ -176,9 +193,13 @@ func TestHandlerPassesNilWhenNamespaceUnknown(t *testing.T) {
 }
 
 func TestHandlerNotReadyWhenExceptionCacheNotReady(t *testing.T) {
-	policies := []*webhook.CompiledPolicy{{Name: "x"}}
+	resolved := []*webhook.Resolved{{
+		Policy: &webhook.CompiledPolicy{Name: "x"},
+		Mode:   v1alpha1.ModeEnforce,
+		Groups: []string{},
+	}}
 	h := webhook.NewHandlerWithExceptions(
-		&stubStore{policies: policies, ready: true},
+		&stubStore{resolved: resolved, ready: true},
 		&stubExceptionStore{ready: false},
 		nil,
 	)

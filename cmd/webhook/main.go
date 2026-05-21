@@ -41,7 +41,7 @@ func main() {
 		UpdateFunc: func(_, obj interface{}) { syncPolicy(policyCache, obj) },
 		DeleteFunc: func(obj interface{}) {
 			if p, ok := extractPolicy(obj); ok {
-				policyCache.Delete(p.Name)
+				policyCache.DeletePolicy(p.Name)
 			}
 		},
 	})
@@ -166,21 +166,21 @@ func syncPolicy(c *webhook.PolicyCache, obj interface{}) {
 		return
 	}
 	if p.Status.Phase == v1alpha1.PhaseInvalid {
-		c.Delete(p.Name)
+		c.DeletePolicy(p.Name)
 		return
 	}
 	q, err := webhook.CompileRego(p.Spec.Rego)
 	if err != nil {
 		slog.Error("compile rego", "policy", p.Name, "error", err)
-		c.Delete(p.Name)
+		c.DeletePolicy(p.Name)
 		return
 	}
-	c.Set(p.Name, &webhook.CompiledPolicy{
-		Name:            p.Name,
-		Description:     p.Spec.Description,
-		EnforcementMode: p.Spec.EnforcementMode,
-		Match:           p.Spec.Match,
-		Query:           q,
+	c.SetPolicy(p.Name, &webhook.CompiledPolicy{
+		Name:        p.Name,
+		Description: p.Spec.Description,
+		DefaultMode: p.Spec.EnforcementMode,
+		Match:       p.Spec.Match,
+		Query:       q,
 	})
 }
 

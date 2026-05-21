@@ -20,7 +20,7 @@ const evalTimeout = 5 * time.Second
 
 // PolicyStore is the read interface the handler needs from the cache.
 type PolicyStore interface {
-	MatchingPolicies(resource, apiGroup, operation, namespace string) []*CompiledPolicy
+	MatchingForRequest(resource, apiGroup, operation, namespace string, namespaceLabels map[string]string) []*Resolved
 	IsReady() bool
 }
 
@@ -87,39 +87,45 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := review.Request
-	policies := h.store.MatchingPolicies(
+	var nsLabels map[string]string
+	if req.Namespace != "" {
+		if l, ok := h.nsLister.GetLabels(req.Namespace); ok {
+			nsLabels = l
+			if nsLabels == nil {
+				// Distinguish "namespace has no labels" from "namespace not
+				// found": an empty map is non-nil and means "evaluated".
+				nsLabels = map[string]string{}
+			}
+		}
+	}
+	resolved := h.store.MatchingForRequest(
 		req.Resource.Resource,
 		req.Resource.Group,
 		string(req.Operation),
 		req.Namespace,
+		nsLabels,
 	)
 
-	if len(policies) > 0 {
+	if len(resolved) > 0 {
 		objLabels := extractObjectLabels(req)
-		var nsLabels map[string]string
-		if req.Namespace != "" {
-			if l, ok := h.nsLister.GetLabels(req.Namespace); ok {
-				nsLabels = l
-				if nsLabels == nil {
-					// Distinguish "namespace has no labels" from "namespace not
-					// found": an empty map is non-nil and means "evaluated".
-					nsLabels = map[string]string{}
-				}
-			}
+		// Build the legacy []*CompiledPolicy slice the exception store expects.
+		policies := make([]*CompiledPolicy, 0, len(resolved))
+		for _, r := range resolved {
+			policies = append(policies, r.Policy)
 		}
 		exempt := h.exceptions.ExemptedKeys(req.Namespace, nsLabels, objLabels, policies)
 		if len(exempt) > 0 {
-			filtered := make([]*CompiledPolicy, 0, len(policies))
-			for _, p := range policies {
-				if !exempt[p.Name] {
-					filtered = append(filtered, p)
+			filtered := make([]*Resolved, 0, len(resolved))
+			for _, r := range resolved {
+				if !exempt[r.Policy.Name] {
+					filtered = append(filtered, r)
 				}
 			}
-			policies = filtered
+			resolved = filtered
 		}
 	}
 
-	resp := h.evaluate(r.Context(), req, policies)
+	resp := h.evaluate(r.Context(), req, resolved)
 	review.Response = resp
 	review.Request = nil
 
@@ -147,28 +153,21 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(review)
 }
 
-type policyResult struct {
-	policy *CompiledPolicy
-	msgs   []string
-}
-
-func formatViolation(p *CompiledPolicy, msg string) string {
-	groupKey := p.Name
-	if p.Key != "" {
-		groupKey = p.Key
-		if p.GroupName != "" {
-			groupKey = p.GroupName + "/" + p.Key
-		}
+func formatViolation(r *Resolved, msg string) string {
+	// Header: [<policyName> via <group1,group2>] <msg>
+	via := ""
+	if len(r.Groups) > 0 {
+		via = " via " + strings.Join(r.Groups, ",")
 	}
-	s := fmt.Sprintf("[%s] %s", groupKey, msg)
-	if p.Description != "" {
-		s += "\n  描述：" + p.Description
+	s := fmt.Sprintf("[%s%s] %s", r.Policy.Name, via, msg)
+	if r.Policy.Description != "" {
+		s += "\n  描述：" + r.Policy.Description
 	}
 	return s
 }
 
-func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionRequest, policies []*CompiledPolicy) *admissionv1.AdmissionResponse {
-	if len(policies) == 0 {
+func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionRequest, resolved []*Resolved) *admissionv1.AdmissionResponse {
+	if len(resolved) == 0 {
 		return &admissionv1.AdmissionResponse{UID: req.UID, Allowed: true}
 	}
 
@@ -177,24 +176,29 @@ func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionReques
 	evalCtx, cancel := context.WithTimeout(ctx, evalTimeout)
 	defer cancel()
 
+	type resolvedResult struct {
+		resolved *Resolved
+		msgs     []string
+	}
+
 	var (
 		mu             sync.Mutex
-		enforceResults []policyResult
-		auditResults   []policyResult
+		enforceResults []resolvedResult
+		auditResults   []resolvedResult
 	)
 
 	var wg sync.WaitGroup
-	for _, p := range policies {
-		p := p
+	for _, r := range resolved {
+		r := r
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			msgs, err := EvaluatePolicy(evalCtx, p.Query, input)
+			msgs, err := EvaluatePolicy(evalCtx, r.Policy.Query, input)
 			if err != nil {
-				slog.Error("policy eval error", "policy", p.Name, "error", err)
-				if p.EnforcementMode == v1alpha1.ModeEnforce {
+				slog.Error("policy eval error", "policy", r.Policy.Name, "error", err)
+				if r.Mode == v1alpha1.ModeEnforce {
 					mu.Lock()
-					enforceResults = append(enforceResults, policyResult{p, []string{"policy evaluation error: " + p.Name}})
+					enforceResults = append(enforceResults, resolvedResult{r, []string{"policy evaluation error: " + r.Policy.Name}})
 					mu.Unlock()
 				}
 				return
@@ -204,10 +208,10 @@ func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionReques
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			if p.EnforcementMode == v1alpha1.ModeAudit {
-				auditResults = append(auditResults, policyResult{p, msgs})
+			if r.Mode == v1alpha1.ModeAudit {
+				auditResults = append(auditResults, resolvedResult{r, msgs})
 			} else {
-				enforceResults = append(enforceResults, policyResult{p, msgs})
+				enforceResults = append(enforceResults, resolvedResult{r, msgs})
 			}
 		}()
 	}
@@ -215,14 +219,14 @@ func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionReques
 
 	if len(enforceResults) > 0 {
 		var parts []string
-		for _, r := range enforceResults {
-			for _, msg := range r.msgs {
-				parts = append(parts, formatViolation(r.policy, msg))
+		for _, rr := range enforceResults {
+			for _, msg := range rr.msgs {
+				parts = append(parts, formatViolation(rr.resolved, msg))
 			}
 		}
-		for _, r := range auditResults {
-			for _, msg := range r.msgs {
-				parts = append(parts, formatViolation(r.policy, msg))
+		for _, rr := range auditResults {
+			for _, msg := range rr.msgs {
+				parts = append(parts, formatViolation(rr.resolved, msg))
 			}
 		}
 		return &admissionv1.AdmissionResponse{
@@ -237,10 +241,10 @@ func (h *Handler) evaluate(ctx context.Context, req *admissionv1.AdmissionReques
 
 	if len(auditResults) > 0 {
 		var warnings []string
-		for _, r := range auditResults {
-			slog.Warn("audit violation", "policy", r.policy.Key, "group", r.policy.GroupName, "count", len(r.msgs))
-			for _, msg := range r.msgs {
-				warnings = append(warnings, formatViolation(r.policy, msg))
+		for _, rr := range auditResults {
+			slog.Warn("audit violation", "policy", rr.resolved.Policy.Name, "groups", rr.resolved.Groups, "count", len(rr.msgs))
+			for _, msg := range rr.msgs {
+				warnings = append(warnings, formatViolation(rr.resolved, msg))
 			}
 		}
 		return &admissionv1.AdmissionResponse{

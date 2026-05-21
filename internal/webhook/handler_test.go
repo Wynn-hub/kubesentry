@@ -18,12 +18,12 @@ import (
 
 // stubStore implements webhook.PolicyStore for testing.
 type stubStore struct {
-	policies []*webhook.CompiledPolicy
+	resolved []*webhook.Resolved
 	ready    bool
 }
 
-func (s *stubStore) MatchingPolicies(resource, apiGroup, operation, namespace string) []*webhook.CompiledPolicy {
-	return s.policies
+func (s *stubStore) MatchingForRequest(resource, apiGroup, operation, namespace string, nsLabels map[string]string) []*webhook.Resolved {
+	return s.resolved
 }
 
 func (s *stubStore) IsReady() bool { return s.ready }
@@ -58,20 +58,24 @@ func mustJSON(v interface{}) []byte {
 	return b
 }
 
-func compiledEnforcePolicy(t *testing.T) *webhook.CompiledPolicy {
+func compiledEnforceResolved(t *testing.T) *webhook.Resolved {
 	t.Helper()
 	q, err := webhook.CompileRego(denyPrivilegedRego)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &webhook.CompiledPolicy{
-		Name:            "deny-privileged",
-		EnforcementMode: v1alpha1.ModeEnforce,
-		Match: v1alpha1.PolicyMatch{
-			Operations: []string{"CREATE"},
-			Resources:  []v1alpha1.MatchResource{{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}}},
+	return &webhook.Resolved{
+		Policy: &webhook.CompiledPolicy{
+			Name:        "deny-privileged",
+			DefaultMode: v1alpha1.ModeEnforce,
+			Match: v1alpha1.PolicyMatch{
+				Operations: []string{"CREATE"},
+				Resources:  []v1alpha1.MatchResource{{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}}},
+			},
+			Query: q,
 		},
-		Query: q,
+		Mode:   v1alpha1.ModeEnforce,
+		Groups: []string{"security"},
 	}
 }
 
@@ -87,7 +91,7 @@ func TestHandlerNotReady(t *testing.T) {
 }
 
 func TestHandlerAllowsCleanPod(t *testing.T) {
-	store := &stubStore{ready: true, policies: []*webhook.CompiledPolicy{compiledEnforcePolicy(t)}}
+	store := &stubStore{ready: true, resolved: []*webhook.Resolved{compiledEnforceResolved(t)}}
 	h := webhook.NewHandler(store)
 
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(buildAdmissionRequest("CREATE", false)))
@@ -108,7 +112,7 @@ func TestHandlerAllowsCleanPod(t *testing.T) {
 }
 
 func TestHandlerDeniesPrivilegedPod(t *testing.T) {
-	store := &stubStore{ready: true, policies: []*webhook.CompiledPolicy{compiledEnforcePolicy(t)}}
+	store := &stubStore{ready: true, resolved: []*webhook.Resolved{compiledEnforceResolved(t)}}
 	h := webhook.NewHandler(store)
 
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(buildAdmissionRequest("CREATE", true)))
@@ -133,12 +137,16 @@ func TestHandlerDeniesPrivilegedPod(t *testing.T) {
 
 func TestHandlerAuditModeAllows(t *testing.T) {
 	q, _ := webhook.CompileRego(denyPrivilegedRego)
-	auditPolicy := &webhook.CompiledPolicy{
-		Name:            "audit-privileged",
-		EnforcementMode: v1alpha1.ModeAudit,
-		Query:           q,
+	auditResolved := &webhook.Resolved{
+		Policy: &webhook.CompiledPolicy{
+			Name:        "audit-privileged",
+			DefaultMode: v1alpha1.ModeAudit,
+			Query:       q,
+		},
+		Mode:   v1alpha1.ModeAudit,
+		Groups: []string{"security"},
 	}
-	store := &stubStore{ready: true, policies: []*webhook.CompiledPolicy{auditPolicy}}
+	store := &stubStore{ready: true, resolved: []*webhook.Resolved{auditResolved}}
 	h := webhook.NewHandler(store)
 
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(buildAdmissionRequest("CREATE", true)))
@@ -156,41 +164,18 @@ func TestHandlerAuditModeAllows(t *testing.T) {
 // Compile-time check: PolicyCache satisfies PolicyStore.
 var _ webhook.PolicyStore = (*webhook.PolicyCache)(nil)
 
-func TestCompiledPolicyMetadataFields(t *testing.T) {
-	q, err := webhook.CompileRego(denyPrivilegedRego)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p := &webhook.CompiledPolicy{
-		Name:            "run-as-privileged",
-		Key:             "runAsPrivileged",
-		GroupName:       "security",
-		Description:     "Fails when privileged is true",
-		EnforcementMode: v1alpha1.ModeEnforce,
-		Query:           q,
-	}
-	if p.Key != "runAsPrivileged" {
-		t.Error("Key field not set")
-	}
-	if p.GroupName != "security" {
-		t.Error("GroupName field not set")
-	}
-	if p.Description == "" {
-		t.Error("Description field not set")
-	}
-}
-
-func TestHandlerEnforceMessageContainsGroupKey(t *testing.T) {
+func TestHandlerEnforceMessageContainsPolicyNameAndGroup(t *testing.T) {
 	q, _ := webhook.CompileRego(denyPrivilegedRego)
-	policy := &webhook.CompiledPolicy{
-		Name:            "run-as-privileged",
-		Key:             "runAsPrivileged",
-		GroupName:       "security",
-		Description:     "Fails when privileged is true",
-		EnforcementMode: v1alpha1.ModeEnforce,
-		Query:           q,
+	resolved := &webhook.Resolved{
+		Policy: &webhook.CompiledPolicy{
+			Name:        "run-as-privileged",
+			Description: "Fails when privileged is true",
+			Query:       q,
+		},
+		Mode:   v1alpha1.ModeEnforce,
+		Groups: []string{"security"},
 	}
-	store := &stubStore{ready: true, policies: []*webhook.CompiledPolicy{policy}}
+	store := &stubStore{ready: true, resolved: []*webhook.Resolved{resolved}}
 	h := webhook.NewHandler(store)
 
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(buildAdmissionRequest("CREATE", true)))
@@ -204,8 +189,9 @@ func TestHandlerEnforceMessageContainsGroupKey(t *testing.T) {
 		t.Fatal("expected denied")
 	}
 	msg := resp.Response.Result.Message
-	if !strings.Contains(msg, "[security/runAsPrivileged]") {
-		t.Errorf("message missing [group/key] prefix, got: %q", msg)
+	// New format: [<policyName> via <groups>] <msg>
+	if !strings.Contains(msg, "[run-as-privileged via security]") {
+		t.Errorf("message missing [policyName via group] prefix, got: %q", msg)
 	}
 	if !strings.Contains(msg, "Fails when privileged is true") {
 		t.Errorf("message missing description, got: %q", msg)
@@ -214,15 +200,16 @@ func TestHandlerEnforceMessageContainsGroupKey(t *testing.T) {
 
 func TestHandlerAuditModeReturnsWarnings(t *testing.T) {
 	q, _ := webhook.CompileRego(denyPrivilegedRego)
-	policy := &webhook.CompiledPolicy{
-		Name:            "host-network-set",
-		Key:             "hostNetworkSet",
-		GroupName:       "security",
-		Description:     "Fails when hostNetwork is configured",
-		EnforcementMode: v1alpha1.ModeAudit,
-		Query:           q,
+	resolved := &webhook.Resolved{
+		Policy: &webhook.CompiledPolicy{
+			Name:        "host-network-set",
+			Description: "Fails when hostNetwork is configured",
+			Query:       q,
+		},
+		Mode:   v1alpha1.ModeAudit,
+		Groups: []string{"security"},
 	}
-	store := &stubStore{ready: true, policies: []*webhook.CompiledPolicy{policy}}
+	store := &stubStore{ready: true, resolved: []*webhook.Resolved{resolved}}
 	h := webhook.NewHandler(store)
 
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(buildAdmissionRequest("CREATE", true)))
@@ -238,30 +225,33 @@ func TestHandlerAuditModeReturnsWarnings(t *testing.T) {
 	if len(resp.Response.Warnings) == 0 {
 		t.Error("expected warnings for audit violation")
 	}
-	if !strings.Contains(resp.Response.Warnings[0], "[security/hostNetworkSet]") {
-		t.Errorf("warning missing [group/key], got: %q", resp.Response.Warnings[0])
+	// New format: [<policyName> via <groups>]
+	if !strings.Contains(resp.Response.Warnings[0], "[host-network-set via security]") {
+		t.Errorf("warning missing [policyName via group], got: %q", resp.Response.Warnings[0])
 	}
 }
 
 func TestHandlerEnforceAndAuditBothInMessage(t *testing.T) {
 	q, _ := webhook.CompileRego(denyPrivilegedRego)
-	enforcePolicy := &webhook.CompiledPolicy{
-		Name:            "run-as-privileged",
-		Key:             "runAsPrivileged",
-		GroupName:       "security",
-		Description:     "enforce description",
-		EnforcementMode: v1alpha1.ModeEnforce,
-		Query:           q,
+	enforceResolved := &webhook.Resolved{
+		Policy: &webhook.CompiledPolicy{
+			Name:        "run-as-privileged",
+			Description: "enforce description",
+			Query:       q,
+		},
+		Mode:   v1alpha1.ModeEnforce,
+		Groups: []string{"security"},
 	}
-	auditPolicy := &webhook.CompiledPolicy{
-		Name:            "host-network-set",
-		Key:             "hostNetworkSet",
-		GroupName:       "security",
-		Description:     "audit description",
-		EnforcementMode: v1alpha1.ModeAudit,
-		Query:           q,
+	auditResolved := &webhook.Resolved{
+		Policy: &webhook.CompiledPolicy{
+			Name:        "host-network-set",
+			Description: "audit description",
+			Query:       q,
+		},
+		Mode:   v1alpha1.ModeAudit,
+		Groups: []string{"security"},
 	}
-	store := &stubStore{ready: true, policies: []*webhook.CompiledPolicy{enforcePolicy, auditPolicy}}
+	store := &stubStore{ready: true, resolved: []*webhook.Resolved{enforceResolved, auditResolved}}
 	h := webhook.NewHandler(store)
 
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(buildAdmissionRequest("CREATE", true)))
@@ -275,10 +265,10 @@ func TestHandlerEnforceAndAuditBothInMessage(t *testing.T) {
 		t.Fatal("expected denied")
 	}
 	msg := resp.Response.Result.Message
-	if !strings.Contains(msg, "runAsPrivileged") {
+	if !strings.Contains(msg, "run-as-privileged") {
 		t.Errorf("enforce policy missing from message: %q", msg)
 	}
-	if !strings.Contains(msg, "hostNetworkSet") {
+	if !strings.Contains(msg, "host-network-set") {
 		t.Errorf("audit policy missing from message: %q", msg)
 	}
 }

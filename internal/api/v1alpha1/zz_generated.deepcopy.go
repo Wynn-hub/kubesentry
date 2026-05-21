@@ -199,6 +199,9 @@ func (in *PolicyGroupPolicies) DeepCopyInto(out *PolicyGroupPolicies) {
 
 func (in *PolicyGroupSpec) DeepCopyInto(out *PolicyGroupSpec) {
 	*out = *in
+	if in.NamespaceSelector != nil {
+		out.NamespaceSelector = in.NamespaceSelector.DeepCopy()
+	}
 	in.Policies.DeepCopyInto(&out.Policies)
 }
 

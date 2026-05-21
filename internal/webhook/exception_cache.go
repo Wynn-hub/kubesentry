@@ -43,6 +43,7 @@ func (c *ExceptionCache) SetReady() {
 	defer c.mu.Unlock()
 	c.ready = true
 }
+
 func (c *ExceptionCache) IsReady() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -152,9 +153,9 @@ func (c *ExceptionCache) ExemptedKeys(namespace string, namespaceLabels, resourc
 				out[p.Name] = true
 				continue
 			}
-			if _, ok := entry.policyGroupRefs[p.GroupName]; ok {
-				out[p.Name] = true
-			}
+			// NOTE: policyGroupRefs matching via CompiledPolicy.GroupName is
+			// removed in the new reference model. Task 3.4+3.5 will restore
+			// group-based exemption using the Resolved.Groups slice.
 		}
 	}
 	return out

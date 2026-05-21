@@ -93,6 +93,10 @@ func TestExceptionCacheAllPoliciesSentinel(t *testing.T) {
 }
 
 func TestExceptionCachePolicyGroupMatch(t *testing.T) {
+	// NOTE: PolicyGroupRefs matching via CompiledPolicy.GroupName is removed in
+	// the new reference model (Task 3.4+3.5 will restore this via Resolved.Groups).
+	// For now, policyGroupRefs in an exception does not match any policy by
+	// group name through CompiledPolicy alone.
 	c := webhook.NewExceptionCache()
 	c.Upsert(newPex("p", v1alpha1.PolicyExceptionSpec{
 		PolicyGroupRefs: []string{"baseline"},
@@ -100,12 +104,13 @@ func TestExceptionCachePolicyGroupMatch(t *testing.T) {
 		Reason:          "x",
 	}, true))
 	pols := []*webhook.CompiledPolicy{
-		{Name: "run-as-privileged", GroupName: "baseline"},
-		{Name: "host-net", GroupName: "network"},
+		{Name: "run-as-privileged"},
+		{Name: "host-net"},
 	}
 	got := c.ExemptedKeys("hr", nil, nil, pols)
-	if !got["run-as-privileged"] {
-		t.Error("baseline-group policy should be exempted")
+	// policyGroupRefs matching is disabled pending Task 3.4; no exemptions.
+	if got["run-as-privileged"] {
+		t.Error("policyGroupRefs matching is disabled; policy should not be exempted")
 	}
 	if got["host-net"] {
 		t.Error("non-baseline policy should NOT be exempted")
