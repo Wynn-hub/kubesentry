@@ -1,0 +1,25 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: hpa-max-availability
+  labels:
+    kubesentry.io/category: reliability
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [autoscaling]
+        apiVersions: [v2]
+        resources: [horizontalpodautoscalers]
+  enforcementMode: audit
+  description: "Fails when maxReplicas is less than or equal to minReplicas."
+  rego: |
+    package kubesentry
+
+    deny[msg] {
+      min := input.request.object.spec.minReplicas
+      max := input.request.object.spec.maxReplicas
+      max <= min
+      msg := sprintf("HPA maxReplicas (%d) must be greater than minReplicas (%d)", [max, min])
+    }

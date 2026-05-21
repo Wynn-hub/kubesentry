@@ -1,0 +1,30 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: role-pod-exec-attach
+  labels:
+    kubesentry.io/category: security
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [rbac.authorization.k8s.io]
+        apiVersions: [v1]
+        resources: [roles]
+  enforcementMode: enforce
+  description: "Fails when the Role allows pods/exec or pods/attach."
+  rego: |
+    package kubesentry
+
+    _exec_attach_verbs := {"create"}
+    _exec_attach_resources := {"pods/exec", "pods/attach"}
+
+    deny[msg] {
+      rule := input.request.object.rules[_]
+      resource := rule.resources[_]
+      _exec_attach_resources[resource]
+      verb := rule.verbs[_]
+      _exec_attach_verbs[verb]
+      msg := sprintf("Role grants %q on %q", [verb, resource])
+    }

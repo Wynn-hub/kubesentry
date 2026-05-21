@@ -1,0 +1,36 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: liveness-probe-missing
+  labels:
+    kubesentry.io/category: reliability
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        resources: [deployments, statefulsets, daemonsets]
+  enforcementMode: audit
+  description: "Fails when a liveness probe is not configured."
+  rego: |
+    package kubesentry
+
+    _containers[c] {
+      input.request.resource.resource == "pods"
+      c := input.request.object.spec.containers[_]
+    }
+    _containers[c] {
+      input.request.resource.resource != "pods"
+      c := input.request.object.spec.template.spec.containers[_]
+    }
+
+    deny[msg] {
+      c := _containers[_]
+      not c.livenessProbe
+      msg := sprintf("container %q must define a livenessProbe", [c.name])
+    }

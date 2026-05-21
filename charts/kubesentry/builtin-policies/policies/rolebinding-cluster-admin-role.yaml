@@ -1,0 +1,25 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: rolebinding-cluster-admin-role
+  labels:
+    kubesentry.io/category: security
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [rbac.authorization.k8s.io]
+        apiVersions: [v1]
+        resources: [rolebindings]
+  enforcementMode: enforce
+  description: "Fails when the RoleBinding references a Role with wildcard permissions."
+  rego: |
+    package kubesentry
+
+    deny[msg] {
+      ref := input.request.object.roleRef
+      ref.kind == "Role"
+      lower(ref.name) == "cluster-admin"
+      msg := sprintf("RoleBinding references a Role named %q which may grant cluster-admin permissions", [ref.name])
+    }

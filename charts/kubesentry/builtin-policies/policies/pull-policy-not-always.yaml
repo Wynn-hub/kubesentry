@@ -1,0 +1,45 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: pull-policy-not-always
+  labels:
+    kubesentry.io/category: reliability
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        resources: [deployments, statefulsets, daemonsets]
+      - apiGroups: [batch]
+        apiVersions: [v1]
+        resources: [jobs, cronjobs]
+  enforcementMode: audit
+  description: "Fails when imagePullPolicy is not Always."
+  rego: |
+    package kubesentry
+
+    _containers[c] {
+      input.request.resource.resource == "pods"
+      c := input.request.object.spec.containers[_]
+    }
+    _containers[c] {
+      r := input.request.resource.resource
+      r != "pods"
+      r != "cronjobs"
+      c := input.request.object.spec.template.spec.containers[_]
+    }
+    _containers[c] {
+      input.request.resource.resource == "cronjobs"
+      c := input.request.object.spec.jobTemplate.spec.template.spec.containers[_]
+    }
+
+    deny[msg] {
+      c := _containers[_]
+      c.imagePullPolicy != "Always"
+      msg := sprintf("container %q imagePullPolicy should be Always, got %q", [c.name, c.imagePullPolicy])
+    }

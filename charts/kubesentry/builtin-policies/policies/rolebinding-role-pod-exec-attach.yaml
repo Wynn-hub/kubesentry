@@ -1,0 +1,28 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: rolebinding-role-pod-exec-attach
+  labels:
+    kubesentry.io/category: security
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [rbac.authorization.k8s.io]
+        apiVersions: [v1]
+        resources: [rolebindings]
+  enforcementMode: enforce
+  description: "Fails when the RoleBinding references a Role known to allow pods/exec or pods/attach."
+  rego: |
+    package kubesentry
+
+    _known_exec_roles := {"pod-exec", "pod-attach", "exec-pod", "attach-pod"}
+
+    deny[msg] {
+      ref := input.request.object.roleRef
+      ref.kind == "Role"
+      role := _known_exec_roles[_]
+      contains(lower(ref.name), role)
+      msg := sprintf("RoleBinding references potentially dangerous Role %q", [ref.name])
+    }

@@ -1,0 +1,34 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: priority-class-not-set
+  labels:
+    kubesentry.io/category: reliability
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        resources: [deployments, statefulsets]
+  enforcementMode: audit
+  description: "Fails when priorityClassName is not set."
+  rego: |
+    package kubesentry
+
+    _spec(obj) = obj.spec {
+      input.request.resource.resource == "pods"
+    }
+    _spec(obj) = obj.spec.template.spec {
+      input.request.resource.resource != "pods"
+    }
+
+    deny[msg] {
+      spec := _spec(input.request.object)
+      not spec.priorityClassName
+      msg := "priorityClassName should be set"
+    }

@@ -1,0 +1,23 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: clusterrolebinding-cluster-admin
+  labels:
+    kubesentry.io/category: security
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [rbac.authorization.k8s.io]
+        apiVersions: [v1]
+        resources: [clusterrolebindings]
+  enforcementMode: enforce
+  description: "Fails when the ClusterRoleBinding references the cluster-admin ClusterRole."
+  rego: |
+    package kubesentry
+
+    deny[msg] {
+      input.request.object.roleRef.name == "cluster-admin"
+      msg := "ClusterRoleBinding references the cluster-admin ClusterRole"
+    }

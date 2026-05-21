@@ -1,0 +1,32 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: metadata-and-instance-mismatched
+  labels:
+    kubesentry.io/category: reliability
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        resources: [deployments, statefulsets, daemonsets]
+  enforcementMode: audit
+  description: "Fails when label app.kubernetes.io/instance and metadata.name mismatch."
+  rego: |
+    package kubesentry
+
+    _instance_label(obj) = val {
+      val := obj.metadata.labels["app.kubernetes.io/instance"]
+    }
+
+    deny[msg] {
+      name := input.request.object.metadata.name
+      instance := _instance_label(input.request.object)
+      name != instance
+      msg := sprintf("metadata.name %q does not match app.kubernetes.io/instance label %q", [name, instance])
+    }
