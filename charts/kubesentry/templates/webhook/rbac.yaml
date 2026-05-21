@@ -4,7 +4,7 @@ metadata:
   name: kubesentry-webhook
 rules:
   - apiGroups: [kubesentry.io]
-    resources: [policies]
+    resources: [policies, policygroups]
     verbs: [get, list, watch]
   - apiGroups: [kubesentry.io]
     resources: [policyexceptions]
