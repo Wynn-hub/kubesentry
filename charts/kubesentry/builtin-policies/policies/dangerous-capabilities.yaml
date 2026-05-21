@@ -12,9 +12,6 @@ spec:
       - apiGroups: [""]
         apiVersions: [v1]
         resources: [pods]
-      - apiGroups: [apps]
-        apiVersions: [v1]
-        resources: [deployments, statefulsets, daemonsets]
   enforcementMode: enforce
   description: "Fails when securityContext.capabilities includes dangerous capabilities."
   rego: |
@@ -26,17 +23,8 @@ spec:
       "SYS_PACCT", "SYS_NICE", "WAKE_ALARM",
     }
 
-    _containers[c] {
-      input.request.resource.resource == "pods"
-      c := input.request.object.spec.containers[_]
-    }
-    _containers[c] {
-      input.request.resource.resource != "pods"
-      c := input.request.object.spec.template.spec.containers[_]
-    }
-
     deny[msg] {
-      c := _containers[_]
+      c := input.request.object.spec.containers[_]
       cap := c.securityContext.capabilities.add[_]
       _dangerous[cap]
       msg := sprintf("container %q adds dangerous capability %q", [c.name, cap])

@@ -12,25 +12,13 @@ spec:
       - apiGroups: [""]
         apiVersions: [v1]
         resources: [pods]
-      - apiGroups: [apps]
-        apiVersions: [v1]
-        resources: [deployments, statefulsets, daemonsets]
   enforcementMode: audit
   description: "Fails when securityContext.readOnlyRootFilesystem is not true."
   rego: |
     package kubesentry
 
-    _containers[c] {
-      input.request.resource.resource == "pods"
-      c := input.request.object.spec.containers[_]
-    }
-    _containers[c] {
-      input.request.resource.resource != "pods"
-      c := input.request.object.spec.template.spec.containers[_]
-    }
-
     deny[msg] {
-      c := _containers[_]
+      c := input.request.object.spec.containers[_]
       not c.securityContext.readOnlyRootFilesystem == true
       msg := sprintf("container %q should set securityContext.readOnlyRootFilesystem=true", [c.name])
     }

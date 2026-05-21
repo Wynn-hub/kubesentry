@@ -12,22 +12,10 @@ spec:
       - apiGroups: [""]
         apiVersions: [v1]
         resources: [pods]
-      - apiGroups: [apps]
-        apiVersions: [v1]
-        resources: [deployments, statefulsets, daemonsets]
   enforcementMode: enforce
   description: "Fails when neither Seccomp, SELinux, nor capabilities.drop is in use."
   rego: |
     package kubesentry
-
-    _containers[c] {
-      input.request.resource.resource == "pods"
-      c := input.request.object.spec.containers[_]
-    }
-    _containers[c] {
-      input.request.resource.resource != "pods"
-      c := input.request.object.spec.template.spec.containers[_]
-    }
 
     _has_seccomp(c) {
       c.securityContext.seccompProfile.type
@@ -40,7 +28,7 @@ spec:
     }
 
     deny[msg] {
-      c := _containers[_]
+      c := input.request.object.spec.containers[_]
       not _has_seccomp(c)
       not _has_selinux(c)
       not _has_drop_caps(c)

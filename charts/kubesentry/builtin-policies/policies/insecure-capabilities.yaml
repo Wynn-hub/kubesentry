@@ -12,9 +12,6 @@ spec:
       - apiGroups: [""]
         apiVersions: [v1]
         resources: [pods]
-      - apiGroups: [apps]
-        apiVersions: [v1]
-        resources: [deployments, statefulsets, daemonsets]
   enforcementMode: audit
   description: "Fails when securityContext.capabilities includes insecure capabilities."
   rego: |
@@ -28,17 +25,8 @@ spec:
       "MKNOD", "AUDIT_WRITE", "AUDIT_CONTROL", "SYSLOG", "LINUX_IMMUTABLE",
     }
 
-    _containers[c] {
-      input.request.resource.resource == "pods"
-      c := input.request.object.spec.containers[_]
-    }
-    _containers[c] {
-      input.request.resource.resource != "pods"
-      c := input.request.object.spec.template.spec.containers[_]
-    }
-
     deny[msg] {
-      c := _containers[_]
+      c := input.request.object.spec.containers[_]
       cap := c.securityContext.capabilities.add[_]
       _insecure[cap]
       msg := sprintf("container %q adds insecure capability %q", [c.name, cap])

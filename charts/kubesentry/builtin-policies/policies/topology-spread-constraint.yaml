@@ -12,28 +12,16 @@ spec:
       - apiGroups: [""]
         apiVersions: [v1]
         resources: [pods]
-      - apiGroups: [apps]
-        apiVersions: [v1]
-        resources: [deployments, statefulsets]
   enforcementMode: audit
   description: "Fails when no topology spread constraint is defined."
   rego: |
     package kubesentry
 
-    _spec(obj) = obj.spec {
-      input.request.resource.resource == "pods"
-    }
-    _spec(obj) = obj.spec.template.spec {
-      input.request.resource.resource != "pods"
-    }
-
     deny[msg] {
-      spec := _spec(input.request.object)
-      not spec.topologySpreadConstraints
+      not input.request.object.spec.topologySpreadConstraints
       msg := "no topologySpreadConstraints defined"
     }
     deny[msg] {
-      spec := _spec(input.request.object)
-      count(spec.topologySpreadConstraints) == 0
+      count(input.request.object.spec.topologySpreadConstraints) == 0
       msg := "topologySpreadConstraints is empty"
     }

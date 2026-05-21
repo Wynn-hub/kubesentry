@@ -9,9 +9,6 @@ spec:
   match:
     operations: [CREATE, UPDATE]
     resources:
-      - apiGroups: [""]
-        apiVersions: [v1]
-        resources: [pods]
       - apiGroups: [apps]
         apiVersions: [v1]
         resources: [deployments, statefulsets, daemonsets]
@@ -20,13 +17,9 @@ spec:
   rego: |
     package kubesentry
 
-    _instance_label(obj) = val {
-      val := obj.metadata.labels["app.kubernetes.io/instance"]
-    }
-
     deny[msg] {
       name := input.request.object.metadata.name
-      instance := _instance_label(input.request.object)
+      instance := input.request.object.metadata.labels["app.kubernetes.io/instance"]
       name != instance
       msg := sprintf("metadata.name %q does not match app.kubernetes.io/instance label %q", [name, instance])
     }

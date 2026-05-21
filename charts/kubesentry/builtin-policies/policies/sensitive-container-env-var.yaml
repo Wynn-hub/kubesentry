@@ -12,9 +12,6 @@ spec:
       - apiGroups: [""]
         apiVersions: [v1]
         resources: [pods]
-      - apiGroups: [apps]
-        apiVersions: [v1]
-        resources: [deployments, statefulsets, daemonsets]
   enforcementMode: enforce
   description: "Fails when the container sets potentially sensitive environment variables."
   rego: |
@@ -26,17 +23,8 @@ spec:
       "private_key", "access_key", "private_token",
     }
 
-    _containers[c] {
-      input.request.resource.resource == "pods"
-      c := input.request.object.spec.containers[_]
-    }
-    _containers[c] {
-      input.request.resource.resource != "pods"
-      c := input.request.object.spec.template.spec.containers[_]
-    }
-
     deny[msg] {
-      c := _containers[_]
+      c := input.request.object.spec.containers[_]
       env := c.env[_]
       name_lower := lower(env.name)
       pattern := _sensitive_patterns[_]

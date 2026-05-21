@@ -12,23 +12,12 @@ spec:
       - apiGroups: [""]
         apiVersions: [v1]
         resources: [pods]
-      - apiGroups: [apps]
-        apiVersions: [v1]
-        resources: [deployments, statefulsets, daemonsets]
   enforcementMode: enforce
   description: "Fails when hostPID attribute is configured."
   rego: |
     package kubesentry
 
-    _spec(obj) = obj.spec {
-      input.request.resource.resource == "pods"
-    }
-    _spec(obj) = obj.spec.template.spec {
-      input.request.resource.resource != "pods"
-    }
-
     deny[msg] {
-      spec := _spec(input.request.object)
-      spec.hostPID == true
+      input.request.object.spec.hostPID == true
       msg := "hostPID must not be set"
     }

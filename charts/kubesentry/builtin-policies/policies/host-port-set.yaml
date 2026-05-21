@@ -12,25 +12,13 @@ spec:
       - apiGroups: [""]
         apiVersions: [v1]
         resources: [pods]
-      - apiGroups: [apps]
-        apiVersions: [v1]
-        resources: [deployments, statefulsets, daemonsets]
   enforcementMode: audit
   description: "Fails when hostPort attribute is configured."
   rego: |
     package kubesentry
 
-    _containers[c] {
-      input.request.resource.resource == "pods"
-      c := input.request.object.spec.containers[_]
-    }
-    _containers[c] {
-      input.request.resource.resource != "pods"
-      c := input.request.object.spec.template.spec.containers[_]
-    }
-
     deny[msg] {
-      c := _containers[_]
+      c := input.request.object.spec.containers[_]
       port := c.ports[_]
       port.hostPort > 0
       msg := sprintf("container %q must not set hostPort %d", [c.name, port.hostPort])
