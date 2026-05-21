@@ -36,15 +36,16 @@ helm lint charts/kubesentry
 Two independent Go binaries communicate only through Kubernetes CRDs:
 
 **`cmd/webhook`** — Data plane. Serves `/validate` (admission), `/healthz`, `/readyz`.
-- At startup, builds a controller-runtime informer cache watching `Policy` CRDs and populates an in-memory `PolicyCache`.
-- On each admission request, `Handler` calls `PolicyCache.MatchingPolicies()` to get relevant compiled policies, then evaluates them concurrently with a 5s timeout.
+- At startup, builds a controller-runtime informer cache watching `Policy`, `PolicyGroup`, `Namespace`, and `PolicyException` CRDs.
+- On each admission request, `Handler` calls `PolicyCache.MatchingForRequest()` which filters enabled `PolicyGroup`s by their `namespaceSelector`, then gathers the policies from matching groups and computes the strictest effective mode across all groups.
 - `enforce` mode blocks on denial; `audit` mode allows but returns violations as `AdmissionResponse.Warnings`.
-- Violation messages are formatted as `[group/key] message\n  描述：description` using `formatViolation` in `handler.go`.
+- Violation messages are formatted as `[<policyName> via <group1,group2>] message\n  描述：description` using `formatViolation` in `handler.go`.
 
 **`cmd/operator`** — Management plane. Also handles a `tls-setup` subcommand (run as a Helm pre-install Job).
-- `PolicyGroupReconciler`: watches `PolicyGroup` CRDs, creates/updates/deletes child `Policy` objects. Reads built-in Rego from `internal/builtins.Library`. Skips creation if a same-key `Policy` with no `OwnerReference` to this group exists (custom policy wins). Updates `PolicyGroup.Status` with active/skipped counts and conditions.
-- `PolicyReconciler`: validates Rego on create/update, creates an immutable `PolicyVersion` snapshot, prunes old versions (configurable limit), updates `Policy.Status`. Handles rollback by patching `Policy.Spec` from a `PolicyVersion` and requeuing.
-- `WebhookConfigReconciler`: lists all `Ready` policies, aggregates their match rules (deduplicated), and patches `ValidatingWebhookConfiguration.Webhooks[*].Rules`. The VWC starts with `rules: []`; the Operator fills it dynamically.
+- `PolicyGroupReconciler`: watches `PolicyGroup` CRDs and ALL `Policy` CRDs (reverse-enqueue via MapFunc on Policy create/delete/label-change). Resolves group members from `spec.policies.byName` + `spec.policies.bySelector` (byName precedence). Computes effective enforcementMode per member (per-entry override on byName, group-level `selectorEnforcementMode` on bySelector). Writes `status.resolvedPolicies` + `status.phase` (Ready / Degraded / Disabled). Maintains `Policy.status.referencedBy` by diffing previous-resolved ∪ current-resolved.
+- `PolicyReconciler`: validates Rego on create/update, creates an immutable `PolicyVersion` snapshot, prunes old versions (configurable limit), updates `Policy.Status`. Handles rollback via `spec.rollbackTo`. **No longer aware of "builtin" — every Policy is a first-class user-or-Helm-managed object.**
+- `WebhookConfigReconciler`: lists all `Ready` policies (regardless of group membership), aggregates their `match.resources`, patches `ValidatingWebhookConfiguration.Webhooks[*].Rules`.
+- `ExceptionReconciler`: validates `PolicyException` lifecycle. `policyGroupRefs` is dynamic — exemption follows `PolicyGroup.status.resolvedPolicies` (no schema change).
 - `tls-setup` subcommand: generates an ECDSA P-256 self-signed CA + server cert, writes a TLS Secret, patches the VWC `caBundle`. Skips if the Secret already exists.
 
 ## Key Invariants
@@ -56,36 +57,35 @@ deny[msg] { ... msg := "reason" }
 ```
 `CompileRego` in `internal/webhook/evaluator.go` queries `data.kubesentry.deny`. Policies that don't follow this convention compile but always allow.
 
-**Built-in Rego uses v0 syntax** — OPA version bundled with this project does not support `import rego.v1` or the `some x in set` iteration form. Use classic set comprehension: `set[elem]` and `_` wildcards. See `internal/builtins/rego/` for examples.
+**Built-in Rego uses v0 syntax** — OPA version bundled with this project does not support `import rego.v1` or the `some x in set` iteration form. Use classic set comprehension: `set[elem]` and `_` wildcards. See `charts/kubesentry/builtin-policies/policies/` for examples.
 
 **`zz_generated.deepcopy.go` is hand-written** — `controller-gen` is incompatible with Go 1.26.2 at the versions that support our k8s v0.31 dependencies. Do not attempt to regenerate it with `make generate`; edit it manually when adding new fields to `internal/api/v1alpha1/types.go`. Key subtlety: `metav1.Time.DeepCopy()` returns `*metav1.Time`, so `out.LastSyncTime = t` (not `&t`).
 
 **PolicyVersion names** follow the pattern `{policy-name}-v{version}` and carry labels `kubesentry/policy` and `kubesentry/version` used for label-selector queries during rollback and pruning.
 
-**Policy labels set by PolicyGroupReconciler** — child `Policy` objects carry three labels:
-- `kubesentry.io/key` — the policy key (camelCase, e.g. `runAsPrivileged`)
-- `kubesentry.io/group` — the PolicyGroup name
-- `kubesentry.io/source` — `builtin` or `custom`
+**Policy is a first-class top-level object.** PolicyGroup does NOT own or create Policy CRs. The Helm chart creates 37 built-in Policy CRs + 3 PolicyGroup CRs side by side; the operator only computes membership and effective mode. Deleting a PolicyGroup leaves its referenced Policies intact.
 
-These are read by `syncPolicy` in `cmd/webhook/main.go` to populate `CompiledPolicy.Key`, `.GroupName`, and `.Description`.
+**Per-request strictest mode.** When a single admission request is covered by multiple enabled PolicyGroups whose namespaceSelectors match, and they reference the same Policy with different effective modes, the webhook takes the strictest (enforce > audit). Groups whose namespaceSelector does not match the request namespace do not participate in the mode calculation.
 
-**Conflict detection uses `OwnerReference`** — `PolicyGroupReconciler.reconcilePolicy` lists existing Policies by `kubesentry.io/key` label. If the found Policy has no `OwnerReference` pointing to the current `PolicyGroup`, it's treated as a custom override and the reconciler skips creation (returns `skipped=true`).
+**Built-in catalogue lives in the chart.** `charts/kubesentry/builtin-policies/policies/*.yaml` (37 files) + `charts/kubesentry/builtin-policies/groups/*.yaml` (3 files) are the single source of truth for built-in policies. `internal/builtins` Go package no longer exists. Adding a new built-in: write one policy yaml + add the kebab-name to the relevant group's `spec.members` list.
 
-**CamelToKebab naming** — Policy names are derived from their key via `operator.CamelToKebab`: `runAsPrivileged` → `run-as-privileged`. This is the Kubernetes object name for the child Policy.
-
-**PolicyCache is the single source of truth for the webhook** — the operator does not communicate with the webhook directly. The webhook's informer cache reacts to `Policy.Status.Phase` changes: `PhaseInvalid` policies are removed from the cache; `PhaseReady` policies are compiled and cached.
+**PolicyCache is the single source of truth for the webhook** — the operator does not communicate with the webhook directly. The webhook's informer cache reacts to `Policy.Status.Phase` changes: `PhaseInvalid` policies are removed from the cache; `PhaseReady` policies are compiled and cached. `PolicyGroup.status.resolvedPolicies` drives `CompiledGroup.Members` which determines which policies are evaluated per request.
 
 ## Package Layout
 
 ```
 internal/api/v1alpha1/   CRD types + scheme registration + hand-written DeepCopy
-internal/builtins/       embedded Rego library (library.go + rego/*.rego, 37 built-in policies)
-internal/webhook/        cache.go, evaluator.go, handler.go, server.go
-internal/operator/       policy_reconciler.go, policygroup_reconciler.go, webhookconfig_reconciler.go
+internal/webhook/        cache.go, evaluator.go, handler.go, server.go (PolicyCache holds CompiledPolicy + CompiledGroup)
+internal/operator/       policy_reconciler.go, policygroup_reconciler.go, webhookconfig_reconciler.go, exception_reconciler.go
 internal/tlssetup/       ECDSA cert generation (no k8s dependency)
-cmd/webhook/             main: informer setup, cache sync, server start
+cmd/webhook/             main: informer setup (Policy + PolicyGroup + Namespace + PolicyException), cache sync, server start
 cmd/operator/            main: manager setup, reconciler registration, tls-setup subcommand
-charts/kubesentry/       Helm chart (CRDs in crds/, templates split by component)
+charts/kubesentry/       Helm chart
+  ├── crds/              CRD manifests
+  ├── builtin-policies/  source-of-truth for built-in Policies + PolicyGroups
+  │   ├── policies/      37 standalone Policy CRs (one yaml per policy)
+  │   └── groups/        3 PolicyGroup member manifests (intermediate data, not full k8s objects)
+  └── templates/         Helm renderers (builtin-policies.yaml + builtin-groups.yaml glob those folders)
 ```
 
 ## Testing Patterns
@@ -96,7 +96,7 @@ charts/kubesentry/       Helm chart (CRDs in crds/, templates split by component
 - `buildScheme()` in `policy_reconciler_test.go` is shared across all files in the `operator_test` package — do not redeclare it.
 - `admissionregv1.AddToScheme` must be added to the scheme in `webhookconfig_reconciler_test.go`; the base `buildScheme()` only registers CRD types.
 - `runtime.RawExtension` lives in `k8s.io/apimachinery/pkg/runtime`, not in the admission package.
-- Builtins tests (`internal/builtins/library_test.go`) call `webhook.CompileRego` to verify all 37 Rego files compile; if adding a new built-in policy, ensure its Rego uses v0 syntax.
+- Builtin compile test (`test/builtins/compile_test.go`) runs `helm template` and calls `webhook.CompileRego` on every rendered Policy CR; asserts ≥37 policies. When adding a new built-in policy, ensure its Rego uses v0 syntax and add it to the group's `spec.members`.
 
 ## IDE Diagnostics Note
 
