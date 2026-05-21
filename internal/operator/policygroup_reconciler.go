@@ -49,6 +49,7 @@ func (r *PolicyGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if !pg.Spec.Enabled {
 		// Clear status, then refresh referencedBy on previously-resolved policies.
 		pg.Status.Phase = v1alpha1.PhaseDisabled
+		pg.Status.ResolvedCount = 0
 		pg.Status.ResolvedPolicies = nil
 		pg.Status.Conditions = nil
 		pg.Status.ObservedGeneration = pg.Generation
@@ -140,6 +141,7 @@ func (r *PolicyGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	pg.Status.Phase = phase
 	pg.Status.ObservedGeneration = pg.Generation
+	pg.Status.ResolvedCount = int32(len(members))
 	pg.Status.ResolvedPolicies = members
 	pg.Status.Conditions = conditions
 

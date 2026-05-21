@@ -145,6 +145,7 @@ type EffectiveMember struct {
 type PolicyGroupStatus struct {
 	Phase              string             `json:"phase,omitempty"`
 	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
+	ResolvedCount      int32              `json:"resolvedCount,omitempty"`
 	ResolvedPolicies   []EffectiveMember  `json:"resolvedPolicies,omitempty"`
 	Conditions         []metav1.Condition `json:"conditions,omitempty"`
 }

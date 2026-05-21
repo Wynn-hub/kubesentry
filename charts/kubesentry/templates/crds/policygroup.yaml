@@ -63,7 +63,7 @@ spec:
           jsonPath: .spec.enabled
         - name: Policies
           type: integer
-          jsonPath: .status.resolvedPolicies.length
+          jsonPath: .status.resolvedCount
         - name: Phase
           type: string
           jsonPath: .status.phase
