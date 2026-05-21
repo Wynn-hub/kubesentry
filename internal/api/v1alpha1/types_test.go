@@ -84,35 +84,37 @@ func TestPolicyRollbackTo(t *testing.T) {
 }
 
 func TestPolicyGroupDeepCopy(t *testing.T) {
-	enabled := true
 	orig := &v1alpha1.PolicyGroup{
 		ObjectMeta: metav1.ObjectMeta{Name: "security"},
 		Spec: v1alpha1.PolicyGroupSpec{
 			DisplayName: "Security",
 			Enabled:     true,
-			Policies: []v1alpha1.PolicyInGroup{
-				{Key: "runAsPrivileged", Enabled: &enabled, Mode: "enforce"},
+			Policies: v1alpha1.PolicyGroupPolicies{
+				ByName: []v1alpha1.PolicyRef{
+					{Name: "run-as-privileged", EnforcementMode: "enforce"},
+				},
 			},
 		},
 		Status: v1alpha1.PolicyGroupStatus{
-			Phase:           v1alpha1.PhaseReady,
-			ActivePolicies:  1,
-			SkippedPolicies: 0,
+			Phase: v1alpha1.PhaseReady,
+			ResolvedPolicies: []v1alpha1.EffectiveMember{
+				{Name: "run-as-privileged", EnforcementMode: "enforce", Source: v1alpha1.SourceByName},
+			},
 		},
 	}
 	cp := orig.DeepCopy()
 	if cp.Name != "security" {
 		t.Error("name not copied")
 	}
-	if len(cp.Spec.Policies) != 1 {
+	if len(cp.Spec.Policies.ByName) != 1 {
 		t.Error("policies not copied")
 	}
-	cp.Spec.Policies[0].Key = "changed"
-	if orig.Spec.Policies[0].Key == "changed" {
+	cp.Spec.Policies.ByName[0].Name = "changed"
+	if orig.Spec.Policies.ByName[0].Name == "changed" {
 		t.Error("DeepCopy shares slice backing array")
 	}
-	if cp.Spec.Policies[0].Enabled == orig.Spec.Policies[0].Enabled {
-		t.Error("DeepCopy shares Enabled pointer")
+	if len(cp.Status.ResolvedPolicies) != 1 {
+		t.Error("resolvedPolicies not copied")
 	}
 }
 
@@ -129,7 +131,7 @@ func TestPolicySpecDescriptionField(t *testing.T) {
 }
 
 func TestLabelConstants(t *testing.T) {
-	if v1alpha1.LabelKey == "" || v1alpha1.LabelGroup == "" || v1alpha1.LabelSource == "" {
+	if v1alpha1.LabelSource == "" || v1alpha1.LabelCategory == "" {
 		t.Error("label constants must not be empty")
 	}
 }
@@ -396,9 +398,12 @@ func TestPolicyStatusDeepCopyInto(t *testing.T) {
 
 func TestPolicyGroupStatusDeepCopyInto(t *testing.T) {
 	orig := &v1alpha1.PolicyGroupStatus{
-		Phase:           v1alpha1.PhaseReady,
-		ActivePolicies:  5,
-		SkippedPolicies: 2,
+		Phase:              v1alpha1.PhaseReady,
+		ObservedGeneration: 7,
+		ResolvedPolicies: []v1alpha1.EffectiveMember{
+			{Name: "pol-a", EnforcementMode: v1alpha1.ModeEnforce, Source: v1alpha1.SourceByName},
+			{Name: "pol-b", EnforcementMode: v1alpha1.ModeAudit, Source: v1alpha1.SourceBySelector},
+		},
 	}
 
 	cp := new(v1alpha1.PolicyGroupStatus)
@@ -406,11 +411,16 @@ func TestPolicyGroupStatusDeepCopyInto(t *testing.T) {
 	if cp.Phase != v1alpha1.PhaseReady {
 		t.Error("Phase not copied")
 	}
-	if cp.ActivePolicies != 5 {
-		t.Error("ActivePolicies not copied")
+	if cp.ObservedGeneration != 7 {
+		t.Error("ObservedGeneration not copied")
 	}
-	if cp.SkippedPolicies != 2 {
-		t.Error("SkippedPolicies not copied")
+	if len(cp.ResolvedPolicies) != 2 {
+		t.Errorf("ResolvedPolicies len = %d, want 2", len(cp.ResolvedPolicies))
+	}
+	// Verify no shared memory for the slice
+	orig.ResolvedPolicies[0].Name = "changed"
+	if cp.ResolvedPolicies[0].Name == "changed" {
+		t.Error("DeepCopyInto shares ResolvedPolicies backing array")
 	}
 }
 
@@ -440,33 +450,19 @@ func TestPolicyVersionSpecDeepCopyInto(t *testing.T) {
 	}
 }
 
-func TestPolicyInGroupDeepCopyInto(t *testing.T) {
-	enabled := true
-	orig := &v1alpha1.PolicyInGroup{
-		Key:     "testKey",
-		Enabled: &enabled,
-		Mode:    v1alpha1.ModeEnforce,
-		Rego:    "package kubesentry\ndeny[msg] { msg := \"test\" }",
+func TestPolicyRefDeepCopyInto(t *testing.T) {
+	orig := &v1alpha1.PolicyRef{
+		Name:            "test-policy",
+		EnforcementMode: v1alpha1.ModeEnforce,
 	}
 
-	cp := new(v1alpha1.PolicyInGroup)
+	cp := new(v1alpha1.PolicyRef)
 	orig.DeepCopyInto(cp)
-	if cp.Key != "testKey" {
-		t.Error("Key not copied")
+	if cp.Name != "test-policy" {
+		t.Error("Name not copied")
 	}
-	if cp.Enabled == nil || *cp.Enabled != true {
-		t.Error("Enabled pointer not copied correctly")
-	}
-	if cp.Mode != v1alpha1.ModeEnforce {
-		t.Error("Mode not copied")
-	}
-	if cp.Rego != orig.Rego {
-		t.Error("Rego not copied")
-	}
-
-	// Verify Enabled pointer is a copy, not the same pointer
-	if cp.Enabled == orig.Enabled {
-		t.Error("Enabled pointer shares reference with original")
+	if cp.EnforcementMode != v1alpha1.ModeEnforce {
+		t.Error("EnforcementMode not copied")
 	}
 }
 

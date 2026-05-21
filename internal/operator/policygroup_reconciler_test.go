@@ -13,175 +13,229 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/operator"
 )
 
-func newPolicyGroup(name string, enabled bool, policies []v1alpha1.PolicyInGroup) *v1alpha1.PolicyGroup {
+func newGroup(name string, enabled bool, byName []v1alpha1.PolicyRef, bySelector *metav1.LabelSelector) *v1alpha1.PolicyGroup {
 	return &v1alpha1.PolicyGroup{
-		ObjectMeta: metav1.ObjectMeta{Name: name, UID: "pg-uid"},
+		ObjectMeta: metav1.ObjectMeta{Name: name, UID: types.UID("uid-" + name)},
 		Spec: v1alpha1.PolicyGroupSpec{
-			Enabled:  enabled,
-			Policies: policies,
-		},
-	}
-}
-
-func boolPtr(b bool) *bool { return &b }
-
-func TestPolicyGroupReconcileCreatesPolicy(t *testing.T) {
-	enabled := true
-	pg := newPolicyGroup("security", true, []v1alpha1.PolicyInGroup{
-		{Key: "runAsPrivileged", Enabled: &enabled},
-	})
-	s := buildScheme()
-	c := fake.NewClientBuilder().WithScheme(s).WithObjects(pg).WithStatusSubresource(pg).Build()
-
-	r := operator.NewPolicyGroupReconciler(c)
-	_, err := r.Reconcile(context.Background(), ctrl.Request{
-		NamespacedName: types.NamespacedName{Name: "security"},
-	})
-	if err != nil {
-		t.Fatalf("reconcile error: %v", err)
-	}
-
-	var pList v1alpha1.PolicyList
-	if err := c.List(context.Background(), &pList); err != nil {
-		t.Fatal(err)
-	}
-	if len(pList.Items) != 1 {
-		t.Fatalf("expected 1 Policy, got %d", len(pList.Items))
-	}
-	p := pList.Items[0]
-	if p.Name != "run-as-privileged" {
-		t.Errorf("expected Policy name run-as-privileged, got %q", p.Name)
-	}
-	if p.Labels[v1alpha1.LabelKey] != "runAsPrivileged" {
-		t.Errorf("expected label kubesentry.io/key=runAsPrivileged")
-	}
-	if p.Labels[v1alpha1.LabelGroup] != "security" {
-		t.Errorf("expected label kubesentry.io/group=security")
-	}
-	if p.Spec.EnforcementMode != v1alpha1.ModeEnforce {
-		t.Errorf("expected enforce mode")
-	}
-	if len(p.OwnerReferences) != 1 {
-		t.Errorf("expected ownerRef")
-	}
-}
-
-func TestPolicyGroupReconcileDisabledGroupDeletesPolicies(t *testing.T) {
-	enabled := true
-	pg := newPolicyGroup("security", false, []v1alpha1.PolicyInGroup{
-		{Key: "runAsPrivileged", Enabled: &enabled},
-	})
-	// Pre-create a Policy owned by this group
-	existingPolicy := &v1alpha1.Policy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "run-as-privileged",
-			Labels: map[string]string{
-				v1alpha1.LabelKey:   "runAsPrivileged",
-				v1alpha1.LabelGroup: "security",
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{APIVersion: "kubesentry.io/v1alpha1", Kind: "PolicyGroup", Name: "security", UID: "pg-uid"},
+			Enabled: enabled,
+			Policies: v1alpha1.PolicyGroupPolicies{
+				ByName:     byName,
+				BySelector: bySelector,
 			},
 		},
-		Spec: v1alpha1.PolicySpec{EnforcementMode: v1alpha1.ModeEnforce, Rego: "package kubesentry\ndeny[msg]{false;msg:=\"x\"}"},
-	}
-	s := buildScheme()
-	c := fake.NewClientBuilder().WithScheme(s).WithObjects(pg, existingPolicy).WithStatusSubresource(pg).Build()
-
-	r := operator.NewPolicyGroupReconciler(c)
-	_, err := r.Reconcile(context.Background(), ctrl.Request{
-		NamespacedName: types.NamespacedName{Name: "security"},
-	})
-	if err != nil {
-		t.Fatalf("reconcile error: %v", err)
-	}
-
-	var pList v1alpha1.PolicyList
-	c.List(context.Background(), &pList)
-	if len(pList.Items) != 0 {
-		t.Errorf("expected 0 Policies after group disabled, got %d", len(pList.Items))
 	}
 }
 
-func TestPolicyGroupReconcileCustomOverrideSkipped(t *testing.T) {
-	enabled := true
-	pg := newPolicyGroup("security", true, []v1alpha1.PolicyInGroup{
-		{Key: "runAsPrivileged", Enabled: &enabled},
-	})
-	// Custom Policy with same key, NO ownerRef to any PolicyGroup
-	customPolicy := &v1alpha1.Policy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "run-as-privileged",
-			Labels: map[string]string{v1alpha1.LabelKey: "runAsPrivileged"},
-			// No OwnerReferences — this is a user-created custom policy
+func newLabeledPolicy(name, mode string, lbls map[string]string) *v1alpha1.Policy {
+	return &v1alpha1.Policy{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: lbls},
+		Spec: v1alpha1.PolicySpec{
+			EnforcementMode: mode,
+			Rego:            "package kubesentry\ndeny[m]{false;m:=\"x\"}",
+			Match: v1alpha1.PolicyMatch{
+				Operations: []string{"CREATE"},
+				Resources: []v1alpha1.MatchResource{
+					{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}},
+				},
+			},
 		},
-		Spec: v1alpha1.PolicySpec{EnforcementMode: v1alpha1.ModeAudit, Rego: "package kubesentry\ndeny[msg]{false;msg:=\"x\"}"},
-	}
-	s := buildScheme()
-	c := fake.NewClientBuilder().WithScheme(s).WithObjects(pg, customPolicy).WithStatusSubresource(pg).Build()
-
-	r := operator.NewPolicyGroupReconciler(c)
-	_, err := r.Reconcile(context.Background(), ctrl.Request{
-		NamespacedName: types.NamespacedName{Name: "security"},
-	})
-	if err != nil {
-		t.Fatalf("reconcile error: %v", err)
-	}
-
-	// Custom policy should still be audit mode (not overwritten)
-	var updated v1alpha1.Policy
-	c.Get(context.Background(), types.NamespacedName{Name: "run-as-privileged"}, &updated)
-	if updated.Spec.EnforcementMode != v1alpha1.ModeAudit {
-		t.Errorf("expected custom policy to remain audit mode")
-	}
-
-	var pg2 v1alpha1.PolicyGroup
-	c.Get(context.Background(), types.NamespacedName{Name: "security"}, &pg2)
-	if pg2.Status.SkippedPolicies != 1 {
-		t.Errorf("expected skippedPolicies=1, got %d", pg2.Status.SkippedPolicies)
 	}
 }
 
-func TestPolicyGroupReconcileInvalidKeyWritesCondition(t *testing.T) {
-	enabled := true
-	pg := newPolicyGroup("custom-group", true, []v1alpha1.PolicyInGroup{
-		{Key: "nonExistentKey", Enabled: &enabled}, // not in library, no rego provided
-	})
+func TestPolicyGroupReconcileByNameResolvesMember(t *testing.T) {
+	pg := newGroup("security", true,
+		[]v1alpha1.PolicyRef{{Name: "run-as-privileged"}},
+		nil,
+	)
+	pol := newLabeledPolicy("run-as-privileged", v1alpha1.ModeEnforce, nil)
+
 	s := buildScheme()
-	c := fake.NewClientBuilder().WithScheme(s).WithObjects(pg).WithStatusSubresource(pg).Build()
+	c := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
 
 	r := operator.NewPolicyGroupReconciler(c)
-	_, err := r.Reconcile(context.Background(), ctrl.Request{
-		NamespacedName: types.NamespacedName{Name: "custom-group"},
-	})
-	if err != nil {
-		t.Fatalf("reconcile error: %v", err)
+	if _, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
 	}
 
-	var pg2 v1alpha1.PolicyGroup
-	c.Get(context.Background(), types.NamespacedName{Name: "custom-group"}, &pg2)
-	found := false
-	for _, cond := range pg2.Status.Conditions {
-		if cond.Type == "InvalidPolicy" {
-			found = true
-		}
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if got.Status.Phase != v1alpha1.PhaseReady {
+		t.Errorf("phase = %q, want Ready", got.Status.Phase)
 	}
-	if !found {
-		t.Error("expected InvalidPolicy condition")
+	if len(got.Status.ResolvedPolicies) != 1 {
+		t.Fatalf("resolvedPolicies len = %d, want 1", len(got.Status.ResolvedPolicies))
+	}
+	m := got.Status.ResolvedPolicies[0]
+	if m.Name != "run-as-privileged" || m.EnforcementMode != v1alpha1.ModeEnforce || m.Source != v1alpha1.SourceByName {
+		t.Errorf("member = %+v", m)
+	}
+
+	var gotPol v1alpha1.Policy
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "run-as-privileged"}, &gotPol)
+	if len(gotPol.Status.ReferencedBy) != 1 || gotPol.Status.ReferencedBy[0] != "security" {
+		t.Errorf("referencedBy = %v, want [security]", gotPol.Status.ReferencedBy)
 	}
 }
 
-func TestCamelToKebab(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"runAsPrivileged", "run-as-privileged"},
-		{"hostPIDSet", "host-p-i-d-set"},
-		{"cpuRequestsMissing", "cpu-requests-missing"},
-		{"hpaMaxAvailability", "hpa-max-availability"},
+func TestPolicyGroupReconcileByNameModeOverride(t *testing.T) {
+	pg := newGroup("security", true,
+		[]v1alpha1.PolicyRef{{Name: "host-network-set", EnforcementMode: v1alpha1.ModeEnforce}},
+		nil,
+	)
+	pol := newLabeledPolicy("host-network-set", v1alpha1.ModeAudit, nil)
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
 	}
-	for _, tc := range cases {
-		got := operator.CamelToKebab(tc.in)
-		if got != tc.want {
-			t.Errorf("CamelToKebab(%q) = %q, want %q", tc.in, got, tc.want)
-		}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if got.Status.ResolvedPolicies[0].EnforcementMode != v1alpha1.ModeEnforce {
+		t.Errorf("override failed: got mode %q", got.Status.ResolvedPolicies[0].EnforcementMode)
+	}
+}
+
+func TestPolicyGroupReconcileBySelectorMatchesPolicies(t *testing.T) {
+	pg := newGroup("security", true, nil,
+		&metav1.LabelSelector{MatchLabels: map[string]string{v1alpha1.LabelCategory: "security"}},
+	)
+	polA := newLabeledPolicy("a", v1alpha1.ModeEnforce, map[string]string{v1alpha1.LabelCategory: "security"})
+	polB := newLabeledPolicy("b", v1alpha1.ModeAudit, map[string]string{v1alpha1.LabelCategory: "other"})
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, polA, polB).
+		WithStatusSubresource(pg, polA, polB).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if len(got.Status.ResolvedPolicies) != 1 {
+		t.Fatalf("resolvedPolicies len = %d, want 1", len(got.Status.ResolvedPolicies))
+	}
+	if got.Status.ResolvedPolicies[0].Name != "a" || got.Status.ResolvedPolicies[0].Source != v1alpha1.SourceBySelector {
+		t.Errorf("member = %+v", got.Status.ResolvedPolicies[0])
+	}
+}
+
+func TestPolicyGroupReconcileByNamePrecedenceOverBySelector(t *testing.T) {
+	pg := newGroup("security", true,
+		[]v1alpha1.PolicyRef{{Name: "p", EnforcementMode: v1alpha1.ModeEnforce}},
+		&metav1.LabelSelector{MatchLabels: map[string]string{v1alpha1.LabelCategory: "security"}},
+	)
+	pol := newLabeledPolicy("p", v1alpha1.ModeAudit, map[string]string{v1alpha1.LabelCategory: "security"})
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if len(got.Status.ResolvedPolicies) != 1 {
+		t.Fatalf("want exactly one member, got %d", len(got.Status.ResolvedPolicies))
+	}
+	m := got.Status.ResolvedPolicies[0]
+	if m.Source != v1alpha1.SourceByName || m.EnforcementMode != v1alpha1.ModeEnforce {
+		t.Errorf("byName precedence failed: %+v", m)
+	}
+}
+
+func TestPolicyGroupReconcileMissingByNameAddsCondition(t *testing.T) {
+	pg := newGroup("security", true,
+		[]v1alpha1.PolicyRef{{Name: "absent"}},
+		nil,
+	)
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg).
+		WithStatusSubresource(pg).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if got.Status.Phase != v1alpha1.PhaseDegraded {
+		t.Errorf("phase = %q, want Degraded", got.Status.Phase)
+	}
+	if len(got.Status.Conditions) != 1 || got.Status.Conditions[0].Type != "MissingMember" {
+		t.Errorf("conditions = %+v", got.Status.Conditions)
+	}
+}
+
+func TestPolicyGroupReconcileDisabledClearsResolvedAndReferencedBy(t *testing.T) {
+	pg := newGroup("security", false,
+		[]v1alpha1.PolicyRef{{Name: "p"}},
+		nil,
+	)
+	pg.Status.ResolvedPolicies = []v1alpha1.EffectiveMember{
+		{Name: "p", EnforcementMode: v1alpha1.ModeEnforce, Source: v1alpha1.SourceByName},
+	}
+	pol := newLabeledPolicy("p", v1alpha1.ModeEnforce, nil)
+	pol.Status.ReferencedBy = []string{"security"}
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if got.Status.Phase != v1alpha1.PhaseDisabled {
+		t.Errorf("phase = %q, want Disabled", got.Status.Phase)
+	}
+	if got.Status.ResolvedPolicies != nil {
+		t.Errorf("resolvedPolicies = %v, want nil", got.Status.ResolvedPolicies)
+	}
+
+	var gotPol v1alpha1.Policy
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "p"}, &gotPol)
+	if len(gotPol.Status.ReferencedBy) != 0 {
+		t.Errorf("referencedBy = %v, want empty", gotPol.Status.ReferencedBy)
+	}
+}
+
+func TestPolicyGroupReconcileSelectorEnforcementModeOverride(t *testing.T) {
+	pg := newGroup("security", true, nil,
+		&metav1.LabelSelector{MatchLabels: map[string]string{v1alpha1.LabelCategory: "security"}},
+	)
+	pg.Spec.SelectorEnforcementMode = v1alpha1.ModeEnforce
+	pol := newLabeledPolicy("p", v1alpha1.ModeAudit, map[string]string{v1alpha1.LabelCategory: "security"})
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if got.Status.ResolvedPolicies[0].EnforcementMode != v1alpha1.ModeEnforce {
+		t.Errorf("selectorEnforcementMode override failed")
 	}
 }

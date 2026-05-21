@@ -3,24 +3,25 @@ package v1alpha1
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 const (
-	PhaseReady     = "Ready"
-	PhaseInvalid   = "Invalid"
-	PhaseSyncing   = "Syncing"
-	PhaseDisabled  = "Disabled"
-	PhaseDegraded  = "Degraded"
+	PhaseReady    = "Ready"
+	PhaseInvalid  = "Invalid"
+	PhaseSyncing  = "Syncing"
+	PhaseDisabled = "Disabled"
+	PhaseDegraded = "Degraded"
 
 	ModeEnforce = "enforce"
 	ModeAudit   = "audit"
 )
 
-// Label keys used on Policy objects created by PolicyGroupReconciler.
+// Label keys used on Policy objects.
 const (
-	LabelKey    = "kubesentry.io/key"
-	LabelGroup  = "kubesentry.io/group"
-	LabelSource = "kubesentry.io/source"
+	LabelSource   = "kubesentry.io/source"
+	LabelCategory = "kubesentry.io/category"
 
-	SourceBuiltin = "builtin"
-	SourceCustom  = "custom"
+	SourceBuiltin    = "builtin"
+	SourceCustom     = "custom"
+	SourceByName     = "byName"
+	SourceBySelector = "bySelector"
 )
 
 // MatchResource defines a resource rule for policy matching.
@@ -32,9 +33,8 @@ type MatchResource struct {
 
 // PolicyMatch defines which requests a policy applies to.
 type PolicyMatch struct {
-	Operations        []string              `json:"operations"`
-	Resources         []MatchResource       `json:"resources"`
-	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+	Operations []string        `json:"operations"`
+	Resources  []MatchResource `json:"resources"`
 }
 
 // RollbackTo triggers a rollback to a specific version.
@@ -66,6 +66,7 @@ type PolicyStatus struct {
 	ObservedGeneration int64                  `json:"observedGeneration,omitempty"`
 	LastSyncTime       *metav1.Time           `json:"lastSyncTime,omitempty"`
 	VersionHistory     []PolicyVersionSummary `json:"versionHistory,omitempty"`
+	ReferencedBy       []string               `json:"referencedBy,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -111,29 +112,40 @@ type PolicyVersionList struct {
 	Items           []PolicyVersion `json:"items"`
 }
 
-// PolicyInGroup is a single policy entry inside a PolicyGroup spec.
-type PolicyInGroup struct {
-	Key     string       `json:"key"`
-	Enabled *bool        `json:"enabled,omitempty"` // nil = true
-	Mode    string       `json:"mode,omitempty"`    // "enforce"|"audit"; empty = library default
-	Rego    string       `json:"rego,omitempty"`    // required if key not in built-in library
-	Match   *PolicyMatch `json:"match,omitempty"`   // required if key not in built-in library
+// PolicyRef references a Policy by name, with an optional enforcement mode override.
+type PolicyRef struct {
+	Name            string `json:"name"`
+	EnforcementMode string `json:"enforcementMode,omitempty"`
+}
+
+// PolicyGroupPolicies holds the two ways to reference policies.
+type PolicyGroupPolicies struct {
+	ByName     []PolicyRef           `json:"byName,omitempty"`
+	BySelector *metav1.LabelSelector `json:"bySelector,omitempty"`
 }
 
 // PolicyGroupSpec defines the desired state of a PolicyGroup.
 type PolicyGroupSpec struct {
-	DisplayName string          `json:"displayName,omitempty"`
-	Description string          `json:"description,omitempty"`
-	Enabled     bool            `json:"enabled"`
-	Policies    []PolicyInGroup `json:"policies,omitempty"`
+	DisplayName             string              `json:"displayName,omitempty"`
+	Description             string              `json:"description,omitempty"`
+	Enabled                 bool                `json:"enabled"`
+	Policies                PolicyGroupPolicies `json:"policies,omitempty"`
+	SelectorEnforcementMode string              `json:"selectorEnforcementMode,omitempty"`
+}
+
+// EffectiveMember describes a single resolved member of a PolicyGroup.
+type EffectiveMember struct {
+	Name            string `json:"name"`
+	EnforcementMode string `json:"enforcementMode"`
+	Source          string `json:"source"`
 }
 
 // PolicyGroupStatus defines the observed state of a PolicyGroup.
 type PolicyGroupStatus struct {
-	Phase           string             `json:"phase,omitempty"`
-	ActivePolicies  int                `json:"activePolicies,omitempty"`
-	SkippedPolicies int                `json:"skippedPolicies,omitempty"`
-	Conditions      []metav1.Condition `json:"conditions,omitempty"`
+	Phase              string             `json:"phase,omitempty"`
+	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
+	ResolvedPolicies   []EffectiveMember  `json:"resolvedPolicies,omitempty"`
+	Conditions         []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true

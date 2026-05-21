@@ -35,9 +35,6 @@ func (in *PolicyMatch) DeepCopyInto(out *PolicyMatch) {
 			in.Resources[i].DeepCopyInto(&out.Resources[i])
 		}
 	}
-	if in.NamespaceSelector != nil {
-		out.NamespaceSelector = in.NamespaceSelector.DeepCopy()
-	}
 }
 
 func (in *RollbackTo) DeepCopy() *RollbackTo {
@@ -69,6 +66,10 @@ func (in *PolicyStatus) DeepCopyInto(out *PolicyStatus) {
 		for i := range in.VersionHistory {
 			in.VersionHistory[i].DeepCopyInto(&out.VersionHistory[i])
 		}
+	}
+	if in.ReferencedBy != nil {
+		out.ReferencedBy = make([]string, len(in.ReferencedBy))
+		copy(out.ReferencedBy, in.ReferencedBy)
 	}
 }
 
@@ -181,30 +182,36 @@ func (in *PolicyVersionList) DeepCopyObject() runtime.Object {
 	return nil
 }
 
-func (in *PolicyInGroup) DeepCopyInto(out *PolicyInGroup) {
+func (in *PolicyRef) DeepCopyInto(out *PolicyRef) {
 	*out = *in
-	if in.Enabled != nil {
-		b := *in.Enabled
-		out.Enabled = &b
+}
+
+func (in *PolicyGroupPolicies) DeepCopyInto(out *PolicyGroupPolicies) {
+	*out = *in
+	if in.ByName != nil {
+		out.ByName = make([]PolicyRef, len(in.ByName))
+		copy(out.ByName, in.ByName)
 	}
-	if in.Match != nil {
-		out.Match = new(PolicyMatch)
-		in.Match.DeepCopyInto(out.Match)
+	if in.BySelector != nil {
+		out.BySelector = in.BySelector.DeepCopy()
 	}
 }
 
 func (in *PolicyGroupSpec) DeepCopyInto(out *PolicyGroupSpec) {
 	*out = *in
-	if in.Policies != nil {
-		out.Policies = make([]PolicyInGroup, len(in.Policies))
-		for i := range in.Policies {
-			in.Policies[i].DeepCopyInto(&out.Policies[i])
-		}
-	}
+	in.Policies.DeepCopyInto(&out.Policies)
+}
+
+func (in *EffectiveMember) DeepCopyInto(out *EffectiveMember) {
+	*out = *in
 }
 
 func (in *PolicyGroupStatus) DeepCopyInto(out *PolicyGroupStatus) {
 	*out = *in
+	if in.ResolvedPolicies != nil {
+		out.ResolvedPolicies = make([]EffectiveMember, len(in.ResolvedPolicies))
+		copy(out.ResolvedPolicies, in.ResolvedPolicies)
+	}
 	if in.Conditions != nil {
 		out.Conditions = make([]metav1.Condition, len(in.Conditions))
 		copy(out.Conditions, in.Conditions)

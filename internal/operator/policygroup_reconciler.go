@@ -3,20 +3,29 @@ package operator
 import (
 	"context"
 	"fmt"
-	"strings"
-	"unicode"
+	"sort"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/builtins"
 )
 
-// PolicyGroupReconciler reconciles PolicyGroup objects.
+const (
+	condTypeMissingMember   = "MissingMember"
+	condTypeInvalidSelector = "InvalidSelector"
+)
+
+// PolicyGroupReconciler resolves a PolicyGroup's members from byName + bySelector,
+// computes effective mode for each, and writes status to the group + every
+// referenced Policy.
 type PolicyGroupReconciler struct {
 	client client.Client
 }
@@ -26,225 +35,244 @@ func NewPolicyGroupReconciler(c client.Client) *PolicyGroupReconciler {
 }
 
 func (r *PolicyGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
+	logger := log.FromContext(ctx).WithValues("policygroup", req.Name)
 
 	var pg v1alpha1.PolicyGroup
 	if err := r.client.Get(ctx, req.NamespacedName, &pg); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// Snapshot previous resolved set before any mutation, so we can compute the
+	// referencedBy diff at the end of the reconcile.
+	prev := snapshotResolved(pg.Status.ResolvedPolicies)
+
 	if !pg.Spec.Enabled {
-		return ctrl.Result{}, r.deleteOwnedPolicies(ctx, &pg)
+		// Clear status, then refresh referencedBy on previously-resolved policies.
+		pg.Status.Phase = v1alpha1.PhaseDisabled
+		pg.Status.ResolvedPolicies = nil
+		pg.Status.Conditions = nil
+		pg.Status.ObservedGeneration = pg.Generation
+		if err := r.client.Status().Update(ctx, &pg); err != nil {
+			return ctrl.Result{}, fmt.Errorf("update group status: %w", err)
+		}
+		return ctrl.Result{}, r.refreshReferencedBy(ctx, prev, map[string]struct{}{})
 	}
 
-	var (
-		active   int
-		skipped  int
-		newConds []metav1.Condition
-	)
+	resolved := map[string]v1alpha1.EffectiveMember{}
+	var conditions []metav1.Condition
 
-	for _, entry := range pg.Spec.Policies {
-		if entry.Enabled != nil && !*entry.Enabled {
-			if err := r.ensurePolicyAbsent(ctx, entry.Key, &pg); err != nil {
-				logger.Error(err, "delete disabled policy", "key", entry.Key)
-			}
-			continue
-		}
-
-		builtin, found := builtins.Library[entry.Key]
-		rego := entry.Rego
-		match := entry.Match
-		mode := entry.Mode
-		desc := ""
-
-		if found {
-			if rego == "" {
-				rego = builtin.Rego
-			}
-			if match == nil {
-				m := builtin.Match
-				match = &m
-			}
-			if mode == "" {
-				mode = builtin.DefaultMode
-			}
-			desc = builtin.Description
-		} else if rego == "" {
-			newConds = append(newConds, metav1.Condition{
-				Type:               "InvalidPolicy",
+	// ---- byName path (takes precedence on conflict with bySelector) ----
+	for _, ref := range pg.Spec.Policies.ByName {
+		var pol v1alpha1.Policy
+		err := r.client.Get(ctx, types.NamespacedName{Name: ref.Name}, &pol)
+		if apierrors.IsNotFound(err) {
+			conditions = append(conditions, metav1.Condition{
+				Type:               condTypeMissingMember,
 				Status:             metav1.ConditionTrue,
-				Reason:             "KeyNotFound",
-				Message:            fmt.Sprintf("key %q not in built-in library and no rego provided", entry.Key),
+				Reason:             "PolicyNotFound",
+				Message:            ref.Name,
 				LastTransitionTime: metav1.Now(),
 			})
 			continue
 		}
-
-		if match == nil {
-			newConds = append(newConds, metav1.Condition{
-				Type:               "InvalidPolicy",
-				Status:             metav1.ConditionTrue,
-				Reason:             "MatchRequired",
-				Message:            fmt.Sprintf("key %q has no match spec", entry.Key),
-				LastTransitionTime: metav1.Now(),
-			})
-			continue
-		}
-
-		didSkip, err := r.reconcilePolicy(ctx, &pg, entry.Key, rego, *match, mode, desc)
 		if err != nil {
-			logger.Error(err, "reconcile policy", "key", entry.Key)
-			continue
+			return ctrl.Result{}, fmt.Errorf("get Policy %q: %w", ref.Name, err)
 		}
-		if didSkip {
-			skipped++
-			newConds = append(newConds, metav1.Condition{
-				Type:               "CustomOverride",
+		mode := ref.EnforcementMode
+		if mode == "" {
+			mode = pol.Spec.EnforcementMode
+		}
+		resolved[ref.Name] = v1alpha1.EffectiveMember{
+			Name:            ref.Name,
+			EnforcementMode: mode,
+			Source:          v1alpha1.SourceByName,
+		}
+	}
+
+	// ---- bySelector path ----
+	if pg.Spec.Policies.BySelector != nil {
+		sel, err := metav1.LabelSelectorAsSelector(pg.Spec.Policies.BySelector)
+		if err != nil {
+			conditions = append(conditions, metav1.Condition{
+				Type:               condTypeInvalidSelector,
 				Status:             metav1.ConditionTrue,
-				Reason:             "CustomPolicyExists",
-				Message:            fmt.Sprintf("key %q is overridden by a custom Policy", entry.Key),
+				Reason:             "MalformedSelector",
+				Message:            err.Error(),
 				LastTransitionTime: metav1.Now(),
 			})
 		} else {
-			active++
+			var allPolicies v1alpha1.PolicyList
+			if err := r.client.List(ctx, &allPolicies); err != nil {
+				return ctrl.Result{}, fmt.Errorf("list Policies: %w", err)
+			}
+			for i := range allPolicies.Items {
+				pol := &allPolicies.Items[i]
+				if !sel.Matches(labels.Set(pol.Labels)) {
+					continue
+				}
+				if _, alreadyByName := resolved[pol.Name]; alreadyByName {
+					continue // byName precedence
+				}
+				mode := pg.Spec.SelectorEnforcementMode
+				if mode == "" {
+					mode = pol.Spec.EnforcementMode
+				}
+				resolved[pol.Name] = v1alpha1.EffectiveMember{
+					Name:            pol.Name,
+					EnforcementMode: mode,
+					Source:          v1alpha1.SourceBySelector,
+				}
+			}
 		}
 	}
 
+	// Sort resolved by name for stable status.
+	members := make([]v1alpha1.EffectiveMember, 0, len(resolved))
+	for _, m := range resolved {
+		members = append(members, m)
+	}
+	sort.Slice(members, func(i, j int) bool { return members[i].Name < members[j].Name })
+
 	phase := v1alpha1.PhaseReady
-	if len(newConds) > 0 {
+	if len(conditions) > 0 {
 		phase = v1alpha1.PhaseDegraded
 	}
 
 	pg.Status.Phase = phase
-	pg.Status.ActivePolicies = active
-	pg.Status.SkippedPolicies = skipped
-	pg.Status.Conditions = newConds
-	return ctrl.Result{}, r.client.Status().Update(ctx, &pg)
+	pg.Status.ObservedGeneration = pg.Generation
+	pg.Status.ResolvedPolicies = members
+	pg.Status.Conditions = conditions
+
+	if err := r.client.Status().Update(ctx, &pg); err != nil {
+		return ctrl.Result{}, fmt.Errorf("update group status: %w", err)
+	}
+	logger.V(1).Info("reconciled", "members", len(members), "phase", phase)
+
+	// Build current set for referencedBy diff.
+	current := map[string]struct{}{}
+	for _, m := range members {
+		current[m.Name] = struct{}{}
+	}
+	return ctrl.Result{}, r.refreshReferencedBy(ctx, prev, current)
 }
 
-// reconcilePolicy creates or updates the Policy for a given key.
-// Returns (skipped, error) where skipped=true means a custom policy takes priority.
-func (r *PolicyGroupReconciler) reconcilePolicy(
-	ctx context.Context, pg *v1alpha1.PolicyGroup,
-	key, rego string, match v1alpha1.PolicyMatch, mode, desc string,
-) (bool, error) {
-	var existing v1alpha1.PolicyList
-	if err := r.client.List(ctx, &existing, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{v1alpha1.LabelKey: key}),
-	}); err != nil {
-		return false, fmt.Errorf("list policies by key: %w", err)
+func snapshotResolved(in []v1alpha1.EffectiveMember) map[string]struct{} {
+	out := make(map[string]struct{}, len(in))
+	for _, m := range in {
+		out[m.Name] = struct{}{}
 	}
-
-	source := v1alpha1.SourceBuiltin
-	if _, inLib := builtins.Library[key]; !inLib {
-		source = v1alpha1.SourceCustom
-	}
-
-	desired := v1alpha1.PolicySpec{
-		EnforcementMode: mode,
-		Rego:            rego,
-		Match:           match,
-		Description:     desc,
-	}
-
-	if len(existing.Items) > 0 {
-		found := existing.Items[0]
-		if !isOwnedByGroup(&found, pg) {
-			return true, nil // custom policy wins
-		}
-		// owned by this group → patch if changed
-		patch := client.MergeFrom(found.DeepCopy())
-		found.Spec = desired
-		return false, r.client.Patch(ctx, &found, patch)
-	}
-
-	// create
-	policy := &v1alpha1.Policy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: CamelToKebab(key),
-			Labels: map[string]string{
-				v1alpha1.LabelKey:    key,
-				v1alpha1.LabelGroup:  pg.Name,
-				v1alpha1.LabelSource: source,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: v1alpha1.GroupVersion.String(),
-					Kind:       "PolicyGroup",
-					Name:       pg.Name,
-					UID:        pg.UID,
-					Controller: pgBoolRef(true),
-				},
-			},
-		},
-		Spec: desired,
-	}
-	return false, r.client.Create(ctx, policy)
+	return out
 }
 
-func (r *PolicyGroupReconciler) deleteOwnedPolicies(ctx context.Context, pg *v1alpha1.PolicyGroup) error {
-	var pList v1alpha1.PolicyList
-	if err := r.client.List(ctx, &pList); err != nil {
-		return err
+// refreshReferencedBy recomputes Policy.status.referencedBy for the union of
+// (previously-resolved union currently-resolved) Policies.
+func (r *PolicyGroupReconciler) refreshReferencedBy(ctx context.Context, prev, current map[string]struct{}) error {
+	touch := make(map[string]struct{}, len(prev)+len(current))
+	for n := range prev {
+		touch[n] = struct{}{}
 	}
-	for i := range pList.Items {
-		p := &pList.Items[i]
-		if isOwnedByGroup(p, pg) {
-			if err := r.client.Delete(ctx, p); err != nil {
-				return err
+	for n := range current {
+		touch[n] = struct{}{}
+	}
+
+	// Need the full PolicyGroup list to recompute each touched Policy's referencedBy.
+	var groups v1alpha1.PolicyGroupList
+	if err := r.client.List(ctx, &groups); err != nil {
+		return fmt.Errorf("list PolicyGroups for referencedBy diff: %w", err)
+	}
+
+	for name := range touch {
+		// Collect groups whose status.resolvedPolicies currently include `name`.
+		var refs []string
+		for _, g := range groups.Items {
+			for _, m := range g.Status.ResolvedPolicies {
+				if m.Name == name {
+					refs = append(refs, g.Name)
+					break
+				}
 			}
 		}
-	}
-	pg.Status.Phase = v1alpha1.PhaseDisabled
-	pg.Status.ActivePolicies = 0
-	return r.client.Status().Update(ctx, pg)
-}
+		sort.Strings(refs)
 
-func (r *PolicyGroupReconciler) ensurePolicyAbsent(ctx context.Context, key string, pg *v1alpha1.PolicyGroup) error {
-	var pList v1alpha1.PolicyList
-	if err := r.client.List(ctx, &pList, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{v1alpha1.LabelKey: key}),
-	}); err != nil {
-		return err
-	}
-	for i := range pList.Items {
-		p := &pList.Items[i]
-		if isOwnedByGroup(p, pg) {
-			return r.client.Delete(ctx, p)
+		var pol v1alpha1.Policy
+		if err := r.client.Get(ctx, types.NamespacedName{Name: name}, &pol); err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			return fmt.Errorf("get Policy %q for referencedBy update: %w", name, err)
+		}
+		if stringSlicesEqual(pol.Status.ReferencedBy, refs) {
+			continue // no diff, skip write
+		}
+		pol.Status.ReferencedBy = refs
+		if err := r.client.Status().Update(ctx, &pol); err != nil {
+			return fmt.Errorf("update Policy %q referencedBy: %w", name, err)
 		}
 	}
 	return nil
 }
 
-func isOwnedByGroup(p *v1alpha1.Policy, pg *v1alpha1.PolicyGroup) bool {
-	for _, ref := range p.OwnerReferences {
-		if ref.Kind == "PolicyGroup" && ref.Name == pg.Name && ref.UID == pg.UID {
+func stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// referencesPolicy checks whether group g would include policy pol via byName or bySelector.
+func referencesPolicy(g *v1alpha1.PolicyGroup, pol *v1alpha1.Policy) bool {
+	for _, ref := range g.Spec.Policies.ByName {
+		if ref.Name == pol.Name {
 			return true
+		}
+	}
+	if g.Spec.Policies.BySelector != nil {
+		if sel, err := metav1.LabelSelectorAsSelector(g.Spec.Policies.BySelector); err == nil {
+			if sel.Matches(labels.Set(pol.Labels)) {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-// CamelToKebab converts a camelCase key to a kebab-case Kubernetes name.
-// e.g. "runAsPrivileged" → "run-as-privileged"
-func CamelToKebab(s string) string {
-	var b strings.Builder
-	for i, r := range s {
-		if i > 0 && unicode.IsUpper(r) {
-			b.WriteRune('-')
-		}
-		b.WriteRune(unicode.ToLower(r))
+func (r *PolicyGroupReconciler) findGroupsReferencing(ctx context.Context, obj client.Object) []reconcile.Request {
+	pol, ok := obj.(*v1alpha1.Policy)
+	if !ok {
+		return nil
 	}
-	return b.String()
+	var groups v1alpha1.PolicyGroupList
+	if err := r.client.List(ctx, &groups); err != nil {
+		return nil
+	}
+	out := make([]reconcile.Request, 0, len(groups.Items))
+	for i := range groups.Items {
+		g := &groups.Items[i]
+		if referencesPolicy(g, pol) {
+			out = append(out, reconcile.Request{NamespacedName: types.NamespacedName{Name: g.Name}})
+			continue
+		}
+		for _, m := range g.Status.ResolvedPolicies {
+			if m.Name == pol.Name {
+				out = append(out, reconcile.Request{NamespacedName: types.NamespacedName{Name: g.Name}})
+				break
+			}
+		}
+	}
+	return out
 }
-
-// pgBoolRef returns a pointer to the given bool value.
-// Named pgBoolRef to avoid collisions with any boolRef defined in other files.
-func pgBoolRef(b bool) *bool { return &b }
 
 func (r *PolicyGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.PolicyGroup{}).
-		Owns(&v1alpha1.Policy{}).
+		Watches(
+			&v1alpha1.Policy{},
+			handler.EnqueueRequestsFromMapFunc(r.findGroupsReferencing),
+		).
 		Complete(r)
 }
