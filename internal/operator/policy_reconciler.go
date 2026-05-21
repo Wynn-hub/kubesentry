@@ -8,6 +8,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,10 +51,11 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, r.setInvalid(ctx, &policy, err.Error())
 	}
 
-	// Create PolicyVersion snapshot.
+	// Create PolicyVersion snapshot (idempotent: already-exists is fine if a
+	// previous reconcile created it but failed before updating status).
 	nextVersion := policy.Status.CurrentVersion + 1
 	pv := r.buildPolicyVersion(&policy, nextVersion)
-	if err := r.client.Create(ctx, pv); err != nil {
+	if err := r.client.Create(ctx, pv); err != nil && !apierrors.IsAlreadyExists(err) {
 		return ctrl.Result{}, fmt.Errorf("create PolicyVersion: %w", err)
 	}
 
