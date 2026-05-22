@@ -11,11 +11,16 @@ kubesentry/
 │   └── operator/main.go          # Operator + tls-setup subcommand
 ├── internal/
 │   ├── api/v1alpha1/            # CRD type definitions + scheme
-│   ├── builtins/                # Embedded Rego library (37 policies)
 │   ├── webhook/                 # OPA evaluator, cache, HTTP handler
-│   ├── operator/                # Policy/PolicyGroup/WebhookConfig reconcilers
+│   ├── operator/                # Policy/PolicyGroup/WebhookConfig/Exception reconcilers
 │   └── tlssetup/                # ECDSA cert generation
 ├── charts/kubesentry/           # Helm chart
+│   ├── crds/                    # CRD manifests
+│   ├── builtin-policies/        # Source-of-truth for the built-in catalogue
+│   │   ├── policies/            # 37 standalone Policy CRs (one yaml per policy)
+│   │   └── groups/              # 3 PolicyGroup member manifests
+│   └── templates/               # Renderers (builtin-policies.yaml + builtin-groups.yaml)
+├── test/builtins/               # helm template + CompileRego smoke test
 ├── examples/                    # Sample policies and test resources
 ├── CONTRIBUTING.md              # Contribution guidelines
 ├── DEVELOPMENT.md               # This file
@@ -43,11 +48,12 @@ KubeSentry consists of two independent Go binaries that communicate **only throu
 - **Evaluator** (`internal/webhook/evaluator.go`) — OPA integration, Rego compilation and evaluation
 
 **Lifecycle:**
-1. Startup: Build controller-runtime informer cache watching `Policy` CRDs
-2. Cache sync: Populate in-memory `PolicyCache` from CRD list
+1. Startup: Build controller-runtime informer cache watching `Policy`, `PolicyGroup`, `Namespace`, and `PolicyException` CRDs
+2. Cache sync: Compile every `PhaseReady` `Policy` into the in-memory `PolicyCache`; build `CompiledGroup.Members[]` from each `PolicyGroup.status.resolvedPolicies`. `PhaseInvalid` policies are removed (or skipped) — they never reach the cache.
 3. Per request:
-   - Call `Cache.MatchingPolicies()` to get relevant compiled policies
-   - Spawn goroutine per policy, evaluate with 5s timeout
+   - Call `Cache.MatchingForRequest()` — filters enabled `PolicyGroup`s by `namespaceSelector`, gathers candidate policies, picks the strictest effective mode across matching groups
+   - Apply any active `PolicyException` (cached via `ExceptionCache` with namespace index + selector matching)
+   - Spawn goroutine per surviving policy, evaluate with 5s timeout
    - Collect `enforce`-mode denials → return `Allowed=false`
    - Collect `audit`-mode violations → return `Allowed=true` with warnings
 
@@ -65,44 +71,49 @@ KubeSentry consists of two independent Go binaries that communicate **only throu
 - `tls-setup`: Pre-install Hook Job that generates TLS certificates (runs once)
 
 **Key Components:**
-- **PolicyGroupReconciler** — Watches `PolicyGroup` CRDs, creates/updates/deletes child `Policy` objects
-- **PolicyReconciler** — Validates Rego, creates immutable `PolicyVersion` snapshots, prunes old versions, handles rollback
-- **WebhookConfigReconciler** — Aggregates rules from all `Ready` policies, patches `ValidatingWebhookConfiguration`
+- **PolicyGroupReconciler** — Watches `PolicyGroup` CRDs **and** all `Policy` CRDs (reverse-enqueue via `MapFunc` on Policy create/delete/label-change). Resolves group members from `spec.policies.byName` + `spec.policies.bySelector` (byName takes precedence on name collision). Computes per-entry effective `enforcementMode` (`byName` entry override, else `selectorEnforcementMode`, else the Policy's own `spec.enforcementMode`). Writes `status.resolvedPolicies` + `status.resolvedCount` + `status.phase` (`Ready` / `Degraded` / `Disabled`). Maintains `Policy.status.referencedBy` by diffing previous-resolved ∪ current-resolved.
+- **PolicyReconciler** — Validates Rego, creates immutable `PolicyVersion` snapshots, prunes old versions, handles rollback. **No longer aware of "builtin"** — every `Policy` is a first-class top-level object regardless of whether it was created by the user or rendered by the Helm chart.
+- **WebhookConfigReconciler** — Lists every `Ready` policy (regardless of group membership), aggregates `match.resources`, patches `ValidatingWebhookConfiguration.Webhooks[*].Rules`.
+- **ExceptionReconciler** — Validates `PolicyException` lifecycle (`effectiveAt`, `expiresAt`, terminal `Expired` phase). `policyGroupRefs` is dynamic — the exempt set follows `PolicyGroup.status.resolvedPolicies` (no schema change).
 
 **Lifecycle:**
-1. Startup: Register all three reconcilers with controller-runtime manager
+1. Startup: Register all four reconcilers with the controller-runtime manager
 2. Leader election: Only one operator replica at a time runs reconciliation
-3. Per PolicyGroup change:
-   - Check if each policy key exists in builtins and has no custom override
-   - Create/update child `Policy` objects with labels (`kubesentry.io/key`, `kubesentry.io/group`, `kubesentry.io/source`)
+3. Per PolicyGroup change (or reverse-enqueue from Policy CRUD/label-change):
+   - Resolve members: union `byName` + `bySelector`, dropping `byName` duplicates
+   - Compute each member's effective `enforcementMode`
+   - Update `status.resolvedPolicies` and recompute `status.phase`
+   - Diff previous-resolved vs current-resolved → update affected `Policy.status.referencedBy`
 4. Per Policy change:
    - Validate Rego syntax
-   - Create immutable `PolicyVersion` snapshot
+   - Create immutable `PolicyVersion` snapshot (idempotent on `AlreadyExists`)
    - Prune versions beyond `policy.versionHistoryLimit`
-   - Update `Policy.Status`
-5. Per Policy Status change:
-   - If Phase changes to `Ready`, list all such policies
-   - Aggregate their match rules, remove duplicates
+   - Update `Policy.status` (`Ready` / `Invalid`)
+5. Per Policy Status change (Phase=`Ready` only):
+   - Aggregate `match.resources` across every `Ready` policy in the cluster
    - Patch `ValidatingWebhookConfiguration.Webhooks[*].Rules`
 
-**Design Decision**: Why OwnerReference-based conflict detection?
-- **Ownership clarity**: Kubernetes' native way to express "this Policy belongs to this PolicyGroup"
-- **Cascade cleanup**: Deleting a PolicyGroup automatically orphans its Policies (grace period for webhook evaluation)
-- **Override mechanism**: Custom Policies with no OwnerRef take precedence (conflict detection checks for absence of OwnerRef to current PolicyGroup)
+**Design Decision**: Why is `PolicyGroup` a pure reference object (no OwnerReference)?
+- **First-class policies**: A built-in `Policy` shipped by the chart is indistinguishable from a user-applied one. The user owns it via Helm/GitOps; the operator just classifies it via group membership.
+- **No cascade surprises**: Deleting a `PolicyGroup` leaves its referenced `Policy` CRs intact — only `status.referencedBy` is cleared. Users delete `Policy` CRs directly when they want them gone.
+- **Independent reuse**: One `Policy` can be referenced by multiple groups (potentially with different effective modes) without ownership conflict — per-request strictest-mode resolution handles overlap.
+- **Helm composability**: The chart can render the policy yaml + group yaml side by side, with the operator simply doing the join at runtime.
 
-### Two-Way Dependency
+### Data Flow
 
 ```
-PolicyGroup (user creates)
-    ↓ (PolicyGroupReconciler creates)
-Policy (cluster-scope CRD)
-    ↓ (informer sync)
-PolicyCache (webhook in-memory)
-    ↓ (per-request evaluation)
-AdmissionResponse (accept/deny)
+charts/kubesentry/builtin-policies/  +  user-applied Policy/PolicyGroup CRs
+    ↓ (Helm renders → kube-apiserver)
+Policy (cluster-scope CRD)  +  PolicyGroup (cluster-scope CRD)
+    ↓ (informer sync, reverse-enqueue)
+PolicyGroupReconciler resolves byName ∪ bySelector → status.resolvedPolicies
+    ↓ (informer sync into webhook)
+PolicyCache (compiled per-policy + CompiledGroup with Members[])
+    ↓ (per-request: groups whose namespaceSelector matches → strictest mode)
+AdmissionResponse (accept / deny / warnings)
 ```
 
-Webhook and operator can restart independently — cache will resync from `Policy` CRDs.
+Webhook and operator can restart independently — the cache resyncs from `Policy` + `PolicyGroup` CRDs.
 
 ## Key Invariants and Constraints
 
@@ -135,7 +146,7 @@ deny contains msg if {
 - Use `_` wildcards for unused variables
 - No `import rego.v1`
 
-All 37 built-in policies in `internal/builtins/rego/` use v0 syntax.
+All 37 built-in policies in `charts/kubesentry/builtin-policies/policies/` use v0 syntax. The smoke test in `test/builtins/compile_test.go` runs `helm template` and feeds every rendered Policy CR through `webhook.CompileRego` to keep this guarantee.
 
 ### 2. Rego Module Contract
 
@@ -149,28 +160,20 @@ deny[msg] { ... msg := "reason" }
 
 The evaluator queries `data.kubesentry.deny` to extract violation messages. Policies that don't follow this pattern compile but always allow.
 
-### 3. Label Constants (Set by PolicyGroupReconciler)
+### 3. Label Convention (Chart-Authored)
 
-When a `PolicyGroupReconciler` creates a child `Policy`, it sets three labels:
+Built-in policies are rendered by the Helm chart with two labels — the operator does **not** add or own them:
 
 | Label | Value | Purpose |
 |---|---|---|
-| `kubesentry.io/key` | e.g. `runAsPrivileged` | Used for conflict detection and status display |
-| `kubesentry.io/group` | e.g. `security` | Grouping and filtering |
-| `kubesentry.io/source` | `builtin` or `custom` | Track origin for user awareness |
+| `kubesentry.io/category` | `security` / `efficiency` / `reliability` | Picked up by `bySelector` group members; user-defined Policies can opt in with the same label |
+| `app.kubernetes.io/managed-by` | `Helm` | Standard Helm ownership marker |
 
-These labels are read by `syncPolicy()` in `cmd/webhook/main.go` to populate `CompiledPolicy.Key`, `.GroupName`, and `.Description`.
+When `PolicyGroup.spec.policies.bySelector.matchLabels` is set, the PolicyGroupReconciler dynamically includes every `Policy` whose labels match (including user-applied ones that adopt `kubesentry.io/category=<group>`). See the README "bySelector dynamic capture" warning — disabling a built-in policy via `builtinPolicies.<name>.enabled=false` does not stop a future copy of that Policy from being re-captured by the same selector.
 
-### 4. CamelToKebab Naming Convention
+### 4. Naming Convention
 
-Policy keys are in camelCase (`runAsPrivileged`). When creating a child `Policy` object, the reconciler converts to kebab-case for the Kubernetes object name using the `CamelToKebab()` function:
-
-```
-runAsPrivileged → run-as-privileged
-linuxHardening → linux-hardening
-```
-
-This ensures valid Kubernetes DNS-1123 naming.
+Built-in `Policy.metadata.name` uses kebab-case (e.g. `run-as-privileged`, `linux-hardening`) — there is no longer a camelCase → kebab-case conversion step inside the operator. The yaml files in `charts/kubesentry/builtin-policies/policies/` are the source of truth; both the file basename and `metadata.name` must match the kebab-case form.
 
 ### 5. PolicyVersion Naming and Labels
 
@@ -252,10 +255,11 @@ EOF
 ### Coverage Requirements
 
 Minimum 80% coverage for core packages:
-- `internal/webhook` — webhook functionality
-- `internal/operator` — policy management
+- `internal/webhook` — webhook functionality (cache, evaluator, handler, ExceptionCache)
+- `internal/operator` — policy/group/webhookconfig/exception reconcilers
 - `internal/api/v1alpha1` — CRD types
-- `internal/builtins` — built-in policy library
+
+The built-in policy catalogue is covered by `test/builtins/compile_test.go` — it `helm template`s the chart and asserts every rendered Policy compiles via `webhook.CompileRego`, plus a count assertion (≥37).
 
 Entrypoints (`cmd/webhook`, `cmd/operator`) are integration-tested via Kubernetes.
 
@@ -379,7 +383,7 @@ data = data.json  # paste your input
 query := data_kubesentry_deny
 
 # Or test directly
-opa test internal/builtins/rego/
+opa test charts/kubesentry/builtin-policies/policies/
 ```
 
 ## Rego Policy Development Guide
@@ -438,15 +442,19 @@ mode := object.get(c.securityContext, "runAsNonRoot", false)
 Use the OPA test framework:
 
 ```bash
-# Create test file: internal/builtins/rego/mypolicy_test.rego
+# Create a sidecar test file next to your policy, e.g.
+# charts/kubesentry/builtin-policies/policies/mypolicy_test.rego
 test_deny_privileged {
     count(deny) > 0 with data.kubesentry.deny as [_]
     # where _ is your input
 }
 
 # Run tests
-opa test internal/builtins/rego/mypolicy_test.rego
+opa test charts/kubesentry/builtin-policies/policies/mypolicy_test.rego
 ```
+
+> Note: the chart only ships `*.yaml` files via `policies/*.yaml` globs, so
+> standalone `_test.rego` files are not included in the rendered release.
 
 ## Release Process
 

@@ -32,12 +32,12 @@ helm install kubesentry \
 │  │  kubesentry-     │      │     kubesentry-operator        │  │
 │  │  webhook         │      │                                │  │
 │  │                  │      │  PolicyGroupReconciler         │  │
-│  │  - OPA 评估器    │      │  - 创建子 Policy CRD           │  │
-│  │  - 策略缓存      │      │  - 内置策略库（37 条规则）      │  │
-│  │  - /validate     │      │  - 冲突检测                    │  │
+│  │  - OPA 评估器    │      │  - 解析 byName + bySelector    │  │
+│  │  - 策略缓存      │      │  - 计算每条成员的生效模式      │  │
+│  │  - /validate     │      │  - 写入 status.resolvedPolicies│  │
 │  │  - /healthz      │      │                                │  │
 │  │  - /readyz       │      │  PolicyReconciler              │  │
-│  └────────┬─────────┘      │  - 验证 Rego                   │  │
+│  └────────┬─────────┘      │  - 校验 Rego                   │  │
 │           │                │  - 创建 PolicyVersion          │  │
 │           │ 监听           │  - 处理回滚                    │  │
 │           ▼                │                                │  │
@@ -57,9 +57,9 @@ helm install kubesentry \
 
 - **嵌入式 OPA 引擎** — 直接内嵌 OPA，无需 sidecar
 - **CRD 策略管理** — 以 `Policy` Kubernetes 资源定义策略
-- **内置策略组** — 37 条精选规则，覆盖 Security、Efficiency、Reliability 三个分组，安装时自动部署
+- **内置策略组** — 37 条精选规则，覆盖 Security、Efficiency、Reliability 三个分组，安装时作为独立 `Policy` CR 部署
 - **策略组管理** — 支持分组级别和单条策略的独立开关
-- **自定义策略组** — 创建自己的 `PolicyGroup` CRD；当自定义策略与内置策略的 key 相同时，自定义策略优先
+- **自定义策略组** — 创建自己的 `PolicyGroup` CRD 引用内置或自定义 `Policy`；`PolicyGroup` 是纯引用对象，不拥有也不创建 `Policy` CR
 - **结构化违规消息** — 拒绝响应包含 `[组/key] 消息` 和描述字段；audit 模式违规以 `AdmissionResponse.Warnings` 返回
 - **双执行模式** — `enforce`（拦截）或 `audit`（仅记录/告警）
 - **版本控制** — 每次策略变更自动创建不可变的 `PolicyVersion` 快照
@@ -126,26 +126,45 @@ KubeSentry 内置 37 条策略，分为三个组，默认全部启用：
 | `hpaMaxAvailability` | audit | HPA maxReplicas ≤ minReplicas 时告警 |
 | `hpaMinAvailability` | audit | HPA minReplicas ≤ 1 时告警 |
 
-### 自定义内置组行为
+### 自定义内置策略
 
-通过 Helm values 关闭整个组或单条策略：
+通过 Helm values 关闭整组、单条策略，或覆盖执行模式：
 
 ```yaml
+# 禁用整个内置策略组
 builtinGroups:
-  security:
-    enabled: true
-    policies:
-      hostNetworkSet:
-        enabled: false       # 禁用该策略
-      runAsRootAllowed:
-        mode: enforce        # 将模式覆盖为 enforce
   efficiency:
-    enabled: false           # 禁用整个组
+    enabled: false
+
+# 启用/禁用或覆盖单条内置策略（key 使用 kebab-case 的 Policy 名）
+builtinPolicies:
+  host-network-set:
+    enabled: false         # 完全移除该策略
+  run-as-root-allowed:
+    mode: enforce          # 由 audit 升级为 enforce
+
+# 覆盖所有内置组共用的命名空间排除列表
+builtinNamespaceSelector:
+  matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values:
+        - kube-system
+        - kube-public
+        - my-exempt-namespace
 ```
+
+> ⚠️ **bySelector 动态再捕获。** 内置组通过两种方式绑定成员：
+> `byName`（显式列表）**和** `bySelector`（`kubesentry.io/category=<group>`）。
+> 设置 `builtinPolicies.<name>.enabled=false` 只阻止 Helm 渲染对应的
+> Policy CR — 如果后续有人 apply 一个同名且带有该 category 标签的 CR，
+> 下一次 PolicyGroup reconcile 时 `bySelector` 会再次把它纳入组。
+> 若要永久把某条策略排除出组，需同时去掉未来副本上的
+> `kubesentry.io/category` 标签，或干脆禁用整个组。
 
 ## PolicyGroup CRD
 
-也可以创建自己的策略组，混合使用内置策略和自定义策略：
+`PolicyGroup` 是**纯引用对象** — 它**不拥有也不创建** `Policy` CR。你可以建立自己的组，引用内置或自定义的 Policy：
 
 ```yaml
 apiVersion: kubesentry.io/v1alpha1
@@ -155,36 +174,60 @@ metadata:
 spec:
   enabled: true
   displayName: "我的自定义策略"
+  namespaceSelector:
+    matchExpressions:
+      - key: kubernetes.io/metadata.name
+        operator: NotIn
+        values: [kube-system, kube-public]
   policies:
-    # 使用内置策略并覆盖模式
-    - key: runAsPrivileged
-      mode: enforce
-    # 不在内置库中的自定义策略
-    - key: noDebugContainers
-      mode: enforce
-      rego: |
-        package kubesentry
-        deny[msg] {
-          c := input.request.object.spec.containers[_]
-          c.name == "debug"
-          msg := "不允许运行 debug 容器"
-        }
-      match:
-        operations: [CREATE, UPDATE]
-        resources:
-          - apiGroups: [""]
-            apiVersions: ["v1"]
-            resources: ["pods"]
+    byName:
+      # 按名称引用内置或自定义 Policy，可选地覆盖执行模式
+      - name: run-as-privileged
+        enforcementMode: enforce
+      - name: no-debug-containers   # 你自己的 Policy CR
+    bySelector:
+      # 动态纳入所有带 kubesentry.io/category=custom 标签的 Policy
+      matchLabels:
+        kubesentry.io/category: custom
+  selectorEnforcementMode: audit   # 应用到所有 bySelector 命中的成员
 ```
 
-当 `PolicyGroup` 中的某个 key 与已存在的独立 `Policy`（即没有 `OwnerReference` 指向任何 `PolicyGroup` 的策略）相同时，独立策略优先，组内该条目被跳过。
+**逐请求取最严格模式。** 当同一次准入请求被多个启用的 PolicyGroup 命中（其 `namespaceSelector` 都匹配该命名空间），且这些组对同一条 Policy 给出了不同的生效模式时，Webhook 会取最严格的（enforce > audit）。
+
+### 自定义 Policy CR
+
+定义一个独立的 `Policy` CR 并通过组引用：
+
+```yaml
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: no-debug-containers
+  labels:
+    kubesentry.io/category: custom   # 会被 bySelector 类型的组捕获
+spec:
+  enforcementMode: enforce
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+  rego: |
+    package kubesentry
+    deny[msg] {
+      c := input.request.object.spec.containers[_]
+      c.name == "debug"
+      msg := "不允许运行 debug 容器"
+    }
+```
 
 ### 违规消息格式
 
-策略触发时，响应中包含所属组、key 和描述：
+策略触发时，响应中包含 Policy 名称、贡献该违规的所有组以及描述：
 
 ```
-[security/runAsPrivileged] container "app" must not run as privileged
+[run-as-privileged via security,my-policies] container "app" must not run as privileged
   描述：Fails when securityContext.privileged is true.
 ```
 
@@ -340,12 +383,15 @@ helm install kubesentry charts/kubesentry \
 | `tls.secretName` | `kubesentry-tls` | TLS Secret 名称 |
 | `failurePolicy` | `Fail` | Webhook 失败策略 |
 | `policy.versionHistoryLimit` | `20` | 每个策略保留的最大版本数 |
-| `webhookNamespaceSelector` | 排除 `kube-system`、`kubesentry-system` | 命名空间选择器 |
+| `webhookNamespaceSelector` | 排除 `kube-system`、`kubesentry-system` | VWC 命名空间选择器 |
+| `builtinNamespaceSelector` | 排除 `kube-system`、`kube-public`、`kube-node-lease`、`kubesentry-system` | 应用于所有内置组的默认命名空间选择器 |
 | `builtinGroups.security.enabled` | `true` | 启用 Security 策略组 |
 | `builtinGroups.efficiency.enabled` | `true` | 启用 Efficiency 策略组 |
 | `builtinGroups.reliability.enabled` | `true` | 启用 Reliability 策略组 |
-| `builtinGroups.<组>.policies.<key>.enabled` | — | 启用/禁用单条内置策略 |
-| `builtinGroups.<组>.policies.<key>.mode` | — | 覆盖单条策略的模式（`enforce`\|`audit`） |
+| `builtinGroups.<组>.namespaceSelector` | *(继承 builtinNamespaceSelector)* | 覆盖单个组的命名空间选择器 |
+| `builtinGroups.<组>.selectorEnforcementMode` | — | 该组 bySelector 成员的默认执行模式 |
+| `builtinPolicies.<name>.enabled` | `true` | 启用/禁用单条内置 Policy CR |
+| `builtinPolicies.<name>.mode` | — | 覆盖单条策略的执行模式（`enforce`\|`audit`） |
 
 ## 开发
 
@@ -404,14 +450,16 @@ kubesentry/
 │   └── operator/main.go      # Operator + tls-setup 子命令
 ├── internal/
 │   ├── api/v1alpha1/         # CRD 类型定义
-│   ├── builtins/             # 内置 Rego 策略库（37 条规则）
-│   │   └── rego/             # .rego 文件（每条策略一个）
 │   ├── webhook/              # OPA 评估器、缓存、HTTP Handler
 │   ├── operator/             # Policy、PolicyGroup 和 WebhookConfig 协调器
 │   └── tlssetup/             # ECDSA 证书生成
 ├── charts/kubesentry/        # Helm Chart
 │   ├── crds/                 # CRD 清单（Policy、PolicyVersion、PolicyGroup）
-│   └── templates/            # Kubernetes 资源模板
+│   ├── builtin-policies/     # 内置策略目录（唯一来源）
+│   │   ├── policies/         # 37 个独立 Policy CR（每条策略一个 yaml）
+│   │   └── groups/           # 3 个 PolicyGroup 成员清单
+│   └── templates/            # Helm 渲染模板（builtin-policies.yaml + builtin-groups.yaml）
+├── test/builtins/            # helm template + CompileRego 冒烟测试
 ├── Dockerfile.webhook        # 仅运行时镜像，不含构建步骤
 └── Dockerfile.operator
 ```

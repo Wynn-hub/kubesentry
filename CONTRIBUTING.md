@@ -119,9 +119,10 @@ go test ./... -cover
 
 Expected coverage:
 - `internal/webhook`: >85%
-- `internal/builtins`: >80%
 - `internal/operator`: >80%
 - `internal/api/v1alpha1`: >80%
+
+The built-in policy catalogue (`charts/kubesentry/builtin-policies/`) is covered by `test/builtins/compile_test.go`, which `helm template`s the chart and compiles every rendered Policy via `webhook.CompileRego`.
 
 ## Commit Message Format
 
@@ -213,42 +214,62 @@ The webhook evaluates `data.kubesentry.deny` to collect violations.
 
 ### Adding a Built-in Policy
 
-1. Create a new Rego file in `internal/builtins/rego/`:
+Built-in policies are first-class `Policy` CRs rendered by the Helm chart — there is no Go registration step. The source of truth lives entirely in `charts/kubesentry/builtin-policies/`.
+
+1. Create a new yaml file under `charts/kubesentry/builtin-policies/policies/`. The filename and `metadata.name` must match (kebab-case, DNS-1123):
    ```bash
-   touch internal/builtins/rego/myPolicyKey.rego
+   ${EDITOR} charts/kubesentry/builtin-policies/policies/my-policy-name.yaml
    ```
 
-2. Write the policy using v0 syntax:
-   ```rego
-   package kubesentry
+   ```yaml
+   apiVersion: kubesentry.io/v1alpha1
+   kind: Policy
+   metadata:
+     name: my-policy-name
+     labels:
+       kubesentry.io/category: security   # security | efficiency | reliability
+       kubesentry.io/source: builtin
+   spec:
+     match:
+       operations: [CREATE, UPDATE]
+       resources:
+         - apiGroups: [""]
+           apiVersions: [v1]
+           resources: [pods]
+     enforcementMode: audit               # enforce | audit
+     description: "One-line user-facing reason this policy exists."
+     rego: |
+       package kubesentry
 
-   deny[msg] {
-       c := input.request.object.spec.containers[_]
-       # your condition
-       msg := "reason"
-   }
+       deny[msg] {
+         c := input.request.object.spec.containers[_]
+         # your condition (v0 syntax — no `import rego.v1`, no `some x in set`)
+         msg := "reason"
+       }
    ```
 
-3. Register in `internal/builtins/library.go`:
-   ```go
-   "myPolicyKey": {
-       Rego: regoFiles["myPolicyKey"],
-       Description: "Policy description for users",
-       DefaultMode: "enforce",  // or "audit"
-       Match: v1alpha1.PolicyMatch{
-           Operations: []string{"CREATE", "UPDATE"},
-           Resources: []v1alpha1.MatchResource{{
-               APIGroups:   []string{""},
-               APIVersions: []string{"v1"},
-               Resources:   []string{"pods"},
-           }},
-       },
-   },
+2. Add the kebab-case name to the relevant `PolicyGroup` member manifest under
+   `charts/kubesentry/builtin-policies/groups/{security,efficiency,reliability}.yaml`:
+   ```yaml
+   spec:
+     members:
+       - existing-policy
+       - my-policy-name        # ← append here
    ```
 
-4. Add a test entry in `internal/builtins/library_test.go` if adding Rego that won't compile.
+   Alternatively, rely on `bySelector` — every Policy carrying
+   `kubesentry.io/category=<group>` is captured automatically by the matching group,
+   so a brand-new file with the right label is already part of the group even
+   without editing `members`. Keep `members` updated for explicit documentation and
+   for `enabled=false` overrides via `builtinPolicies` to keep working.
 
-5. Update [README.md](README.md) built-in policies table.
+3. Verify the chart still renders and every Rego still compiles:
+   ```bash
+   helm lint charts/kubesentry
+   GOROOT=/opt/homebrew/Cellar/go/1.26.2/libexec go test ./test/builtins/... -v
+   ```
+
+4. Update the built-in policies table in [README.md](README.md) and [README_zh.md](README_zh.md), and bump the `≥37` count assertion in `test/builtins/compile_test.go` if needed.
 
 ## Submitting Changes
 
