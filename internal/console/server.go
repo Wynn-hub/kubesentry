@@ -18,6 +18,9 @@ type Handlers struct {
 func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/policies", h.listPolicies)
 	mux.HandleFunc("GET /api/v1/policies/{name}", h.getPolicy)
+	mux.HandleFunc("POST /api/v1/policies", h.createPolicy)
+	mux.HandleFunc("PUT /api/v1/policies/{name}", h.updatePolicy)
+	mux.HandleFunc("POST /api/v1/policies/validate", h.validatePolicy)
 }
 
 // Server is the console HTTP server (plain HTTP; accessed via port-forward).

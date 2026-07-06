@@ -1,15 +1,20 @@
 package console
 
 import (
+	"encoding/json"
 	"net/http"
 	"sort"
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
+
+const cursorAnnotation = "kubesentry.io/logical-cursor"
 
 type policyListItem struct {
 	Name            string   `json:"name"`
@@ -103,4 +108,95 @@ func (h *Handlers) fetchPolicy(w http.ResponseWriter, r *http.Request) (*v1alpha
 		return nil, false
 	}
 	return &p, true
+}
+
+func (h *Handlers) createPolicy(w http.ResponseWriter, r *http.Request) {
+	var req policyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	if err := validatePolicyRequest(&req, true); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	labels := map[string]string{v1alpha1.LabelSource: v1alpha1.SourceCustom}
+	for k, v := range req.Labels {
+		labels[k] = v
+	}
+	p := &v1alpha1.Policy{
+		ObjectMeta: metav1.ObjectMeta{Name: req.Name, Labels: labels},
+		Spec: v1alpha1.PolicySpec{
+			Match:           req.Match,
+			EnforcementMode: req.EnforcementMode,
+			Rego:            req.Rego,
+			Description:     req.Description,
+		},
+	}
+	if err := h.Client.Create(r.Context(), p); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			writeErr(w, http.StatusConflict, "policy "+req.Name+" already exists")
+		} else {
+			writeErr(w, http.StatusInternalServerError, "create policy: "+err.Error())
+		}
+		return
+	}
+	writeOK(w, map[string]string{"name": p.Name})
+}
+
+func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
+	var req policyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	if err := validatePolicyRequest(&req, false); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	p, ok := h.fetchPolicy(w, r)
+	if !ok {
+		return
+	}
+	if req.ResourceVersion != "" && req.ResourceVersion != p.ResourceVersion {
+		writeErr(w, http.StatusConflict, "policy has been modified, refresh and retry")
+		return
+	}
+	p.Spec.Match = req.Match
+	p.Spec.EnforcementMode = req.EnforcementMode
+	p.Spec.Rego = req.Rego
+	p.Spec.Description = req.Description
+	if req.Labels != nil {
+		if p.Labels == nil {
+			p.Labels = map[string]string{}
+		}
+		for k, v := range req.Labels {
+			p.Labels[k] = v
+		}
+	}
+	delete(p.Annotations, cursorAnnotation) // console edit resets the timeline cursor
+	if err := h.Client.Update(r.Context(), p); err != nil {
+		if apierrors.IsConflict(err) {
+			writeErr(w, http.StatusConflict, "policy has been modified, refresh and retry")
+		} else {
+			writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
+		}
+		return
+	}
+	writeOK(w, map[string]string{"name": p.Name})
+}
+
+func (h *Handlers) validatePolicy(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Rego string `json:"rego"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	if _, err := webhook.CompileRego(req.Rego); err != nil {
+		writeErr(w, http.StatusBadRequest, "rego compile failed: "+err.Error())
+		return
+	}
+	writeOK(w, nil)
 }
