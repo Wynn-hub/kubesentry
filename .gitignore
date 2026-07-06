@@ -36,3 +36,8 @@ docs/superpowers/
 
 # Misc
 rules.xlsx
+
+# Web frontend artifacts
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep

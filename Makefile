@@ -33,8 +33,9 @@ CHART_VERSION = $(shell \
 
 WEBHOOK_IMAGE  = $(REGISTRY)/kubesentry-webhook:$(TAG)
 OPERATOR_IMAGE = $(REGISTRY)/kubesentry-operator:$(TAG)
+CONSOLE_IMAGE  = $(REGISTRY)/kubesentry-console:$(TAG)
 
-CMDS = webhook operator
+CMDS = webhook operator console
 
 # Test tooling — auto-installed to GOPATH/bin on first use.
 GOTESTSUM = $(shell go env GOPATH)/bin/gotestsum
@@ -71,7 +72,8 @@ build-linux:
 	    -e GOARCH=$$arch \
 	    $(GO_IMAGE) \
 	    sh -c 'go build -trimpath -o bin/linux-'"$$arch"'/webhook ./cmd/webhook && \
-	           go build -trimpath -o bin/linux-'"$$arch"'/operator ./cmd/operator' \
+	           go build -trimpath -o bin/linux-'"$$arch"'/operator ./cmd/operator && \
+	           go build -trimpath -o bin/linux-'"$$arch"'/console ./cmd/console' \
 	  || exit 1; \
 	done
 
@@ -90,6 +92,7 @@ lint:
 build-image-e2e: build-linux
 	docker build -f Dockerfile.webhook -t wynnhub/kubesentry-webhook:e2e-test .
 	docker build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
+	docker build -f Dockerfile.console -t wynnhub/kubesentry-console:e2e-test .
 
 # Run E2E tests against docker-desktop k8s (requires e2e-test images).
 # Quick run for local development — no report files produced.
@@ -145,11 +148,13 @@ LOCAL_TAG        ?= local
 LOCAL_NAMESPACE  ?= kubesentry-system
 LOCAL_WEBHOOK_IMAGE  = $(REGISTRY)/kubesentry-webhook:$(LOCAL_TAG)
 LOCAL_OPERATOR_IMAGE = $(REGISTRY)/kubesentry-operator:$(LOCAL_TAG)
+LOCAL_CONSOLE_IMAGE  = $(REGISTRY)/kubesentry-console:$(LOCAL_TAG)
 
 # Build single-arch images (host arch only) for local k8s — faster than buildx.
 build-image-local: build-linux
 	docker build -f Dockerfile.webhook  -t $(LOCAL_WEBHOOK_IMAGE)  .
 	docker build -f Dockerfile.operator -t $(LOCAL_OPERATOR_IMAGE) .
+	docker build -f Dockerfile.console  -t $(LOCAL_CONSOLE_IMAGE)  .
 
 # Build images + helm install/upgrade in one shot.
 deploy-local: build-image-local
@@ -176,6 +181,9 @@ deploy-local: build-image-local
 	  --set operator.image.repository=$(REGISTRY)/kubesentry-operator \
 	  --set operator.image.tag=$(LOCAL_TAG) \
 	  --set operator.image.pullPolicy=Never \
+	  --set console.image.repository=$(REGISTRY)/kubesentry-console \
+	  --set console.image.tag=$(LOCAL_TAG) \
+	  --set console.image.pullPolicy=Never \
 	  --wait --timeout 5m
 	@echo ""
 	@echo "Deployed. Inspect with:"
@@ -208,6 +216,13 @@ image: .builder build-linux
 	  --tag $(OPERATOR_IMAGE) \
 	  --load \
 	  .
+	docker buildx build \
+	  --builder $(BUILDER) \
+	  --platform $(PLATFORMS) \
+	  --file Dockerfile.console \
+	  --tag $(CONSOLE_IMAGE) \
+	  --load \
+	  .
 
 # Build and push multi-platform manifest to registry.
 # Always pushes both a versioned tag and :latest.
@@ -226,6 +241,14 @@ image-push: .builder build-linux
 	  --file Dockerfile.operator \
 	  --tag $(OPERATOR_IMAGE) \
 	  --tag $(REGISTRY)/kubesentry-operator:latest \
+	  --push \
+	  .
+	docker buildx build \
+	  --builder $(BUILDER) \
+	  --platform $(PLATFORMS) \
+	  --file Dockerfile.console \
+	  --tag $(CONSOLE_IMAGE) \
+	  --tag $(REGISTRY)/kubesentry-console:latest \
 	  --push \
 	  .
 
