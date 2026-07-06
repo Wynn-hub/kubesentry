@@ -27,7 +27,7 @@ vendor/
 .claude/
 
 # Generated coverage reports
-*.html
+/coverage.html
 coverage.out
 *.out
 
