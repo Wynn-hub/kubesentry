@@ -50,6 +50,7 @@ build:
 	@mkdir -p bin
 	go build -trimpath -o bin/webhook  ./cmd/webhook
 	go build -trimpath -o bin/operator ./cmd/operator
+	go build -trimpath -o bin/console  ./cmd/console
 
 # ── Step 2: Cross-compile inside a Docker container ──────────────────────────
 # Produces: bin/linux-amd64/{webhook,operator}  bin/linux-arm64/{webhook,operator}
