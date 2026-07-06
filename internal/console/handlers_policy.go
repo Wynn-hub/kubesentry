@@ -111,6 +111,7 @@ func (h *Handlers) fetchPolicy(w http.ResponseWriter, r *http.Request) (*v1alpha
 }
 
 func (h *Handlers) createPolicy(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024) // 1 MB limit
 	var req policyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
@@ -145,6 +146,7 @@ func (h *Handlers) createPolicy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024) // 1 MB limit
 	var req policyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
@@ -156,6 +158,11 @@ func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
 	}
 	p, ok := h.fetchPolicy(w, r)
 	if !ok {
+		return
+	}
+	// Prevent edits to builtin policies
+	if sourceOf(p.Labels) == v1alpha1.SourceBuiltin {
+		writeErr(w, http.StatusForbidden, "cannot edit builtin policy")
 		return
 	}
 	if req.ResourceVersion != "" && req.ResourceVersion != p.ResourceVersion {
@@ -170,8 +177,11 @@ func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
 		if p.Labels == nil {
 			p.Labels = map[string]string{}
 		}
+		// Only allow custom labels; preserve source label
 		for k, v := range req.Labels {
-			p.Labels[k] = v
+			if k != v1alpha1.LabelSource {
+				p.Labels[k] = v
+			}
 		}
 	}
 	delete(p.Annotations, cursorAnnotation) // console edit resets the timeline cursor
@@ -187,6 +197,7 @@ func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) validatePolicy(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024) // 1 MB limit
 	var req struct {
 		Rego string `json:"rego"`
 	}
