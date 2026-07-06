@@ -12,6 +12,14 @@ operator:
     tag: "e2e-test"
     pullPolicy: Never
 
+console:
+  enabled: true
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-console
+    tag: "e2e-test"
+    pullPolicy: Never
+
 builtinGroups:
   security:
     enabled: true
