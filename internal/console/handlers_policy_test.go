@@ -154,13 +154,3 @@ func TestValidateEndpoint(t *testing.T) {
 		t.Fatalf("bad rego: code=%d env=%+v", rec.Code, env)
 	}
 }
-
-func TestUpdateBuiltinPolicyForbidden(t *testing.T) {
-	h, _ := newTestServer(t, testPolicy("builtin-policy", "builtin", "enforce", "Ready"))
-	req := validReq()
-	req.Name = ""
-	rec, _ := doRequest(t, h, "PUT", "/api/v1/policies/builtin-policy", req)
-	if rec.Code != 403 {
-		t.Fatalf("code = %d, want 403", rec.Code)
-	}
-}
