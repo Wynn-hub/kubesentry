@@ -242,3 +242,19 @@ func TestListVersionsPrunedPrevDisabled(t *testing.T) {
 		t.Fatal("prev should be disabled when v4 snapshot is pruned")
 	}
 }
+
+func TestListVersionsRollbackToForcesInFlight(t *testing.T) {
+	// settled cursor (cur=3, atVersion=2) but RollbackTo still set —
+	// the handler must report in-flight and disable navigation.
+	p := testPolicy("p1", "custom", "enforce", "Ready")
+	p.Status.CurrentVersion = 3
+	p.Annotations = map[string]string{cursorAnnotation: `{"cursor":1,"atVersion":2,"head":2}`}
+	p.Spec.RollbackTo = &v1alpha1.RollbackTo{Version: 1}
+	h, _ := newTestServer(t, p,
+		testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"), testVersion("p1", 3, "audit"))
+	_, env := doRequest(t, h, "GET", "/api/v1/policies/p1/versions", nil)
+	tl := mustUnmarshal[versionTimeline](t, env.Data)
+	if !tl.InFlight || tl.PrevEnabled || tl.NextEnabled {
+		t.Fatalf("timeline = %+v, want inFlight=true and navigation disabled", tl)
+	}
+}
