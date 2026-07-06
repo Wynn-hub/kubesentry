@@ -34,6 +34,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/exceptions/{name}", h.getException)
 	mux.HandleFunc("PUT /api/v1/exceptions/{name}", h.updateException)
 	mux.HandleFunc("DELETE /api/v1/exceptions/{name}", h.deleteException)
+	mux.HandleFunc("GET /api/v1/summary", h.summary)
 }
 
 // Server is the console HTTP server (plain HTTP; accessed via port-forward).
