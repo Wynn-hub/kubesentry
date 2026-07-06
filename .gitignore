@@ -16,7 +16,7 @@ vendor/
 .DS_Store
 
 # Build artifacts
-dist/
+/dist/
 .builder
 *.exe
 *.dll
