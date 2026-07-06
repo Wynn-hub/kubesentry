@@ -1,4 +1,4 @@
-export GOROOT := /opt/homebrew/Cellar/go/1.26.2/libexec
+export GOROOT := /opt/homebrew/opt/go/libexec
 
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
         test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \

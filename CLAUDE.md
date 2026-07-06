@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Go Toolchain Warning
 
-This machine has a Go toolchain version mismatch. The `go` binary is Go 1.26.2 (homebrew) but `~/.zshrc` sets `GOROOT` to a different path. **Always prefix `go` commands with the correct GOROOT:**
+This machine has a Go toolchain version mismatch. The `go` binary is Homebrew-managed but `~/.zshrc` sets `GOROOT` to a different path. **Always prefix `go` commands with the correct GOROOT:**
 
 ```bash
-GOROOT=/opt/homebrew/Cellar/go/1.26.2/libexec go <command>
+GOROOT=/opt/homebrew/opt/go/libexec go <command>
 ```
 
 The `Makefile` already exports this GOROOT — `make test`, `make build` etc. work without the prefix.
@@ -16,10 +16,10 @@ The `Makefile` already exports this GOROOT — `make test`, `make build` etc. wo
 
 ```bash
 # Run all tests
-GOROOT=/opt/homebrew/Cellar/go/1.26.2/libexec go test ./...
+GOROOT=/opt/homebrew/opt/go/libexec go test ./...
 
 # Run a single test
-GOROOT=/opt/homebrew/Cellar/go/1.26.2/libexec go test ./internal/webhook/... -run TestHandlerDeniesPrivilegedPod -v
+GOROOT=/opt/homebrew/opt/go/libexec go test ./internal/webhook/... -run TestHandlerDeniesPrivilegedPod -v
 
 # Build both binaries
 make build   # outputs bin/webhook and bin/operator
