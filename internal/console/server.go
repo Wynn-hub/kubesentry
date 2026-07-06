@@ -24,6 +24,11 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/v1/policies/{name}", h.deletePolicy)
 	mux.HandleFunc("GET /api/v1/policies/{name}/versions", h.listPolicyVersions)
 	mux.HandleFunc("POST /api/v1/policies/{name}/rollback", h.rollbackPolicy)
+	mux.HandleFunc("GET /api/v1/policygroups", h.listGroups)
+	mux.HandleFunc("POST /api/v1/policygroups", h.createGroup)
+	mux.HandleFunc("GET /api/v1/policygroups/{name}", h.getGroup)
+	mux.HandleFunc("PUT /api/v1/policygroups/{name}", h.updateGroup)
+	mux.HandleFunc("DELETE /api/v1/policygroups/{name}", h.deleteGroup)
 }
 
 // Server is the console HTTP server (plain HTTP; accessed via port-forward).
