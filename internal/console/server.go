@@ -16,6 +16,8 @@ type Handlers struct {
 
 // Register wires all /api/v1 routes. Later tasks append routes here.
 func (h *Handlers) Register(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/v1/policies", h.listPolicies)
+	mux.HandleFunc("GET /api/v1/policies/{name}", h.getPolicy)
 }
 
 // Server is the console HTTP server (plain HTTP; accessed via port-forward).
