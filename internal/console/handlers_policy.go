@@ -2,8 +2,10 @@ package console
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -288,4 +290,73 @@ func (h *Handlers) listPolicyVersions(w http.ResponseWriter, r *http.Request) {
 		NextEnabled:    !inFlight && cursor < head && exists[cursor+1],
 		Versions:       entries,
 	})
+}
+
+func (h *Handlers) rollbackPolicy(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Direction string `json:"direction"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	if req.Direction != "prev" && req.Direction != "next" {
+		writeErr(w, http.StatusBadRequest, `direction must be "prev" or "next"`)
+		return
+	}
+	p, ok := h.fetchPolicy(w, r)
+	if !ok {
+		return
+	}
+
+	cursor, head, inFlight := resolveCursor(p)
+	if inFlight || p.Spec.RollbackTo != nil {
+		writeErr(w, http.StatusConflict, "a rollback is already in progress")
+		return
+	}
+
+	var target int64
+	if req.Direction == "prev" {
+		if cursor <= 1 {
+			writeErr(w, http.StatusBadRequest, "already at the oldest version")
+			return
+		}
+		target = cursor - 1
+	} else {
+		if cursor >= head {
+			writeErr(w, http.StatusBadRequest, "already at the latest version")
+			return
+		}
+		target = cursor + 1
+	}
+
+	var pvList v1alpha1.PolicyVersionList
+	if err := h.Client.List(r.Context(), &pvList, client.MatchingLabels{
+		"kubesentry/policy":  p.Name,
+		"kubesentry/version": strconv.FormatInt(target, 10),
+	}); err != nil {
+		writeErr(w, http.StatusInternalServerError, "list versions: "+err.Error())
+		return
+	}
+	if len(pvList.Items) == 0 {
+		writeErr(w, http.StatusGone, fmt.Sprintf("version %d snapshot has been pruned", target))
+		return
+	}
+
+	ann, _ := json.Marshal(logicalCursor{
+		Cursor:    target,
+		AtVersion: p.Status.CurrentVersion,
+		Head:      head,
+	})
+	patch := client.MergeFrom(p.DeepCopy())
+	if p.Annotations == nil {
+		p.Annotations = map[string]string{}
+	}
+	p.Annotations[cursorAnnotation] = string(ann)
+	p.Spec.RollbackTo = &v1alpha1.RollbackTo{Version: target}
+	if err := h.Client.Patch(r.Context(), p, patch); err != nil {
+		writeErr(w, http.StatusInternalServerError, "patch policy: "+err.Error())
+		return
+	}
+	writeOK(w, map[string]int64{"targetVersion": target})
 }

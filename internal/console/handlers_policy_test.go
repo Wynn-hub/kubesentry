@@ -1,6 +1,7 @@
 package console
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -256,5 +257,99 @@ func TestListVersionsRollbackToForcesInFlight(t *testing.T) {
 	tl := mustUnmarshal[versionTimeline](t, env.Data)
 	if !tl.InFlight || tl.PrevEnabled || tl.NextEnabled {
 		t.Fatalf("timeline = %+v, want inFlight=true and navigation disabled", tl)
+	}
+}
+
+func TestRollbackPrevFromHead(t *testing.T) {
+	p := testPolicy("p1", "custom", "enforce", "Ready")
+	p.Status.CurrentVersion = 2
+	h, c := newTestServer(t, p, testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"))
+
+	rec, env := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
+		map[string]string{"direction": "prev"})
+	if rec.Code != 200 {
+		t.Fatalf("code=%d env=%+v", rec.Code, env)
+	}
+	var got v1alpha1.Policy
+	if err := c.Get(t.Context(), client.ObjectKey{Name: "p1"}, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Spec.RollbackTo == nil || got.Spec.RollbackTo.Version != 1 {
+		t.Fatalf("rollbackTo = %+v", got.Spec.RollbackTo)
+	}
+	var cur logicalCursor
+	if err := json.Unmarshal([]byte(got.Annotations[cursorAnnotation]), &cur); err != nil {
+		t.Fatal(err)
+	}
+	if cur.Cursor != 1 || cur.AtVersion != 2 || cur.Head != 2 {
+		t.Fatalf("cursor annotation = %+v", cur)
+	}
+}
+
+func TestRollbackNextAtHead(t *testing.T) {
+	p := testPolicy("p1", "custom", "enforce", "Ready")
+	p.Status.CurrentVersion = 2
+	h, _ := newTestServer(t, p, testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"))
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
+		map[string]string{"direction": "next"})
+	if rec.Code != 400 {
+		t.Fatalf("code = %d, want 400", rec.Code)
+	}
+}
+
+func TestRollbackNextAfterSettled(t *testing.T) {
+	// 已回滚到 v1（settled：cur=3, annotation {1,2,2}），next 应指向 v2
+	p := testPolicy("p1", "custom", "enforce", "Ready")
+	p.Status.CurrentVersion = 3
+	p.Annotations = map[string]string{cursorAnnotation: `{"cursor":1,"atVersion":2,"head":2}`}
+	h, c := newTestServer(t, p,
+		testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"), testVersion("p1", 3, "audit"))
+
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
+		map[string]string{"direction": "next"})
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	var got v1alpha1.Policy
+	_ = c.Get(t.Context(), client.ObjectKey{Name: "p1"}, &got)
+	if got.Spec.RollbackTo.Version != 2 {
+		t.Fatalf("rollbackTo = %+v", got.Spec.RollbackTo)
+	}
+	var cur logicalCursor
+	_ = json.Unmarshal([]byte(got.Annotations[cursorAnnotation]), &cur)
+	if cur.Cursor != 2 || cur.AtVersion != 3 || cur.Head != 2 {
+		t.Fatalf("cursor = %+v", cur)
+	}
+}
+
+func TestRollbackInFlightRejected(t *testing.T) {
+	p := testPolicy("p1", "custom", "enforce", "Ready")
+	p.Status.CurrentVersion = 2
+	p.Annotations = map[string]string{cursorAnnotation: `{"cursor":1,"atVersion":2,"head":2}`}
+	h, _ := newTestServer(t, p, testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"))
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
+		map[string]string{"direction": "prev"})
+	if rec.Code != 409 {
+		t.Fatalf("code = %d, want 409", rec.Code)
+	}
+}
+
+func TestRollbackTargetPruned(t *testing.T) {
+	p := testPolicy("p1", "custom", "enforce", "Ready")
+	p.Status.CurrentVersion = 5
+	h, _ := newTestServer(t, p, testVersion("p1", 5, "enforce")) // v4 被剪枝
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
+		map[string]string{"direction": "prev"})
+	if rec.Code != 410 {
+		t.Fatalf("code = %d, want 410", rec.Code)
+	}
+}
+
+func TestRollbackBadDirection(t *testing.T) {
+	h, _ := newTestServer(t, testPolicy("p1", "custom", "enforce", "Ready"))
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
+		map[string]string{"direction": "jump"})
+	if rec.Code != 400 {
+		t.Fatalf("code = %d, want 400", rec.Code)
 	}
 }
