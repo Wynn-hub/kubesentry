@@ -21,6 +21,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/policies", h.createPolicy)
 	mux.HandleFunc("PUT /api/v1/policies/{name}", h.updatePolicy)
 	mux.HandleFunc("POST /api/v1/policies/validate", h.validatePolicy)
+	mux.HandleFunc("DELETE /api/v1/policies/{name}", h.deletePolicy)
 }
 
 // Server is the console HTTP server (plain HTTP; accessed via port-forward).

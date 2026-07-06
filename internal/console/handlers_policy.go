@@ -200,3 +200,21 @@ func (h *Handlers) validatePolicy(w http.ResponseWriter, r *http.Request) {
 	}
 	writeOK(w, nil)
 }
+
+func (h *Handlers) deletePolicy(w http.ResponseWriter, r *http.Request) {
+	p, ok := h.fetchPolicy(w, r)
+	if !ok {
+		return
+	}
+	if len(p.Status.ReferencedBy) > 0 && r.URL.Query().Get("force") != "true" {
+		writeErrData(w, http.StatusConflict,
+			"policy is referenced by policy groups",
+			map[string][]string{"referencedBy": p.Status.ReferencedBy})
+		return
+	}
+	if err := h.Client.Delete(r.Context(), p); err != nil {
+		writeErr(w, http.StatusInternalServerError, "delete policy: "+err.Error())
+		return
+	}
+	writeOK(w, nil)
+}

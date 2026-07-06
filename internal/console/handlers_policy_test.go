@@ -154,3 +154,36 @@ func TestValidateEndpoint(t *testing.T) {
 		t.Fatalf("bad rego: code=%d env=%+v", rec.Code, env)
 	}
 }
+
+func TestDeletePolicyReferenced(t *testing.T) {
+	p := testPolicy("p1", "custom", "audit", "Ready")
+	p.Status.ReferencedBy = []string{"security"}
+	h, _ := newTestServer(t, p)
+
+	rec, env := doRequest(t, h, "DELETE", "/api/v1/policies/p1", nil)
+	if rec.Code != 409 {
+		t.Fatalf("code = %d, want 409", rec.Code)
+	}
+	d := mustUnmarshal[map[string][]string](t, env.Data)
+	if len(d["referencedBy"]) != 1 || d["referencedBy"][0] != "security" {
+		t.Fatalf("data = %+v", d)
+	}
+
+	rec, _ = doRequest(t, h, "DELETE", "/api/v1/policies/p1?force=true", nil)
+	if rec.Code != 200 {
+		t.Fatalf("force delete code = %d", rec.Code)
+	}
+}
+
+func TestDeletePolicyUnreferenced(t *testing.T) {
+	h, c := newTestServer(t, testPolicy("p1", "custom", "audit", "Ready"))
+	rec, _ := doRequest(t, h, "DELETE", "/api/v1/policies/p1", nil)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	var got v1alpha1.Policy
+	err := c.Get(t.Context(), client.ObjectKey{Name: "p1"}, &got)
+	if err == nil {
+		t.Fatal("policy should be deleted")
+	}
+}
