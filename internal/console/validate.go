@@ -3,6 +3,7 @@ package console
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -73,6 +74,53 @@ func validateGroupRequest(req *groupRequest, isCreate bool) error {
 	}
 	if !validMode(req.SelectorEnforcementMode) {
 		return fmt.Errorf("invalid selectorEnforcementMode %q", req.SelectorEnforcementMode)
+	}
+	return nil
+}
+
+type exceptionRequest struct {
+	Name              string                        `json:"name,omitempty"`
+	PolicyRefs        []string                      `json:"policyRefs,omitempty"`
+	PolicyGroupRefs   []string                      `json:"policyGroupRefs,omitempty"`
+	AllPolicies       bool                          `json:"allPolicies,omitempty"`
+	Match             v1alpha1.PolicyExceptionMatch `json:"match"`
+	Duration          string                        `json:"duration"`
+	RetainAfterExpiry string                        `json:"retainAfterExpiry,omitempty"`
+	Reason            string                        `json:"reason"`
+	ResourceVersion   string                        `json:"resourceVersion,omitempty"`
+}
+
+func validateExceptionRequest(req *exceptionRequest, isCreate bool) error {
+	if isCreate {
+		if errs := validation.IsDNS1123Subdomain(req.Name); len(errs) > 0 {
+			return fmt.Errorf("invalid name: %s", strings.Join(errs, "; "))
+		}
+	}
+	targets := 0
+	if len(req.PolicyRefs) > 0 {
+		targets++
+	}
+	if len(req.PolicyGroupRefs) > 0 {
+		targets++
+	}
+	if req.AllPolicies {
+		targets++
+	}
+	if targets != 1 {
+		return fmt.Errorf("exactly one of policyRefs, policyGroupRefs, allPolicies must be set")
+	}
+	d, err := time.ParseDuration(req.Duration)
+	if err != nil || d <= 0 {
+		return fmt.Errorf("duration must be a positive Go duration (e.g. 24h): %q", req.Duration)
+	}
+	if req.RetainAfterExpiry != "" {
+		r, err := time.ParseDuration(req.RetainAfterExpiry)
+		if err != nil || r < 0 {
+			return fmt.Errorf("retainAfterExpiry must be a non-negative Go duration: %q", req.RetainAfterExpiry)
+		}
+	}
+	if strings.TrimSpace(req.Reason) == "" {
+		return fmt.Errorf("reason is required")
 	}
 	return nil
 }
