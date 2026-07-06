@@ -1,6 +1,8 @@
 package console
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -185,5 +187,58 @@ func TestDeletePolicyUnreferenced(t *testing.T) {
 	err := c.Get(t.Context(), client.ObjectKey{Name: "p1"}, &got)
 	if err == nil {
 		t.Fatal("policy should be deleted")
+	}
+}
+
+func testVersion(policy string, version int64, mode string) *v1alpha1.PolicyVersion {
+	return &v1alpha1.PolicyVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-v%d", policy, version),
+			Labels: map[string]string{
+				"kubesentry/policy":  policy,
+				"kubesentry/version": strconv.FormatInt(version, 10),
+			},
+		},
+		Spec: v1alpha1.PolicyVersionSpec{
+			PolicyRef:       policy,
+			Version:         version,
+			Rego:            validRego,
+			EnforcementMode: mode,
+		},
+	}
+}
+
+func TestListVersionsTimeline(t *testing.T) {
+	p := testPolicy("p1", "custom", "enforce", "Ready")
+	p.Status.CurrentVersion = 2
+	p.Status.VersionHistory = []v1alpha1.PolicyVersionSummary{
+		{Version: 1, Phase: "Ready"}, {Version: 2, Phase: "Ready"},
+	}
+	h, _ := newTestServer(t, p, testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"))
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/policies/p1/versions", nil)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	tl := mustUnmarshal[versionTimeline](t, env.Data)
+	if tl.Cursor != 2 || tl.Head != 2 || tl.InFlight {
+		t.Fatalf("timeline = %+v", tl)
+	}
+	if !tl.PrevEnabled || tl.NextEnabled {
+		t.Fatalf("prev/next = %v/%v, want true/false", tl.PrevEnabled, tl.NextEnabled)
+	}
+	if len(tl.Versions) != 2 || tl.Versions[0].Version != 2 || !tl.Versions[0].IsCurrent {
+		t.Fatalf("versions = %+v", tl.Versions)
+	}
+}
+
+func TestListVersionsPrunedPrevDisabled(t *testing.T) {
+	p := testPolicy("p1", "custom", "enforce", "Ready")
+	p.Status.CurrentVersion = 5
+	h, _ := newTestServer(t, p, testVersion("p1", 5, "enforce")) // v4 已被剪枝
+	_, env := doRequest(t, h, "GET", "/api/v1/policies/p1/versions", nil)
+	tl := mustUnmarshal[versionTimeline](t, env.Data)
+	if tl.PrevEnabled {
+		t.Fatal("prev should be disabled when v4 snapshot is pruned")
 	}
 }

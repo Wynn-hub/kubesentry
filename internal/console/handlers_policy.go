@@ -218,3 +218,74 @@ func (h *Handlers) deletePolicy(w http.ResponseWriter, r *http.Request) {
 	}
 	writeOK(w, nil)
 }
+
+type versionEntry struct {
+	Version         int64                `json:"version"`
+	CreatedAt       metav1.Time          `json:"createdAt"`
+	Phase           string               `json:"phase"`
+	Rego            string               `json:"rego"`
+	Match           v1alpha1.PolicyMatch `json:"match"`
+	EnforcementMode string               `json:"enforcementMode"`
+	IsCurrent       bool                 `json:"isCurrent"`
+}
+
+type versionTimeline struct {
+	CurrentVersion int64          `json:"currentVersion"`
+	Cursor         int64          `json:"cursor"`
+	Head           int64          `json:"head"`
+	InFlight       bool           `json:"inFlight"`
+	PrevEnabled    bool           `json:"prevEnabled"`
+	NextEnabled    bool           `json:"nextEnabled"`
+	Versions       []versionEntry `json:"versions"`
+}
+
+// listPolicyVersions returns snapshots for a policy, newest first.
+func (h *Handlers) listPolicyVersions(w http.ResponseWriter, r *http.Request) {
+	p, ok := h.fetchPolicy(w, r)
+	if !ok {
+		return
+	}
+	var pvList v1alpha1.PolicyVersionList
+	if err := h.Client.List(r.Context(), &pvList,
+		client.MatchingLabels{"kubesentry/policy": p.Name}); err != nil {
+		writeErr(w, http.StatusInternalServerError, "list versions: "+err.Error())
+		return
+	}
+
+	phaseByVersion := map[int64]string{}
+	for _, s := range p.Status.VersionHistory {
+		phaseByVersion[s.Version] = s.Phase
+	}
+
+	cursor, head, inFlight := resolveCursor(p)
+	if p.Spec.RollbackTo != nil {
+		inFlight = true
+	}
+
+	exists := map[int64]bool{}
+	entries := make([]versionEntry, 0, len(pvList.Items))
+	for i := range pvList.Items {
+		pv := &pvList.Items[i]
+		exists[pv.Spec.Version] = true
+		entries = append(entries, versionEntry{
+			Version:         pv.Spec.Version,
+			CreatedAt:       pv.Spec.CreatedAt,
+			Phase:           phaseByVersion[pv.Spec.Version],
+			Rego:            pv.Spec.Rego,
+			Match:           pv.Spec.Match,
+			EnforcementMode: pv.Spec.EnforcementMode,
+			IsCurrent:       pv.Spec.Version == cursor,
+		})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Version > entries[j].Version })
+
+	writeOK(w, versionTimeline{
+		CurrentVersion: p.Status.CurrentVersion,
+		Cursor:         cursor,
+		Head:           head,
+		InFlight:       inFlight,
+		PrevEnabled:    !inFlight && cursor > 1 && exists[cursor-1],
+		NextEnabled:    !inFlight && cursor < head && exists[cursor+1],
+		Versions:       entries,
+	})
+}
