@@ -1,0 +1,26 @@
+{{- if .Values.console.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubesentry-console
+rules:
+  - apiGroups: [kubesentry.io]
+    resources: [policies, policygroups, policyexceptions]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [kubesentry.io]
+    resources: [policyversions]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubesentry-console
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubesentry-console
+subjects:
+  - kind: ServiceAccount
+    name: kubesentry-console
+    namespace: {{ .Values.namespace }}
+{{- end }}

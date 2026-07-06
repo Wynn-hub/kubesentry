@@ -1,0 +1,9 @@
+KubeSentry {{ .Chart.AppVersion }} deployed to namespace {{ .Values.namespace }}.
+{{- if .Values.console.enabled }}
+
+Access the web console (no auth — do not expose outside the cluster):
+
+  kubectl -n {{ .Values.namespace }} port-forward svc/kubesentry-console {{ .Values.console.service.port }}:{{ .Values.console.service.port }}
+
+Then open http://localhost:{{ .Values.console.service.port }}
+{{- end }}
