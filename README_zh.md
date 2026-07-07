@@ -328,6 +328,30 @@ spec:
     version: 2
 ```
 
+## Web 控制台
+
+KubeSentry 内置一个基于浏览器的管理控制台，无需手写 YAML 即可管理 `Policy`、`PolicyGroup` 和 `PolicyException`——创建/编辑策略时带 Rego 校验，可浏览任意策略的版本时间线，一键回滚到相邻版本。界面支持中英文切换。
+
+默认启用（`console.enabled: true`）。如需禁用：
+
+```bash
+helm install kubesentry oci://registry-1.docker.io/wynnhub/kubesentry \
+  --namespace kubesentry-system --create-namespace \
+  --set console.enabled=false
+```
+
+通过 port-forward 访问——控制台没有 Ingress，也没有内置身份验证：
+
+```bash
+kubectl -n kubesentry-system port-forward svc/kubesentry-console 8080:8080
+```
+
+然后打开 http://localhost:8080。
+
+> ⚠️ **无身份验证。** 控制台没有登录，也没有自己的 RBAC——任何能访问到它的人都可以创建、编辑、删除策略。只应通过 `kubectl port-forward` 访问，切勿通过 Ingress 或 LoadBalancer Service 暴露到集群之外。
+
+> **选择器编辑器的限制。** 控制台的选择器编辑器只支持 `matchLabels`。如果某个 `PolicyGroup` 或 `PolicyException` 的 `namespaceSelector`/`resourceSelector` 是通过 `kubectl` 用 `matchExpressions` 创建的，之后在控制台表单里编辑并保存会丢失这些表达式——表单只能回填 `matchLabels`。
+
 ## 安装
 
 ### 前置条件

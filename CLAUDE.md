@@ -22,18 +22,21 @@ GOROOT=/opt/homebrew/opt/go/libexec go test ./...
 GOROOT=/opt/homebrew/opt/go/libexec go test ./internal/webhook/... -run TestHandlerDeniesPrivilegedPod -v
 
 # Build both binaries
-make build   # outputs bin/webhook and bin/operator
+make build   # outputs bin/webhook, bin/operator and bin/console
 
 # Lint
 make lint    # runs go vet
 
 # Helm lint
 helm lint charts/kubesentry
+
+# Frontend dev server (vite proxies /api to :8080; run cmd/console separately)
+cd web && npm run dev
 ```
 
 ## Architecture
 
-Two independent Go binaries communicate only through Kubernetes CRDs:
+Three independent Go binaries communicate only through Kubernetes CRDs:
 
 **`cmd/webhook`** — Data plane. Serves `/validate` (admission), `/healthz`, `/readyz`.
 - At startup, builds a controller-runtime informer cache watching `Policy`, `PolicyGroup`, `Namespace`, and `PolicyException` CRDs.
@@ -47,6 +50,10 @@ Two independent Go binaries communicate only through Kubernetes CRDs:
 - `WebhookConfigReconciler`: lists all `Ready` policies (regardless of group membership), aggregates their `match.resources`, patches `ValidatingWebhookConfiguration.Webhooks[*].Rules`.
 - `ExceptionReconciler`: validates `PolicyException` lifecycle. `policyGroupRefs` is dynamic — exemption follows `PolicyGroup.status.resolvedPolicies` (no schema change).
 - `tls-setup` subcommand: generates an ECDSA P-256 self-signed CA + server cert, writes a TLS Secret, patches the VWC `caBundle`. Skips if the Secret already exists.
+
+**`cmd/console`** — Management/UI plane. REST API over the same CRDs (Policy, PolicyGroup, PolicyException, PolicyVersion) plus an embedded Vue SPA, served on one port, accessed via port-forward with no auth.
+- Reuses `webhook.CompileRego` for client-side pre-validation before a Policy is created or updated.
+- Rollback is driven the same way the operator expects it: setting `spec.rollbackTo` plus a logical-cursor annotation (`kubesentry.io/logical-cursor`) that lets the UI track prev/next position across an in-flight rollback without re-deriving it from version history each time.
 
 ## Key Invariants
 
@@ -78,8 +85,11 @@ internal/api/v1alpha1/   CRD types + scheme registration + hand-written DeepCopy
 internal/webhook/        cache.go, evaluator.go, handler.go, server.go (PolicyCache holds CompiledPolicy + CompiledGroup)
 internal/operator/       policy_reconciler.go, policygroup_reconciler.go, webhookconfig_reconciler.go, exception_reconciler.go
 internal/tlssetup/       ECDSA cert generation (no k8s dependency)
+internal/console/        REST handlers (policy/group/exception/summary), cursor.go, response.go, server.go
 cmd/webhook/             main: informer setup (Policy + PolicyGroup + Namespace + PolicyException), cache sync, server start
 cmd/operator/            main: manager setup, reconciler registration, tls-setup subcommand
+cmd/console/             main: kubeconfig + cluster.Cluster setup, embeds web/dist, server start
+web/                     Vue 3 + TypeScript SPA (Element Plus, vue-i18n, vue-router), embedded into cmd/console via embed.go
 charts/kubesentry/       Helm chart
   ├── crds/              CRD manifests
   ├── builtin-policies/  source-of-truth for built-in Policies + PolicyGroups
@@ -97,6 +107,8 @@ charts/kubesentry/       Helm chart
 - `admissionregv1.AddToScheme` must be added to the scheme in `webhookconfig_reconciler_test.go`; the base `buildScheme()` only registers CRD types.
 - `runtime.RawExtension` lives in `k8s.io/apimachinery/pkg/runtime`, not in the admission package.
 - Builtin compile test (`test/builtins/compile_test.go`) runs `helm template` and calls `webhook.CompileRego` on every rendered Policy CR; asserts ≥37 policies. When adding a new built-in policy, ensure its Rego uses v0 syntax and add it to the group's `spec.members`.
+- Console handler tests share `newTestServer`/`doRequest` helpers in `internal/console/handlers_test.go` — fake controller-runtime client with `WithStatusSubresource`, white-box `package console` (not `console_test`).
+- e2e `test/e2e/t9_console_test.go` exercises the console REST API end-to-end through a `kubectl port-forward` to the deployed `kubesentry-console` Service.
 
 ## IDE Diagnostics Note
 

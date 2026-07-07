@@ -341,6 +341,30 @@ spec:
     version: 2
 ```
 
+## Web Console
+
+KubeSentry ships a browser-based console for managing `Policy`, `PolicyGroup`, and `PolicyException` objects without hand-writing YAML — create/edit policies with Rego validation, browse the version timeline for any policy, and roll back to an adjacent version with one click. The UI supports both Chinese and English.
+
+Enabled by default (`console.enabled: true`). To disable it:
+
+```bash
+helm install kubesentry oci://registry-1.docker.io/wynnhub/kubesentry \
+  --namespace kubesentry-system --create-namespace \
+  --set console.enabled=false
+```
+
+Access it via port-forward — there is no Ingress and no built-in authentication:
+
+```bash
+kubectl -n kubesentry-system port-forward svc/kubesentry-console 8080:8080
+```
+
+Then open http://localhost:8080.
+
+> ⚠️ **No authentication.** The console has no login and no RBAC of its own — anyone who can reach it can create, edit, and delete policies. Only ever access it via `kubectl port-forward`; never expose it through an Ingress or a LoadBalancer Service.
+
+> **Selector editor caveat.** The console's selector editors only support `matchLabels`. If you edit through the UI a `PolicyGroup` or `PolicyException` whose `namespaceSelector`/`resourceSelector` was created via `kubectl` with `matchExpressions`, those expressions will be lost on save — the console form only round-trips `matchLabels`.
+
 ## Installation
 
 ### Prerequisites
