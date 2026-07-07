@@ -25,6 +25,7 @@ vendor/
 
 # Claude Code
 .claude/
+.superpowers
 
 # Generated coverage reports
 /coverage.html
