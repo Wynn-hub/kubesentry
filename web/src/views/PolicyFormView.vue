@@ -80,8 +80,9 @@ const form = reactive({
 })
 
 const splitCSV = (s: string) => s.split(',').map((x) => x.trim()).filter((x) => x !== '')
-// "" 段表示 core API 组：单独处理空串输入
-const splitGroups = (s: string) => (s.trim() === '' ? [''] : splitCSV(s))
+// "" 段表示 core API 组。空串输入 → ['']；非空输入按逗号切分并保留空段
+// （如 ",apps" → ['', 'apps']），使 core+具名组混合值可无损往返。
+const splitGroups = (s: string) => (s.trim() === '' ? [''] : s.split(',').map((x) => x.trim()))
 
 function toRequest(): PolicyRequest {
   const match = {
