@@ -1,0 +1,47 @@
+export default {
+  nav: { overview: 'Overview', policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions' },
+  common: {
+    create: 'Create', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
+    confirm: 'Confirm', search: 'Search', actions: 'Actions', name: 'Name', description: 'Description',
+    refresh: 'Refresh', back: 'Back', view: 'View',
+    deleteConfirm: 'Delete {name}?',
+    conflictRefresh: 'The object has been modified. Refresh and retry.',
+    builtinWarning: 'This is a builtin object managed by Helm. Editing it will drift from Helm. Continue?',
+    saved: 'Saved', deleted: 'Deleted',
+  },
+  policy: {
+    title: 'Policies', source: 'Source', mode: 'Mode', phase: 'Phase',
+    referencedBy: 'Referenced By', currentVersion: 'Version', rego: 'Rego Source',
+    match: 'Match Rules', operations: 'Operations', resources: 'Resources',
+    apiGroups: 'API Groups', apiVersions: 'API Versions', resourceTypes: 'Resource Types',
+    validate: 'Validate', validateOK: 'Rego compiles successfully',
+    enforce: 'Enforce', audit: 'Audit',
+    builtin: 'Builtin', custom: 'Custom',
+    copyRego: 'Copy', copied: 'Copied',
+    referencedDeleteConfirm: 'Referenced by group(s) {groups}. Force delete?',
+    tabOverview: 'Overview', tabRego: 'Rego', tabVersions: 'Version History',
+    allSources: 'All sources', allPhases: 'All phases',
+  },
+  timeline: {
+    current: 'Current', rollbackPrev: 'Back to previous version', rollbackNext: 'Forward to next version',
+    inFlight: 'Rollback in progress…', version: 'Version v{n}', rollbackDone: 'Rollback complete',
+  },
+  group: {
+    title: 'Policy Groups', displayName: 'Display Name', enabled: 'Enabled', resolvedCount: 'Members',
+    members: 'Members (byName)', bySelector: 'Label Selector (bySelector)',
+    selectorMode: 'Selector Mode', nsSelector: 'Namespace Selector',
+    resolved: 'Resolved Members', memberSource: 'Source', effectiveMode: 'Effective Mode',
+    followPolicy: 'Follow policy default',
+  },
+  exception: {
+    title: 'Exceptions', target: 'Target', duration: 'Duration', reason: 'Reason',
+    expiresAt: 'Expires At', retain: 'Retain After Expiry',
+    targetPolicies: 'Policies', targetGroups: 'Policy Groups', targetAll: 'All Policies',
+    namespaces: 'Namespaces (exact)', nsSelector: 'Namespace Labels', resSelector: 'Resource Labels',
+  },
+  overview: {
+    policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions',
+    byPhase: 'By Phase', byMode: 'By Mode', attention: 'Needs Attention',
+    noIssues: 'All objects healthy',
+  },
+}

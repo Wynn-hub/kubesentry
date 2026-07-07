@@ -1,0 +1,47 @@
+export default {
+  nav: { overview: '概览', policies: '策略', groups: '策略组', exceptions: '豁免' },
+  common: {
+    create: '新建', edit: '编辑', delete: '删除', save: '保存', cancel: '取消',
+    confirm: '确认', search: '搜索', actions: '操作', name: '名称', description: '描述',
+    refresh: '刷新', back: '返回', view: '查看',
+    deleteConfirm: '确定删除 {name} 吗？',
+    conflictRefresh: '数据已变更，请刷新后重试',
+    builtinWarning: '这是内置对象，修改后将偏离 Helm 管理，确定继续吗？',
+    saved: '已保存', deleted: '已删除',
+  },
+  policy: {
+    title: '策略', source: '来源', mode: '生效模式', phase: '状态',
+    referencedBy: '被引用组', currentVersion: '当前版本', rego: 'Rego 源码',
+    match: '匹配规则', operations: '操作', resources: '资源',
+    apiGroups: 'API 组', apiVersions: 'API 版本', resourceTypes: '资源类型',
+    validate: '校验', validateOK: 'Rego 校验通过',
+    enforce: '阻断', audit: '审计',
+    builtin: '内置', custom: '自定义',
+    copyRego: '复制', copied: '已复制',
+    referencedDeleteConfirm: '该策略被组 {groups} 引用，强制删除？',
+    tabOverview: '概览', tabRego: 'Rego', tabVersions: '版本历史',
+    allSources: '全部来源', allPhases: '全部状态',
+  },
+  timeline: {
+    current: '当前生效', rollbackPrev: '回到上一版', rollbackNext: '前进到下一版',
+    inFlight: '回滚处理中…', version: '版本 v{n}', rollbackDone: '回滚完成',
+  },
+  group: {
+    title: '策略组', displayName: '显示名', enabled: '启用', resolvedCount: '成员数',
+    members: '成员（byName）', bySelector: '标签选择（bySelector）',
+    selectorMode: 'selector 生效模式', nsSelector: '命名空间选择器',
+    resolved: '已解析成员', memberSource: '来源', effectiveMode: '生效模式',
+    followPolicy: '跟随策略默认',
+  },
+  exception: {
+    title: '豁免', target: '豁免对象', duration: '时长', reason: '原因',
+    expiresAt: '到期时间', retain: '过期保留',
+    targetPolicies: '指定策略', targetGroups: '指定策略组', targetAll: '全部策略',
+    namespaces: '命名空间（精确名）', nsSelector: '命名空间标签', resSelector: '资源标签',
+  },
+  overview: {
+    policies: '策略总数', groups: '策略组', exceptions: '豁免',
+    byPhase: '按状态分布', byMode: '按模式分布', attention: '需要关注',
+    noIssues: '所有对象状态正常',
+  },
+}
