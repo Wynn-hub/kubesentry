@@ -47,6 +47,7 @@ const { t } = useI18n()
 const tl = ref<VersionTimeline>()
 const rolling = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | undefined
+let disposed = false
 
 async function load() {
   try {
@@ -60,6 +61,7 @@ async function doRollback(direction: 'prev' | 'next') {
   rolling.value = true
   try {
     await rollback(props.policyName, direction)
+    if (disposed) return
     // 轮询直到 operator 落盘（inFlight 消失且 currentVersion 前进）
     pollTimer = setInterval(async () => {
       await load()
@@ -76,5 +78,8 @@ async function doRollback(direction: 'prev' | 'next') {
 }
 
 onMounted(load)
-onUnmounted(() => clearInterval(pollTimer))
+onUnmounted(() => {
+  disposed = true
+  clearInterval(pollTimer)
+})
 </script>
