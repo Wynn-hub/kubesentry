@@ -160,6 +160,10 @@ func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if p.Spec.RollbackTo != nil {
+		writeErr(w, http.StatusConflict, "a rollback is in progress, retry after it settles")
+		return
+	}
 	if req.ResourceVersion != "" && req.ResourceVersion != p.ResourceVersion {
 		writeErr(w, http.StatusConflict, "policy has been modified, refresh and retry")
 		return

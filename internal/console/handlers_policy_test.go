@@ -146,6 +146,18 @@ func TestUpdatePolicyClearsCursor(t *testing.T) {
 	}
 }
 
+func TestUpdatePolicyRejectedDuringRollback(t *testing.T) {
+	p := testPolicy("p1", "custom", "audit", "Ready")
+	p.Spec.RollbackTo = &v1alpha1.RollbackTo{Version: 1}
+	h, _ := newTestServer(t, p)
+	req := validReq()
+	req.Name = ""
+	rec, _ := doRequest(t, h, "PUT", "/api/v1/policies/p1", req)
+	if rec.Code != 409 {
+		t.Fatalf("code = %d, want 409", rec.Code)
+	}
+}
+
 func TestValidateEndpoint(t *testing.T) {
 	h, _ := newTestServer(t)
 	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/validate", map[string]string{"rego": validRego})
