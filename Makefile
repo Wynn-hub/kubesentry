@@ -2,7 +2,7 @@ export GOROOT := /opt/homebrew/opt/go/libexec
 
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
         test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \
-        build-image-local deploy-local undeploy-local
+        build-image-local deploy-local undeploy-local web-build test-web
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -46,6 +46,13 @@ $(GOTESTSUM):
 # Install all test tooling in one shot.
 tools: $(GOTESTSUM)
 
+# ── Web console frontend ─────────────────────────────────────────────────────
+web-build:
+	cd web && npm ci && npm run build
+
+test-web:
+	cd web && npm ci && npm run test
+
 # ── Step 1: Build (local native arch, for development) ───────────────────────
 build:
 	@mkdir -p bin
@@ -58,7 +65,7 @@ build:
 # Uses a Go container so the build env is isolated from the local toolchain.
 GO_IMAGE ?= golang:1.26-alpine
 
-build-linux:
+build-linux: web-build
 	@mkdir -p $(HOME)/go/pkg/mod
 	@for arch in amd64 arm64; do \
 	  echo "→ building linux/$$arch in container"; \
@@ -132,7 +139,7 @@ test-e2e-report: $(GOTESTSUM)
 	  exit $$EXIT
 
 # Full release gate: unit tests + build + E2E, all with report generation.
-test-all: test-report build-image-e2e test-e2e-report
+test-all: test-report test-web build-image-e2e test-e2e-report
 	@echo ""
 	@echo "All tests passed. Reports saved to $(REPORT_DIR)/"
 	@printf "  %-40s (HTML)\n" "$(REPORT_DIR)/unit-tests.html"
