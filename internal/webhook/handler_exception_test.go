@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -190,6 +192,46 @@ func TestHandlerPassesNilWhenNamespaceUnknown(t *testing.T) {
 
 	if rec.gotNamespaceLabels != nil {
 		t.Errorf("expected nil (unresolved) namespace labels, got %v", rec.gotNamespaceLabels)
+	}
+}
+
+func TestHandlerLogsExemptedPolicy(t *testing.T) {
+	q, err := webhook.CompileRego(denyPrivilegedRego)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved := []*webhook.Resolved{{
+		Policy: &webhook.CompiledPolicy{Name: "run-as-privileged", Query: q},
+		Mode:   v1alpha1.ModeEnforce,
+		Groups: []string{"security"},
+	}}
+	h := webhook.NewHandlerWithExceptions(
+		&stubStore{resolved: resolved, ready: true},
+		&stubExceptionStore{exempted: map[string]bool{"run-as-privileged": true}, ready: true},
+		nil,
+	)
+
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewReader(makePodReview(t, true)))
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	got := buf.String()
+	if !strings.Contains(got, "policy exempted") {
+		t.Errorf("expected exemption log line, got: %s", got)
+	}
+	if !strings.Contains(got, "run-as-privileged") {
+		t.Errorf("expected exempted policy name in log, got: %s", got)
+	}
+	if !strings.Contains(got, "namespace=hr") {
+		t.Errorf("expected namespace in log, got: %s", got)
 	}
 }
 

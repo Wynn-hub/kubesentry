@@ -141,12 +141,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		exempt := h.exceptions.ExemptedKeys(req.Namespace, nsLabels, objLabels, policies)
 		if len(exempt) > 0 {
 			filtered := make([]*Resolved, 0, len(resolved))
+			var exemptedNames []string
 			for _, r := range resolved {
-				if !exempt[r.Policy.Name] {
-					filtered = append(filtered, r)
+				if exempt[r.Policy.Name] {
+					exemptedNames = append(exemptedNames, r.Policy.Name)
+					continue
 				}
+				filtered = append(filtered, r)
 			}
 			resolved = filtered
+			if len(exemptedNames) > 0 {
+				slog.Info("policy exempted",
+					"policies", strings.Join(exemptedNames, ","),
+					"resource", req.Resource.Resource,
+					"namespace", req.Namespace,
+					"name", req.Name,
+				)
+			}
 		}
 	}
 
