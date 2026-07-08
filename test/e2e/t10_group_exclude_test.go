@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -47,6 +48,14 @@ func TestT10_GroupExcludeOverridesBySelector(t *testing.T) {
 	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &pg); err != nil {
 		t.Fatalf("get group: %v", err)
 	}
+	t.Cleanup(func() {
+		var g v1alpha1.PolicyGroup
+		if k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &g) == nil {
+			g.Spec.Policies.Exclude = slices.DeleteFunc(g.Spec.Policies.Exclude,
+				func(n string) bool { return n == "test-exclude-pol" })
+			_ = k8sClient.Update(ctx, &g)
+		}
+	})
 	pg.Spec.Policies.Exclude = append(pg.Spec.Policies.Exclude, "test-exclude-pol")
 	if err := k8sClient.Update(ctx, &pg); err != nil {
 		t.Fatalf("update group exclude: %v", err)
