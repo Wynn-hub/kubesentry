@@ -12,6 +12,7 @@ export interface PolicyRef {
 export interface GroupPolicies {
   byName?: PolicyRef[]
   bySelector?: LabelSelector
+  exclude?: string[]
 }
 
 export interface GroupListItem {

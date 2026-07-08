@@ -66,6 +66,7 @@ import { ApiError } from '../api/http'
 import { createGroup, getGroup, updateGroup, type GroupRequest } from '../api/group'
 import { listPolicies } from '../api/policy'
 import LabelEditor from '../components/LabelEditor.vue'
+import { computeMembership } from '../components/groupMembership'
 
 const route = useRoute()
 const router = useRouter()
@@ -76,6 +77,9 @@ const editName = String(route.params.name ?? '')
 const saving = ref(false)
 let resourceVersion = ''
 let source = 'custom'
+let initialResolvedNames: string[] = []
+let initialByNameNames: string[] = []
+let initialExclude: string[] = []
 
 const form = reactive({
   name: '',
@@ -93,6 +97,13 @@ const nsSelectorLabels = ref<Record<string, string>>({})
 function toRequest(): GroupRequest {
   const hasSelector = Object.keys(bySelectorLabels.value).length > 0
   const hasNs = Object.keys(nsSelectorLabels.value).length > 0
+  const { byName, exclude } = computeMembership({
+    initialResolvedNames,
+    initialByNameNames,
+    initialExclude,
+    finalSelectedNames: selectedNames.value,
+    modeOverrides,
+  })
   return {
     name: isEdit ? undefined : form.name,
     displayName: form.displayName,
@@ -100,11 +111,9 @@ function toRequest(): GroupRequest {
     enabled: form.enabled,
     namespaceSelector: hasNs ? { matchLabels: nsSelectorLabels.value } : null,
     policies: {
-      byName: selectedNames.value.map((n) => ({
-        name: n,
-        enforcementMode: modeOverrides[n] || undefined,
-      })),
+      byName,
       bySelector: hasSelector ? { matchLabels: bySelectorLabels.value } : undefined,
+      exclude: exclude.length ? exclude : undefined,
     },
     selectorEnforcementMode: form.selectorEnforcementMode || undefined,
     resourceVersion: isEdit ? resourceVersion : undefined,
@@ -151,7 +160,10 @@ onMounted(async () => {
     form.description = d.spec.description ?? ''
     form.enabled = d.spec.enabled
     form.selectorEnforcementMode = d.spec.selectorEnforcementMode ?? ''
-    selectedNames.value = (d.spec.policies?.byName ?? []).map((r) => r.name)
+    selectedNames.value = (d.status.resolvedPolicies ?? []).map((m) => m.name)
+    initialResolvedNames = selectedNames.value.slice()
+    initialByNameNames = (d.spec.policies?.byName ?? []).map((r) => r.name)
+    initialExclude = d.spec.policies?.exclude ?? []
     for (const r of d.spec.policies?.byName ?? []) {
       if (r.enforcementMode) modeOverrides[r.name] = r.enforcementMode
     }
