@@ -30,11 +30,25 @@
         <template #default="{ row }"><ModeTag :mode="row.enforcementMode" /></template>
       </el-table-column>
     </el-table>
+
+    <div v-if="excludedNames.length" style="margin-top: 16px">
+      <h3>{{ $t('group.excluded') }} ({{ excludedNames.length }})</h3>
+      <p style="color: var(--el-text-color-secondary); margin: 4px 0 12px">
+        {{ $t('group.excludedHint') }}
+      </p>
+      <el-table :data="excludedNames.map((name) => ({ name }))">
+        <el-table-column :label="$t('common.name')">
+          <template #default="{ row }">
+            <router-link :to="`/policies/${row.name}`">{{ row.name }}</router-link>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getGroup, type GroupDetail } from '../api/group'
@@ -43,6 +57,7 @@ import PhaseTag from '../components/PhaseTag.vue'
 
 const route = useRoute()
 const d = ref<GroupDetail>()
+const excludedNames = computed(() => d.value?.spec.policies?.exclude ?? [])
 
 onMounted(async () => {
   try {

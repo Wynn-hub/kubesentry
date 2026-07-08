@@ -32,6 +32,8 @@ export default {
     selectorMode: 'selector 生效模式', nsSelector: '命名空间选择器',
     resolved: '已解析成员', memberSource: '来源', effectiveMode: '生效模式',
     followPolicy: '跟随策略默认',
+    excluded: '已排除的策略',
+    excludedHint: '已被明确排除，重新加入请前往编辑页勾选。',
   },
   exception: {
     title: '豁免', target: '豁免对象', duration: '时长', reason: '原因',

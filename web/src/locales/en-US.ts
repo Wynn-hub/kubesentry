@@ -32,6 +32,8 @@ export default {
     selectorMode: 'Selector Mode', nsSelector: 'Namespace Selector',
     resolved: 'Resolved Members', memberSource: 'Source', effectiveMode: 'Effective Mode',
     followPolicy: 'Follow policy default',
+    excluded: 'Excluded Policies',
+    excludedHint: 'Explicitly excluded from this group. To re-include, select it again on the edit page.',
   },
   exception: {
     title: 'Exceptions', target: 'Target', duration: 'Duration', reason: 'Reason',
