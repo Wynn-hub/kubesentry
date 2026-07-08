@@ -119,3 +119,48 @@ func TestDeleteGroup(t *testing.T) {
 		t.Fatal("group should be deleted")
 	}
 }
+
+func TestCreateGroupWithExclude(t *testing.T) {
+	h, c := newTestServer(t)
+	req := validGroupReq()
+	req.Policies.Exclude = []string{"host-ipc-set"}
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policygroups", req)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	var g v1alpha1.PolicyGroup
+	if err := c.Get(t.Context(), client.ObjectKey{Name: "my-group"}, &g); err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Spec.Policies.Exclude) != 1 || g.Spec.Policies.Exclude[0] != "host-ipc-set" {
+		t.Fatalf("exclude = %+v", g.Spec.Policies.Exclude)
+	}
+}
+
+func TestCreateGroupExcludeEmptyEntryRejected(t *testing.T) {
+	h, _ := newTestServer(t)
+	req := validGroupReq()
+	req.Policies.Exclude = []string{""}
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policygroups", req)
+	if rec.Code != 400 {
+		t.Fatalf("code = %d, want 400", rec.Code)
+	}
+}
+
+func TestUpdateGroupClearsExclude(t *testing.T) {
+	g := testGroup("g1", true)
+	g.Spec.Policies.Exclude = []string{"old-excluded"}
+	h, c := newTestServer(t, g)
+	req := validGroupReq()
+	req.Name = ""
+	req.Policies.Exclude = nil
+	rec, _ := doRequest(t, h, "PUT", "/api/v1/policygroups/g1", req)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(t.Context(), client.ObjectKey{Name: "g1"}, &got)
+	if len(got.Spec.Policies.Exclude) != 0 {
+		t.Fatalf("exclude = %+v, want empty after clearing", got.Spec.Policies.Exclude)
+	}
+}

@@ -75,6 +75,11 @@ func validateGroupRequest(req *groupRequest, isCreate bool) error {
 	if !validMode(req.SelectorEnforcementMode) {
 		return fmt.Errorf("invalid selectorEnforcementMode %q", req.SelectorEnforcementMode)
 	}
+	for _, name := range req.Policies.Exclude {
+		if name == "" {
+			return fmt.Errorf("policies.exclude entries must not be empty")
+		}
+	}
 	return nil
 }
 
