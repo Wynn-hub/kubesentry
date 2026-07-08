@@ -51,6 +51,10 @@ spec:
                     bySelector:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    exclude:
+                      type: array
+                      items:
+                        type: string
                 selectorEnforcementMode:
                   type: string
                   enum: [enforce, audit]
