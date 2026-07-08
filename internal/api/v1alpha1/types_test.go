@@ -118,6 +118,26 @@ func TestPolicyGroupDeepCopy(t *testing.T) {
 	}
 }
 
+func TestPolicyGroupPoliciesExcludeDeepCopyIndependent(t *testing.T) {
+	orig := &v1alpha1.PolicyGroup{
+		ObjectMeta: metav1.ObjectMeta{Name: "security"},
+		Spec: v1alpha1.PolicyGroupSpec{
+			Enabled: true,
+			Policies: v1alpha1.PolicyGroupPolicies{
+				Exclude: []string{"host-ipc-set"},
+			},
+		},
+	}
+	cp := orig.DeepCopy()
+	if len(cp.Spec.Policies.Exclude) != 1 || cp.Spec.Policies.Exclude[0] != "host-ipc-set" {
+		t.Fatalf("exclude not copied: %+v", cp.Spec.Policies.Exclude)
+	}
+	cp.Spec.Policies.Exclude[0] = "changed"
+	if orig.Spec.Policies.Exclude[0] == "changed" {
+		t.Error("DeepCopy shares Exclude slice backing array")
+	}
+}
+
 func TestPolicySpecDescriptionField(t *testing.T) {
 	spec := v1alpha1.PolicySpec{
 		Description:     "test description",

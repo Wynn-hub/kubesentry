@@ -195,6 +195,10 @@ func (in *PolicyGroupPolicies) DeepCopyInto(out *PolicyGroupPolicies) {
 	if in.BySelector != nil {
 		out.BySelector = in.BySelector.DeepCopy()
 	}
+	if in.Exclude != nil {
+		out.Exclude = make([]string, len(in.Exclude))
+		copy(out.Exclude, in.Exclude)
+	}
 }
 
 func (in *PolicyGroupSpec) DeepCopyInto(out *PolicyGroupSpec) {

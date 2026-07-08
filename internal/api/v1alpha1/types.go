@@ -118,10 +118,12 @@ type PolicyRef struct {
 	EnforcementMode string `json:"enforcementMode,omitempty"`
 }
 
-// PolicyGroupPolicies holds the two ways to reference policies.
+// PolicyGroupPolicies holds the two ways to reference policies, plus an
+// explicit denylist that wins over both.
 type PolicyGroupPolicies struct {
 	ByName     []PolicyRef           `json:"byName,omitempty"`
 	BySelector *metav1.LabelSelector `json:"bySelector,omitempty"`
+	Exclude    []string              `json:"exclude,omitempty"`
 }
 
 // PolicyGroupSpec defines the desired state of a PolicyGroup.
