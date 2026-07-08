@@ -42,6 +42,12 @@ func newLabeledPolicy(name, mode string, lbls map[string]string) *v1alpha1.Polic
 	}
 }
 
+func newGroupWithExclude(name string, byName []v1alpha1.PolicyRef, bySelector *metav1.LabelSelector, exclude []string) *v1alpha1.PolicyGroup {
+	g := newGroup(name, true, byName, bySelector)
+	g.Spec.Policies.Exclude = exclude
+	return g
+}
+
 func TestPolicyGroupReconcileByNameResolvesMember(t *testing.T) {
 	pg := newGroup("security", true,
 		[]v1alpha1.PolicyRef{{Name: "run-as-privileged"}},
@@ -237,5 +243,146 @@ func TestPolicyGroupReconcileSelectorEnforcementModeOverride(t *testing.T) {
 	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
 	if got.Status.ResolvedPolicies[0].EnforcementMode != v1alpha1.ModeEnforce {
 		t.Errorf("selectorEnforcementMode override failed")
+	}
+}
+
+func TestPolicyGroupReconcileExcludeRemovesByNameMember(t *testing.T) {
+	pg := newGroupWithExclude("security",
+		[]v1alpha1.PolicyRef{{Name: "p", EnforcementMode: v1alpha1.ModeEnforce}},
+		nil, []string{"p"},
+	)
+	pol := newLabeledPolicy("p", v1alpha1.ModeAudit, nil)
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if len(got.Status.ResolvedPolicies) != 0 {
+		t.Fatalf("resolvedPolicies = %+v, want empty (excluded)", got.Status.ResolvedPolicies)
+	}
+	if got.Status.ResolvedCount != 0 {
+		t.Fatalf("resolvedCount = %d, want 0", got.Status.ResolvedCount)
+	}
+}
+
+func TestPolicyGroupReconcileExcludeRemovesBySelectorMember(t *testing.T) {
+	// Reproduces the original bug report: host-ipc-set-equivalent policy
+	// matched only via bySelector, removed from byName, must be excludable.
+	pg := newGroupWithExclude("security", nil,
+		&metav1.LabelSelector{MatchLabels: map[string]string{v1alpha1.LabelCategory: "security"}},
+		[]string{"host-ipc-set"},
+	)
+	pol := newLabeledPolicy("host-ipc-set", v1alpha1.ModeEnforce, map[string]string{v1alpha1.LabelCategory: "security"})
+	other := newLabeledPolicy("other-pol", v1alpha1.ModeAudit, map[string]string{v1alpha1.LabelCategory: "security"})
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol, other).
+		WithStatusSubresource(pg, pol, other).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if len(got.Status.ResolvedPolicies) != 1 || got.Status.ResolvedPolicies[0].Name != "other-pol" {
+		t.Fatalf("resolvedPolicies = %+v, want only other-pol (host-ipc-set excluded)", got.Status.ResolvedPolicies)
+	}
+	if got.Status.ResolvedCount != 1 {
+		t.Fatalf("resolvedCount = %d, want 1", got.Status.ResolvedCount)
+	}
+}
+
+func TestPolicyGroupReconcileExcludeWinsOverByNameModeOverride(t *testing.T) {
+	pg := newGroupWithExclude("security",
+		[]v1alpha1.PolicyRef{{Name: "p", EnforcementMode: v1alpha1.ModeEnforce}},
+		&metav1.LabelSelector{MatchLabels: map[string]string{v1alpha1.LabelCategory: "security"}},
+		[]string{"p"},
+	)
+	pol := newLabeledPolicy("p", v1alpha1.ModeAudit, map[string]string{v1alpha1.LabelCategory: "security"})
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if len(got.Status.ResolvedPolicies) != 0 {
+		t.Fatalf("resolvedPolicies = %+v, want empty (exclude wins over byName+bySelector)", got.Status.ResolvedPolicies)
+	}
+}
+
+func TestPolicyGroupReconcileExcludeUnknownNameIgnored(t *testing.T) {
+	pg := newGroupWithExclude("security",
+		[]v1alpha1.PolicyRef{{Name: "p", EnforcementMode: v1alpha1.ModeEnforce}},
+		nil, []string{"does-not-exist"},
+	)
+	pol := newLabeledPolicy("p", v1alpha1.ModeAudit, nil)
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
+
+	if _, err := operator.NewPolicyGroupReconciler(c).Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(context.Background(), types.NamespacedName{Name: "security"}, &got)
+	if len(got.Status.ResolvedPolicies) != 1 || got.Status.ResolvedPolicies[0].Name != "p" {
+		t.Fatalf("resolvedPolicies = %+v, want [p] (unknown exclude entry ignored)", got.Status.ResolvedPolicies)
+	}
+}
+
+func TestPolicyGroupReconcileExcludeClearedRestoresMember(t *testing.T) {
+	pg := newGroupWithExclude("security", nil,
+		&metav1.LabelSelector{MatchLabels: map[string]string{v1alpha1.LabelCategory: "security"}},
+		[]string{"p"},
+	)
+	pol := newLabeledPolicy("p", v1alpha1.ModeEnforce, map[string]string{v1alpha1.LabelCategory: "security"})
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
+	ctx := context.Background()
+	req := ctrl.Request{NamespacedName: types.NamespacedName{Name: "security"}}
+	r := operator.NewPolicyGroupReconciler(c)
+
+	if _, err := r.Reconcile(ctx, req); err != nil {
+		t.Fatalf("first reconcile: %v", err)
+	}
+	var got v1alpha1.PolicyGroup
+	_ = c.Get(ctx, types.NamespacedName{Name: "security"}, &got)
+	if len(got.Status.ResolvedPolicies) != 0 {
+		t.Fatalf("after exclude, resolvedPolicies = %+v, want empty", got.Status.ResolvedPolicies)
+	}
+
+	// Clear the exclude list and reconcile again.
+	got.Spec.Policies.Exclude = nil
+	if err := c.Update(ctx, &got); err != nil {
+		t.Fatalf("clear exclude: %v", err)
+	}
+	if _, err := r.Reconcile(ctx, req); err != nil {
+		t.Fatalf("second reconcile: %v", err)
+	}
+	var after v1alpha1.PolicyGroup
+	_ = c.Get(ctx, types.NamespacedName{Name: "security"}, &after)
+	if len(after.Status.ResolvedPolicies) != 1 || after.Status.ResolvedPolicies[0].Name != "p" {
+		t.Fatalf("after clearing exclude, resolvedPolicies = %+v, want [p]", after.Status.ResolvedPolicies)
 	}
 }

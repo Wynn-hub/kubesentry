@@ -127,6 +127,11 @@ func (r *PolicyGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
+	// ---- exclude path (highest priority: wins over both byName and bySelector) ----
+	for _, name := range pg.Spec.Policies.Exclude {
+		delete(resolved, name)
+	}
+
 	// Sort resolved by name for stable status.
 	members := make([]v1alpha1.EffectiveMember, 0, len(resolved))
 	for _, m := range resolved {
