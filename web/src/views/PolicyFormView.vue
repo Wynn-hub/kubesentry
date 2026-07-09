@@ -47,9 +47,28 @@
       </div>
     </el-form-item>
 
-    <el-form-item :label="$t('policy.rego')" required>
+    <el-form-item :label="$t('ruleBuilder.modeManual') + ' / ' + $t('ruleBuilder.modeVisual')">
+      <el-radio-group v-model="builderMode" @change="onBuilderModeChange">
+        <el-radio value="manual">{{ $t('ruleBuilder.modeManual') }}</el-radio>
+        <el-radio value="visual">{{ $t('ruleBuilder.modeVisual') }}</el-radio>
+      </el-radio-group>
+    </el-form-item>
+
+    <el-form-item v-if="builderMode === 'manual'" :label="$t('policy.rego')" required>
       <el-input v-model="form.rego" type="textarea" :rows="16" style="font-family: monospace" />
     </el-form-item>
+
+    <template v-else>
+      <RuleGroupEditor
+        v-for="(g, i) in visualGroups" :key="i"
+        v-model="visualGroups[i]" :index="i"
+        :resources="form.resources"
+        @remove="visualGroups.splice(i, 1)"
+      />
+      <el-button plain @click="visualGroups.push({ conditions: [], message: '' })">
+        {{ $t('ruleBuilder.addGroup') }}
+      </el-button>
+    </template>
 
     <el-form-item>
       <el-button @click="onValidate">{{ $t('policy.validate') }}</el-button>
@@ -69,6 +88,11 @@ import {
   createPolicy, getPolicy, getResourceSuggestions, updatePolicy, validateRego,
   type MatchResource, type PolicyRequest,
 } from '../api/policy'
+import RuleGroupEditor from '../components/RuleGroupEditor.vue'
+import {
+  deserializeRuleGroups, ruleGroupsToRego, serializeRuleGroups, VISUAL_BUILDER_ANNOTATION,
+  type RuleGroup,
+} from '../components/ruleGroupCodegen'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,6 +120,28 @@ const form = reactive({
   resources: [{ apiGroups: [''], apiVersions: ['v1'], resources: ['pods'] }] as ResourceRow[],
   rego: 'package kubesentry\n\ndeny[msg] {\n\t# condition\n\tmsg := "reason"\n}\n',
 })
+
+const builderMode = ref<'manual' | 'visual'>('manual')
+const visualGroups = ref<RuleGroup[]>([{ conditions: [], message: '' }])
+
+async function onBuilderModeChange(newMode: string | number | boolean) {
+  const mode = newMode as 'manual' | 'visual'
+  const hasManualContent = form.rego.trim().length > 0 &&
+    form.rego !== 'package kubesentry\n\ndeny[msg] {\n\t# condition\n\tmsg := "reason"\n}\n'
+  const hasVisualContent = visualGroups.value.some((g) => g.conditions.length > 0 || g.message !== '')
+  const needsConfirm = (mode === 'visual' && hasManualContent) || (mode === 'manual' && hasVisualContent)
+
+  if (needsConfirm) {
+    try {
+      await ElMessageBox.confirm(t('ruleBuilder.switchConfirm'))
+    } catch {
+      builderMode.value = mode === 'visual' ? 'manual' : 'visual' // 用户取消，改回原模式
+      return
+    }
+  }
+  if (mode === 'visual') form.rego = ''
+  else visualGroups.value = [{ conditions: [], message: '' }]
+}
 
 function toRequest(): PolicyRequest {
   const match = {
@@ -135,12 +181,33 @@ async function onSave() {
       return
     }
   }
+
+  let rego: string
+  try {
+    rego = builderMode.value === 'visual' ? ruleGroupsToRego(visualGroups.value) : form.rego
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+    return
+  }
+
+  try {
+    await validateRego(rego)
+  } catch (e) {
+    ElMessage.error(t('ruleBuilder.compileError', { msg: (e as Error).message }))
+    return
+  }
+  form.rego = rego
+
   saving.value = true
   try {
+    const req = toRequest()
+    req.annotations = {
+      [VISUAL_BUILDER_ANNOTATION]: builderMode.value === 'visual' ? serializeRuleGroups(visualGroups.value) : '',
+    }
     if (isEdit) {
-      await updatePolicy(editName, toRequest())
+      await updatePolicy(editName, req)
     } else {
-      await createPolicy(toRequest())
+      await createPolicy(req)
     }
     ElMessage.success(t('common.saved'))
     router.push('/policies')
@@ -179,6 +246,16 @@ onMounted(async () => {
       resources: r.resources,
     }))
     form.rego = d.spec.rego
+
+    const savedGroups = d.annotations?.[VISUAL_BUILDER_ANNOTATION]
+      ? deserializeRuleGroups(d.annotations[VISUAL_BUILDER_ANNOTATION])
+      : null
+    if (savedGroups) {
+      visualGroups.value = savedGroups
+      builderMode.value = 'visual'
+    } else {
+      builderMode.value = 'manual'
+    }
   } catch (e) {
     ElMessage.error((e as Error).message)
   }

@@ -40,6 +40,7 @@ export interface PolicyDetail {
   name: string
   source: string
   labels: Record<string, string> | null
+  annotations: Record<string, string> | null
   resourceVersion: string
   spec: PolicySpec
   status: PolicyStatus
@@ -52,6 +53,7 @@ export interface PolicyRequest {
   match: PolicyMatch
   rego: string
   labels?: Record<string, string>
+  annotations?: Record<string, string>
   resourceVersion?: string
 }
 
