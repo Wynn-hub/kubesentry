@@ -1,7 +1,8 @@
 <template>
-  <el-tag :type="mode === 'enforce' ? 'danger' : 'warning'" size="small">
+  <span class="status-pill" :class="mode === 'enforce' ? 'is-danger' : 'is-scan'">
+    <span class="status-dot" />
     {{ mode === 'enforce' ? $t('policy.enforce') : $t('policy.audit') }}
-  </el-tag>
+  </span>
 </template>
 
 <script setup lang="ts">

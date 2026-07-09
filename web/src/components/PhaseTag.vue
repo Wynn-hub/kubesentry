@@ -1,14 +1,18 @@
 <template>
-  <el-tag :type="type" size="small">{{ phase || '-' }}</el-tag>
+  <span class="status-pill" :class="statusClass">
+    <span class="status-dot" />
+    {{ phase || '-' }}
+  </span>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 
 const props = defineProps<{ phase?: string }>()
-const type = computed(() => {
-  if (props.phase === 'Ready' || props.phase === 'Active') return 'success'
-  if (props.phase === 'Invalid' || props.phase === 'Degraded') return 'danger'
-  return 'info'
+const statusClass = computed(() => {
+  if (props.phase === 'Ready' || props.phase === 'Active') return 'is-success'
+  if (props.phase === 'Invalid' || props.phase === 'Degraded') return 'is-danger'
+  if (props.phase === 'Syncing') return 'is-warning'
+  return 'is-info'
 })
 </script>

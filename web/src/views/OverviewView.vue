@@ -1,26 +1,41 @@
 <!-- web/src/views/OverviewView.vue -->
 <template>
   <div v-if="data">
-    <el-row :gutter="16">
-      <el-col :span="8">
-        <el-card @click="$router.push('/policies')" style="cursor: pointer">
-          <div>{{ $t('overview.policies') }}</div>
-          <div style="font-size: 32px; font-weight: 700">{{ data.totals.policies }}</div>
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card @click="$router.push('/policygroups')" style="cursor: pointer">
-          <div>{{ $t('overview.groups') }}</div>
-          <div style="font-size: 32px; font-weight: 700">{{ data.totals.policygroups }}</div>
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card @click="$router.push('/exceptions')" style="cursor: pointer">
-          <div>{{ $t('overview.exceptions') }}</div>
-          <div style="font-size: 32px; font-weight: 700">{{ data.totals.exceptions }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="stat-grid">
+      <div
+        class="stat-card"
+        style="--accent: var(--accent-scan)"
+        role="button"
+        tabindex="0"
+        @click="$router.push('/policies')"
+        @keydown.enter="$router.push('/policies')"
+      >
+        <span class="stat-label">{{ $t('overview.policies') }}</span>
+        <span class="stat-value mono-num">{{ data.totals.policies }}</span>
+      </div>
+      <div
+        class="stat-card"
+        style="--accent: var(--success)"
+        role="button"
+        tabindex="0"
+        @click="$router.push('/policygroups')"
+        @keydown.enter="$router.push('/policygroups')"
+      >
+        <span class="stat-label">{{ $t('overview.groups') }}</span>
+        <span class="stat-value mono-num">{{ data.totals.policygroups }}</span>
+      </div>
+      <div
+        class="stat-card"
+        style="--accent: var(--accent-guard)"
+        role="button"
+        tabindex="0"
+        @click="$router.push('/exceptions')"
+        @keydown.enter="$router.push('/exceptions')"
+      >
+        <span class="stat-label">{{ $t('overview.exceptions') }}</span>
+        <span class="stat-value mono-num">{{ data.totals.exceptions }}</span>
+      </div>
+    </div>
 
     <el-row :gutter="16" style="margin-top: 16px">
       <el-col :span="12">

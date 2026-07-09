@@ -1,0 +1,217 @@
+/* KubeSentry design tokens — cloud-native / control-room theme.
+   Extends the Ward brand mark palette (see favicon.svg / Logo.vue) across
+   the whole console by overriding Element Plus's dark-mode CSS variables. */
+
+:root {
+  --ink-950: #0a0f1c;
+  --ink-900: #0e1626;
+  --ink-800: #131e33;
+  --ink-700: #1b2942;
+  --ink-600: #2a3b5c;
+  --paper-050: #f3f5fa;
+  --steel-300: #93a2be;
+  --steel-400: #6d7fa3;
+
+  --accent-scan: #33d6c0;
+  --accent-guard: #ff6b4d;
+  --warning: #f5b942;
+  --success: #3ddc84;
+
+  --font-display: ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+
+  /* Element Plus overrides — surfaces */
+  --el-bg-color: var(--ink-800);
+  --el-bg-color-page: var(--ink-950);
+  --el-bg-color-overlay: var(--ink-800);
+  --el-mask-color: rgba(10, 15, 28, 0.72);
+
+  /* text */
+  --el-text-color-primary: var(--paper-050);
+  --el-text-color-regular: var(--paper-050);
+  --el-text-color-secondary: var(--steel-300);
+  --el-text-color-placeholder: var(--steel-400);
+  --el-text-color-disabled: var(--steel-400);
+
+  /* borders + fills */
+  --el-border-color: var(--ink-600);
+  --el-border-color-light: var(--ink-700);
+  --el-border-color-lighter: var(--ink-700);
+  --el-border-color-extra-light: var(--ink-700);
+  --el-fill-color: var(--ink-700);
+  --el-fill-color-light: var(--ink-800);
+  --el-fill-color-lighter: var(--ink-800);
+  --el-fill-color-blank: var(--ink-900);
+
+  /* brand primary → signal cyan */
+  --el-color-primary: var(--accent-scan);
+  --el-color-primary-light-3: #5fe0cf;
+  --el-color-primary-light-5: #7fe8da;
+  --el-color-primary-light-7: #a3f0e5;
+  --el-color-primary-light-8: #b8f3ea;
+  --el-color-primary-light-9: #17362f;
+  --el-color-primary-dark-2: #26a897;
+
+  /* success → cloud-native green (kept distinct from the cyan accent) */
+  --el-color-success: var(--success);
+  --el-color-success-light-3: #6be6a4;
+  --el-color-success-light-5: #8eedbb;
+  --el-color-success-light-7: #b3f3d2;
+  --el-color-success-light-8: #c6f6de;
+  --el-color-success-light-9: #16301f;
+  --el-color-success-dark-2: #2fb56b;
+
+  /* warning → amber (in-progress / syncing) */
+  --el-color-warning: var(--warning);
+  --el-color-warning-light-3: #f7c96c;
+  --el-color-warning-light-5: #f9d68e;
+  --el-color-warning-light-7: #fbe3b3;
+  --el-color-warning-light-8: #fceac7;
+  --el-color-warning-light-9: #362b12;
+  --el-color-warning-dark-2: #c69434;
+
+  /* danger → signal coral (blocking / invalid) */
+  --el-color-danger: var(--accent-guard);
+  --el-color-danger-light-3: #ff8b73;
+  --el-color-danger-light-5: #ffa792;
+  --el-color-danger-light-7: #ffc3b2;
+  --el-color-danger-light-8: #ffd2c5;
+  --el-color-danger-light-9: #391f18;
+  --el-color-danger-dark-2: #cc5640;
+
+  --el-color-info: var(--steel-400);
+
+  /* table */
+  --el-table-bg-color: var(--ink-800);
+  --el-table-tr-bg-color: var(--ink-800);
+  --el-table-header-bg-color: var(--ink-900);
+  --el-table-border-color: var(--ink-700);
+  --el-table-text-color: var(--paper-050);
+  --el-table-header-text-color: var(--steel-300);
+  --el-table-row-hover-bg-color: var(--ink-700);
+
+  /* menu (sidebar) */
+  --el-menu-bg-color: var(--ink-900);
+  --el-menu-text-color: var(--steel-300);
+  --el-menu-active-color: var(--accent-scan);
+  --el-menu-hover-bg-color: var(--ink-800);
+  --el-menu-hover-text-color: var(--paper-050);
+}
+
+html,
+body {
+  background: var(--ink-950);
+}
+
+body {
+  font-family: var(--font-display);
+}
+
+::selection {
+  background: rgba(51, 214, 192, 0.28);
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+/* table headers read like a kubectl/k9s column row */
+.el-table th.el-table__cell > .cell {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.el-card__header {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--steel-300);
+}
+
+/* status pill — used by PhaseTag / ModeTag instead of a flat el-tag fill */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  border: 1px solid currentcolor;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 6px currentcolor;
+  flex-shrink: 0;
+}
+.status-pill.is-success { color: var(--success); background: rgba(61, 220, 132, 0.09); }
+.status-pill.is-danger { color: var(--accent-guard); background: rgba(255, 107, 77, 0.09); }
+.status-pill.is-warning { color: var(--warning); background: rgba(245, 185, 66, 0.09); }
+.status-pill.is-scan { color: var(--accent-scan); background: rgba(51, 214, 192, 0.09); }
+.status-pill.is-info { color: var(--steel-300); background: rgba(147, 162, 190, 0.09); }
+
+.mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* overview stat cards */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.stat-card {
+  --accent: var(--accent-scan);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--ink-800);
+  border: 1px solid var(--ink-700);
+  border-radius: 12px;
+  padding: 20px 20px 18px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+}
+.stat-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.stat-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--steel-300);
+}
+.stat-value {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--paper-050);
+  letter-spacing: -0.02em;
+}
