@@ -44,6 +44,25 @@ func newTestServer(t *testing.T, objs ...client.Object) (http.Handler, client.Cl
 	return srv.Handler, c
 }
 
+// newTestServerWithHandlers is like newTestServer but returns the *Handlers
+// itself too, for tests that need to poke at fields newTestServer doesn't
+// expose (e.g. a fake SchemaFetcher).
+func newTestServerWithHandlers(t *testing.T, objs ...client.Object) (http.Handler, *Handlers) {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	if err := v1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v1alpha1.Policy{}, &v1alpha1.PolicyGroup{}, &v1alpha1.PolicyException{}).
+		WithObjects(objs...).
+		Build()
+	h := &Handlers{Client: c}
+	srv := NewServer(h, fstest.MapFS{}, func() bool { return true })
+	return srv.Handler, h
+}
+
 func doRequest(t *testing.T, h http.Handler, method, path string, body any) (*httptest.ResponseRecorder, testEnvelope) {
 	t.Helper()
 	var buf bytes.Buffer

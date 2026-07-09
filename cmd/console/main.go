@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
@@ -43,6 +44,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	disc, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		slog.Error("build discovery client", "error", err)
+		os.Exit(1)
+	}
+
 	ctx := context.Background()
 	go func() {
 		if err := cl.Start(ctx); err != nil {
@@ -71,7 +78,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	h := &console.Handlers{Client: cl.GetClient()}
+	h := &console.Handlers{Client: cl.GetClient(), Discovery: disc}
 	srv := console.NewServer(h, dist, ready)
 
 	slog.Info("console listening", "addr", addr)

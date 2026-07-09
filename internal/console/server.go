@@ -5,13 +5,19 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+	"sync"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Handlers holds dependencies shared by all API handlers.
 type Handlers struct {
-	Client client.Client
+	Client        client.Client
+	Discovery     discoveryInterface
+	SchemaFetcher schemaFetcher // optional override for tests; nil uses discoverySchemaFetcher
+
+	schemaCacheOnce sync.Once
+	schemaCacheMap  *sync.Map
 }
 
 // Register wires all /api/v1 routes. Later tasks append routes here.
@@ -36,6 +42,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/v1/exceptions/{name}", h.updateException)
 	mux.HandleFunc("DELETE /api/v1/exceptions/{name}", h.deleteException)
 	mux.HandleFunc("GET /api/v1/summary", h.summary)
+	mux.HandleFunc("GET /api/v1/schema/fields", h.getFieldSchema)
 }
 
 // Server is the console HTTP server (plain HTTP; accessed via port-forward).
