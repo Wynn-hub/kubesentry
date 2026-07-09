@@ -130,6 +130,42 @@ func TestBuildFieldTree_NotFound(t *testing.T) {
 	}
 }
 
+func TestBuildFieldTree_AllOfWrappedRef(t *testing.T) {
+	// Real k8s /openapi/v3 output wraps referenced properties in
+	// allOf: [{$ref: ...}] rather than a bare $ref (to attach a sibling
+	// description, which OpenAPI 3.0 disallows next to a bare $ref).
+	podSpec := spec.Schema{SchemaProps: spec.SchemaProps{
+		Type: spec.StringOrArray{"object"},
+		Properties: map[string]spec.Schema{
+			"hostNetwork": {SchemaProps: spec.SchemaProps{Type: spec.StringOrArray{"boolean"}}},
+		},
+	}}
+	pod := spec.Schema{SchemaProps: spec.SchemaProps{
+		Type: spec.StringOrArray{"object"},
+		Properties: map[string]spec.Schema{
+			"spec": {SchemaProps: spec.SchemaProps{
+				Description: "pod spec",
+				AllOf:       []spec.Schema{{SchemaProps: spec.SchemaProps{Ref: spec.MustCreateRef("#/components/schemas/PodSpec")}}},
+			}},
+		},
+	}}
+	pod.AddExtension("x-kubernetes-group-version-kind", []map[string]string{{"group": "", "version": "v1", "kind": "Pod"}})
+	doc := &spec3.OpenAPI{Components: &spec3.Components{Schemas: map[string]*spec.Schema{
+		"io.k8s.api.core.v1.Pod": &pod,
+		"PodSpec":                &podSpec,
+	}}}
+
+	fields, err := buildFieldTree(doc, "", "v1", "Pod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	specNode := findChild(t, fields, "spec")
+	hostNetwork := findChild(t, specNode.Children, "hostNetwork")
+	if hostNetwork.Type != "boolean" {
+		t.Fatalf("hostNetwork.Type = %q, want boolean (allOf-wrapped ref should still cascade)", hostNetwork.Type)
+	}
+}
+
 func TestBuildFieldTree_DepthLimit(t *testing.T) {
 	// 自引用 schema：A.self -> A，验证深度限制会截断而不是死循环/栈溢出。
 	self := &spec.Schema{}

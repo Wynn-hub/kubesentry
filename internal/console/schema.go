@@ -59,23 +59,35 @@ func findSchemaByGVK(schemas map[string]*spec.Schema, group, version, kind strin
 }
 
 // resolveSchema follows a $ref into the shared schemas map; schemas that
-// aren't refs are returned unchanged.
+// aren't refs are returned unchanged. Real k8s OpenAPI v3 output wraps a
+// referenced property in `allOf: [{$ref: ...}]` rather than a bare `$ref`
+// (OpenAPI 3.0 disallows sibling keywords like `description` next to a bare
+// $ref, and k8s always attaches one) — this unwraps that pattern too.
 func resolveSchema(s *spec.Schema, schemas map[string]*spec.Schema) *spec.Schema {
 	if s == nil {
 		return nil
 	}
-	ref := s.Ref.String()
-	if ref == "" {
+	if ref := s.Ref.String(); ref != "" {
+		if resolved, ok := schemas[refName(ref)]; ok {
+			return resolved
+		}
 		return s
 	}
-	name := ref
-	if idx := strings.LastIndex(ref, "/"); idx >= 0 {
-		name = ref[idx+1:]
-	}
-	if resolved, ok := schemas[name]; ok {
-		return resolved
+	for _, sub := range s.AllOf {
+		if ref := sub.Ref.String(); ref != "" {
+			if resolved, ok := schemas[refName(ref)]; ok {
+				return resolved
+			}
+		}
 	}
 	return s
+}
+
+func refName(ref string) string {
+	if idx := strings.LastIndex(ref, "/"); idx >= 0 {
+		return ref[idx+1:]
+	}
+	return ref
 }
 
 // schemaToFieldNode converts one (possibly $ref'd) schema into a FieldNode,
