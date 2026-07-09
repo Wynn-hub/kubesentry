@@ -46,4 +46,17 @@ export default {
     byPhase: 'By Phase', byMode: 'By Mode', attention: 'Needs Attention',
     noIssues: 'All objects healthy',
   },
+  ruleBuilder: {
+    modeManual: 'Hand-written Rego', modeVisual: 'Visual Builder',
+    switchConfirm: 'Switching modes clears the current content. Continue?',
+    group: 'Rule Group', targetResource: 'Target Resource', removeGroup: 'Remove Group', addGroup: 'Add Group',
+    addCondition: 'Add Condition', message: 'Message', operator: 'Operator', value: 'Value', valueList: 'Values (press Enter)',
+    mapKeyPlaceholder: 'Enter key', noValueNeeded: 'No value needed',
+    opEq: 'equals', opNeq: 'not equals', opExists: 'exists', opNotExists: 'not exists',
+    opIn: 'in list', opNotIn: 'not in list', opRegex: 'matches regex',
+    opGt: 'greater than', opLt: 'less than', opGte: 'greater or equal', opLte: 'less or equal', opBetween: 'between',
+    opIsTrue: 'is true', opIsFalse: 'is false',
+    opCountEq: 'count equals', opCountGt: 'count greater than', opCountLt: 'count less than',
+    compileError: 'Rego compile failed: {msg}',
+  },
 }

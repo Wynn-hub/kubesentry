@@ -46,4 +46,17 @@ export default {
     byPhase: '按状态分布', byMode: '按模式分布', attention: '需要关注',
     noIssues: '所有对象状态正常',
   },
+  ruleBuilder: {
+    modeManual: '手写 Rego', modeVisual: '可视化配置',
+    switchConfirm: '切换模式会清空当前内容，确定继续吗？',
+    group: '规则组', targetResource: '作用资源', removeGroup: '删除规则组', addGroup: '新增规则组',
+    addCondition: '添加条件', message: '提示文案', operator: '匹配规则', value: '值', valueList: '值列表（回车添加）',
+    mapKeyPlaceholder: '输入 key', noValueNeeded: '无需填值',
+    opEq: '等于', opNeq: '不等于', opExists: '存在', opNotExists: '不存在',
+    opIn: '属于列表', opNotIn: '不属于列表', opRegex: '正则匹配',
+    opGt: '大于', opLt: '小于', opGte: '大于等于', opLte: '小于等于', opBetween: '区间',
+    opIsTrue: '为 true', opIsFalse: '为 false',
+    opCountEq: '个数等于', opCountGt: '个数大于', opCountLt: '个数小于',
+    compileError: 'Rego 编译失败：{msg}',
+  },
 }
