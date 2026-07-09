@@ -10,6 +10,8 @@ rules:
   - apiGroups: [kubesentry.io]
     resources: [policyversions]
     verbs: [get, list, watch]
+  - nonResourceURLs: ["/openapi/v3", "/openapi/v3/*"]
+    verbs: [get]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
