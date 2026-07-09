@@ -61,6 +61,14 @@ describe('conditionToRego', () => {
     const c: Condition = { path: path('spec', 'replicas'), operator: 'between', value: [1, 5] }
     expect(conditionToRego(c)).toBe('input.request.object.spec.replicas >= 1; input.request.object.spec.replicas <= 5')
   })
+  it('between rejects a non-numeric operand', () => {
+    const c: Condition = {
+      path: path('spec', 'replicas'),
+      operator: 'between',
+      value: ['0; count(input.request.object.spec.containers)', 5] as unknown as [number, number],
+    }
+    expect(() => conditionToRego(c)).toThrow()
+  })
   it('isTrue / isFalse', () => {
     const base = { path: path('spec', 'hostNetwork') }
     expect(conditionToRego({ ...base, operator: 'isTrue' })).toBe('input.request.object.spec.hostNetwork == true')

@@ -115,7 +115,7 @@ export function conditionToRego(condition: Condition): string {
       return `${prefix}${expr} <= ${formatNumber(v)}`
     case 'between': {
       const [low, high] = v as [number, number]
-      return `${prefix}${expr} >= ${low}; ${expr} <= ${high}`
+      return `${prefix}${expr} >= ${formatNumber(low)}; ${expr} <= ${formatNumber(high)}`
     }
     case 'isTrue':
       return `${prefix}${expr} == true`
