@@ -26,7 +26,8 @@
             v-model="res.apiGroups" multiple filterable allow-create default-first-option
             :placeholder="$t('policy.apiGroups')" style="flex: 1"
           >
-            <el-option v-for="g in suggestions.apiGroups" :key="g" :label="g === '' ? $t('policy.coreGroup') : g" :value="g" />
+            <el-option value="" :label="$t('policy.coreGroup')" />
+            <el-option v-for="g in suggestions.apiGroups.filter((x) => x !== '')" :key="g" :label="g" :value="g" />
           </el-select>
           <el-select
             v-model="res.apiVersions" multiple filterable allow-create default-first-option
