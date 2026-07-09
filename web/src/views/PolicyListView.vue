@@ -31,6 +31,13 @@
     <el-table-column :label="$t('policy.phase')" width="100">
       <template #default="{ row }"><PhaseTag :phase="row.phase" /></template>
     </el-table-column>
+    <el-table-column :label="$t('policy.currentVersion')" width="100">
+      <template #default="{ row }">
+        <el-button link type="primary" @click="$router.push(`/policies/${row.name}?tab=versions`)">
+          v{{ row.currentVersion }}
+        </el-button>
+      </template>
+    </el-table-column>
     <el-table-column :label="$t('policy.referencedBy')">
       <template #default="{ row }">{{ (row.referencedBy ?? []).join(', ') }}</template>
     </el-table-column>

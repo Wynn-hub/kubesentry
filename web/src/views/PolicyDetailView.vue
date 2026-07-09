@@ -9,8 +9,8 @@
       <el-button @click="$router.back()">{{ $t('common.back') }}</el-button>
     </div>
 
-    <el-tabs>
-      <el-tab-pane :label="$t('policy.tabOverview')">
+    <el-tabs v-model="activeTab">
+      <el-tab-pane :label="$t('policy.tabOverview')" name="overview">
         <el-descriptions :column="2" border>
           <el-descriptions-item :label="$t('common.description')">{{ d.spec.description }}</el-descriptions-item>
           <el-descriptions-item :label="$t('policy.mode')"><ModeTag :mode="d.spec.enforcementMode" /></el-descriptions-item>
@@ -24,12 +24,22 @@
         <el-alert v-if="d.status.message" :title="d.status.message" type="error" :closable="false" style="margin-top: 12px" />
       </el-tab-pane>
 
-      <el-tab-pane :label="$t('policy.tabRego')">
+      <el-tab-pane :label="$t('policy.tabRego')" name="rego">
         <el-button size="small" style="margin-bottom: 8px" @click="copyRego">{{ $t('policy.copyRego') }}</el-button>
-        <pre style="font-family: monospace; background: #f5f7fa; padding: 12px; white-space: pre-wrap">{{ d.spec.rego }}</pre>
+        <pre
+          style="
+            font-family: var(--font-mono);
+            background: var(--ink-900);
+            border: 1px solid var(--ink-700);
+            border-radius: 8px;
+            padding: 14px;
+            white-space: pre-wrap;
+          "
+          >{{ d.spec.rego }}</pre
+        >
       </el-tab-pane>
 
-      <el-tab-pane :label="$t('policy.tabVersions')" lazy>
+      <el-tab-pane :label="$t('policy.tabVersions')" name="versions" lazy>
         <VersionTimeline :policy-name="d.name" />
       </el-tab-pane>
     </el-tabs>
@@ -49,6 +59,7 @@ import VersionTimeline from '../components/VersionTimeline.vue'
 const route = useRoute()
 const { t } = useI18n()
 const d = ref<PolicyDetail>()
+const activeTab = ref(route.query.tab === 'versions' ? 'versions' : 'overview')
 
 async function copyRego() {
   if (!d.value) return
