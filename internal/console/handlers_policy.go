@@ -37,6 +37,12 @@ type policyDetail struct {
 	Status          v1alpha1.PolicyStatus `json:"status"`
 }
 
+type resourceSuggestionsResponse struct {
+	APIGroups   []string `json:"apiGroups"`
+	APIVersions []string `json:"apiVersions"`
+	Resources   []string `json:"resources"`
+}
+
 func sourceOf(labels map[string]string) string {
 	if s := labels[v1alpha1.LabelSource]; s != "" {
 		return s
@@ -363,4 +369,45 @@ func (h *Handlers) rollbackPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeOK(w, map[string]int64{"targetVersion": target})
+}
+
+// resourceSuggestions 聚合所有 Policy 用过的 apiGroups/apiVersions/resources，
+// 去重后供前端下拉建议使用；不读取 spec.rego，避免不必要的大字段传输。
+func (h *Handlers) resourceSuggestions(w http.ResponseWriter, r *http.Request) {
+	var list v1alpha1.PolicyList
+	if err := h.Client.List(r.Context(), &list); err != nil {
+		writeErr(w, http.StatusInternalServerError, "list policies: "+err.Error())
+		return
+	}
+	groups := map[string]struct{}{}
+	versions := map[string]struct{}{}
+	resources := map[string]struct{}{}
+	for i := range list.Items {
+		for _, res := range list.Items[i].Spec.Match.Resources {
+			for _, g := range res.APIGroups {
+				groups[g] = struct{}{}
+			}
+			for _, v := range res.APIVersions {
+				versions[v] = struct{}{}
+			}
+			for _, rsc := range res.Resources {
+				resources[rsc] = struct{}{}
+			}
+		}
+	}
+	resp := resourceSuggestionsResponse{
+		APIGroups:   sortedKeys(groups),
+		APIVersions: sortedKeys(versions),
+		Resources:   sortedKeys(resources),
+	}
+	writeOK(w, resp)
+}
+
+func sortedKeys(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

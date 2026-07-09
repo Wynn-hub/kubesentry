@@ -3,6 +3,8 @@ package console
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"sort"
 	"strconv"
 	"testing"
 
@@ -363,5 +365,37 @@ func TestRollbackBadDirection(t *testing.T) {
 		map[string]string{"direction": "jump"})
 	if rec.Code != 400 {
 		t.Fatalf("code = %d, want 400", rec.Code)
+	}
+}
+
+func TestResourceSuggestions(t *testing.T) {
+	p1 := testPolicy("p1", "custom", "audit", "Ready")
+	p1.Spec.Match.Resources = []v1alpha1.MatchResource{
+		{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods", "services"}},
+	}
+	p2 := testPolicy("p2", "custom", "audit", "Ready")
+	p2.Spec.Match.Resources = []v1alpha1.MatchResource{
+		{APIGroups: []string{"apps"}, APIVersions: []string{"v1"}, Resources: []string{"deployments"}},
+		{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}}, // 与 p1 重复，验证去重
+	}
+	h, _ := newTestServer(t, p1, p2)
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/policies/resource-suggestions", nil)
+	if rec.Code != 200 || !env.Success {
+		t.Fatalf("code=%d env=%+v", rec.Code, env)
+	}
+	got := mustUnmarshal[resourceSuggestionsResponse](t, env.Data)
+
+	sort.Strings(got.APIGroups)
+	sort.Strings(got.APIVersions)
+	sort.Strings(got.Resources)
+	if want := []string{"", "apps"}; !reflect.DeepEqual(got.APIGroups, want) {
+		t.Fatalf("apiGroups = %v, want %v", got.APIGroups, want)
+	}
+	if want := []string{"v1"}; !reflect.DeepEqual(got.APIVersions, want) {
+		t.Fatalf("apiVersions = %v, want %v", got.APIVersions, want)
+	}
+	if want := []string{"deployments", "pods", "services"}; !reflect.DeepEqual(got.Resources, want) {
+		t.Fatalf("resources = %v, want %v", got.Resources, want)
 	}
 }
