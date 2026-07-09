@@ -170,3 +170,72 @@ func waitCurrentVersion(t *testing.T, name string, v int64) {
 	}
 	t.Fatalf("policy %s did not reach version %d within 60s", name, v)
 }
+
+func TestT9_ResourceSuggestions(t *testing.T) {
+	stop := startPortForward(t)
+	defer stop()
+
+	code, env := consoleDo(t, "GET", "/api/v1/policies/resource-suggestions", nil)
+	if code != 200 || !env.Success {
+		t.Fatalf("code=%d env=%+v", code, env)
+	}
+	var resp struct {
+		APIGroups   []string `json:"apiGroups"`
+		APIVersions []string `json:"apiVersions"`
+		Resources   []string `json:"resources"`
+	}
+	if err := json.Unmarshal(env.Data, &resp); err != nil {
+		t.Fatal(err)
+	}
+	// 内置策略至少覆盖了 core group 的 pods 和 v1 版本
+	if len(resp.Resources) == 0 || len(resp.APIVersions) == 0 {
+		t.Fatalf("resp = %+v, want non-empty suggestions (37+ builtin policies should populate these)", resp)
+	}
+}
+
+func TestT9_SchemaFields(t *testing.T) {
+	stop := startPortForward(t)
+	defer stop()
+
+	code, env := consoleDo(t, "GET", "/api/v1/schema/fields?group=&version=v1&resource=pods", nil)
+	if code != 200 || !env.Success {
+		t.Fatalf("code=%d env=%+v", code, env)
+	}
+	var fields []struct {
+		Name     string `json:"name"`
+		Children []struct {
+			Name string `json:"name"`
+		} `json:"children"`
+	}
+	if err := json.Unmarshal(env.Data, &fields); err != nil {
+		t.Fatal(err)
+	}
+
+	// Find spec and metadata fields
+	var specNode *struct {
+		Name     string `json:"name"`
+		Children []struct {
+			Name string `json:"name"`
+		} `json:"children"`
+	}
+	names := map[string]bool{}
+	for i, f := range fields {
+		names[f.Name] = true
+		if f.Name == "spec" {
+			specNode = &fields[i]
+		}
+	}
+	if !names["spec"] || !names["metadata"] {
+		t.Fatalf("fields = %+v, want top-level spec/metadata", fields)
+	}
+
+	// Strengthened assertion: spec field must have non-empty children (guards against
+	// regression of the allOf-wrapped $ref resolution bug fixed in schema.go)
+	if specNode == nil || len(specNode.Children) == 0 {
+		t.Fatalf("spec field has no children, want nested fields like containers, hostNetwork, etc. (regression of allOf resolution bug)")
+	}
+
+	if code, _ := consoleDo(t, "GET", "/api/v1/schema/fields?group=&version=v1", nil); code != 400 {
+		t.Fatalf("missing resource param: code=%d, want 400", code)
+	}
+}
