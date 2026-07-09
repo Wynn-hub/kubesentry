@@ -1,7 +1,11 @@
 <!-- web/src/components/ValueEditorInline.vue -->
 <template>
+  <el-input-number
+    v-if="(operator === 'eq' || operator === 'neq') && (leafType === 'integer' || leafType === 'number')"
+    v-model="numValue" style="width: 140px"
+  />
   <el-input
-    v-if="operator === 'eq' || operator === 'neq' || operator === 'regex'"
+    v-else-if="operator === 'eq' || operator === 'neq' || operator === 'regex'"
     v-model="strValue" style="width: 220px" :placeholder="$t('ruleBuilder.value')"
   />
   <el-select
@@ -20,9 +24,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Condition, Operator } from './ruleGroupCodegen'
+import type { Condition, FieldLeafType, Operator } from './ruleGroupCodegen'
 
-defineProps<{ operator: Operator }>()
+defineProps<{ operator: Operator; leafType: FieldLeafType }>()
 const modelValue = defineModel<Condition['value']>({ required: true })
 
 const strValue = computed({

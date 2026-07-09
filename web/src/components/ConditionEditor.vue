@@ -8,7 +8,7 @@
     <el-select v-model="modelValue.operator" style="width: 180px" :placeholder="$t('ruleBuilder.operator')">
       <el-option v-for="op in operatorOptions" :key="op.value" :value="op.value" :label="$t(op.labelKey)" />
     </el-select>
-    <ValueEditorInline v-model="modelValue.value" :operator="modelValue.operator" />
+    <ValueEditorInline v-model="modelValue.value" :operator="modelValue.operator" :leaf-type="leafType" />
   </div>
 </template>
 
@@ -26,6 +26,10 @@ function onPath(path: PathSegment[]) {
 }
 function onLeafType(t: FieldLeafType) {
   leafType.value = t
+  const validOperators = OPERATORS_BY_TYPE[t]
+  if (!validOperators.some((op) => op.value === modelValue.value.operator)) {
+    modelValue.value = { ...modelValue.value, operator: validOperators[0].value }
+  }
 }
 
 const leafType = defineModel<FieldLeafType>('leafType', { default: 'string' })
