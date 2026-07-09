@@ -13,7 +13,7 @@ export default {
     title: 'Policies', source: 'Source', mode: 'Mode', phase: 'Phase',
     referencedBy: 'Referenced By', currentVersion: 'Version', rego: 'Rego Source',
     match: 'Match Rules', operations: 'Operations', resources: 'Resources',
-    apiGroups: 'API Groups', apiVersions: 'API Versions', resourceTypes: 'Resource Types',
+    apiGroups: 'API Groups', apiVersions: 'API Versions', resourceTypes: 'Resource Types', coreGroup: 'core',
     validate: 'Validate', validateOK: 'Rego compiles successfully',
     enforce: 'Enforce', audit: 'Audit',
     builtin: 'Builtin', custom: 'Custom',

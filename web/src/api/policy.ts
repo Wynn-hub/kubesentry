@@ -87,3 +87,11 @@ export const validateRego = (rego: string) => request<null>('POST', '/policies/v
 export const getTimeline = (name: string) => request<VersionTimeline>('GET', `/policies/${name}/versions`)
 export const rollback = (name: string, direction: 'prev' | 'next') =>
   request<{ targetVersion: number }>('POST', `/policies/${name}/rollback`, { direction })
+
+export interface ResourceSuggestions {
+  apiGroups: string[]
+  apiVersions: string[]
+  resources: string[]
+}
+export const getResourceSuggestions = () =>
+  request<ResourceSuggestions>('GET', '/policies/resource-suggestions')

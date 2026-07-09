@@ -13,7 +13,7 @@ export default {
     title: '策略', source: '来源', mode: '生效模式', phase: '状态',
     referencedBy: '被引用组', currentVersion: '当前版本', rego: 'Rego 源码',
     match: '匹配规则', operations: '操作', resources: '资源',
-    apiGroups: 'API 组', apiVersions: 'API 版本', resourceTypes: '资源类型',
+    apiGroups: 'API 组', apiVersions: 'API 版本', resourceTypes: '资源类型', coreGroup: '核心组（core）',
     validate: '校验', validateOK: 'Rego 校验通过',
     enforce: '阻断', audit: '审计',
     builtin: '内置', custom: '自定义',

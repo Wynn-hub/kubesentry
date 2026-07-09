@@ -22,12 +22,27 @@
     <el-form-item :label="$t('policy.resources')" required>
       <div style="width: 100%">
         <div v-for="(res, i) in form.resources" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px">
-          <el-input v-model="res.apiGroups" :placeholder="$t('policy.apiGroups') + ' (a,b)'" />
-          <el-input v-model="res.apiVersions" :placeholder="$t('policy.apiVersions') + ' (v1)'" />
-          <el-input v-model="res.resources" :placeholder="$t('policy.resourceTypes') + ' (pods)'" />
+          <el-select
+            v-model="res.apiGroups" multiple filterable allow-create default-first-option
+            :placeholder="$t('policy.apiGroups')" style="flex: 1"
+          >
+            <el-option v-for="g in suggestions.apiGroups" :key="g" :label="g === '' ? $t('policy.coreGroup') : g" :value="g" />
+          </el-select>
+          <el-select
+            v-model="res.apiVersions" multiple filterable allow-create default-first-option
+            :placeholder="$t('policy.apiVersions')" style="flex: 1"
+          >
+            <el-option v-for="v in suggestions.apiVersions" :key="v" :label="v" :value="v" />
+          </el-select>
+          <el-select
+            v-model="res.resources" multiple filterable allow-create default-first-option
+            :placeholder="$t('policy.resourceTypes')" style="flex: 1"
+          >
+            <el-option v-for="rsc in suggestions.resources" :key="rsc" :label="rsc" :value="rsc" />
+          </el-select>
           <el-button type="danger" plain @click="form.resources.splice(i, 1)">-</el-button>
         </div>
-        <el-button plain @click="form.resources.push({ apiGroups: '', apiVersions: '', resources: '' })">+</el-button>
+        <el-button plain @click="form.resources.push({ apiGroups: [], apiVersions: ['v1'], resources: ['pods'] })">+</el-button>
       </div>
     </el-form-item>
 
@@ -50,7 +65,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ApiError } from '../api/http'
 import {
-  createPolicy, getPolicy, updatePolicy, validateRego,
+  createPolicy, getPolicy, getResourceSuggestions, updatePolicy, validateRego,
   type MatchResource, type PolicyRequest,
 } from '../api/policy'
 
@@ -65,33 +80,30 @@ let resourceVersion = ''
 let source = 'custom'
 
 interface ResourceRow {
-  apiGroups: string
-  apiVersions: string
-  resources: string
+  apiGroups: string[]
+  apiVersions: string[]
+  resources: string[]
 }
+
+const suggestions = reactive({ apiGroups: [] as string[], apiVersions: [] as string[], resources: [] as string[] })
 
 const form = reactive({
   name: '',
   description: '',
   enforcementMode: 'audit',
   operations: ['CREATE'] as string[],
-  resources: [{ apiGroups: '', apiVersions: 'v1', resources: 'pods' }] as ResourceRow[],
+  resources: [{ apiGroups: [''], apiVersions: ['v1'], resources: ['pods'] }] as ResourceRow[],
   rego: 'package kubesentry\n\ndeny[msg] {\n\t# condition\n\tmsg := "reason"\n}\n',
 })
-
-const splitCSV = (s: string) => s.split(',').map((x) => x.trim()).filter((x) => x !== '')
-// "" 段表示 core API 组。空串输入 → ['']；非空输入按逗号切分并保留空段
-// （如 ",apps" → ['', 'apps']），使 core+具名组混合值可无损往返。
-const splitGroups = (s: string) => (s.trim() === '' ? [''] : s.split(',').map((x) => x.trim()))
 
 function toRequest(): PolicyRequest {
   const match = {
     operations: form.operations,
     resources: form.resources.map(
       (r): MatchResource => ({
-        apiGroups: splitGroups(r.apiGroups),
-        apiVersions: splitCSV(r.apiVersions),
-        resources: splitCSV(r.resources),
+        apiGroups: r.apiGroups,
+        apiVersions: r.apiVersions,
+        resources: r.resources,
       }),
     ),
   }
@@ -143,6 +155,14 @@ async function onSave() {
 }
 
 onMounted(async () => {
+  try {
+    const s = await getResourceSuggestions()
+    suggestions.apiGroups = s.apiGroups
+    suggestions.apiVersions = s.apiVersions
+    suggestions.resources = s.resources
+  } catch {
+    // 建议列表拉取失败不阻塞表单，用户仍可用 allow-create 手动输入
+  }
   if (!isEdit) return
   try {
     const d = await getPolicy(editName)
@@ -153,9 +173,9 @@ onMounted(async () => {
     form.enforcementMode = d.spec.enforcementMode
     form.operations = d.spec.match.operations
     form.resources = d.spec.match.resources.map((r) => ({
-      apiGroups: r.apiGroups.join(','),
-      apiVersions: r.apiVersions.join(','),
-      resources: r.resources.join(','),
+      apiGroups: r.apiGroups,
+      apiVersions: r.apiVersions,
+      resources: r.resources,
     }))
     form.rego = d.spec.rego
   } catch (e) {
