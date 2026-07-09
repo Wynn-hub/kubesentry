@@ -399,3 +399,54 @@ func TestResourceSuggestions(t *testing.T) {
 		t.Fatalf("resources = %v, want %v", got.Resources, want)
 	}
 }
+
+func TestPolicyAnnotationsRoundTrip(t *testing.T) {
+	h, _ := newTestServer(t)
+
+	create := map[string]any{
+		"name":            "p-ann",
+		"enforcementMode": "audit",
+		"rego":            validRego,
+		"annotations":     map[string]string{"kubesentry.io/visual-builder-spec": `{"groups":[]}`},
+		"match": map[string]any{
+			"operations": []string{"CREATE"},
+			"resources": []map[string]any{
+				{"apiGroups": []string{""}, "apiVersions": []string{"v1"}, "resources": []string{"pods"}},
+			},
+		},
+	}
+	if rec, env := doRequest(t, h, "POST", "/api/v1/policies", create); rec.Code != 200 {
+		t.Fatalf("create: code=%d env=%+v", rec.Code, env)
+	}
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/policies/p-ann", nil)
+	if rec.Code != 200 {
+		t.Fatalf("get: code=%d", rec.Code)
+	}
+	d := mustUnmarshal[policyDetail](t, env.Data)
+	if d.Annotations["kubesentry.io/visual-builder-spec"] != `{"groups":[]}` {
+		t.Fatalf("annotations = %+v", d.Annotations)
+	}
+
+	// 更新时把该 annotation 的值传空字符串 → 应被清除
+	update := map[string]any{
+		"enforcementMode": "audit",
+		"rego":            validRego,
+		"annotations":     map[string]string{"kubesentry.io/visual-builder-spec": ""},
+		"resourceVersion": d.ResourceVersion,
+		"match": map[string]any{
+			"operations": []string{"CREATE"},
+			"resources": []map[string]any{
+				{"apiGroups": []string{""}, "apiVersions": []string{"v1"}, "resources": []string{"pods"}},
+			},
+		},
+	}
+	if rec, env := doRequest(t, h, "PUT", "/api/v1/policies/p-ann", update); rec.Code != 200 {
+		t.Fatalf("update: code=%d env=%+v", rec.Code, env)
+	}
+	_, env = doRequest(t, h, "GET", "/api/v1/policies/p-ann", nil)
+	d = mustUnmarshal[policyDetail](t, env.Data)
+	if v, ok := d.Annotations["kubesentry.io/visual-builder-spec"]; ok {
+		t.Fatalf("annotation should have been cleared, got %q", v)
+	}
+}

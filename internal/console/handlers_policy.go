@@ -16,7 +16,10 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
-const cursorAnnotation = "kubesentry.io/logical-cursor"
+const (
+	cursorAnnotation            = "kubesentry.io/logical-cursor"
+	visualBuilderSpecAnnotation = "kubesentry.io/visual-builder-spec"
+)
 
 type policyListItem struct {
 	Name            string   `json:"name"`
@@ -32,6 +35,7 @@ type policyDetail struct {
 	Name            string                `json:"name"`
 	Source          string                `json:"source"`
 	Labels          map[string]string     `json:"labels"`
+	Annotations     map[string]string     `json:"annotations"`
 	ResourceVersion string                `json:"resourceVersion"`
 	Spec            v1alpha1.PolicySpec   `json:"spec"`
 	Status          v1alpha1.PolicyStatus `json:"status"`
@@ -48,6 +52,21 @@ func sourceOf(labels map[string]string) string {
 		return s
 	}
 	return v1alpha1.SourceCustom
+}
+
+// applyAnnotations merges src into dst (lazy-initializing dst), treating empty-string values as
+// "do not set"—this is how the visual builder clears its annotation on save.
+func applyAnnotations(dst map[string]string, src map[string]string) map[string]string {
+	for k, v := range src {
+		if v == "" {
+			continue
+		}
+		if dst == nil {
+			dst = map[string]string{}
+		}
+		dst[k] = v
+	}
+	return dst
 }
 
 func (h *Handlers) listPolicies(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +116,7 @@ func (h *Handlers) getPolicy(w http.ResponseWriter, r *http.Request) {
 		Name:            p.Name,
 		Source:          sourceOf(p.Labels),
 		Labels:          p.Labels,
+		Annotations:     p.Annotations,
 		ResourceVersion: p.ResourceVersion,
 		Spec:            p.Spec,
 		Status:          p.Status,
@@ -141,6 +161,7 @@ func (h *Handlers) createPolicy(w http.ResponseWriter, r *http.Request) {
 			Description:     req.Description,
 		},
 	}
+	p.Annotations = applyAnnotations(p.Annotations, req.Annotations)
 	if err := h.Client.Create(r.Context(), p); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			writeErr(w, http.StatusConflict, "policy "+req.Name+" already exists")
@@ -186,6 +207,8 @@ func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
 			p.Labels[k] = v
 		}
 	}
+	delete(p.Annotations, visualBuilderSpecAnnotation)
+	p.Annotations = applyAnnotations(p.Annotations, req.Annotations)
 	delete(p.Annotations, cursorAnnotation) // console edit resets the timeline cursor
 	if err := h.Client.Update(r.Context(), p); err != nil {
 		if apierrors.IsConflict(err) {

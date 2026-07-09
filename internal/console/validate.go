@@ -19,6 +19,7 @@ type policyRequest struct {
 	Match           v1alpha1.PolicyMatch `json:"match"`
 	Rego            string               `json:"rego"`
 	Labels          map[string]string    `json:"labels,omitempty"`
+	Annotations     map[string]string    `json:"annotations,omitempty"`
 	ResourceVersion string               `json:"resourceVersion,omitempty"`
 }
 
