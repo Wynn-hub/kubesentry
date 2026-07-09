@@ -58,5 +58,6 @@ export default {
     opIsTrue: 'is true', opIsFalse: 'is false',
     opCountEq: 'count equals', opCountGt: 'count greater than', opCountLt: 'count less than',
     compileError: 'Rego compile failed: {msg}',
+    groupEmpty: 'Rule group {n} has no conditions',
   },
 }

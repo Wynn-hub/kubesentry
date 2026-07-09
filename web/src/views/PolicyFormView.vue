@@ -182,6 +182,14 @@ async function onSave() {
     }
   }
 
+  if (builderMode.value === 'visual') {
+    const emptyGroupIndex = visualGroups.value.findIndex((g) => g.conditions.length === 0)
+    if (emptyGroupIndex !== -1) {
+      ElMessage.error(t('ruleBuilder.groupEmpty', { n: emptyGroupIndex + 1 }))
+      return
+    }
+  }
+
   let rego: string
   try {
     rego = builderMode.value === 'visual' ? ruleGroupsToRego(visualGroups.value) : form.rego

@@ -58,5 +58,6 @@ export default {
     opIsTrue: '为 true', opIsFalse: '为 false',
     opCountEq: '个数等于', opCountGt: '个数大于', opCountLt: '个数小于',
     compileError: 'Rego 编译失败：{msg}',
+    groupEmpty: '第 {n} 组规则没有添加任何条件',
   },
 }
