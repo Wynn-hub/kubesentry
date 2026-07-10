@@ -30,10 +30,13 @@ import {
 } from './fieldTree'
 import type { FieldLeafType, PathSegment } from './ruleGroupCodegen'
 
-const props = defineProps<{ group: string; version: string; resource: string }>()
+const props = defineProps<{ group: string; version: string; resource: string; path?: PathSegment[] }>()
+// path 和 leafType 通过同一次选择产生（leafType 由 path 推导而来），必须合并成
+// 一个事件一起发出——分两次 emit 会让消费方对同一个 defineModel 值做两次连续
+// 的读-改-写：defineModel 的 prop 要等父组件重新渲染才会反映第一次写入，第二
+// 次的读取会读到写入前的旧值，把第一次的更新覆盖掉。
 const emit = defineEmits<{
-  'update:path': [PathSegment[]]
-  'update:leafType': [FieldLeafType]
+  'update:field': [{ path: PathSegment[]; leafType: FieldLeafType }]
 }>()
 
 const options = ref<CascaderFieldOption[]>([])
@@ -53,9 +56,27 @@ async function load(refresh = false) {
   if (!props.version || !props.resource) return
   try {
     options.value = fieldTreeToCascaderOptions(await getFieldSchema(props.group, props.version, props.resource, refresh))
+    restoreFromProps()
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
+}
+
+// restoreFromProps 把已保存条件里的字段路径回填进级联选择器。编辑一个用可视化
+// 模式创建的策略时，annotation 恢复出来的 path 只存在于 condition 数据上，而
+// 级联选择器的选中状态是本地 state——不回填的话编辑页会显示"请选择"，看起来
+// 像字段丢了。只在 schema 加载完成且尚无选中值时执行，用户后续的选择不受影响。
+function restoreFromProps() {
+  if (selectedPath.value.length > 0 || !props.path || props.path.length === 0) return
+  const values = props.path.map((s) => s.field)
+  try {
+    cascaderPathToSegments(values, options.value)
+  } catch {
+    return // 资源 schema 已变化，旧路径不存在了，保持未选中让用户重选
+  }
+  selectedPath.value = values
+  mapKey.value = props.path.at(-1)?.mapKey ?? ''
+  emitPath()
 }
 
 function emitPath() {
@@ -64,8 +85,7 @@ function emitPath() {
   if (segments.at(-1)?.isMap) {
     segments[segments.length - 1] = { ...segments.at(-1)!, mapKey: mapKey.value }
   }
-  emit('update:path', segments)
-  emit('update:leafType', resolveLeafType(selectedPath.value, options.value))
+  emit('update:field', { path: segments, leafType: resolveLeafType(selectedPath.value, options.value) })
 }
 
 function onChange() {
