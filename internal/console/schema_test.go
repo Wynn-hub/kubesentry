@@ -223,3 +223,35 @@ func TestBuildFieldTree_DepthLimit(t *testing.T) {
 		cur = cur[0].Children
 	}
 }
+
+func TestBuildFieldTree_MapFieldNonStringValueType(t *testing.T) {
+	// A map whose value schema is a non-string scalar (e.g. a hypothetical
+	// per-key retry-count map) — this is the branch TestBuildFieldTree_MapField
+	// and TestBuildFieldTree_MapFieldValueTypeFallback don't discriminate,
+	// since both happen to expect "string".
+	retryCounts := spec.Schema{SchemaProps: spec.SchemaProps{
+		Type: spec.StringOrArray{"object"},
+		Properties: map[string]spec.Schema{
+			"retryCounts": {SchemaProps: spec.SchemaProps{
+				Type: spec.StringOrArray{"object"},
+				AdditionalProperties: &spec.SchemaOrBool{
+					Schema: &spec.Schema{SchemaProps: spec.SchemaProps{Type: spec.StringOrArray{"integer"}}},
+				},
+			}},
+		},
+	}}
+	retryCounts.AddExtension("x-kubernetes-group-version-kind", []map[string]string{{"group": "x", "version": "v1", "kind": "Thing"}})
+	doc := &spec3.OpenAPI{Components: &spec3.Components{Schemas: map[string]*spec.Schema{"Thing": &retryCounts}}}
+
+	fields, err := buildFieldTree(doc, "x", "v1", "Thing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	node := findChild(t, fields, "retryCounts")
+	if !node.IsMap {
+		t.Fatalf("retryCounts.IsMap = false, want true")
+	}
+	if node.MapValueType != "integer" {
+		t.Fatalf("retryCounts.MapValueType = %q, want %q", node.MapValueType, "integer")
+	}
+}
