@@ -58,17 +58,19 @@
       <el-input v-model="form.rego" type="textarea" :rows="16" style="font-family: monospace" />
     </el-form-item>
 
-    <template v-else>
-      <RuleGroupEditor
-        v-for="(g, i) in visualGroups" :key="i"
-        v-model="visualGroups[i]" :index="i"
-        :resources="matchResources"
-        @remove="visualGroups.splice(i, 1)"
-      />
-      <el-button plain @click="visualGroups.push({ conditions: [], message: '' })">
-        {{ $t('ruleBuilder.addGroup') }}
-      </el-button>
-    </template>
+    <el-form-item v-else :label="$t('ruleBuilder.group')" required>
+      <div style="width: 100%">
+        <RuleGroupEditor
+          v-for="(g, i) in visualGroups" :key="i"
+          v-model="visualGroups[i]" :index="i"
+          :resources="matchResources"
+          @remove="visualGroups.splice(i, 1)"
+        />
+        <el-button plain @click="visualGroups.push({ conditions: [], message: '' })">
+          {{ $t('ruleBuilder.addGroup') }}
+        </el-button>
+      </div>
+    </el-form-item>
 
     <el-form-item>
       <el-button @click="onValidate">{{ $t('policy.validate') }}</el-button>
