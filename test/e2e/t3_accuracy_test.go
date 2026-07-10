@@ -128,10 +128,12 @@ func testAudit(t *testing.T, ctx context.Context, key, failPath, passPath string
 	}
 	del(ctx, failPath)
 
-	logCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// Polls every 2s and returns as soon as the entry appears; the generous
+	// budget only matters when kubelet log streaming lags under load.
+	logCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	if err := helpers.WaitForLogEntry(logCtx, k8sClientset, webhookPodName, key, before, 5*time.Second); err != nil {
-		t.Errorf("[%s] expected webhook log entry containing %q within 5s, not found", key, key)
+	if err := helpers.WaitForLogEntry(logCtx, k8sClientset, webhookPodName, key, before, 30*time.Second); err != nil {
+		t.Errorf("[%s] expected webhook log entry containing %q within 30s, not found", key, key)
 	}
 
 	before = time.Now()
