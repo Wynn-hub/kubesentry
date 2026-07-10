@@ -39,7 +39,7 @@
             v-model="res.resources" multiple filterable allow-create default-first-option
             :placeholder="$t('policy.resourceTypes')" style="flex: 1"
           >
-            <el-option v-for="rsc in suggestions.resources" :key="rsc" :label="rsc" :value="rsc" />
+            <el-option v-for="rsc in resourceOptionsFor(res.apiGroups)" :key="rsc" :label="rsc" :value="rsc" />
           </el-select>
           <el-button type="danger" plain @click="form.resources.splice(i, 1)">-</el-button>
         </div>
@@ -110,7 +110,24 @@ interface ResourceRow {
   resources: string[]
 }
 
-const suggestions = reactive({ apiGroups: [] as string[], apiVersions: [] as string[], resources: [] as string[] })
+const suggestions = reactive({
+  apiGroups: [] as string[],
+  apiVersions: [] as string[],
+  resources: [] as string[],
+  resourcesByGroup: {} as Record<string, string[]>,
+})
+
+// resourceOptionsFor 把资源类型下拉的候选值限制在已选资源组范围内，避免出现
+// "选了 apps 组却能选到只属于 core 组的资源" 这种组合会在保存时报错的情况；
+// 未选任何资源组时退回展示全部候选值。
+function resourceOptionsFor(apiGroups: string[]): string[] {
+  if (apiGroups.length === 0) return suggestions.resources
+  const set = new Set<string>()
+  for (const g of apiGroups) {
+    for (const rsc of suggestions.resourcesByGroup[g] ?? []) set.add(rsc)
+  }
+  return Array.from(set).sort()
+}
 
 const form = reactive({
   name: '',
@@ -236,6 +253,7 @@ onMounted(async () => {
     suggestions.apiGroups = s.apiGroups
     suggestions.apiVersions = s.apiVersions
     suggestions.resources = s.resources
+    suggestions.resourcesByGroup = s.resourcesByGroup
   } catch {
     // 建议列表拉取失败不阻塞表单，用户仍可用 allow-create 手动输入
   }

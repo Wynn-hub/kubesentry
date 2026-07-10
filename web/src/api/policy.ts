@@ -94,6 +94,7 @@ export interface ResourceSuggestions {
   apiGroups: string[]
   apiVersions: string[]
   resources: string[]
+  resourcesByGroup: Record<string, string[]>
 }
 export const getResourceSuggestions = () =>
   request<ResourceSuggestions>('GET', '/policies/resource-suggestions')

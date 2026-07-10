@@ -398,6 +398,13 @@ func TestResourceSuggestions(t *testing.T) {
 	if want := []string{"deployments", "pods", "services"}; !reflect.DeepEqual(got.Resources, want) {
 		t.Fatalf("resources = %v, want %v", got.Resources, want)
 	}
+
+	if want := []string{"pods", "services"}; !reflect.DeepEqual(got.ResourcesByGroup[""], want) {
+		t.Fatalf("resourcesByGroup[\"\"] = %v, want %v", got.ResourcesByGroup[""], want)
+	}
+	if want := []string{"deployments"}; !reflect.DeepEqual(got.ResourcesByGroup["apps"], want) {
+		t.Fatalf("resourcesByGroup[\"apps\"] = %v, want %v", got.ResourcesByGroup["apps"], want)
+	}
 }
 
 func TestPolicyAnnotationsRoundTrip(t *testing.T) {

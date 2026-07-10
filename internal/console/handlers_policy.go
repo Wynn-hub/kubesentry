@@ -42,9 +42,10 @@ type policyDetail struct {
 }
 
 type resourceSuggestionsResponse struct {
-	APIGroups   []string `json:"apiGroups"`
-	APIVersions []string `json:"apiVersions"`
-	Resources   []string `json:"resources"`
+	APIGroups        []string            `json:"apiGroups"`
+	APIVersions      []string            `json:"apiVersions"`
+	Resources        []string            `json:"resources"`
+	ResourcesByGroup map[string][]string `json:"resourcesByGroup"`
 }
 
 func sourceOf(labels map[string]string) string {
@@ -405,10 +406,17 @@ func (h *Handlers) resourceSuggestions(w http.ResponseWriter, r *http.Request) {
 	groups := map[string]struct{}{}
 	versions := map[string]struct{}{}
 	resources := map[string]struct{}{}
+	resourcesByGroup := map[string]map[string]struct{}{}
 	for i := range list.Items {
 		for _, res := range list.Items[i].Spec.Match.Resources {
 			for _, g := range res.APIGroups {
 				groups[g] = struct{}{}
+				if resourcesByGroup[g] == nil {
+					resourcesByGroup[g] = map[string]struct{}{}
+				}
+				for _, rsc := range res.Resources {
+					resourcesByGroup[g][rsc] = struct{}{}
+				}
 			}
 			for _, v := range res.APIVersions {
 				versions[v] = struct{}{}
@@ -418,10 +426,15 @@ func (h *Handlers) resourceSuggestions(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	byGroup := make(map[string][]string, len(resourcesByGroup))
+	for g, rsc := range resourcesByGroup {
+		byGroup[g] = sortedKeys(rsc)
+	}
 	resp := resourceSuggestionsResponse{
-		APIGroups:   sortedKeys(groups),
-		APIVersions: sortedKeys(versions),
-		Resources:   sortedKeys(resources),
+		APIGroups:        sortedKeys(groups),
+		APIVersions:      sortedKeys(versions),
+		Resources:        sortedKeys(resources),
+		ResourcesByGroup: byGroup,
 	}
 	writeOK(w, resp)
 }
