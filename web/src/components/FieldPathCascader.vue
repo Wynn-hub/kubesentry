@@ -69,7 +69,10 @@ function emitPath() {
 }
 
 function onChange() {
-  mapKey.value = ''
+  // 只有离开 map 字段时才清空已填的 key——如果新选中的仍是（同一个或另一个）
+  // map 字段，保留用户已经打的 key 更符合直觉，之前误把它当成"每次 change
+  // 都清空"，导致重新点选同一个字段时 key 会莫名消失。
+  if (!lastNodeIsMap.value) mapKey.value = ''
   emitPath()
 }
 function onMapKeyInput() {

@@ -25,6 +25,12 @@ function onPath(path: PathSegment[]) {
   modelValue.value = { ...modelValue.value, path }
 }
 function onLeafType(t: FieldLeafType) {
+  // 字段路径切到了不同类型的叶子（比如从 map 的 string 值切到一个 integer
+  // 字段），旧值的类型已经对不上了，留着会悄悄拼进生成的 Rego 里造出一个
+  // 永远不匹配（或永远匹配）的条件——切换类型时把值一并清空。
+  if (t !== leafType.value) {
+    modelValue.value = { ...modelValue.value, value: undefined }
+  }
   leafType.value = t
   const validOperators = OPERATORS_BY_TYPE[t]
   if (!validOperators.some((op) => op.value === modelValue.value.operator)) {
