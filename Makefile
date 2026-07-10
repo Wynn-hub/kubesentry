@@ -101,10 +101,16 @@ build-image-e2e: build-linux
 	docker build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
 	docker build -f Dockerfile.console -t wynnhub/kubesentry-console:e2e-test .
 
+# E2E traffic must bypass any local HTTP(S) proxy (e.g. clash): kubectl and
+# client-go honor https_proxy, and a proxied connection to the local API
+# server once stalled a single kubectl call for ~13 minutes.
+E2E_ENV = NO_PROXY=kubernetes.docker.internal,localhost,127.0.0.1 \
+          no_proxy=kubernetes.docker.internal,localhost,127.0.0.1
+
 # Run E2E tests against docker-desktop k8s (requires e2e-test images).
 # Quick run for local development — no report files produced.
 test-e2e:
-	go test ./test/e2e/... -v -tags e2e -timeout 15m
+	$(E2E_ENV) go test ./test/e2e/... -v -tags e2e -timeout 30m
 
 # ── Regression Test Reports ───────────────────────────────────────────────────
 # Run unit tests and emit JUnit XML + HTML report to $(REPORT_DIR).
@@ -126,11 +132,11 @@ test-report: $(GOTESTSUM)
 # Run E2E tests and emit JUnit XML + HTML report to $(REPORT_DIR).
 test-e2e-report: $(GOTESTSUM)
 	@mkdir -p $(REPORT_DIR)
-	$(GOTESTSUM) \
+	$(E2E_ENV) $(GOTESTSUM) \
 	  --junitfile $(REPORT_DIR)/e2e-tests.xml \
 	  --jsonfile  $(REPORT_DIR)/e2e-tests.json \
 	  --format    pkgname \
-	  -- ./test/e2e/... -v -tags e2e -timeout 15m; \
+	  -- ./test/e2e/... -v -tags e2e -timeout 30m; \
 	  EXIT=$$?; \
 	  python3 scripts/junit2html.py \
 	    $(REPORT_DIR)/e2e-tests.xml \
