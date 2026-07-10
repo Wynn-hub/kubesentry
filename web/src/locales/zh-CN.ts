@@ -47,6 +47,7 @@ export default {
     noIssues: '所有对象状态正常',
   },
   ruleBuilder: {
+    buildMode: '配置方式',
     modeManual: '手写 Rego', modeVisual: '可视化配置',
     switchConfirm: '切换模式会清空当前内容，确定继续吗？',
     group: '规则组', targetResource: '作用资源', removeGroup: '删除规则组', addGroup: '新增规则组',

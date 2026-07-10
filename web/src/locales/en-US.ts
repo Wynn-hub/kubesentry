@@ -47,6 +47,7 @@ export default {
     noIssues: 'All objects healthy',
   },
   ruleBuilder: {
+    buildMode: 'Build Mode',
     modeManual: 'Hand-written Rego', modeVisual: 'Visual Builder',
     switchConfirm: 'Switching modes clears the current content. Continue?',
     group: 'Rule Group', targetResource: 'Target Resource', removeGroup: 'Remove Group', addGroup: 'Add Group',

@@ -47,7 +47,7 @@
       </div>
     </el-form-item>
 
-    <el-form-item :label="$t('ruleBuilder.modeManual') + ' / ' + $t('ruleBuilder.modeVisual')">
+    <el-form-item :label="$t('ruleBuilder.buildMode')">
       <el-radio-group v-model="builderMode" @change="onBuilderModeChange">
         <el-radio value="manual">{{ $t('ruleBuilder.modeManual') }}</el-radio>
         <el-radio value="visual">{{ $t('ruleBuilder.modeVisual') }}</el-radio>
@@ -138,7 +138,7 @@ const form = reactive({
   rego: 'package kubesentry\n\ndeny[msg] {\n\t# condition\n\tmsg := "reason"\n}\n',
 })
 
-const builderMode = ref<'manual' | 'visual'>('manual')
+const builderMode = ref<'manual' | 'visual'>('visual')
 const visualGroups = ref<RuleGroup[]>([{ conditions: [], message: '' }])
 
 async function onBuilderModeChange(newMode: string | number | boolean) {
