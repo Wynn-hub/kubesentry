@@ -108,6 +108,37 @@ func TestUpdateGroup(t *testing.T) {
 	}
 }
 
+func TestSetGroupEnabled(t *testing.T) {
+	h, c := newTestServer(t, testGroup("g1", true))
+	rec, _ := doRequest(t, h, "PUT", "/api/v1/policygroups/g1/enabled", map[string]bool{"enabled": false})
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	var g v1alpha1.PolicyGroup
+	_ = c.Get(t.Context(), client.ObjectKey{Name: "g1"}, &g)
+	if g.Spec.Enabled {
+		t.Fatal("enabled should be false after toggle")
+	}
+
+	// Idempotent repeat.
+	rec, _ = doRequest(t, h, "PUT", "/api/v1/policygroups/g1/enabled", map[string]bool{"enabled": false})
+	if rec.Code != 200 {
+		t.Fatalf("repeat code = %d", rec.Code)
+	}
+
+	// Missing field → 400.
+	rec, _ = doRequest(t, h, "PUT", "/api/v1/policygroups/g1/enabled", map[string]string{})
+	if rec.Code != 400 {
+		t.Fatalf("missing enabled code = %d", rec.Code)
+	}
+
+	// Unknown group → 404.
+	rec, _ = doRequest(t, h, "PUT", "/api/v1/policygroups/nope/enabled", map[string]bool{"enabled": true})
+	if rec.Code != 404 {
+		t.Fatalf("unknown group code = %d", rec.Code)
+	}
+}
+
 func TestDeleteGroup(t *testing.T) {
 	h, c := newTestServer(t, testGroup("g1", true))
 	rec, _ := doRequest(t, h, "DELETE", "/api/v1/policygroups/g1", nil)

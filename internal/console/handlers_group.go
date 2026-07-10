@@ -149,6 +149,35 @@ func (h *Handlers) updateGroup(w http.ResponseWriter, r *http.Request) {
 	writeOK(w, map[string]string{"name": g.Name})
 }
 
+// setGroupEnabled toggles spec.enabled via merge patch so the quick switch in
+// the list view cannot conflict with a concurrent full edit of other fields.
+func (h *Handlers) setGroupEnabled(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	if req.Enabled == nil {
+		writeErr(w, http.StatusBadRequest, "enabled is required")
+		return
+	}
+	g, ok := h.fetchGroup(w, r)
+	if !ok {
+		return
+	}
+	if g.Spec.Enabled != *req.Enabled {
+		patch := client.MergeFrom(g.DeepCopy())
+		g.Spec.Enabled = *req.Enabled
+		if err := h.Client.Patch(r.Context(), g, patch); err != nil {
+			writeErr(w, http.StatusInternalServerError, "patch policygroup: "+err.Error())
+			return
+		}
+	}
+	writeOK(w, map[string]bool{"enabled": *req.Enabled})
+}
+
 func (h *Handlers) deleteGroup(w http.ResponseWriter, r *http.Request) {
 	g, ok := h.fetchGroup(w, r)
 	if !ok {

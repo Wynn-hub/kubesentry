@@ -20,7 +20,8 @@ export default {
     copyRego: '复制', copied: '已复制',
     referencedDeleteConfirm: '该策略被组 {groups} 引用，强制删除？',
     tabOverview: '概览', tabRego: 'Rego', tabVersions: '版本历史',
-    allSources: '全部来源', allPhases: '全部状态',
+    allSources: '全部来源', allPhases: '全部状态', allModes: '全部模式',
+    createdAt: '创建时间', updatedAt: '最后修改时间',
   },
   timeline: {
     current: '当前生效', rollbackPrev: '回到上一版', rollbackNext: '前进到下一版',
@@ -34,6 +35,7 @@ export default {
     followPolicy: '跟随策略默认',
     excluded: '已排除的策略',
     excludedHint: '已被明确排除，重新加入请前往编辑页勾选。',
+    enableDone: '{name} 已启用', disableDone: '{name} 已停用',
   },
   exception: {
     title: '豁免', target: '豁免对象', duration: '时长', reason: '原因',

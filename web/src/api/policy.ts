@@ -19,6 +19,8 @@ export interface PolicyListItem {
   description: string
   referencedBy: string[] | null
   currentVersion: number
+  createdAt: string
+  updatedAt: string | null
 }
 
 export interface PolicySpec {

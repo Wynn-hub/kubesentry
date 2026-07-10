@@ -31,7 +31,11 @@ func testPolicy(name, source, mode, phase string) *v1alpha1.Policy {
 			Rego:            validRego,
 			Description:     "desc of " + name,
 		},
-		Status: v1alpha1.PolicyStatus{Phase: phase, CurrentVersion: 1},
+		Status: v1alpha1.PolicyStatus{
+			Phase:          phase,
+			CurrentVersion: 1,
+			LastSyncTime:   &metav1.Time{Time: metav1.Now().Time},
+		},
 	}
 }
 
@@ -48,6 +52,9 @@ func TestListPoliciesFiltered(t *testing.T) {
 	if len(items) != 1 || items[0].Name != "b-custom" {
 		t.Fatalf("items = %+v", items)
 	}
+	if items[0].UpdatedAt == nil || items[0].UpdatedAt.IsZero() {
+		t.Fatalf("updatedAt not populated: %+v", items[0])
+	}
 
 	_, env = doRequest(t, h, "GET", "/api/v1/policies?phase=Ready", nil)
 	items = mustUnmarshal[[]policyListItem](t, env.Data)
@@ -59,6 +66,37 @@ func TestListPoliciesFiltered(t *testing.T) {
 	items = mustUnmarshal[[]policyListItem](t, env.Data)
 	if len(items) != 1 || items[0].Name != "b-custom" {
 		t.Fatalf("keyword filter items = %+v", items)
+	}
+
+	_, env = doRequest(t, h, "GET", "/api/v1/policies?mode=audit", nil)
+	items = mustUnmarshal[[]policyListItem](t, env.Data)
+	if len(items) != 1 || items[0].Name != "b-custom" {
+		t.Fatalf("mode filter items = %+v", items)
+	}
+}
+
+func TestListPoliciesMultiValueFilters(t *testing.T) {
+	h, _ := newTestServer(t,
+		testPolicy("a-builtin", "builtin", "enforce", "Ready"),
+		testPolicy("b-custom", "custom", "audit", "Invalid"),
+		testPolicy("c-custom", "custom", "enforce", "Syncing"),
+	)
+	_, env := doRequest(t, h, "GET", "/api/v1/policies?source=builtin,custom", nil)
+	items := mustUnmarshal[[]policyListItem](t, env.Data)
+	if len(items) != 3 {
+		t.Fatalf("multi source items = %+v", items)
+	}
+
+	_, env = doRequest(t, h, "GET", "/api/v1/policies?phase=Ready,Syncing", nil)
+	items = mustUnmarshal[[]policyListItem](t, env.Data)
+	if len(items) != 2 || items[0].Name != "a-builtin" || items[1].Name != "c-custom" {
+		t.Fatalf("multi phase items = %+v", items)
+	}
+
+	_, env = doRequest(t, h, "GET", "/api/v1/policies?mode=enforce&source=custom", nil)
+	items = mustUnmarshal[[]policyListItem](t, env.Data)
+	if len(items) != 1 || items[0].Name != "c-custom" {
+		t.Fatalf("mode+source items = %+v", items)
 	}
 }
 

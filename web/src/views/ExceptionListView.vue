@@ -4,13 +4,13 @@
     <el-button type="primary" @click="$router.push('/exceptions/new')">{{ $t('common.create') }}</el-button>
   </div>
   <el-table :data="items" v-loading="loading">
-    <el-table-column :label="$t('common.name')" prop="name" />
-    <el-table-column :label="$t('policy.phase')" width="100">
+    <el-table-column :label="$t('common.name')" prop="name" sortable />
+    <el-table-column :label="$t('policy.phase')" prop="phase" sortable width="120">
       <template #default="{ row }"><PhaseTag :phase="row.phase" /></template>
     </el-table-column>
-    <el-table-column :label="$t('exception.target')" prop="targetSummary" />
-    <el-table-column :label="$t('exception.duration')" prop="duration" width="100" />
-    <el-table-column :label="$t('exception.expiresAt')" width="200">
+    <el-table-column :label="$t('exception.target')" prop="targetSummary" sortable />
+    <el-table-column :label="$t('exception.duration')" prop="duration" sortable width="110" />
+    <el-table-column :label="$t('exception.expiresAt')" prop="expiresAt" sortable width="200">
       <template #default="{ row }">{{ row.expiresAt ? new Date(row.expiresAt).toLocaleString() : '-' }}</template>
     </el-table-column>
     <el-table-column :label="$t('exception.reason')" prop="reason" />

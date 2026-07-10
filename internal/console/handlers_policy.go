@@ -22,13 +22,15 @@ const (
 )
 
 type policyListItem struct {
-	Name            string   `json:"name"`
-	Source          string   `json:"source"`
-	EnforcementMode string   `json:"enforcementMode"`
-	Phase           string   `json:"phase"`
-	Description     string   `json:"description"`
-	ReferencedBy    []string `json:"referencedBy"`
-	CurrentVersion  int64    `json:"currentVersion"`
+	Name            string       `json:"name"`
+	Source          string       `json:"source"`
+	EnforcementMode string       `json:"enforcementMode"`
+	Phase           string       `json:"phase"`
+	Description     string       `json:"description"`
+	ReferencedBy    []string     `json:"referencedBy"`
+	CurrentVersion  int64        `json:"currentVersion"`
+	CreatedAt       metav1.Time  `json:"createdAt"`
+	UpdatedAt       *metav1.Time `json:"updatedAt"`
 }
 
 type policyDetail struct {
@@ -46,6 +48,33 @@ type resourceSuggestionsResponse struct {
 	APIVersions      []string            `json:"apiVersions"`
 	Resources        []string            `json:"resources"`
 	ResourcesByGroup map[string][]string `json:"resourcesByGroup"`
+}
+
+// multiValue splits a comma-separated query parameter into trimmed non-empty values.
+func multiValue(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	vals := make([]string, 0, 2)
+	for _, v := range strings.Split(raw, ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			vals = append(vals, v)
+		}
+	}
+	return vals
+}
+
+// matchAny reports whether v matches the filter: an empty filter matches everything.
+func matchAny(filter []string, v string) bool {
+	if len(filter) == 0 {
+		return true
+	}
+	for _, f := range filter {
+		if f == v {
+			return true
+		}
+	}
+	return false
 }
 
 func sourceOf(labels map[string]string) string {
@@ -77,16 +106,21 @@ func (h *Handlers) listPolicies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	source, phase := q.Get("source"), q.Get("phase")
+	sources := multiValue(q.Get("source"))
+	phases := multiValue(q.Get("phase"))
+	modes := multiValue(q.Get("mode"))
 	keyword := strings.ToLower(q.Get("keyword"))
 
 	items := make([]policyListItem, 0, len(list.Items))
 	for i := range list.Items {
 		p := &list.Items[i]
-		if source != "" && sourceOf(p.Labels) != source {
+		if !matchAny(sources, sourceOf(p.Labels)) {
 			continue
 		}
-		if phase != "" && p.Status.Phase != phase {
+		if !matchAny(phases, p.Status.Phase) {
+			continue
+		}
+		if !matchAny(modes, p.Spec.EnforcementMode) {
 			continue
 		}
 		if keyword != "" &&
@@ -102,6 +136,8 @@ func (h *Handlers) listPolicies(w http.ResponseWriter, r *http.Request) {
 			Description:     p.Spec.Description,
 			ReferencedBy:    p.Status.ReferencedBy,
 			CurrentVersion:  p.Status.CurrentVersion,
+			CreatedAt:       p.CreationTimestamp,
+			UpdatedAt:       p.Status.LastSyncTime,
 		})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })

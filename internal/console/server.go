@@ -35,6 +35,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/policygroups", h.createGroup)
 	mux.HandleFunc("GET /api/v1/policygroups/{name}", h.getGroup)
 	mux.HandleFunc("PUT /api/v1/policygroups/{name}", h.updateGroup)
+	mux.HandleFunc("PUT /api/v1/policygroups/{name}/enabled", h.setGroupEnabled)
 	mux.HandleFunc("DELETE /api/v1/policygroups/{name}", h.deleteGroup)
 	mux.HandleFunc("GET /api/v1/exceptions", h.listExceptions)
 	mux.HandleFunc("POST /api/v1/exceptions", h.createException)

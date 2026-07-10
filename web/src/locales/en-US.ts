@@ -20,7 +20,8 @@ export default {
     copyRego: 'Copy', copied: 'Copied',
     referencedDeleteConfirm: 'Referenced by group(s) {groups}. Force delete?',
     tabOverview: 'Overview', tabRego: 'Rego', tabVersions: 'Version History',
-    allSources: 'All sources', allPhases: 'All phases',
+    allSources: 'All sources', allPhases: 'All phases', allModes: 'All modes',
+    createdAt: 'Created At', updatedAt: 'Updated At',
   },
   timeline: {
     current: 'Current', rollbackPrev: 'Back to previous version', rollbackNext: 'Forward to next version',
@@ -34,6 +35,7 @@ export default {
     followPolicy: 'Follow policy default',
     excluded: 'Excluded Policies',
     excludedHint: 'Explicitly excluded from this group. To re-include, select it again on the edit page.',
+    enableDone: '{name} enabled', disableDone: '{name} disabled',
   },
   exception: {
     title: 'Exceptions', target: 'Target', duration: 'Duration', reason: 'Reason',

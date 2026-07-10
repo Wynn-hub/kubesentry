@@ -70,3 +70,5 @@ export const createGroup = (req: GroupRequest) => request<{ name: string }>('POS
 export const updateGroup = (name: string, req: GroupRequest) =>
   request<{ name: string }>('PUT', `/policygroups/${name}`, req)
 export const deleteGroup = (name: string) => request<null>('DELETE', `/policygroups/${name}`)
+export const setGroupEnabled = (name: string, enabled: boolean) =>
+  request<{ enabled: boolean }>('PUT', `/policygroups/${name}/enabled`, { enabled })
