@@ -129,6 +129,18 @@ pre {
   font-family: var(--font-mono);
 }
 
+/* el-select/el-cascader dropdown "selected" state — stock Element Plus only
+   changes the text color (primary) and weight, no background. Against this
+   dark theme the hover-state fill (--el-fill-color-light) reads as more
+   "elevated" than the actual selection, so users couldn't tell which item
+   was really picked. Give the selected row its own background so it stays
+   visually distinct from a merely-hovered row. */
+.el-select-dropdown__item.is-selected,
+.el-cascader-node.in-checked-path,
+.el-cascader-node.is-selectable.in-active-path {
+  background: var(--el-color-primary-light-9);
+}
+
 /* table headers read like a kubectl/k9s column row */
 .el-table th.el-table__cell > .cell {
   font-family: var(--font-mono);
