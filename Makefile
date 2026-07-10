@@ -2,7 +2,7 @@ export GOROOT := /opt/homebrew/opt/go/libexec
 
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
         test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \
-        build-image-local deploy-local undeploy-local web-build test-web
+        build-image-local deploy-local undeploy-local web-build test-web dev-local
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -199,6 +199,13 @@ deploy-local: build-image-local
 undeploy-local:
 	helm uninstall kubesentry --namespace $(LOCAL_NAMESPACE) || true
 	kubectl delete namespace $(LOCAL_NAMESPACE) --ignore-not-found
+
+# Fast console dev loop: builds bin/console, runs it against the current
+# kubeconfig context, and runs the vite dev server with hot reload — no
+# Docker image / Helm deploy involved. Ctrl+C stops both. Only Go backend
+# changes need a re-run; frontend edits hot-reload automatically.
+dev-local:
+	@./scripts/dev-local.sh
 
 # ── Step 3: Package into multi-platform images ────────────────────────────────
 # buildx reads bin/linux-{amd64,arm64}/ via TARGETARCH injected at build time.
