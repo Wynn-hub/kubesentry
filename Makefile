@@ -268,7 +268,13 @@ image-push: .builder build-linux
 helm-package:
 	@mkdir -p $(DIST_DIR)
 	helm lint $(CHART_DIR)
-	helm package $(CHART_DIR) \
+	@# Package from a staged copy with image tags pinned to the release
+	@# version, so `helm install --version x.y.z` pulls the matching images.
+	@# The working tree keeps tag: "latest" per branch policy.
+	rm -rf $(DIST_DIR)/chart-src
+	cp -R $(CHART_DIR) $(DIST_DIR)/chart-src
+	sed 's/tag: "latest"/tag: "$(TAG)"/' $(CHART_DIR)/values.yaml > $(DIST_DIR)/chart-src/values.yaml
+	helm package $(DIST_DIR)/chart-src \
 	  --version $(CHART_VERSION) \
 	  --app-version $(TAG) \
 	  --destination $(DIST_DIR)
