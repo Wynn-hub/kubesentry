@@ -172,20 +172,6 @@ build-image-local: build-linux
 # Build images + helm install/upgrade in one shot.
 deploy-local: build-image-local
 	@echo "→ Deploying to kube context: $$(kubectl config current-context)"
-	@# Adopt any pre-existing CRDs into the Helm release. Earlier chart
-	@# versions kept CRDs under crds/ (un-managed by Helm); the current
-	@# chart manages them under templates/crds/. Without this adoption,
-	@# helm install errors out on "invalid ownership metadata" for each
-	@# CRD that was left behind by a prior install.
-	@for crd in policies.kubesentry.io policygroups.kubesentry.io \
-	            policyversions.kubesentry.io policyexceptions.kubesentry.io; do \
-	  if kubectl get crd $$crd >/dev/null 2>&1; then \
-	    kubectl label  crd $$crd app.kubernetes.io/managed-by=Helm --overwrite >/dev/null; \
-	    kubectl annotate crd $$crd \
-	      meta.helm.sh/release-name=kubesentry \
-	      meta.helm.sh/release-namespace=$(LOCAL_NAMESPACE) --overwrite >/dev/null; \
-	  fi; \
-	done
 	helm upgrade --install kubesentry $(CHART_DIR) \
 	  --namespace $(LOCAL_NAMESPACE) --create-namespace \
 	  --set webhook.image.repository=$(REGISTRY)/kubesentry-webhook \
@@ -205,6 +191,12 @@ deploy-local: build-image-local
 undeploy-local:
 	helm uninstall kubesentry --namespace $(LOCAL_NAMESPACE) || true
 	kubectl delete namespace $(LOCAL_NAMESPACE) --ignore-not-found
+	@# CRDs live in crds/ and are never touched by helm uninstall (by design,
+	@# so uninstall cannot wipe Policy data); a full dev teardown removes them.
+	@for crd in policies.kubesentry.io policygroups.kubesentry.io \
+	            policyversions.kubesentry.io policyexceptions.kubesentry.io; do \
+	  kubectl delete crd $$crd --ignore-not-found; \
+	done
 
 # Fast console dev loop: builds bin/console, runs it against the current
 # kubeconfig context, and runs the vite dev server with hot reload — no
