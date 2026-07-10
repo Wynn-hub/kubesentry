@@ -23,27 +23,27 @@
       <div style="width: 100%">
         <div v-for="(res, i) in form.resources" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px">
           <el-select
-            v-model="res.apiGroups" multiple filterable allow-create default-first-option
+            v-model="res.apiGroup" filterable clearable allow-create default-first-option
             :placeholder="$t('policy.apiGroups')" style="flex: 1"
           >
-            <el-option value="" :label="$t('policy.coreGroup')" />
+            <el-option :value="CORE_GROUP" :label="$t('policy.coreGroup')" />
             <el-option v-for="g in suggestions.apiGroups.filter((x) => x !== '')" :key="g" :label="g" :value="g" />
           </el-select>
           <el-select
-            v-model="res.apiVersions" multiple filterable allow-create default-first-option
+            v-model="res.apiVersion" filterable clearable allow-create default-first-option
             :placeholder="$t('policy.apiVersions')" style="flex: 1"
           >
             <el-option v-for="v in suggestions.apiVersions" :key="v" :label="v" :value="v" />
           </el-select>
           <el-select
-            v-model="res.resources" multiple filterable allow-create default-first-option
+            v-model="res.resource" filterable clearable allow-create default-first-option
             :placeholder="$t('policy.resourceTypes')" style="flex: 1"
           >
-            <el-option v-for="rsc in resourceOptionsFor(res.apiGroups)" :key="rsc" :label="rsc" :value="rsc" />
+            <el-option v-for="rsc in resourceOptionsFor(res.apiGroup)" :key="rsc" :label="rsc" :value="rsc" />
           </el-select>
           <el-button type="danger" plain @click="form.resources.splice(i, 1)">-</el-button>
         </div>
-        <el-button plain @click="form.resources.push({ apiGroups: [], apiVersions: ['v1'], resources: ['pods'] })">+</el-button>
+        <el-button plain @click="form.resources.push({ apiGroup: null, apiVersion: null, resource: null })">+</el-button>
       </div>
     </el-form-item>
 
@@ -62,7 +62,7 @@
       <RuleGroupEditor
         v-for="(g, i) in visualGroups" :key="i"
         v-model="visualGroups[i]" :index="i"
-        :resources="form.resources"
+        :resources="matchResources"
         @remove="visualGroups.splice(i, 1)"
       />
       <el-button plain @click="visualGroups.push({ conditions: [], message: '' })">
@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -105,9 +105,9 @@ let resourceVersion = ''
 let source = 'custom'
 
 interface ResourceRow {
-  apiGroups: string[]
-  apiVersions: string[]
-  resources: string[]
+  apiGroup: string | null
+  apiVersion: string | null
+  resource: string | null
 }
 
 const suggestions = reactive({
@@ -117,16 +117,19 @@ const suggestions = reactive({
   resourcesByGroup: {} as Record<string, string[]>,
 })
 
+// el-select 的单选模式把 modelValue === '' 当成"未选择"处理，即使选项存在也
+// 只显示 placeholder（core 组的原始 apiGroup 值恰好就是空字符串）——用一个
+// 哨兵值区分"选中了 core 组"和"什么都没选"，只在读写后端数据的边界上转换回
+// 真正的空字符串。
+const CORE_GROUP = '__core__'
+
 // resourceOptionsFor 把资源类型下拉的候选值限制在已选资源组范围内，避免出现
 // "选了 apps 组却能选到只属于 core 组的资源" 这种组合会在保存时报错的情况；
-// 未选任何资源组时退回展示全部候选值。
-function resourceOptionsFor(apiGroups: string[]): string[] {
-  if (apiGroups.length === 0) return suggestions.resources
-  const set = new Set<string>()
-  for (const g of apiGroups) {
-    for (const rsc of suggestions.resourcesByGroup[g] ?? []) set.add(rsc)
-  }
-  return Array.from(set).sort()
+// 未选资源组时退回展示全部候选值。
+function resourceOptionsFor(apiGroup: string | null): string[] {
+  if (apiGroup === null) return suggestions.resources
+  const raw = apiGroup === CORE_GROUP ? '' : apiGroup
+  return suggestions.resourcesByGroup[raw] ?? []
 }
 
 const form = reactive({
@@ -134,9 +137,20 @@ const form = reactive({
   description: '',
   enforcementMode: 'audit',
   operations: ['CREATE'] as string[],
-  resources: [{ apiGroups: [''], apiVersions: ['v1'], resources: ['pods'] }] as ResourceRow[],
+  resources: [{ apiGroup: null, apiVersion: null, resource: null }] as ResourceRow[],
   rego: 'package kubesentry\n\ndeny[msg] {\n\t# condition\n\tmsg := "reason"\n}\n',
 })
+
+// matchResources 把单选的 ResourceRow 包装成后端 MatchResource 需要的数组形态
+// （webhook 规则允许一条 match 里填多个 group/version/resource），也是
+// RuleGroupEditor 解析可视化条件时用来查 GVK 的数据源。
+const matchResources = computed<MatchResource[]>(() =>
+  form.resources.map((r) => ({
+    apiGroups: r.apiGroup !== null ? [r.apiGroup === CORE_GROUP ? '' : r.apiGroup] : [],
+    apiVersions: r.apiVersion !== null ? [r.apiVersion] : [],
+    resources: r.resource !== null ? [r.resource] : [],
+  })),
+)
 
 const builderMode = ref<'manual' | 'visual'>('visual')
 const visualGroups = ref<RuleGroup[]>([{ conditions: [], message: '' }])
@@ -163,13 +177,7 @@ async function onBuilderModeChange(newMode: string | number | boolean) {
 function toRequest(): PolicyRequest {
   const match = {
     operations: form.operations,
-    resources: form.resources.map(
-      (r): MatchResource => ({
-        apiGroups: r.apiGroups,
-        apiVersions: r.apiVersions,
-        resources: r.resources,
-      }),
-    ),
+    resources: matchResources.value,
   }
   return {
     name: isEdit ? undefined : form.name,
@@ -267,9 +275,9 @@ onMounted(async () => {
     form.enforcementMode = d.spec.enforcementMode
     form.operations = d.spec.match.operations
     form.resources = d.spec.match.resources.map((r) => ({
-      apiGroups: r.apiGroups,
-      apiVersions: r.apiVersions,
-      resources: r.resources,
+      apiGroup: r.apiGroups[0] === undefined ? null : r.apiGroups[0] === '' ? CORE_GROUP : r.apiGroups[0],
+      apiVersion: r.apiVersions[0] ?? null,
+      resource: r.resources[0] ?? null,
     }))
     form.rego = d.spec.rego
 
