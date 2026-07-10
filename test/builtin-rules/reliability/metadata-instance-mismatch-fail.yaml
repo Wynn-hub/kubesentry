@@ -1,18 +1,27 @@
 ---
-# metadataAndInstanceMismatched: Pod where app.kubernetes.io/instance != metadata.name (audit mode)
-apiVersion: v1
-kind: Pod
+# metadataAndInstanceMismatched: Deployment where app.kubernetes.io/instance != metadata.name (audit mode)
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: my-app-pod
+  name: my-app
   namespace: test-builtin-rules
   labels:
     app.kubernetes.io/instance: different-name   # triggers audit rule (mismatch)
 spec:
-  automountServiceAccountToken: false
-  containers:
-  - name: app
-    image: nginx:1.19
-    securityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop: ["ALL"]
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: app
+        image: nginx:1.25.0
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
