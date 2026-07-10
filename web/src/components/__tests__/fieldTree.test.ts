@@ -23,7 +23,8 @@ const podFields: FieldNode[] = [
   {
     name: 'metadata', type: 'object', isArray: false, isMap: false,
     children: [
-      { name: 'labels', type: 'object', isArray: false, isMap: true },
+      { name: 'labels', type: 'object', isArray: false, isMap: true, mapValueType: 'string' },
+      { name: 'annotations', type: 'object', isArray: false, isMap: true },
     ],
   },
 ]
@@ -67,9 +68,14 @@ describe('resolveLeafType', () => {
     expect(resolveLeafType(['spec', 'containers', 'securityContext', 'privileged'], options)).toBe('boolean')
   })
 
-  it('returns the map field itself as an object leaf', () => {
+  it('returns the map value type (not the hardcoded object type) for a map field', () => {
     const options = fieldTreeToCascaderOptions(podFields)
-    expect(resolveLeafType(['metadata', 'labels'], options)).toBe('object')
+    expect(resolveLeafType(['metadata', 'labels'], options)).toBe('string')
+  })
+
+  it('falls back to string for a map field with no mapValueType from the backend', () => {
+    const options = fieldTreeToCascaderOptions(podFields)
+    expect(resolveLeafType(['metadata', 'annotations'], options)).toBe('string')
   })
 })
 

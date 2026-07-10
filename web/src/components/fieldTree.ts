@@ -5,6 +5,7 @@ export interface FieldNode {
   type: 'string' | 'integer' | 'number' | 'boolean' | 'array' | 'object'
   isArray: boolean
   isMap: boolean
+  mapValueType?: FieldNode['type']
   children?: FieldNode[]
 }
 
@@ -14,6 +15,7 @@ export interface CascaderFieldOption {
   type: FieldNode['type']
   isArray: boolean
   isMap: boolean
+  mapValueType?: FieldNode['type']
   children?: CascaderFieldOption[]
 }
 
@@ -27,6 +29,7 @@ export function fieldTreeToCascaderOptions(nodes: FieldNode[]): CascaderFieldOpt
     type: n.type,
     isArray: n.isArray,
     isMap: n.isMap,
+    mapValueType: n.mapValueType,
     // map 字段的 key 不可枚举，UI 走额外的文本输入收集 key，这里统一不下钻。
     children: n.isMap ? undefined : n.children && n.children.length > 0
       ? fieldTreeToCascaderOptions(n.children)
@@ -62,6 +65,7 @@ export function resolveLeafType(valuePath: string[], options: CascaderFieldOptio
     level = node.children ?? []
   }
   if (!node) throw new Error('empty field path')
+  if (node.isMap) return node.mapValueType ?? 'string'
   return node.type
 }
 

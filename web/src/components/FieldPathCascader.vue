@@ -4,7 +4,7 @@
     <el-cascader
       v-model="selectedPath"
       :options="options"
-      :props="{ expandTrigger: 'hover' }"
+      :props="{ expandTrigger: 'hover', checkStrictly: true }"
       style="flex: 1"
       @change="onChange"
     />
@@ -22,6 +22,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { getFieldSchema } from '../api/schema'
 import {
   cascaderPathToSegments, fieldTreeToCascaderOptions, resolveLeafType,
@@ -42,8 +43,7 @@ const mapKey = ref('')
 const lastNodeIsMap = computed(() => {
   if (selectedPath.value.length === 0) return false
   try {
-    return resolveLeafType(selectedPath.value, options.value) === 'object' &&
-      cascaderPathToSegments(selectedPath.value, options.value).at(-1)?.isMap === true
+    return cascaderPathToSegments(selectedPath.value, options.value).at(-1)?.isMap === true
   } catch {
     return false
   }
@@ -51,7 +51,11 @@ const lastNodeIsMap = computed(() => {
 
 async function load(refresh = false) {
   if (!props.version || !props.resource) return
-  options.value = fieldTreeToCascaderOptions(await getFieldSchema(props.group, props.version, props.resource, refresh))
+  try {
+    options.value = fieldTreeToCascaderOptions(await getFieldSchema(props.group, props.version, props.resource, refresh))
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
 }
 
 function emitPath() {
