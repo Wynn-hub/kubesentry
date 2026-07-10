@@ -121,6 +121,39 @@ func TestBuildFieldTree_MapField(t *testing.T) {
 	if len(labels.Children) != 0 {
 		t.Fatalf("labels.Children = %+v, want empty (map fields don't cascade)", labels.Children)
 	}
+	if labels.MapValueType != "string" {
+		t.Fatalf("labels.MapValueType = %q, want %q (map[string]string)", labels.MapValueType, "string")
+	}
+}
+
+func TestBuildFieldTree_MapFieldValueTypeFallback(t *testing.T) {
+	// additionalProperties: true (Allows, no Schema) — arbitrary/unstructured
+	// value, e.g. a CRD spec field typed as map[string]interface{}. Should
+	// default MapValueType to "string" rather than leaving it empty.
+	annotations := spec.Schema{SchemaProps: spec.SchemaProps{
+		Type:                 spec.StringOrArray{"object"},
+		AdditionalProperties: &spec.SchemaOrBool{Allows: true},
+	}}
+	root := spec.Schema{SchemaProps: spec.SchemaProps{
+		Type: spec.StringOrArray{"object"},
+		Properties: map[string]spec.Schema{
+			"annotations": annotations,
+		},
+	}}
+	root.AddExtension("x-kubernetes-group-version-kind", []map[string]string{{"group": "x", "version": "v1", "kind": "Thing"}})
+	doc := &spec3.OpenAPI{Components: &spec3.Components{Schemas: map[string]*spec.Schema{"Thing": &root}}}
+
+	fields, err := buildFieldTree(doc, "x", "v1", "Thing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	annotationsNode := findChild(t, fields, "annotations")
+	if !annotationsNode.IsMap {
+		t.Fatalf("annotations.IsMap = false, want true")
+	}
+	if annotationsNode.MapValueType != "string" {
+		t.Fatalf("annotations.MapValueType = %q, want %q (Allows-true fallback)", annotationsNode.MapValueType, "string")
+	}
 }
 
 func TestBuildFieldTree_NotFound(t *testing.T) {

@@ -17,11 +17,12 @@ const (
 // FieldNode is one node of the field tree returned by GET /api/v1/schema/fields,
 // used by the console frontend to drive the cascading field selector.
 type FieldNode struct {
-	Name     string      `json:"name"`
-	Type     string      `json:"type"` // string|integer|number|boolean|array|object
-	IsArray  bool        `json:"isArray"`
-	IsMap    bool        `json:"isMap"`
-	Children []FieldNode `json:"children,omitempty"`
+	Name         string      `json:"name"`
+	Type         string      `json:"type"` // string|integer|number|boolean|array|object
+	IsArray      bool        `json:"isArray"`
+	IsMap        bool        `json:"isMap"`
+	MapValueType string      `json:"mapValueType,omitempty"` // value type when IsMap; e.g. "string" for map[string]string
+	Children     []FieldNode `json:"children,omitempty"`
 }
 
 // buildFieldTree resolves the root schema for the given GVK among schemas
@@ -120,6 +121,7 @@ func schemaToFieldNode(name string, s *spec.Schema, schemas map[string]*spec.Sch
 	case s.AdditionalProperties != nil && (s.AdditionalProperties.Schema != nil || s.AdditionalProperties.Allows):
 		node.Type = "object"
 		node.IsMap = true
+		node.MapValueType = mapValueType(s.AdditionalProperties, schemas)
 	case typ == "object" || len(s.Properties) > 0 || typ == "":
 		node.Type = "object"
 		if depth < maxSchemaDepth {
@@ -133,4 +135,28 @@ func schemaToFieldNode(name string, s *spec.Schema, schemas map[string]*spec.Sch
 		node.Type = typ // string|integer|number|boolean
 	}
 	return node
+}
+
+// scalarMapValueTypes are the primitive types a map value can resolve to for
+// operator-selection purposes on the frontend.
+var scalarMapValueTypes = map[string]bool{
+	"string": true, "integer": true, "number": true, "boolean": true,
+}
+
+// mapValueType determines the value type of a map (additionalProperties)
+// field for the frontend's operator-selection UI. Only scalar value types
+// are distinguished; complex (object/array) map values, and maps with no
+// declared value schema (arbitrary/unstructured `Allows: true`), default to
+// "string" — most k8s maps (labels, annotations) are map[string]string, and
+// deep map-value drilling is out of scope for v1.
+func mapValueType(ap *spec.SchemaOrBool, schemas map[string]*spec.Schema) string {
+	if ap.Schema != nil {
+		valueSchema := resolveSchema(ap.Schema, schemas)
+		if valueSchema != nil && len(valueSchema.Type) > 0 {
+			if t := valueSchema.Type[0]; scalarMapValueTypes[t] {
+				return t
+			}
+		}
+	}
+	return "string"
 }
