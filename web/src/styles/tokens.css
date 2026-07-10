@@ -79,7 +79,20 @@
   --el-color-danger-light-9: #391f18;
   --el-color-danger-dark-2: #cc5640;
 
-  --el-color-info: var(--steel-400);
+  /* info → neutral steel (selected multi-select tags use this; unlike
+     primary/success/warning/danger above, this was previously left
+     unoverridden and fell back to Element Plus's stock dark-mode info
+     scale, whose light-9/-8 read almost the same as the surrounding
+     field background — a selected tag looked like a hover state, not a
+     selection. light-9 here is a step lighter than --ink-800/900 so a
+     selected chip visibly lifts off the field it sits in. */
+  --el-color-info: var(--steel-300);
+  --el-color-info-light-3: #a9b7d4;
+  --el-color-info-light-5: #8496bd;
+  --el-color-info-light-7: #5b6e94;
+  --el-color-info-light-8: var(--steel-400);
+  --el-color-info-light-9: var(--ink-600);
+  --el-color-info-dark-2: #7686ab;
 
   /* table */
   --el-table-bg-color: var(--ink-800);
