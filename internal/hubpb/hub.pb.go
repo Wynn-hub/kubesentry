@@ -488,18 +488,16 @@ func file_api_proto_hub_v1_hub_proto_rawDescGZIP() []byte {
 	return file_api_proto_hub_v1_hub_proto_rawDescData
 }
 
-var (
-	file_api_proto_hub_v1_hub_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
-	file_api_proto_hub_v1_hub_proto_goTypes  = []any{
-		(*RegisterRequest)(nil),  // 0: kubesentry.hub.v1.RegisterRequest
-		(*RegisterResponse)(nil), // 1: kubesentry.hub.v1.RegisterResponse
-		(*MemberMessage)(nil),    // 2: kubesentry.hub.v1.MemberMessage
-		(*Heartbeat)(nil),        // 3: kubesentry.hub.v1.Heartbeat
-		(*StatusReport)(nil),     // 4: kubesentry.hub.v1.StatusReport
-		(*HubMessage)(nil),       // 5: kubesentry.hub.v1.HubMessage
-		(*Ack)(nil),              // 6: kubesentry.hub.v1.Ack
-	}
-)
+var file_api_proto_hub_v1_hub_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_api_proto_hub_v1_hub_proto_goTypes = []any{
+	(*RegisterRequest)(nil),  // 0: kubesentry.hub.v1.RegisterRequest
+	(*RegisterResponse)(nil), // 1: kubesentry.hub.v1.RegisterResponse
+	(*MemberMessage)(nil),    // 2: kubesentry.hub.v1.MemberMessage
+	(*Heartbeat)(nil),        // 3: kubesentry.hub.v1.Heartbeat
+	(*StatusReport)(nil),     // 4: kubesentry.hub.v1.StatusReport
+	(*HubMessage)(nil),       // 5: kubesentry.hub.v1.HubMessage
+	(*Ack)(nil),              // 6: kubesentry.hub.v1.Ack
+}
 var file_api_proto_hub_v1_hub_proto_depIdxs = []int32{
 	3, // 0: kubesentry.hub.v1.MemberMessage.heartbeat:type_name -> kubesentry.hub.v1.Heartbeat
 	4, // 1: kubesentry.hub.v1.MemberMessage.status_report:type_name -> kubesentry.hub.v1.StatusReport
