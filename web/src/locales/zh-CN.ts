@@ -63,4 +63,33 @@ export default {
     compileError: 'Rego 编译失败：{msg}',
     groupEmpty: '第 {n} 组规则没有添加任何条件',
   },
+  comingSoon: {
+    hint: '该能力尚未实现，以下为路线图中的建设规划。',
+    docLink: '详见 docs/superpowers/specs/2026-07-13-console-redesign-design.md',
+    clusters: {
+      name: '集群管理',
+      desc: '中台控制面：集群注册与健康、默认策略基线对账、平台级策略分发（PolicyDistribution）。',
+      phase: '路线图 · 阶段 1 多集群管理',
+    },
+    tenants: {
+      name: '租户管理',
+      desc: '租户 = 集群子集 + 命名空间子集的授权范围；配合登录认证与平台/租户/只读角色。',
+      phase: '路线图 · 阶段 4 多租户',
+    },
+    events: {
+      name: '准入事件',
+      desc: '拦截与审计判决落盘检索：webhook 判决经 agent 上报中台，写入事件存储。',
+      phase: '路线图 · 阶段 2 准入事件与告警',
+    },
+    audit: {
+      name: 'K8s 审计',
+      desc: '接入 apiserver audit log，审计范围不再局限于准入时点，复用阶段 2 的事件存储。',
+      phase: '路线图 · 阶段 3 K8s 审计接入',
+    },
+    alerts: {
+      name: '告警规则',
+      desc: '命中策略 / 命名空间 / enforce 拦截即通知，通用 webhook 出口对接钉钉、飞书、Slack。',
+      phase: '路线图 · 阶段 2 准入事件与告警',
+    },
+  },
 }

@@ -63,4 +63,33 @@ export default {
     compileError: 'Rego compile failed: {msg}',
     groupEmpty: 'Rule group {n} has no conditions',
   },
+  comingSoon: {
+    hint: 'This capability is not implemented yet. Below is the roadmap plan.',
+    docLink: 'See docs/superpowers/specs/2026-07-13-console-redesign-design.md',
+    clusters: {
+      name: 'Clusters',
+      desc: 'Hub control plane: cluster registration & health, baseline reconcile, platform-level PolicyDistribution.',
+      phase: 'Roadmap · Phase 1 Multi-cluster',
+    },
+    tenants: {
+      name: 'Tenants',
+      desc: 'Tenant = authorized subset of clusters + namespaces; with authentication and platform/tenant/read-only roles.',
+      phase: 'Roadmap · Phase 4 Multi-tenancy',
+    },
+    events: {
+      name: 'Admission Events',
+      desc: 'Searchable deny/audit verdicts: webhook verdicts reported via agent to the hub and stored.',
+      phase: 'Roadmap · Phase 2 Events & Alerting',
+    },
+    audit: {
+      name: 'K8s Audit',
+      desc: 'Ingest apiserver audit logs beyond admission time, reusing the Phase 2 event store.',
+      phase: 'Roadmap · Phase 3 K8s Audit',
+    },
+    alerts: {
+      name: 'Alert Rules',
+      desc: 'Notify on policy hits / namespaces / enforce denials via a generic webhook sink (DingTalk, Feishu, Slack).',
+      phase: 'Roadmap · Phase 2 Events & Alerting',
+    },
+  },
 }
