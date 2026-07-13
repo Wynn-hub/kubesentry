@@ -1,0 +1,140 @@
+package hub
+
+import (
+	"context"
+	"crypto/subtle"
+	"fmt"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/hubpb"
+)
+
+// Server implements the hubpb.Hub gRPC service.
+type Server struct {
+	hubpb.UnimplementedHubServer
+	client    client.Client
+	namespace string
+}
+
+func NewServer(c client.Client, namespace string) *Server {
+	return &Server{client: c, namespace: namespace}
+}
+
+func (s *Server) Register(ctx context.Context, req *hubpb.RegisterRequest) (*hubpb.RegisterResponse, error) {
+	if req.ClusterName == "" || req.RegistrationToken == "" || req.ClusterUid == "" {
+		return nil, status.Error(codes.InvalidArgument, "cluster_name, registration_token and cluster_uid are required")
+	}
+
+	var cl v1alpha1.Cluster
+	if err := s.client.Get(ctx, types.NamespacedName{Name: req.ClusterName}, &cl); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, status.Error(codes.NotFound, "cluster not registered on hub")
+		}
+		return nil, status.Errorf(codes.Internal, "get cluster: %v", err)
+	}
+
+	// 校验一次性注册 token。
+	var reg corev1.Secret
+	if err := s.client.Get(ctx,
+		types.NamespacedName{Namespace: s.namespace, Name: RegTokenSecretName(req.ClusterName)}, &reg); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, status.Error(codes.PermissionDenied, "no pending registration token for this cluster")
+		}
+		return nil, status.Errorf(codes.Internal, "get reg token: %v", err)
+	}
+	if subtle.ConstantTimeCompare(reg.Data[KeyToken], []byte(req.RegistrationToken)) != 1 {
+		return nil, status.Error(codes.PermissionDenied, "invalid registration token")
+	}
+
+	// clusterUID 规则：跨 Cluster 唯一；重新接入必须 UID 一致。
+	var all v1alpha1.ClusterList
+	if err := s.client.List(ctx, &all); err != nil {
+		return nil, status.Errorf(codes.Internal, "list clusters: %v", err)
+	}
+	for i := range all.Items {
+		other := &all.Items[i]
+		if other.Name != req.ClusterName && other.Status.ClusterUID == req.ClusterUid {
+			return nil, status.Errorf(codes.AlreadyExists,
+				"cluster UID already registered as %q", other.Name)
+		}
+	}
+	if cl.Status.ClusterUID != "" && cl.Status.ClusterUID != req.ClusterUid {
+		return nil, status.Error(codes.PermissionDenied,
+			"cluster UID does not match previously registered identity")
+	}
+
+	// 签发长期 token：hub 只存哈希。
+	token, err := NewToken()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "issue token: %v", err)
+	}
+	auth := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: s.namespace,
+			Name:      AuthSecretName(req.ClusterName),
+			Labels:    map[string]string{"kubesentry.io/cluster": req.ClusterName},
+		},
+		Data: map[string][]byte{
+			KeyTokenHash:  []byte(HashToken(token)),
+			KeyClusterUID: []byte(req.ClusterUid),
+		},
+	}
+	if err := s.client.Create(ctx, auth); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			// 重新接入：轮换哈希。
+			var existing corev1.Secret
+			if err := s.client.Get(ctx, types.NamespacedName{Namespace: s.namespace, Name: auth.Name}, &existing); err != nil {
+				return nil, status.Errorf(codes.Internal, "get auth secret: %v", err)
+			}
+			existing.Data = auth.Data
+			if err := s.client.Update(ctx, &existing); err != nil {
+				return nil, status.Errorf(codes.Internal, "rotate auth secret: %v", err)
+			}
+		} else {
+			return nil, status.Errorf(codes.Internal, "create auth secret: %v", err)
+		}
+	}
+
+	cl.Status.ClusterUID = req.ClusterUid
+	cl.Status.OperatorVersion = req.OperatorVersion
+	if cl.Status.Phase == "" || cl.Status.Phase == v1alpha1.ClusterPhaseRegistering {
+		// 保持 Registering；Online 由首个心跳 flush 置位。
+		cl.Status.Phase = v1alpha1.ClusterPhaseRegistering
+	}
+	if err := s.client.Status().Update(ctx, &cl); err != nil {
+		return nil, status.Errorf(codes.Internal, "update cluster status: %v", err)
+	}
+
+	// 消费注册 token（一次性）：必须放在所有其他步骤成功之后再删除。
+	// 如果先删 token 再提交 status，一旦 status 更新失败，token 已被
+	// 消费但调用方从未拿到 ClusterToken —— 无法重试，只能等管理员手动
+	// 干预。放在最后，即使 Delete 本身失败也只是残留一个失效 Secret，
+	// 不影响已经成功的注册结果。
+	if err := s.client.Delete(ctx, &reg); err != nil && !apierrors.IsNotFound(err) {
+		return nil, status.Errorf(codes.Internal, "consume reg token: %v", err)
+	}
+
+	return &hubpb.RegisterResponse{ClusterToken: token}, nil
+}
+
+// validateSyncAuth 供 Task 6 的 Sync 使用：按 metadata 中的集群名 + token
+// 校验长期凭据，返回集群名。
+func (s *Server) validateSyncAuth(ctx context.Context, clusterName, token string) error {
+	var auth corev1.Secret
+	if err := s.client.Get(ctx,
+		types.NamespacedName{Namespace: s.namespace, Name: AuthSecretName(clusterName)}, &auth); err != nil {
+		return fmt.Errorf("cluster not registered")
+	}
+	if subtle.ConstantTimeCompare(auth.Data[KeyTokenHash], []byte(HashToken(token))) != 1 {
+		return fmt.Errorf("invalid cluster token")
+	}
+	return nil
+}
