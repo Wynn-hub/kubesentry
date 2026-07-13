@@ -138,11 +138,23 @@ These rules apply to every git operation in this repository.
 
 **Release checklist (run on `main`):**
 1. `make test-all` passes (unit tests + e2e — `make release` enforces this automatically)
-2. Bump `charts/kubesentry/Chart.yaml` `version` + `appVersion`, commit
-3. `git tag vx.y.z && git push origin main && git push origin vx.y.z`
-4. `make release VERSION=vx.y.z`
-5. `git checkout -b release-x.y.z vx.y.z && git push origin release-x.y.z`
-6. On release branch: set both `values.yaml` image tags to `"vx.y.z"`, commit `chore(helm): pin image tags to vx.y.z for release`, push
-7. `gh release create vx.y.z --title "vx.y.z" --target main --notes-file <notes> --latest`
+2. **Fresh-install verification (MANDATORY, has bitten us more than once):** on the local cluster run the full uninstall → clean install cycle against the packaged chart, and confirm all pods become Ready and the 37 builtin policies reach `Ready`:
+   ```bash
+   make undeploy-local        # full teardown incl. CRDs
+   make helm-package VERSION=vx.y.z
+   helm install kubesentry dist/kubesentry-x.y.z.tgz \
+     --namespace kubesentry-system --create-namespace --wait --timeout 5m
+   kubectl get policies | grep -c Ready   # expect 37
+   make undeploy-local        # clean up again
+   ```
+   This catches packaging-only failures that e2e helpers can mask (e.g. the v1.1.0 chart shipped with CRDs under `templates/`, which passes e2e but breaks every fresh `helm install`).
+3. Bump `charts/kubesentry/Chart.yaml` `version` + `appVersion`, commit
+4. `git tag vx.y.z && git push origin main && git push origin vx.y.z`
+5. `make release VERSION=vx.y.z`
+6. `git checkout -b release-x.y.z vx.y.z && git push origin release-x.y.z`
+7. On release branch: set both `values.yaml` image tags to `"vx.y.z"`, commit `chore(helm): pin image tags to vx.y.z for release`, push
+8. `gh release create vx.y.z --title "vx.y.z" --target main --notes-file <notes> --latest` — **LAST step, only after every verification above has passed.**
+
+**GitHub Immutable Releases (hard platform constraint):** this repo has immutable releases enabled. Once `gh release create vx.y.z` publishes, that tag name is burned forever — deleting the release/tag does NOT free the name, and it can never be recreated (learned the hard way with v1.1.0, which is permanently unusable). Therefore: never publish the GitHub Release until the tag is final and fully verified; if a defect is found after publishing, the only path is a new version number.
 
 **Version bumps:** PATCH = bugfix only · MINOR = new feature · MAJOR = breaking change or milestone
