@@ -8,6 +8,8 @@ import (
 	"testing"
 	"testing/fstest"
 
+	admissionregv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -35,6 +37,12 @@ func newTestServer(t *testing.T, objs ...client.Object) (http.Handler, client.Cl
 	if err := v1alpha1.AddToScheme(scheme); err != nil {
 		t.Fatal(err)
 	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	if err := admissionregv1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
 	c := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithStatusSubresource(&v1alpha1.Policy{}, &v1alpha1.PolicyGroup{}, &v1alpha1.PolicyException{}).
@@ -51,6 +59,12 @@ func newTestServerWithHandlers(t *testing.T, objs ...client.Object) (http.Handle
 	t.Helper()
 	scheme := runtime.NewScheme()
 	if err := v1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	if err := admissionregv1.AddToScheme(scheme); err != nil {
 		t.Fatal(err)
 	}
 	c := fake.NewClientBuilder().

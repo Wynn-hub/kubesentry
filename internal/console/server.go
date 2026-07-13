@@ -15,6 +15,7 @@ type Handlers struct {
 	Client        client.Client
 	Discovery     discoveryInterface
 	SchemaFetcher schemaFetcher // optional override for tests; nil uses discoverySchemaFetcher
+	VWCName       string        // ValidatingWebhookConfiguration 名称；空值时用默认 "kubesentry"
 
 	schemaCacheOnce sync.Once
 	schemaCacheMap  *sync.Map
