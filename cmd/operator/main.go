@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/operator"
+	"github.com/Wynn-hub/kubesentry/internal/operator/hublink"
 	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
 
@@ -68,6 +70,25 @@ func runOperator() {
 	if err := operator.NewWebhookConfigReconciler(mgr.GetClient(), vwcName, tlsSecretName, tlsNamespace).SetupWithManager(mgr); err != nil {
 		slog.Error("setup webhookconfig reconciler", "error", err)
 		os.Exit(1)
+	}
+
+	if hubAddr := os.Getenv("HUB_ADDRESS"); hubAddr != "" {
+		link := hublink.New(hublink.Config{
+			HubAddress:      hubAddr,
+			TLSCAFile:       envOrDefault("HUB_CA_FILE", "/etc/kubesentry/hub-ca/ca.crt"),
+			TLSServerName:   os.Getenv("HUB_TLS_SERVER_NAME"),
+			ClusterName:     envOrDefault("CLUSTER_NAME", "local"),
+			Namespace:       envOrDefault("NAMESPACE", "kubesentry-system"),
+			OperatorVersion: envOrDefault("OPERATOR_VERSION", "dev"),
+			Reader:          mgr.GetAPIReader(),
+			Client:          mgr.GetClient(),
+			HeartbeatEvery:  15 * time.Second,
+		})
+		if err := mgr.Add(link); err != nil {
+			slog.Error("add hub link", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("hub link enabled", "hub", hubAddr)
 	}
 
 	slog.Info("starting operator")
