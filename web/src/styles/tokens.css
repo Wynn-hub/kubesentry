@@ -268,3 +268,17 @@ pre {
   gap: 10px;
   flex-shrink: 0;
 }
+
+/* overview two-column content grid below the stat cards */
+.overview-grid {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
