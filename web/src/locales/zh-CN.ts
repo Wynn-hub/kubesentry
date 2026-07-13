@@ -1,5 +1,12 @@
 export default {
-  nav: { overview: '概览', policies: '策略', groups: '策略组', exceptions: '豁免' },
+  nav: {
+    overview: '平台概览', policies: '策略', groups: '策略组', exceptions: '豁免',
+    clusters: '集群管理', tenants: '租户管理',
+    events: '准入事件', audit: 'K8s 审计', alerts: '告警规则',
+    groupPlatform: '平台', groupProtection: '策略防护', groupObservability: '审计与告警',
+    clusterTip: '当前为单集群模式；多集群管理在路线图阶段 1 建设',
+    soon: '规划中',
+  },
   common: {
     create: '新建', edit: '编辑', delete: '删除', save: '保存', cancel: '取消',
     confirm: '确认', search: '搜索', actions: '操作', name: '名称', description: '描述',

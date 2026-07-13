@@ -1,5 +1,12 @@
 export default {
-  nav: { overview: 'Overview', policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions' },
+  nav: {
+    overview: 'Overview', policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions',
+    clusters: 'Clusters', tenants: 'Tenants',
+    events: 'Admission Events', audit: 'K8s Audit', alerts: 'Alert Rules',
+    groupPlatform: 'Platform', groupProtection: 'Policy Protection', groupObservability: 'Audit & Alerting',
+    clusterTip: 'Single-cluster mode; multi-cluster arrives in roadmap Phase 1',
+    soon: 'Planned',
+  },
   common: {
     create: 'Create', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
     confirm: 'Confirm', search: 'Search', actions: 'Actions', name: 'Name', description: 'Description',
