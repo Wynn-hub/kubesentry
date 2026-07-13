@@ -1,8 +1,10 @@
 <template>
-  <div style="display: flex; margin-bottom: 12px">
-    <div style="flex: 1" />
-    <el-button type="primary" @click="$router.push('/policygroups/new')">{{ $t('common.create') }}</el-button>
-  </div>
+  <PageHeader :title="$t('group.title')" :subtitle="$t('group.subtitle')">
+    <el-button type="primary" @click="$router.push('/policygroups/new')">
+      {{ $t('common.create') }}
+    </el-button>
+  </PageHeader>
+
   <el-table :data="items" v-loading="loading">
     <el-table-column :label="$t('common.name')" prop="name" sortable>
       <template #default="{ row }">
@@ -39,6 +41,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { deleteGroup, listGroups, setGroupEnabled, type GroupListItem } from '../api/group'
+import PageHeader from '../components/PageHeader.vue'
 import PhaseTag from '../components/PhaseTag.vue'
 
 const { t } = useI18n()

@@ -10,7 +10,7 @@ export default {
     saved: '已保存', deleted: '已删除',
   },
   policy: {
-    title: '策略', source: '来源', mode: '生效模式', phase: '状态',
+    title: '策略', subtitle: '管理准入校验策略与 Rego 规则', source: '来源', mode: '生效模式', phase: '状态',
     referencedBy: '被引用组', currentVersion: '当前版本', rego: 'Rego 源码',
     match: '匹配规则', operations: '操作', resources: '资源',
     apiGroups: 'API 组', apiVersions: 'API 版本', resourceTypes: '资源类型', coreGroup: '核心组（core）',
@@ -28,7 +28,7 @@ export default {
     inFlight: '回滚处理中…', version: '版本 v{n}', rollbackDone: '回滚完成',
   },
   group: {
-    title: '策略组', displayName: '显示名', enabled: '启用', resolvedCount: '成员数',
+    title: '策略组', subtitle: '组织策略并按命名空间圈定生效范围', displayName: '显示名', enabled: '启用', resolvedCount: '成员数',
     members: '成员（byName）', bySelector: '标签选择（bySelector）',
     selectorMode: 'selector 生效模式', nsSelector: '命名空间选择器',
     resolved: '已解析成员', memberSource: '来源', effectiveMode: '生效模式',
@@ -38,7 +38,7 @@ export default {
     enableDone: '{name} 已启用', disableDone: '{name} 已停用',
   },
   exception: {
-    title: '豁免', target: '豁免对象', duration: '时长', reason: '原因',
+    title: '豁免', subtitle: '为特定负载临时豁免策略', target: '豁免对象', duration: '时长', reason: '原因',
     expiresAt: '到期时间', retain: '过期保留',
     targetPolicies: '指定策略', targetGroups: '指定策略组', targetAll: '全部策略',
     namespaces: '命名空间（精确名）', nsSelector: '命名空间标签', resSelector: '资源标签',

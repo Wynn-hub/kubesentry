@@ -10,7 +10,7 @@ export default {
     saved: 'Saved', deleted: 'Deleted',
   },
   policy: {
-    title: 'Policies', source: 'Source', mode: 'Mode', phase: 'Phase',
+    title: 'Policies', subtitle: 'Manage admission policies and Rego rules', source: 'Source', mode: 'Mode', phase: 'Phase',
     referencedBy: 'Referenced By', currentVersion: 'Version', rego: 'Rego Source',
     match: 'Match Rules', operations: 'Operations', resources: 'Resources',
     apiGroups: 'API Groups', apiVersions: 'API Versions', resourceTypes: 'Resource Types', coreGroup: 'core',
@@ -28,7 +28,7 @@ export default {
     inFlight: 'Rollback in progress…', version: 'Version v{n}', rollbackDone: 'Rollback complete',
   },
   group: {
-    title: 'Policy Groups', displayName: 'Display Name', enabled: 'Enabled', resolvedCount: 'Members',
+    title: 'Policy Groups', subtitle: 'Organize policies and scope them by namespace', displayName: 'Display Name', enabled: 'Enabled', resolvedCount: 'Members',
     members: 'Members (byName)', bySelector: 'Label Selector (bySelector)',
     selectorMode: 'Selector Mode', nsSelector: 'Namespace Selector',
     resolved: 'Resolved Members', memberSource: 'Source', effectiveMode: 'Effective Mode',
@@ -38,7 +38,7 @@ export default {
     enableDone: '{name} enabled', disableDone: '{name} disabled',
   },
   exception: {
-    title: 'Exceptions', target: 'Target', duration: 'Duration', reason: 'Reason',
+    title: 'Exceptions', subtitle: 'Temporarily exempt workloads from policies', target: 'Target', duration: 'Duration', reason: 'Reason',
     expiresAt: 'Expires At', retain: 'Retain After Expiry',
     targetPolicies: 'Policies', targetGroups: 'Policy Groups', targetAll: 'All Policies',
     namespaces: 'Namespaces (exact)', nsSelector: 'Namespace Labels', resSelector: 'Resource Labels',

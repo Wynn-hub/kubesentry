@@ -1,8 +1,10 @@
 <template>
-  <div style="display: flex; margin-bottom: 12px">
-    <div style="flex: 1" />
-    <el-button type="primary" @click="$router.push('/exceptions/new')">{{ $t('common.create') }}</el-button>
-  </div>
+  <PageHeader :title="$t('exception.title')" :subtitle="$t('exception.subtitle')">
+    <el-button type="primary" @click="$router.push('/exceptions/new')">
+      {{ $t('common.create') }}
+    </el-button>
+  </PageHeader>
+
   <el-table :data="items" v-loading="loading">
     <el-table-column :label="$t('common.name')" prop="name" sortable />
     <el-table-column :label="$t('policy.phase')" prop="phase" sortable width="120">
@@ -30,6 +32,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { deleteException, listExceptions, type ExceptionListItem } from '../api/exception'
+import PageHeader from '../components/PageHeader.vue'
 import PhaseTag from '../components/PhaseTag.vue'
 
 const { t } = useI18n()

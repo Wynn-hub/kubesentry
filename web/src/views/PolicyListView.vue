@@ -1,5 +1,11 @@
 <!-- web/src/views/PolicyListView.vue -->
 <template>
+  <PageHeader :title="$t('policy.title')" :subtitle="$t('policy.subtitle')">
+    <el-button type="primary" @click="$router.push('/policies/new')">
+      {{ $t('common.create') }}
+    </el-button>
+  </PageHeader>
+
   <div class="list-toolbar">
     <el-select
       v-model="filters.source"
@@ -34,9 +40,6 @@
       <el-option :label="$t('policy.audit')" value="audit" />
     </el-select>
     <el-input v-model="filters.keyword" :placeholder="$t('common.search')" style="width: 200px" clearable />
-    <el-button type="primary" class="toolbar-create" @click="$router.push('/policies/new')">
-      {{ $t('common.create') }}
-    </el-button>
   </div>
 
   <el-table :data="items" v-loading="loading">
@@ -93,6 +96,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ApiError } from '../api/http'
 import { deletePolicy, listPolicies, type PolicyListItem } from '../api/policy'
+import PageHeader from '../components/PageHeader.vue'
 import ModeTag from '../components/ModeTag.vue'
 import PhaseTag from '../components/PhaseTag.vue'
 
@@ -182,9 +186,5 @@ onMounted(load)
 
 .list-toolbar > * {
   flex-shrink: 0;
-}
-
-.toolbar-create {
-  margin-left: auto;
 }
 </style>
