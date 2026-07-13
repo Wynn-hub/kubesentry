@@ -4,8 +4,11 @@ import (
 	"context"
 	"crypto/subtle"
 	"fmt"
+	"io"
+	"strings"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -22,10 +25,11 @@ type Server struct {
 	hubpb.UnimplementedHubServer
 	client    client.Client
 	namespace string
+	hb        *HeartbeatTracker
 }
 
-func NewServer(c client.Client, namespace string) *Server {
-	return &Server{client: c, namespace: namespace}
+func NewServer(c client.Client, namespace string, hb *HeartbeatTracker) *Server {
+	return &Server{client: c, namespace: namespace, hb: hb}
 }
 
 func (s *Server) Register(ctx context.Context, req *hubpb.RegisterRequest) (*hubpb.RegisterResponse, error) {
@@ -137,4 +141,44 @@ func (s *Server) validateSyncAuth(ctx context.Context, clusterName, token string
 		return fmt.Errorf("invalid cluster token")
 	}
 	return nil
+}
+
+// Sync handles the long-lived member stream: auth from metadata once,
+// then heartbeat/status messages, each answered with an Ack.
+func (s *Server) Sync(stream hubpb.Hub_SyncServer) error {
+	md, _ := metadata.FromIncomingContext(stream.Context())
+	cluster := firstMD(md, "x-kubesentry-cluster")
+	token := strings.TrimPrefix(firstMD(md, "authorization"), "Bearer ")
+	if cluster == "" || token == "" {
+		return status.Error(codes.Unauthenticated, "missing cluster identity metadata")
+	}
+	if err := s.validateSyncAuth(stream.Context(), cluster, token); err != nil {
+		return status.Error(codes.Unauthenticated, err.Error())
+	}
+
+	for {
+		msg, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch m := msg.Msg.(type) {
+		case *hubpb.MemberMessage_Heartbeat:
+			s.hb.MarkAlive(cluster, m.Heartbeat.OperatorVersion)
+		case *hubpb.MemberMessage_StatusReport:
+			// SP2 落地到 Cluster.status；SP1 仅确认收到。
+		}
+		if err := stream.Send(&hubpb.HubMessage{Msg: &hubpb.HubMessage_Ack{Ack: &hubpb.Ack{}}}); err != nil {
+			return err
+		}
+	}
+}
+
+func firstMD(md metadata.MD, key string) string {
+	if vs := md.Get(key); len(vs) > 0 {
+		return vs[0]
+	}
+	return ""
 }

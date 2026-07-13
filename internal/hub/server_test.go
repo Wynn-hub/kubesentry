@@ -29,7 +29,7 @@ func regTokenSecret(cluster, token string) *corev1.Secret {
 
 func doRegister(t *testing.T, c client.Client, req *hubpb.RegisterRequest) (*hubpb.RegisterResponse, error) {
 	t.Helper()
-	s := NewServer(c, hubNS) // Task 6 会给 NewServer 增加第三参数并同步更新此处
+	s := NewServer(c, hubNS, nil)
 	return s.Register(context.Background(), req)
 }
 
