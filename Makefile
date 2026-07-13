@@ -84,6 +84,15 @@ build-linux: web-build
 	  || exit 1; \
 	done
 
+# ── Protobuf codegen ──────────────────────────────────────────────────────────
+# Generated files are COMMITTED; day-to-day builds never need protoc.
+# Requires: protoc, protoc-gen-go, protoc-gen-go-grpc on PATH.
+proto:
+	protoc \
+	  --go_out=. --go_opt=module=github.com/Wynn-hub/kubesentry \
+	  --go-grpc_out=. --go-grpc_opt=module=github.com/Wynn-hub/kubesentry \
+	  api/proto/hub/v1/hub.proto
+
 # ── Test & Lint ───────────────────────────────────────────────────────────────
 # Quick run for local development — no report files produced.
 test:
