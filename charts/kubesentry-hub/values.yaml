@@ -1,0 +1,19 @@
+namespace: kubesentry-hub-system
+
+hub:
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-hub
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  grpc:
+    port: 9443
+    # 对成员集群暴露方式：ClusterIP（同集群自注册）/ NodePort / LoadBalancer
+    serviceType: ClusterIP
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+tls:
+  secretName: kubesentry-hub-tls

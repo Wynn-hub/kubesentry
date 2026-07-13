@@ -1,0 +1,6 @@
+apiVersion: v2
+name: kubesentry-hub
+description: KubeSentry hub — multi-cluster control plane (cluster registry + policy distribution)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

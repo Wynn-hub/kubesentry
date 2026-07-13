@@ -21,6 +21,9 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: [leases]
     verbs: [get, create, update]
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [get]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -32,6 +35,14 @@ rules:
     resources: [secrets]
     resourceNames: [{{ .Values.tls.secretName }}]
     verbs: [get]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [kubesentry-hub-register]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [kubesentry-hub-auth]
+    verbs: [get, create, update]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

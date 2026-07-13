@@ -1,0 +1,19 @@
+{{- if .Values.hub.address }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubesentry-hub-ca
+  namespace: {{ .Values.namespace }}
+data:
+  ca.crt: {{ .Values.hub.caBundle }}
+{{- if .Values.hub.registrationToken }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubesentry-hub-register
+  namespace: {{ .Values.namespace }}
+stringData:
+  token: {{ .Values.hub.registrationToken | quote }}
+{{- end }}
+{{- end }}

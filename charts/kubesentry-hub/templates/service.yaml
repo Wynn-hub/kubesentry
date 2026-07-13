@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubesentry-hub
+  namespace: {{ .Values.namespace }}
+spec:
+  type: {{ .Values.hub.grpc.serviceType }}
+  selector: { app: kubesentry-hub }
+  ports:
+    - name: grpc
+      port: {{ .Values.hub.grpc.port }}
+      targetPort: grpc

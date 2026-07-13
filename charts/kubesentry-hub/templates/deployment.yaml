@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubesentry-hub
+  namespace: {{ .Values.namespace }}
+  labels: { app: kubesentry-hub }
+spec:
+  replicas: {{ .Values.hub.replicas }}
+  selector:
+    matchLabels: { app: kubesentry-hub }
+  template:
+    metadata:
+      labels: { app: kubesentry-hub }
+    spec:
+      serviceAccountName: kubesentry-hub
+      containers:
+        - name: hub
+          image: "{{ .Values.hub.image.repository }}:{{ .Values.hub.image.tag }}"
+          imagePullPolicy: {{ .Values.hub.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.hub.grpc.port }}
+              name: grpc
+          env:
+            - name: NAMESPACE
+              value: {{ .Values.namespace }}
+            - name: GRPC_ADDR
+              value: ":{{ .Values.hub.grpc.port }}"
+            - name: TLS_SECRET_NAME
+              value: {{ .Values.tls.secretName }}
+            - name: TLS_DNS_NAME
+              value: "kubesentry-hub.{{ .Values.namespace }}.svc"
+          resources:
+{{ toYaml .Values.hub.resources | indent 12 }}
