@@ -59,6 +59,7 @@ build:
 	go build -trimpath -o bin/webhook  ./cmd/webhook
 	go build -trimpath -o bin/operator ./cmd/operator
 	go build -trimpath -o bin/console  ./cmd/console
+	go build -trimpath -o bin/hub      ./cmd/hub
 
 # ── Step 2: Cross-compile inside a Docker container ──────────────────────────
 # Produces: bin/linux-amd64/{webhook,operator}  bin/linux-arm64/{webhook,operator}
@@ -80,7 +81,8 @@ build-linux: web-build
 	    $(GO_IMAGE) \
 	    sh -c 'go build -trimpath -o bin/linux-'"$$arch"'/webhook ./cmd/webhook && \
 	           go build -trimpath -o bin/linux-'"$$arch"'/operator ./cmd/operator && \
-	           go build -trimpath -o bin/linux-'"$$arch"'/console ./cmd/console' \
+	           go build -trimpath -o bin/linux-'"$$arch"'/console ./cmd/console && \
+	           go build -trimpath -o bin/linux-'"$$arch"'/hub ./cmd/hub' \
 	  || exit 1; \
 	done
 
@@ -171,12 +173,14 @@ LOCAL_NAMESPACE  ?= kubesentry-system
 LOCAL_WEBHOOK_IMAGE  = $(REGISTRY)/kubesentry-webhook:$(LOCAL_TAG)
 LOCAL_OPERATOR_IMAGE = $(REGISTRY)/kubesentry-operator:$(LOCAL_TAG)
 LOCAL_CONSOLE_IMAGE  = $(REGISTRY)/kubesentry-console:$(LOCAL_TAG)
+LOCAL_HUB_IMAGE      = $(REGISTRY)/kubesentry-hub:$(LOCAL_TAG)
 
 # Build single-arch images (host arch only) for local k8s — faster than buildx.
 build-image-local: build-linux
 	docker build -f Dockerfile.webhook  -t $(LOCAL_WEBHOOK_IMAGE)  .
 	docker build -f Dockerfile.operator -t $(LOCAL_OPERATOR_IMAGE) .
 	docker build -f Dockerfile.console  -t $(LOCAL_CONSOLE_IMAGE)  .
+	docker build -f Dockerfile.hub      -t $(LOCAL_HUB_IMAGE)      .
 
 # Build images + helm install/upgrade in one shot.
 deploy-local: build-image-local
