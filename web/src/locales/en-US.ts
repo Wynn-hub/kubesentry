@@ -52,7 +52,7 @@ export default {
   },
   overview: {
     policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions',
-    byPhase: 'By Phase', byMode: 'By Mode', attention: 'Needs Attention',
+    attention: 'Needs Attention',
     noIssues: 'All objects healthy',
     title: 'Platform Overview', subtitle: 'Global status of the policy protection system',
     cluster: 'Clusters', nsCoverage: 'Protected Namespaces', readyOfTotal: '{ready}/{total} ready',
@@ -62,7 +62,6 @@ export default {
     enforceN: 'enforce ×{n}', auditN: 'audit ×{n}', coverNs: 'covers {n} namespaces',
     recentChanges: 'Recent Policy Changes', noChanges: 'No version records', versionTag: 'v{n}',
     eventsTrend: 'Admission Event Trend', eventsSoon: 'Event persistence & trends arrive with alerting (roadmap Phase 2)',
-    invalidPolicies: 'Invalid policies', degradedGroups: 'Degraded groups',
   },
   ruleBuilder: {
     buildMode: 'Build Mode',

@@ -52,7 +52,7 @@ export default {
   },
   overview: {
     policies: '策略', groups: '策略组', exceptions: '豁免',
-    byPhase: '按状态分布', byMode: '按模式分布', attention: '需要关注',
+    attention: '需要关注',
     noIssues: '所有对象状态正常',
     title: '平台概览', subtitle: '策略防护体系的全局状态',
     cluster: '集群', nsCoverage: '防护命名空间', readyOfTotal: '{ready}/{total} 就绪',
@@ -62,7 +62,6 @@ export default {
     enforceN: '阻断 ×{n}', auditN: '审计 ×{n}', coverNs: '覆盖 {n} 个命名空间',
     recentChanges: '最近策略变更', noChanges: '暂无版本记录', versionTag: 'v{n}',
     eventsTrend: '准入事件趋势', eventsSoon: '事件落盘与趋势图随告警能力上线（路线图阶段 2）',
-    invalidPolicies: 'Invalid 策略', degradedGroups: 'Degraded 策略组',
   },
   ruleBuilder: {
     buildMode: '配置方式',

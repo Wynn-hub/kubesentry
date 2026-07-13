@@ -105,7 +105,7 @@
       <el-card class="events-soon">
         <template #header>{{ $t('overview.eventsTrend') }}</template>
         <div class="events-soon-body">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M4 17l4-8 4 5 3-3 5 6" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M3 21h18" stroke-linecap="round" />
           </svg>
