@@ -10,6 +10,12 @@ rules:
   - apiGroups: [kubesentry.io]
     resources: [policyversions]
     verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [get, list, watch]
+  - apiGroups: [admissionregistration.k8s.io]
+    resources: [validatingwebhookconfigurations]
+    verbs: [get, list, watch]
   - nonResourceURLs: ["/openapi/v3", "/openapi/v3/*"]
     verbs: [get]
 ---

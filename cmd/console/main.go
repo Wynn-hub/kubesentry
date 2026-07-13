@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
+	admissionregv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
@@ -35,6 +37,14 @@ func main() {
 	scheme := runtime.NewScheme()
 	if err := v1alpha1.AddToScheme(scheme); err != nil {
 		slog.Error("add scheme", "error", err)
+		os.Exit(1)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		slog.Error("add corev1 scheme", "error", err)
+		os.Exit(1)
+	}
+	if err := admissionregv1.AddToScheme(scheme); err != nil {
+		slog.Error("add admissionregv1 scheme", "error", err)
 		os.Exit(1)
 	}
 
@@ -78,7 +88,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	h := &console.Handlers{Client: cl.GetClient(), Discovery: disc}
+	h := &console.Handlers{Client: cl.GetClient(), Discovery: disc, VWCName: os.Getenv("VWC_NAME")}
 	srv := console.NewServer(h, dist, ready)
 
 	slog.Info("console listening", "addr", addr)
