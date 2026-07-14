@@ -156,6 +156,64 @@ func TestRenderDeterministicHash(t *testing.T) {
 	}
 }
 
+func TestRenderDisabledGroupContributesNoMembers(t *testing.T) {
+	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	g := rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})
+	g.Spec.Enabled = false
+	res := Render(cl,
+		[]v1alpha1.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
+		[]v1alpha1.PolicyGroup{g},
+		[]v1alpha1.Policy{rPolicy("p1", v1alpha1.ModeAudit)})
+	if res.Errors["d1"] != "" {
+		t.Fatalf("disabled group must not be an error: %v", res.Errors)
+	}
+	for _, o := range res.Objects {
+		if o.Name == "g1" || o.Name == "p1" {
+			t.Fatalf("disabled group must contribute nothing: %+v", res.Objects)
+		}
+	}
+	if len(res.Objects) != 0 {
+		t.Fatalf("expected empty snapshot: %+v", res.Objects)
+	}
+}
+
+func TestDistMatchesMalformedSelectorRecordsErrorButStaysMatched(t *testing.T) {
+	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	d := rDist("bad-selector", nil, []string{"g1"})
+	d.Spec.Clusters.ClusterSelector = &metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "k", Operator: "Bogus"}},
+	}
+	res := Render(cl,
+		[]v1alpha1.PolicyDistribution{d},
+		[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})},
+		[]v1alpha1.Policy{rPolicy("p1", v1alpha1.ModeAudit)})
+	if res.Errors["bad-selector"] == "" {
+		t.Fatal("expected error for malformed clusterSelector")
+	}
+	found := false
+	for _, m := range res.Matched {
+		if m == "bad-selector" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("errored distribution must still appear in Matched: %+v", res.Matched)
+	}
+}
+
+func TestRenderHashChangesWithContent(t *testing.T) {
+	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	base := func(mode string) RenderResult {
+		return Render(cl,
+			[]v1alpha1.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
+			[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})},
+			[]v1alpha1.Policy{rPolicy("p1", mode)})
+	}
+	if base(v1alpha1.ModeAudit).Hash == base(v1alpha1.ModeEnforce).Hash {
+		t.Fatal("hash did not change when EnforcementMode changed")
+	}
+}
+
 func TestRenderSkipsDeletingDistribution(t *testing.T) {
 	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
 	d := rDist("d1", []string{"c1"}, []string{"g1"})

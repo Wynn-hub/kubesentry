@@ -63,6 +63,11 @@ func Render(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, grou
 		}
 		matched, matchErr := distMatches(d, cluster)
 		if matchErr != "" {
+			// Intentionally included in Matched despite the error: Task 6's
+			// status reconciliation iterates Matched to decide per-cluster
+			// status (Error/Pending/removed), and an errored-but-targeting
+			// distribution must get an Error entry, not be silently dropped
+			// as "not targeting this cluster".
 			res.Matched = append(res.Matched, d.Name)
 			res.Errors[d.Name] = matchErr
 			continue
@@ -84,6 +89,11 @@ func Render(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, grou
 			g, ok := groupByName[gname]
 			if !ok {
 				errs = append(errs, fmt.Sprintf("policygroup %q not found", gname))
+				continue
+			}
+			if !g.Spec.Enabled {
+				// Matches PolicyGroupReconciler: a disabled group resolves to
+				// zero members, not an error — deliberate admin no-op.
 				continue
 			}
 			members, _ := groupresolve.Resolve(g.Spec, policies)
