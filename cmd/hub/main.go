@@ -4,15 +4,16 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
@@ -27,6 +29,8 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/hubpb"
 	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
+
+var errGRPCNotReady = errors.New("grpc listener not yet serving")
 
 func main() {
 	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseDevMode(true)))
@@ -47,11 +51,16 @@ func main() {
 		Client: client.Options{
 			Cache: &client.CacheOptions{DisableFor: []client.Object{&corev1.Secret{}}},
 		},
-		LeaderElection:   true,
-		LeaderElectionID: "kubesentry-hub-leader",
+		LeaderElection:         true,
+		LeaderElectionID:       "kubesentry-hub-leader",
+		HealthProbeBindAddress: envOrDefault("HEALTH_PROBE_ADDR", ":8081"),
 	})
 	if err != nil {
 		slog.Error("create manager", "error", err)
+		os.Exit(1)
+	}
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		slog.Error("add healthz check", "error", err)
 		os.Exit(1)
 	}
 
@@ -71,12 +80,22 @@ func main() {
 		slog.Error("ensure tls", "error", err)
 		os.Exit(1)
 	}
-	if err := mgr.Add(&grpcRunnable{
+	grpcRun := &grpcRunnable{
 		addr:   grpcAddr,
 		cert:   cert,
 		server: hub.NewServer(mgr.GetClient(), namespace, tracker),
-	}); err != nil {
+	}
+	if err := mgr.Add(grpcRun); err != nil {
 		slog.Error("add grpc runnable", "error", err)
+		os.Exit(1)
+	}
+	if err := mgr.AddReadyzCheck("readyz", func(_ *http.Request) error {
+		if !grpcRun.ready.Load() {
+			return errGRPCNotReady
+		}
+		return nil
+	}); err != nil {
+		slog.Error("add readyz check", "error", err)
 		os.Exit(1)
 	}
 
@@ -87,12 +106,28 @@ func main() {
 	}
 }
 
-// grpcRunnable serves gRPC under the manager's lifecycle.
+// grpcRunnable serves gRPC under the manager's lifecycle. It must run on
+// every replica regardless of leader status — like a webhook/health server,
+// member clusters need an answer from whichever pod they reach. Without
+// NeedLeaderElection()==false, controller-runtime's default treats a plain
+// Runnable as leader-gated: on a single-replica rolling update, the new pod
+// can't become ready (gRPC never starts) until it's leader, and it can't
+// become leader until the old pod (still serving, still Ready) releases the
+// lease — a deadlock the Deployment can never resolve on its own. Only the
+// stateful writers (ClusterReconciler, StatusFlusher) should stay leader-only.
+//
+// Liveness/readiness are checked over the manager's plain HTTP health probe
+// port (see mgr.AddReadyzCheck below), not the grpc_health_v1 protocol —
+// Kubernetes' native `grpc` probe type only ever dials in plaintext, so it
+// can never complete a handshake against this TLS-only listener.
 type grpcRunnable struct {
 	addr   string
 	cert   tls.Certificate
 	server *hub.Server
+	ready  atomic.Bool
 }
+
+func (g *grpcRunnable) NeedLeaderElection() bool { return false }
 
 func (g *grpcRunnable) Start(ctx context.Context) error {
 	lis, err := net.Listen("tcp", g.addr)
@@ -103,15 +138,13 @@ func (g *grpcRunnable) Start(ctx context.Context) error {
 		Certificates: []tls.Certificate{g.cert},
 		MinVersion:   tls.VersionTLS12,
 	})))
-	healthSrv := health.NewServer()
-	healthpb.RegisterHealthServer(gs, healthSrv)
 	hubpb.RegisterHubServer(gs, g.server)
 	go func() {
 		<-ctx.Done()
-		healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
+		g.ready.Store(false)
 		gs.GracefulStop()
 	}()
-	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+	g.ready.Store(true)
 	return gs.Serve(lis)
 }
 

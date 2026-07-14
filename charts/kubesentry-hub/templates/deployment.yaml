@@ -20,6 +20,8 @@ spec:
           ports:
             - containerPort: {{ .Values.hub.grpc.port }}
               name: grpc
+            - containerPort: 8081
+              name: probe
           env:
             - name: NAMESPACE
               value: {{ .Values.namespace }}
@@ -29,14 +31,19 @@ spec:
               value: {{ .Values.tls.secretName }}
             - name: TLS_DNS_NAME
               value: "kubesentry-hub.{{ .Values.namespace }}.svc"
+          # Plain HTTP, not the grpc probe type: the gRPC listener is
+          # TLS-only, and Kubernetes' native `grpc` probe always dials in
+          # plaintext, so it can never complete a handshake against it.
           livenessProbe:
-            grpc:
-              port: {{ .Values.hub.grpc.port }}
+            httpGet:
+              path: /healthz
+              port: probe
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
-            grpc:
-              port: {{ .Values.hub.grpc.port }}
+            httpGet:
+              path: /readyz
+              port: probe
             initialDelaySeconds: 5
             periodSeconds: 5
           resources:
