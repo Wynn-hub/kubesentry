@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,6 +106,7 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		"authorization", "Bearer "+token)
 	stream, err := hc.Sync(streamCtx)
 	if err != nil {
+		l.clearCredentialIfUnauthenticated(ctx, err)
 		return false, fmt.Errorf("open sync stream: %w", err)
 	}
 	slog.Info("hub link established", "hub", l.cfg.HubAddress, "cluster", l.cfg.ClusterName)
@@ -114,9 +117,15 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		if err := stream.Send(&hubpb.MemberMessage{Msg: &hubpb.MemberMessage_Heartbeat{
 			Heartbeat: &hubpb.Heartbeat{OperatorVersion: l.cfg.OperatorVersion},
 		}}); err != nil {
+			l.clearCredentialIfUnauthenticated(ctx, err)
 			return true, fmt.Errorf("send heartbeat: %w", err)
 		}
+		// Server-side Sync validates auth before entering its recv loop and
+		// returns codes.Unauthenticated immediately on a stale/rotated
+		// token — that rejection surfaces here, on the first Recv after a
+		// successful Send, not from Sync() or Send() themselves.
 		if _, err := stream.Recv(); err != nil {
+			l.clearCredentialIfUnauthenticated(ctx, err)
 			return true, fmt.Errorf("recv ack: %w", err)
 		}
 		select {
@@ -191,6 +200,36 @@ func (l *Link) ensureRegistered(ctx context.Context, hc hubpb.HubClient) (string
 	}
 	slog.Info("registered with hub", "cluster", l.cfg.ClusterName)
 	return resp.ClusterToken, nil
+}
+
+// clearCredentialIfUnauthenticated deletes the stored hub-auth Secret when
+// err is a definitive codes.Unauthenticated rejection from the hub — meaning
+// the token itself was rejected (e.g. an admin rotated it via the documented
+// re-registration recovery: delete the hub-side auth Secret). Clearing it
+// lets the next retry's ensureRegistered fall through to the registration
+// flow instead of looping forever presenting the same dead token. Other
+// error types (network errors, context cancellation, etc.) don't imply an
+// invalid token and are left untouched.
+func (l *Link) clearCredentialIfUnauthenticated(ctx context.Context, err error) {
+	if status.Code(err) != codes.Unauthenticated {
+		return
+	}
+	if clearErr := l.clearStoredCredential(ctx); clearErr != nil {
+		slog.Warn("failed to clear stale hub credential after unauthenticated rejection", "error", clearErr)
+	}
+}
+
+// clearStoredCredential deletes the member-side auth Secret; already-gone is
+// treated as success.
+func (l *Link) clearStoredCredential(ctx context.Context) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Namespace: l.cfg.Namespace, Name: authSecretName},
+	}
+	if err := l.cfg.Client.Delete(ctx, secret); err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("delete stale auth secret: %w", err)
+	}
+	slog.Info("cleared stale hub credential; will re-register on next retry", "cluster", l.cfg.ClusterName)
+	return nil
 }
 
 // clusterUID is the kube-system namespace UID — the stable machine

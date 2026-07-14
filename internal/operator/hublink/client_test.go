@@ -205,6 +205,76 @@ func TestRunOnceConnectedReporting(t *testing.T) {
 	}
 }
 
+// TestLinkSelfHealsAfterTokenRotation reproduces the documented admin
+// recovery procedure: the member holds a stale kubesentry-hub-auth token the
+// hub no longer recognizes (simulating the hub-side auth Secret having been
+// deleted), while a fresh registration token has already been issued on both
+// sides (simulating ClusterReconciler's half of the recovery). The stale
+// token must get the member's Sync stream rejected as Unauthenticated,
+// which should clear the local stored credential and let the next retry
+// re-register with the fresh token — no manual intervention on the member.
+func TestLinkSelfHealsAfterTokenRotation(t *testing.T) {
+	dial, hubClient, tracker := startHub(t,
+		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: hubNS, Name: hub.RegTokenSecretName("prod"),
+				Labels: map[string]string{"kubesentry.io/cluster": "prod"},
+			},
+			Data: map[string][]byte{hub.KeyToken: []byte("fresh-reg-tok")},
+		},
+		// Deliberately no hub-side kubesentry-hub-auth-prod Secret: the
+		// member's stored token below is orphaned/unrecognized by the hub.
+	)
+
+	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
+	kubeSystem.UID = "uid-1"
+	member := fake.NewClientBuilder().WithScheme(buildScheme(t)).WithObjects(
+		kubeSystem,
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: memberNS, Name: "kubesentry-hub-auth"},
+			Data:       map[string][]byte{"clusterToken": []byte("stale-orphaned-token")},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: memberNS, Name: "kubesentry-hub-register"},
+			Data:       map[string][]byte{"token": []byte("fresh-reg-tok")},
+		},
+	).Build()
+
+	l := New(Config{
+		HubAddress: "bufnet", ClusterName: "prod", Namespace: memberNS,
+		OperatorVersion: "v-heal", Reader: member, Client: member,
+		HeartbeatEvery: 50 * time.Millisecond, DialOverride: dial,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = l.Start(ctx) }()
+
+	// Self-healing: the stale token gets cleared and replaced with a
+	// freshly issued one (never equal to the orphaned token).
+	waitFor(t, 5*time.Second, func() bool {
+		var sec corev1.Secret
+		if err := member.Get(ctx, types.NamespacedName{Namespace: memberNS, Name: "kubesentry-hub-auth"}, &sec); err != nil {
+			return false
+		}
+		tok := string(sec.Data["clusterToken"])
+		return tok != "" && tok != "stale-orphaned-token" && len(tok) == 64
+	}, "stale token was never cleared/replaced")
+
+	// Re-registration completed on the hub side too.
+	waitFor(t, 5*time.Second, func() bool {
+		var cl v1alpha1.Cluster
+		_ = hubClient.Get(ctx, types.NamespacedName{Name: "prod"}, &cl)
+		return cl.Status.ClusterUID == "uid-1"
+	}, "hub did not record cluster uid after re-registration")
+
+	// Heartbeats flow again using the new token.
+	waitFor(t, 5*time.Second, func() bool {
+		info, ok := tracker.Snapshot()["prod"]
+		return ok && info.OperatorVersion == "v-heal"
+	}, "heartbeat never resumed after self-healing re-registration")
+}
+
 func waitFor(t *testing.T, timeout time.Duration, cond func() bool, msg string) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)

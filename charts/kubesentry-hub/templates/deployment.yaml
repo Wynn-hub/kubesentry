@@ -29,5 +29,15 @@ spec:
               value: {{ .Values.tls.secretName }}
             - name: TLS_DNS_NAME
               value: "kubesentry-hub.{{ .Values.namespace }}.svc"
+          livenessProbe:
+            grpc:
+              port: {{ .Values.hub.grpc.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            grpc:
+              port: {{ .Values.hub.grpc.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
           resources:
 {{ toYaml .Values.hub.resources | indent 12 }}

@@ -11,6 +11,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -101,11 +103,15 @@ func (g *grpcRunnable) Start(ctx context.Context) error {
 		Certificates: []tls.Certificate{g.cert},
 		MinVersion:   tls.VersionTLS12,
 	})))
+	healthSrv := health.NewServer()
+	healthpb.RegisterHealthServer(gs, healthSrv)
 	hubpb.RegisterHubServer(gs, g.server)
 	go func() {
 		<-ctx.Done()
+		healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
 		gs.GracefulStop()
 	}()
+	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	return gs.Serve(lis)
 }
 
