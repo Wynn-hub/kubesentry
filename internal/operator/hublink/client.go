@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -112,27 +113,92 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 	}
 	slog.Info("hub link established", "hub", l.cfg.HubAddress, "cluster", l.cfg.ClusterName)
 
-	ticker := time.NewTicker(l.cfg.HeartbeatEvery)
-	defer ticker.Stop()
+	var sendMu sync.Mutex
+	send := func(m *hubpb.MemberMessage) error {
+		sendMu.Lock()
+		defer sendMu.Unlock()
+		return stream.Send(m)
+	}
+
+	var appliedMu sync.Mutex
+	lastApplied := ""
+	getApplied := func() string { appliedMu.Lock(); defer appliedMu.Unlock(); return lastApplied }
+	setApplied := func(h string) { appliedMu.Lock(); defer appliedMu.Unlock(); lastApplied = h }
+
+	statusReport := func(appliedVersion, applyErr string) *hubpb.MemberMessage {
+		ready, invalid, err := policyCounts(ctx, l.cfg.Client)
+		if err != nil {
+			slog.Warn("count policies for status report", "error", err)
+		}
+		return &hubpb.MemberMessage{Msg: &hubpb.MemberMessage_StatusReport{StatusReport: &hubpb.StatusReport{
+			ReadyPolicies:   ready,
+			InvalidPolicies: invalid,
+			AppliedVersion:  appliedVersion,
+			ApplyError:      applyErr,
+		}}}
+	}
+
+	// Heartbeats on their own goroutine; every 4th tick doubles as a
+	// periodic StatusReport so policy counts stay fresh after async
+	// compilation settles. Send errors surface on the main Recv below.
+	hbCtx, cancelHB := context.WithCancel(ctx)
+	defer cancelHB()
+	go func() {
+		ticker := time.NewTicker(l.cfg.HeartbeatEvery)
+		defer ticker.Stop()
+		const statusEvery = 4
+		for tick := 0; ; tick++ {
+			if err := send(&hubpb.MemberMessage{Msg: &hubpb.MemberMessage_Heartbeat{
+				Heartbeat: &hubpb.Heartbeat{OperatorVersion: l.cfg.OperatorVersion},
+			}}); err != nil {
+				return
+			}
+			if tick%statusEvery == statusEvery-1 {
+				if err := send(statusReport(getApplied(), "")); err != nil {
+					return
+				}
+			}
+			select {
+			case <-hbCtx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+
+	// Server-side Sync validates auth before entering its recv loop and
+	// returns codes.Unauthenticated immediately on a stale/rotated token —
+	// that rejection surfaces here, on the first Recv, not from Sync()
+	// itself.
 	for {
-		if err := stream.Send(&hubpb.MemberMessage{Msg: &hubpb.MemberMessage_Heartbeat{
-			Heartbeat: &hubpb.Heartbeat{OperatorVersion: l.cfg.OperatorVersion},
-		}}); err != nil {
+		msg, err := stream.Recv()
+		if err != nil {
 			l.clearCredentialIfUnauthenticated(ctx, err)
-			return true, fmt.Errorf("send heartbeat: %w", err)
+			if ctx.Err() != nil {
+				return true, nil
+			}
+			return true, fmt.Errorf("recv: %w", err)
 		}
-		// Server-side Sync validates auth before entering its recv loop and
-		// returns codes.Unauthenticated immediately on a stale/rotated
-		// token — that rejection surfaces here, on the first Recv after a
-		// successful Send, not from Sync() or Send() themselves.
-		if _, err := stream.Recv(); err != nil {
-			l.clearCredentialIfUnauthenticated(ctx, err)
-			return true, fmt.Errorf("recv ack: %w", err)
-		}
-		select {
-		case <-ctx.Done():
-			return true, nil
-		case <-ticker.C:
+		switch m := msg.Msg.(type) {
+		case *hubpb.HubMessage_Ack:
+			// heartbeat/status-report acknowledged; nothing to do
+		case *hubpb.HubMessage_DesiredState:
+			ds := m.DesiredState
+			if ds.VersionHash == getApplied() {
+				continue // idempotent re-push
+			}
+			applyErr := applyDesiredState(ctx, l.cfg.Client, ds)
+			applyMsg := ""
+			if applyErr != nil {
+				applyMsg = applyErr.Error()
+				slog.Warn("apply desired state", "hash", ds.VersionHash, "error", applyErr)
+			} else {
+				setApplied(ds.VersionHash)
+				slog.Info("applied desired state", "hash", ds.VersionHash, "objects", len(ds.Objects))
+			}
+			if err := send(statusReport(ds.VersionHash, applyMsg)); err != nil {
+				return true, fmt.Errorf("send status report: %w", err)
+			}
 		}
 	}
 }

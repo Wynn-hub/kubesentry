@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,7 +43,7 @@ func buildScheme(t *testing.T) *runtime.Scheme {
 func startHub(t *testing.T, objs ...client.Object) (func(ctx context.Context) (*grpc.ClientConn, error), client.Client, *hub.HeartbeatTracker) {
 	t.Helper()
 	hc := fake.NewClientBuilder().WithScheme(buildScheme(t)).
-		WithStatusSubresource(&v1alpha1.Cluster{}).WithObjects(objs...).Build()
+		WithStatusSubresource(&v1alpha1.Cluster{}, &v1alpha1.PolicyDistribution{}).WithObjects(objs...).Build()
 	tracker := hub.NewHeartbeatTracker()
 	lis := bufconn.Listen(1024 * 1024)
 	gs := grpc.NewServer()
@@ -273,6 +274,100 @@ func TestLinkSelfHealsAfterTokenRotation(t *testing.T) {
 		info, ok := tracker.Snapshot()["prod"]
 		return ok && info.OperatorVersion == "v-heal"
 	}, "heartbeat never resumed after self-healing re-registration")
+}
+
+// TestLinkAppliesSnapshotAndReportsBack drives the real hub.Server (bufconn)
+// against a member Link end to end: the hub renders a snapshot from a
+// PolicyDistribution targeting this cluster, the member applies it (creating
+// the managed Policy/PolicyGroup and pruning a pre-existing managed orphan),
+// and reports back — which the hub folds into the distribution's per-cluster
+// status.
+func TestLinkAppliesSnapshotAndReportsBack(t *testing.T) {
+	const clusterName = "prod"
+	dial, hubClient, _ := startHub(t,
+		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: clusterName}},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: hubNS, Name: hub.AuthSecretName(clusterName)},
+			Data: map[string][]byte{
+				hub.KeyTokenHash:  []byte(hub.HashToken("tok")),
+				hub.KeyClusterUID: []byte("uid-1"),
+			},
+		},
+		&v1alpha1.Policy{
+			ObjectMeta: metav1.ObjectMeta{Name: "p1"},
+			Spec: v1alpha1.PolicySpec{
+				EnforcementMode: v1alpha1.ModeAudit,
+				Rego:            "package kubesentry\ndeny[msg]{false;msg:=\"x\"}",
+			},
+		},
+		&v1alpha1.PolicyGroup{
+			ObjectMeta: metav1.ObjectMeta{Name: "g1"},
+			Spec: v1alpha1.PolicyGroupSpec{
+				Enabled:  true,
+				Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: "p1"}}},
+			},
+		},
+		&v1alpha1.PolicyDistribution{
+			ObjectMeta: metav1.ObjectMeta{Name: "d1"},
+			Spec: v1alpha1.PolicyDistributionSpec{
+				Clusters:     v1alpha1.DistributionClusters{ByName: []string{clusterName}},
+				PolicyGroups: []string{"g1"},
+			},
+		},
+	)
+
+	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
+	kubeSystem.UID = "uid-1"
+	orphan := &v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{
+		Name:   "orphan",
+		Labels: map[string]string{v1alpha1.ManagedByLabel: v1alpha1.ManagedByPlatform},
+	}}
+	member := fake.NewClientBuilder().WithScheme(buildScheme(t)).WithObjects(
+		kubeSystem,
+		orphan,
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: memberNS, Name: "kubesentry-hub-auth"},
+			Data:       map[string][]byte{"clusterToken": []byte("tok")},
+		},
+	).Build()
+
+	l := New(Config{
+		HubAddress: "bufnet", ClusterName: clusterName, Namespace: memberNS,
+		OperatorVersion: "v-apply", Reader: member, Client: member,
+		HeartbeatEvery: 50 * time.Millisecond, DialOverride: dial,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = l.Start(ctx) }()
+
+	// Snapshot applied on the member: managed Policy p1 materialized.
+	waitFor(t, 5*time.Second, func() bool {
+		var p v1alpha1.Policy
+		if err := member.Get(ctx, types.NamespacedName{Name: "p1"}, &p); err != nil {
+			return false
+		}
+		return p.Labels[v1alpha1.ManagedByLabel] == v1alpha1.ManagedByPlatform
+	}, "member never applied Policy p1")
+
+	// Pre-existing managed orphan pruned since it's absent from the snapshot.
+	waitFor(t, 5*time.Second, func() bool {
+		var p v1alpha1.Policy
+		return apierrors.IsNotFound(member.Get(ctx, types.NamespacedName{Name: "orphan"}, &p))
+	}, "orphan managed policy not pruned on member")
+
+	// Member's StatusReport flows back into the hub's distribution status.
+	waitFor(t, 5*time.Second, func() bool {
+		var d v1alpha1.PolicyDistribution
+		if err := hubClient.Get(ctx, types.NamespacedName{Name: "d1"}, &d); err != nil {
+			return false
+		}
+		for _, e := range d.Status.Clusters {
+			if e.Name == clusterName && e.State == v1alpha1.DistributionSynced {
+				return true
+			}
+		}
+		return false
+	}, "hub distribution status never reached Synced")
 }
 
 func waitFor(t *testing.T, timeout time.Duration, cond func() bool, msg string) {
