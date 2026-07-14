@@ -19,7 +19,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -75,6 +77,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	notifier := hub.NewNotifier()
+	if err := mgr.Add(&changefeed{cache: mgr.GetCache(), notifier: notifier}); err != nil {
+		slog.Error("add changefeed", "error", err)
+		os.Exit(1)
+	}
+
 	cert, err := ensureTLS(namespace, tlsSecret, tlsDNS)
 	if err != nil {
 		slog.Error("ensure tls", "error", err)
@@ -83,7 +91,7 @@ func main() {
 	grpcRun := &grpcRunnable{
 		addr:   grpcAddr,
 		cert:   cert,
-		server: hub.NewServer(mgr.GetClient(), namespace, tracker),
+		server: hub.NewServer(mgr.GetClient(), namespace, tracker, notifier),
 	}
 	if err := mgr.Add(grpcRun); err != nil {
 		slog.Error("add grpc runnable", "error", err)
@@ -202,4 +210,35 @@ func envDuration(key string, def time.Duration) time.Duration {
 		slog.Warn("invalid duration env, using default", "key", key, "default", def)
 	}
 	return def
+}
+
+// changefeed nudges the push notifier on any change to the CRDs a snapshot
+// depends on. Runs on every replica (pure fan-out, no writes).
+type changefeed struct {
+	cache    cache.Cache
+	notifier *hub.Notifier
+}
+
+func (c *changefeed) NeedLeaderElection() bool { return false }
+
+func (c *changefeed) Start(ctx context.Context) error {
+	h := toolscache.ResourceEventHandlerFuncs{
+		AddFunc:    func(any) { c.notifier.Notify() },
+		UpdateFunc: func(any, any) { c.notifier.Notify() },
+		DeleteFunc: func(any) { c.notifier.Notify() },
+	}
+	for _, obj := range []client.Object{
+		&v1alpha1.PolicyDistribution{}, &v1alpha1.PolicyGroup{},
+		&v1alpha1.Policy{}, &v1alpha1.Cluster{},
+	} {
+		inf, err := c.cache.GetInformer(ctx, obj)
+		if err != nil {
+			return err
+		}
+		if _, err := inf.AddEventHandler(h); err != nil {
+			return err
+		}
+	}
+	<-ctx.Done()
+	return nil
 }

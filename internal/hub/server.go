@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -20,16 +22,22 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/hubpb"
 )
 
+// pushResync is the fallback interval for re-rendering a cluster's snapshot
+// even without a change notification — a safety net against a missed/dropped
+// Notify (e.g. a goroutine race at startup) rather than the primary trigger.
+const pushResync = 60 * time.Second
+
 // Server implements the hubpb.Hub gRPC service.
 type Server struct {
 	hubpb.UnimplementedHubServer
 	client    client.Client
 	namespace string
 	hb        *HeartbeatTracker
+	changes   *Notifier
 }
 
-func NewServer(c client.Client, namespace string, hb *HeartbeatTracker) *Server {
-	return &Server{client: c, namespace: namespace, hb: hb}
+func NewServer(c client.Client, namespace string, hb *HeartbeatTracker, changes *Notifier) *Server {
+	return &Server{client: c, namespace: namespace, hb: hb, changes: changes}
 }
 
 func (s *Server) Register(ctx context.Context, req *hubpb.RegisterRequest) (*hubpb.RegisterResponse, error) {
@@ -143,8 +151,94 @@ func (s *Server) validateSyncAuth(ctx context.Context, clusterName, token string
 	return nil
 }
 
-// Sync handles the long-lived member stream: auth from metadata once,
-// then heartbeat/status messages, each answered with an Ack.
+// syncSession serializes stream.Send between the recv loop's Acks and the
+// pusher goroutine, and remembers the last pushed snapshot for StatusReport
+// correlation.
+type syncSession struct {
+	mu      sync.Mutex
+	stream  hubpb.Hub_SyncServer
+	lastRes RenderResult
+	hasLast bool
+}
+
+func (ss *syncSession) send(m *hubpb.HubMessage) error {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	return ss.stream.Send(m)
+}
+
+func (ss *syncSession) setLast(r RenderResult) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	ss.lastRes, ss.hasLast = r, true
+}
+
+func (ss *syncSession) last() (RenderResult, bool) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	return ss.lastRes, ss.hasLast
+}
+
+// renderFor lists the CRDs from the manager cache and renders one cluster's
+// snapshot. Cluster-not-found renders the empty snapshot: a decommissioned
+// cluster's managed objects cascade away.
+func (s *Server) renderFor(ctx context.Context, cluster string) (RenderResult, error) {
+	var cl v1alpha1.Cluster
+	if err := s.client.Get(ctx, types.NamespacedName{Name: cluster}, &cl); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return RenderResult{}, err
+		}
+		cl = v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: cluster}}
+	}
+	var dists v1alpha1.PolicyDistributionList
+	if err := s.client.List(ctx, &dists); err != nil {
+		return RenderResult{}, err
+	}
+	var groups v1alpha1.PolicyGroupList
+	if err := s.client.List(ctx, &groups); err != nil {
+		return RenderResult{}, err
+	}
+	var policies v1alpha1.PolicyList
+	if err := s.client.List(ctx, &policies); err != nil {
+		return RenderResult{}, err
+	}
+	return Render(&cl, dists.Items, groups.Items, policies.Items), nil
+}
+
+// pushLoop renders and pushes a DesiredState snapshot immediately, then again
+// whenever s.changes fires or pushResync elapses — but only sends when the
+// content hash actually changed. Returns once the stream errors (the recv
+// loop in Sync will observe the same broken stream and return too) or ctx is
+// canceled (Sync's defer cancelPush on the way out).
+func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string) {
+	ticker := time.NewTicker(pushResync)
+	defer ticker.Stop()
+	for {
+		if res, err := s.renderFor(ctx, cluster); err == nil {
+			last, has := sess.last()
+			if !has || last.Hash != res.Hash {
+				if err := sess.send(&hubpb.HubMessage{Msg: &hubpb.HubMessage_DesiredState{
+					DesiredState: &hubpb.DesiredState{VersionHash: res.Hash, Objects: ToProto(res.Objects)},
+				}}); err != nil {
+					return // stream already broken; recv loop will wind down too
+				}
+				sess.setLast(res)
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-s.changes.Wait():
+		case <-ticker.C:
+		}
+	}
+}
+
+// Sync handles the long-lived member stream: auth from metadata once, then
+// two concurrent halves share one stream — the recv loop below answers
+// Heartbeat/StatusReport with an Ack, while a pushLoop goroutine renders and
+// pushes DesiredState snapshots. Both funnel sends through sess.send's mutex
+// since grpc.ServerStream.Send is not safe for concurrent use.
 func (s *Server) Sync(stream hubpb.Hub_SyncServer) error {
 	md, _ := metadata.FromIncomingContext(stream.Context())
 	cluster := firstMD(md, MDClusterKey)
@@ -155,6 +249,11 @@ func (s *Server) Sync(stream hubpb.Hub_SyncServer) error {
 	if err := s.validateSyncAuth(stream.Context(), cluster, token); err != nil {
 		return status.Error(codes.Unauthenticated, err.Error())
 	}
+
+	sess := &syncSession{stream: stream}
+	pushCtx, cancelPush := context.WithCancel(stream.Context())
+	defer cancelPush()
+	go s.pushLoop(pushCtx, sess, cluster)
 
 	for {
 		msg, err := stream.Recv()
@@ -168,9 +267,10 @@ func (s *Server) Sync(stream hubpb.Hub_SyncServer) error {
 		case *hubpb.MemberMessage_Heartbeat:
 			s.hb.MarkAlive(cluster, m.Heartbeat.OperatorVersion)
 		case *hubpb.MemberMessage_StatusReport:
-			// SP2 落地到 Cluster.status；SP1 仅确认收到。
+			// Task 6 在这里接 RecordStatus + markReported。
+			_ = m
 		}
-		if err := stream.Send(&hubpb.HubMessage{Msg: &hubpb.HubMessage_Ack{Ack: &hubpb.Ack{}}}); err != nil {
+		if err := sess.send(&hubpb.HubMessage{Msg: &hubpb.HubMessage_Ack{Ack: &hubpb.Ack{}}}); err != nil {
 			return err
 		}
 	}

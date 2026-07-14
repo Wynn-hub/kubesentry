@@ -46,7 +46,7 @@ func startHub(t *testing.T, objs ...client.Object) (func(ctx context.Context) (*
 	tracker := hub.NewHeartbeatTracker()
 	lis := bufconn.Listen(1024 * 1024)
 	gs := grpc.NewServer()
-	hubpb.RegisterHubServer(gs, hub.NewServer(hc, hubNS, tracker))
+	hubpb.RegisterHubServer(gs, hub.NewServer(hc, hubNS, tracker, hub.NewNotifier()))
 	go func() { _ = gs.Serve(lis) }()
 	t.Cleanup(gs.Stop)
 	dial := func(ctx context.Context) (*grpc.ClientConn, error) {
