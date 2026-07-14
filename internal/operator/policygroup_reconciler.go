@@ -16,11 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
-)
-
-const (
-	condTypeMissingMember   = "MissingMember"
-	condTypeInvalidSelector = "InvalidSelector"
+	"github.com/Wynn-hub/kubesentry/internal/groupresolve"
 )
 
 // PolicyGroupReconciler resolves a PolicyGroup's members from byName + bySelector,
@@ -59,85 +55,11 @@ func (r *PolicyGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, r.refreshReferencedBy(ctx, prev, map[string]struct{}{})
 	}
 
-	resolved := map[string]v1alpha1.EffectiveMember{}
-	var conditions []metav1.Condition
-
-	// ---- byName path (takes precedence on conflict with bySelector) ----
-	for _, ref := range pg.Spec.Policies.ByName {
-		var pol v1alpha1.Policy
-		err := r.client.Get(ctx, types.NamespacedName{Name: ref.Name}, &pol)
-		if apierrors.IsNotFound(err) {
-			conditions = append(conditions, metav1.Condition{
-				Type:               condTypeMissingMember,
-				Status:             metav1.ConditionTrue,
-				Reason:             "PolicyNotFound",
-				Message:            ref.Name,
-				LastTransitionTime: metav1.Now(),
-			})
-			continue
-		}
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("get Policy %q: %w", ref.Name, err)
-		}
-		mode := ref.EnforcementMode
-		if mode == "" {
-			mode = pol.Spec.EnforcementMode
-		}
-		resolved[ref.Name] = v1alpha1.EffectiveMember{
-			Name:            ref.Name,
-			EnforcementMode: mode,
-			Source:          v1alpha1.SourceByName,
-		}
+	var allPolicies v1alpha1.PolicyList
+	if err := r.client.List(ctx, &allPolicies); err != nil {
+		return ctrl.Result{}, fmt.Errorf("list Policies: %w", err)
 	}
-
-	// ---- bySelector path ----
-	if pg.Spec.Policies.BySelector != nil {
-		sel, err := metav1.LabelSelectorAsSelector(pg.Spec.Policies.BySelector)
-		if err != nil {
-			conditions = append(conditions, metav1.Condition{
-				Type:               condTypeInvalidSelector,
-				Status:             metav1.ConditionTrue,
-				Reason:             "MalformedSelector",
-				Message:            err.Error(),
-				LastTransitionTime: metav1.Now(),
-			})
-		} else {
-			var allPolicies v1alpha1.PolicyList
-			if err := r.client.List(ctx, &allPolicies); err != nil {
-				return ctrl.Result{}, fmt.Errorf("list Policies: %w", err)
-			}
-			for i := range allPolicies.Items {
-				pol := &allPolicies.Items[i]
-				if !sel.Matches(labels.Set(pol.Labels)) {
-					continue
-				}
-				if _, alreadyByName := resolved[pol.Name]; alreadyByName {
-					continue // byName precedence
-				}
-				mode := pg.Spec.SelectorEnforcementMode
-				if mode == "" {
-					mode = pol.Spec.EnforcementMode
-				}
-				resolved[pol.Name] = v1alpha1.EffectiveMember{
-					Name:            pol.Name,
-					EnforcementMode: mode,
-					Source:          v1alpha1.SourceBySelector,
-				}
-			}
-		}
-	}
-
-	// ---- exclude path (highest priority: wins over both byName and bySelector) ----
-	for _, name := range pg.Spec.Policies.Exclude {
-		delete(resolved, name)
-	}
-
-	// Sort resolved by name for stable status.
-	members := make([]v1alpha1.EffectiveMember, 0, len(resolved))
-	for _, m := range resolved {
-		members = append(members, m)
-	}
-	sort.Slice(members, func(i, j int) bool { return members[i].Name < members[j].Name })
+	members, conditions := groupresolve.Resolve(pg.Spec, allPolicies.Items)
 
 	phase := v1alpha1.PhaseReady
 	if len(conditions) > 0 {
