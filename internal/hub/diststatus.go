@@ -15,8 +15,11 @@ import (
 
 // markPushed reconciles every distribution's per-cluster status entry with
 // the freshly rendered snapshot: render errors → Error, awaiting the member
-// ack → Pending (Synced-at-current-hash entries stay put), no longer
-// targeted → entry removed. Writes only when the entry actually changes.
+// ack → Pending (Synced- or Error-at-current-hash entries stay put — an
+// unresolved apply conflict must not be reported back to Pending on every
+// resync tick just because Render() itself has no way to know a given hash
+// already failed on the member), no longer targeted → entry removed. Writes
+// only when the entry actually changes.
 func (s *Server) markPushed(ctx context.Context, cluster string, res RenderResult) {
 	matched := map[string]bool{}
 	for _, n := range res.Matched {
@@ -37,8 +40,9 @@ func (s *Server) markPushed(ctx context.Context, cluster string, res RenderResul
 			})
 		case matched[name]:
 			s.setClusterEntry(ctx, name, cluster, func(e *v1alpha1.DistributionClusterStatus) {
-				if e.State == v1alpha1.DistributionSynced && e.AppliedVersion == res.Hash {
-					return // already confirmed at this version
+				if e.AppliedVersion == res.Hash &&
+					(e.State == v1alpha1.DistributionSynced || e.State == v1alpha1.DistributionError) {
+					return // already resolved (success or failure) for this exact snapshot
 				}
 				e.State = v1alpha1.DistributionPending
 				e.Message = ""
@@ -63,6 +67,7 @@ func (s *Server) markReported(ctx context.Context, cluster string, last RenderRe
 		if rep.ApplyError != "" {
 			s.setClusterEntry(ctx, name, cluster, func(e *v1alpha1.DistributionClusterStatus) {
 				e.State = v1alpha1.DistributionError
+				e.AppliedVersion = rep.AppliedVersion
 				e.Message = rep.ApplyError
 			})
 			continue

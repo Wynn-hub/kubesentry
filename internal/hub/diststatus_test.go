@@ -68,6 +68,13 @@ func TestMarkPushedAndReportedLifecycle(t *testing.T) {
 		t.Fatalf("apply error not recorded: %+v", e)
 	}
 
+	// 同一 hash 的下一次 push 周期（resync ticker 或无关变更触发）不得把
+	// Error 打回 Pending，否则一个持续冲突的 override 会被误报为"处理中"。
+	s.markPushed(ctx, "c1", res)
+	if e := getDist(t, s, "d1").Status.Clusters[0]; e.State != v1alpha1.DistributionError || e.Message != "boom" {
+		t.Fatalf("markPushed demoted an unresolved error entry: %+v", e)
+	}
+
 	// 陈旧上报被忽略。
 	s.markReported(ctx, "c1", res, &hubpb.StatusReport{AppliedVersion: "old"})
 	if getDist(t, s, "d1").Status.Clusters[0].State != v1alpha1.DistributionError {
