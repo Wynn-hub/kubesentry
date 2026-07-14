@@ -25,6 +25,15 @@ type ClusterStatus struct {
 	ClusterUID      string       `json:"clusterUID,omitempty"`
 	LastHeartbeat   *metav1.Time `json:"lastHeartbeat,omitempty"`
 	OperatorVersion string       `json:"operatorVersion,omitempty"`
+	// PolicySummary is the member-reported Ready/Invalid policy counts,
+	// persisted by StatusFlusher alongside heartbeat state.
+	PolicySummary *PolicySummary `json:"policySummary,omitempty"`
+}
+
+// PolicySummary counts member-cluster policies by phase.
+type PolicySummary struct {
+	Ready   int32 `json:"ready"`
+	Invalid int32 `json:"invalid"`
 }
 
 // +kubebuilder:object:root=true

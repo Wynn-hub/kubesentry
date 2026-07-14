@@ -17,4 +17,5 @@ func init() {
 	SchemeBuilder.Register(&PolicyGroup{}, &PolicyGroupList{})
 	SchemeBuilder.Register(&PolicyException{}, &PolicyExceptionList{})
 	SchemeBuilder.Register(&Cluster{}, &ClusterList{})
+	SchemeBuilder.Register(&PolicyDistribution{}, &PolicyDistributionList{})
 }

@@ -52,3 +52,8 @@ spec:
                   format: date-time
                 operatorVersion:
                   type: string
+                policySummary:
+                  type: object
+                  properties:
+                    ready: { type: integer }
+                    invalid: { type: integer }

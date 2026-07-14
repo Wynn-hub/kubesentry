@@ -29,6 +29,10 @@ func (in *ClusterStatus) DeepCopyInto(out *ClusterStatus) {
 		t := in.LastHeartbeat.DeepCopy()
 		out.LastHeartbeat = t
 	}
+	if in.PolicySummary != nil {
+		out.PolicySummary = new(PolicySummary)
+		*out.PolicySummary = *in.PolicySummary
+	}
 }
 
 func (in *ClusterStatus) DeepCopy() *ClusterStatus {
