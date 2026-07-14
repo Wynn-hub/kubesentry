@@ -160,6 +160,24 @@ func TestApplyUpdatesManagedObjectInPlace(t *testing.T) {
 	}
 }
 
+func TestApplyUnknownKindReportsErrorAndSkipsOnlyThatObject(t *testing.T) {
+	c := newApplyClient(t)
+
+	ds := &hubpb.DesiredState{VersionHash: "h", Objects: []*hubpb.ManagedObject{
+		mObj(t, "Policy", "p1", policySpec(v1alpha1.ModeAudit)),
+		mObj(t, "Widget", "w1", policySpec(v1alpha1.ModeAudit)),
+	}}
+	err := applyDesiredState(context.Background(), c, ds)
+	if err == nil || !strings.Contains(err.Error(), "w1") {
+		t.Fatalf("unknown kind not reported: %v", err)
+	}
+
+	var p v1alpha1.Policy
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "p1"}, &p); err != nil {
+		t.Fatalf("valid object must still be created despite unknown-kind sibling: %v", err)
+	}
+}
+
 func TestPolicyCounts(t *testing.T) {
 	ready := &v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "a"}, Status: v1alpha1.PolicyStatus{Phase: v1alpha1.PhaseReady}}
 	invalid := &v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "b"}, Status: v1alpha1.PolicyStatus{Phase: v1alpha1.PhaseInvalid}}

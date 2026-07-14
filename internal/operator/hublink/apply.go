@@ -27,13 +27,18 @@ func applyDesiredState(ctx context.Context, c client.Client, ds *hubpb.DesiredSt
 	var errs []string
 	inSnapshot := map[string]map[string]bool{"Policy": {}, "PolicyGroup": {}}
 
+	var valid []*hubpb.ManagedObject
+	for _, obj := range ds.Objects {
+		if _, known := inSnapshot[obj.Kind]; !known {
+			errs = append(errs, fmt.Sprintf("unknown kind %q for object %q", obj.Kind, obj.Name))
+			continue
+		}
+		valid = append(valid, obj)
+	}
+
 	for _, kind := range []string{"Policy", "PolicyGroup"} {
-		for _, obj := range ds.Objects {
+		for _, obj := range valid {
 			if obj.Kind != kind {
-				continue
-			}
-			if _, known := inSnapshot[obj.Kind]; !known {
-				errs = append(errs, fmt.Sprintf("unknown kind %q", obj.Kind))
 				continue
 			}
 			inSnapshot[obj.Kind][obj.Name] = true
