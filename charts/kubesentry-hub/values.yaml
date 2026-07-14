@@ -20,3 +20,14 @@ hub:
 
 tls:
   secretName: kubesentry-hub-tls
+  # Bring your own CA-issued certificate instead of the built-in
+  # self-signed one. Leave all three empty (default) to let the hub
+  # auto-generate and persist a self-signed CA + server cert into
+  # `secretName` on first start (see internal/tlssetup.GenerateCerts).
+  # Provide all three (PEM text, not base64 — Helm encodes it) to use
+  # your own cert instead; it must cover the DNS name the hub is
+  # actually reached at (default: kubesentry-hub.<namespace>.svc,
+  # override via TLS_DNS_NAME if exposed differently, e.g. NodePort/LB).
+  ca: ""    # PEM CA certificate
+  cert: ""  # PEM server certificate
+  key: ""   # PEM server private key
