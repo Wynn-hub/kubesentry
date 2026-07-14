@@ -1,9 +1,6 @@
 KubeSentry {{ .Chart.AppVersion }} deployed to namespace {{ .Values.namespace }}.
-{{- if .Values.console.enabled }}
 
-Access the web console (no auth — do not expose outside the cluster):
+The web console is packaged in the kubesentry-hub chart, not here — install
+it alongside this chart to get the UI:
 
-  kubectl -n {{ .Values.namespace }} port-forward svc/kubesentry-console {{ .Values.console.service.port }}:{{ .Values.console.service.port }}
-
-Then open http://localhost:{{ .Values.console.service.port }}
-{{- end }}
+  helm install kubesentry-hub charts/kubesentry-hub --namespace {{ .Values.namespace }}

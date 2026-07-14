@@ -18,6 +18,28 @@ hub:
       cpu: 50m
       memory: 64Mi
 
+# Console is a platform component (D1: 中台 = console + hub), packaged
+# here rather than in the member chart. Note this means single-cluster
+# users need both charts installed (hub for the UI, member for
+# webhook/operator enforcement) — see `make deploy-local`/`undeploy-local`
+# for the two-install pattern.
+console:
+  enabled: true
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-console
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    port: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 tls:
   secretName: kubesentry-hub-tls
   # Bring your own CA-issued certificate instead of the built-in

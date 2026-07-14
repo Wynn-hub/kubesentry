@@ -9,6 +9,7 @@ REGISTRY ?= wynnhub
 PLATFORMS ?= linux/amd64,linux/arm64
 BUILDER   ?= kubesentry-builder
 CHART_DIR  = charts/kubesentry
+HUB_CHART_DIR = charts/kubesentry-hub
 DIST_DIR   = dist
 REPORT_DIR = $(DIST_DIR)/test-reports
 
@@ -183,6 +184,14 @@ build-image-local: build-linux
 	docker build -f Dockerfile.hub      -t $(LOCAL_HUB_IMAGE)      .
 
 # Build images + helm install/upgrade in one shot.
+# Two chart installs into the same namespace: kubesentry (webhook + operator,
+# the per-cluster enforcement engine) and kubesentry-hub (hub + console, the
+# "platform" component per design D1). kubesentry installs FIRST: on a cluster
+# still holding console resources from a pre-split chart version (console used
+# to live in kubesentry's own templates), upgrading kubesentry first prunes
+# them from that release before kubesentry-hub tries to create them under its
+# own ownership — installing hub first would hit a Helm ownership conflict on
+# any such cluster. Harmless no-op ordering on a fresh cluster.
 deploy-local: build-image-local
 	@echo "→ Deploying to kube context: $$(kubectl config current-context)"
 	helm upgrade --install kubesentry $(CHART_DIR) \
@@ -193,6 +202,12 @@ deploy-local: build-image-local
 	  --set operator.image.repository=$(REGISTRY)/kubesentry-operator \
 	  --set operator.image.tag=$(LOCAL_TAG) \
 	  --set operator.image.pullPolicy=Never \
+	  --wait --timeout 5m
+	helm upgrade --install kubesentry-hub $(HUB_CHART_DIR) \
+	  --namespace $(LOCAL_NAMESPACE) --create-namespace \
+	  --set hub.image.repository=$(REGISTRY)/kubesentry-hub \
+	  --set hub.image.tag=$(LOCAL_TAG) \
+	  --set hub.image.pullPolicy=Never \
 	  --set console.image.repository=$(REGISTRY)/kubesentry-console \
 	  --set console.image.tag=$(LOCAL_TAG) \
 	  --set console.image.pullPolicy=Never \
@@ -203,11 +218,13 @@ deploy-local: build-image-local
 
 undeploy-local:
 	helm uninstall kubesentry --namespace $(LOCAL_NAMESPACE) || true
+	helm uninstall kubesentry-hub --namespace $(LOCAL_NAMESPACE) || true
 	kubectl delete namespace $(LOCAL_NAMESPACE) --ignore-not-found
 	@# CRDs live in crds/ and are never touched by helm uninstall (by design,
 	@# so uninstall cannot wipe Policy data); a full dev teardown removes them.
 	@for crd in policies.kubesentry.io policygroups.kubesentry.io \
-	            policyversions.kubesentry.io policyexceptions.kubesentry.io; do \
+	            policyversions.kubesentry.io policyexceptions.kubesentry.io \
+	            clusters.kubesentry.io; do \
 	  kubectl delete crd $$crd --ignore-not-found; \
 	done
 
