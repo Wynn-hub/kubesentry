@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/Wynn-hub/kubesentry/internal/hub"
 	"github.com/Wynn-hub/kubesentry/internal/hubpb"
 )
 
@@ -102,8 +103,8 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 	}
 
 	streamCtx := metadata.AppendToOutgoingContext(ctx,
-		"x-kubesentry-cluster", l.cfg.ClusterName,
-		"authorization", "Bearer "+token)
+		hub.MDClusterKey, l.cfg.ClusterName,
+		hub.MDAuthKey, "Bearer "+token)
 	stream, err := hc.Sync(streamCtx)
 	if err != nil {
 		l.clearCredentialIfUnauthenticated(ctx, err)

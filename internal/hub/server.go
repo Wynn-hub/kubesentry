@@ -147,8 +147,8 @@ func (s *Server) validateSyncAuth(ctx context.Context, clusterName, token string
 // then heartbeat/status messages, each answered with an Ack.
 func (s *Server) Sync(stream hubpb.Hub_SyncServer) error {
 	md, _ := metadata.FromIncomingContext(stream.Context())
-	cluster := firstMD(md, "x-kubesentry-cluster")
-	token := strings.TrimPrefix(firstMD(md, "authorization"), "Bearer ")
+	cluster := firstMD(md, MDClusterKey)
+	token := strings.TrimPrefix(firstMD(md, MDAuthKey), "Bearer ")
 	if cluster == "" || token == "" {
 		return status.Error(codes.Unauthenticated, "missing cluster identity metadata")
 	}

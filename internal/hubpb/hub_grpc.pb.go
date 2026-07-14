@@ -36,8 +36,7 @@ type HubClient interface {
 	// cluster-scoped long-lived token used to authenticate Sync.
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
 	// Sync is the long-lived bidirectional stream: member sends heartbeats
-	// and status reports, hub replies with acks (and, from SP2 on,
-	// desired-state snapshots — added to the oneof then).
+	// and status reports, hub replies with acks and desired-state snapshots.
 	Sync(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[MemberMessage, HubMessage], error)
 }
 
@@ -84,8 +83,7 @@ type HubServer interface {
 	// cluster-scoped long-lived token used to authenticate Sync.
 	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
 	// Sync is the long-lived bidirectional stream: member sends heartbeats
-	// and status reports, hub replies with acks (and, from SP2 on,
-	// desired-state snapshots — added to the oneof then).
+	// and status reports, hub replies with acks and desired-state snapshots.
 	Sync(grpc.BidiStreamingServer[MemberMessage, HubMessage]) error
 	mustEmbedUnimplementedHubServer()
 }

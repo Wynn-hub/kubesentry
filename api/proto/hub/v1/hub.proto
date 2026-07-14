@@ -12,8 +12,7 @@ service Hub {
   // cluster-scoped long-lived token used to authenticate Sync.
   rpc Register(RegisterRequest) returns (RegisterResponse);
   // Sync is the long-lived bidirectional stream: member sends heartbeats
-  // and status reports, hub replies with acks (and, from SP2 on,
-  // desired-state snapshots — added to the oneof then).
+  // and status reports, hub replies with acks and desired-state snapshots.
   rpc Sync(stream MemberMessage) returns (stream HubMessage);
 }
 
@@ -39,17 +38,34 @@ message Heartbeat {
   string operator_version = 1;
 }
 
-// StatusReport is defined now so the protocol is stable; SP1 hub accepts
-// it and replies Ack without persisting. SP2 wires it into Cluster.status.
+// StatusReport carries member policy counts and the last apply outcome.
 message StatusReport {
   int32 ready_policies = 1;
   int32 invalid_policies = 2;
+  string applied_version = 3; // hash of the last applied DesiredState
+  string apply_error = 4;     // non-empty = last apply failed, why
 }
 
 message HubMessage {
   oneof msg {
     Ack ack = 1;
+    DesiredState desired_state = 2;
   }
+}
+
+// DesiredState is the full managed-object snapshot for one member cluster.
+// An empty objects list means "no managed objects should exist" — deletion
+// of a distribution cascades through here.
+message DesiredState {
+  string version_hash = 1;
+  repeated ManagedObject objects = 2;
+}
+
+message ManagedObject {
+  string kind = 1; // "Policy" | "PolicyGroup"
+  string name = 2;
+  map<string, string> labels = 3;
+  bytes spec_json = 4; // JSON of the CR spec (v1alpha1 types both sides)
 }
 
 message Ack {}
