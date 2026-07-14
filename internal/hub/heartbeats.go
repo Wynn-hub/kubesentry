@@ -15,6 +15,7 @@ import (
 type HeartbeatInfo struct {
 	LastSeen        time.Time
 	OperatorVersion string
+	Summary         *v1alpha1.PolicySummary
 }
 
 // HeartbeatTracker keeps heartbeats in memory so the hot path never
@@ -32,6 +33,17 @@ func (h *HeartbeatTracker) MarkAlive(cluster, version string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.beats[cluster] = HeartbeatInfo{LastSeen: time.Now(), OperatorVersion: version}
+}
+
+// RecordStatus notes a member StatusReport: proof of life plus policy
+// counts. OperatorVersion only changes via MarkAlive.
+func (h *HeartbeatTracker) RecordStatus(cluster string, ready, invalid int32) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	info := h.beats[cluster]
+	info.LastSeen = time.Now()
+	info.Summary = &v1alpha1.PolicySummary{Ready: ready, Invalid: invalid}
+	h.beats[cluster] = info
 }
 
 func (h *HeartbeatTracker) Snapshot() map[string]HeartbeatInfo {
@@ -87,6 +99,10 @@ func (f *StatusFlusher) flushOnce(ctx context.Context) error {
 			cl.Status.Phase = v1alpha1.ClusterPhaseOnline
 			cl.Status.LastHeartbeat = &t
 			cl.Status.OperatorVersion = info.OperatorVersion
+			if info.Summary != nil {
+				s := *info.Summary
+				cl.Status.PolicySummary = &s
+			}
 		case cl.Status.Phase == v1alpha1.ClusterPhaseOnline:
 			// 有过心跳但超时（或 hub 重启后内存丢失）→ Offline
 			cl.Status.Phase = v1alpha1.ClusterPhaseOffline

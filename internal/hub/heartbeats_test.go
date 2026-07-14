@@ -60,3 +60,28 @@ func TestFlusherOnlineAndOffline(t *testing.T) {
 		t.Fatalf("stale phase = %q, want Offline", got.Status.Phase)
 	}
 }
+
+func TestRecordStatusPreservesVersionAndFlushesSummary(t *testing.T) {
+	tr := NewHeartbeatTracker()
+	tr.MarkAlive("c1", "v1")
+	tr.RecordStatus("c1", 7, 2)
+
+	info := tr.Snapshot()["c1"]
+	if info.OperatorVersion != "v1" || info.Summary == nil || info.Summary.Ready != 7 || info.Summary.Invalid != 2 {
+		t.Fatalf("info = %+v", info)
+	}
+
+	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	c := newHubClient(t, cl)
+	f := NewStatusFlusher(c, tr, time.Minute, time.Minute)
+	if err := f.flushOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var got v1alpha1.Cluster
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "c1"}, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Status.PolicySummary == nil || got.Status.PolicySummary.Ready != 7 {
+		t.Fatalf("summary not flushed: %+v", got.Status)
+	}
+}

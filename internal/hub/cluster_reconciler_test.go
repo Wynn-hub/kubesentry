@@ -33,7 +33,7 @@ func newHubClient(t *testing.T, objs ...client.Object) client.Client {
 	t.Helper()
 	return fake.NewClientBuilder().
 		WithScheme(buildHubScheme(t)).
-		WithStatusSubresource(&v1alpha1.Cluster{}).
+		WithStatusSubresource(&v1alpha1.Cluster{}, &v1alpha1.PolicyDistribution{}).
 		WithObjects(objs...).
 		Build()
 }

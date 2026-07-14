@@ -224,6 +224,7 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 				}
 				sess.setLast(res)
 			}
+			s.markPushed(ctx, cluster, res)
 		}
 		select {
 		case <-ctx.Done():
@@ -267,8 +268,11 @@ func (s *Server) Sync(stream hubpb.Hub_SyncServer) error {
 		case *hubpb.MemberMessage_Heartbeat:
 			s.hb.MarkAlive(cluster, m.Heartbeat.OperatorVersion)
 		case *hubpb.MemberMessage_StatusReport:
-			// Task 6 在这里接 RecordStatus + markReported。
-			_ = m
+			rep := m.StatusReport
+			s.hb.RecordStatus(cluster, rep.ReadyPolicies, rep.InvalidPolicies)
+			if last, has := sess.last(); has {
+				s.markReported(stream.Context(), cluster, last, rep)
+			}
 		}
 		if err := sess.send(&hubpb.HubMessage{Msg: &hubpb.HubMessage_Ack{Ack: &hubpb.Ack{}}}); err != nil {
 			return err
