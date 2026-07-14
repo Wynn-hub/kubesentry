@@ -29,7 +29,7 @@ import (
 func main() {
 	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseDevMode(true)))
 
-	namespace := envOrDefault("NAMESPACE", "kubesentry-hub-system")
+	namespace := envOrDefault("NAMESPACE", "kubesentry-system")
 	grpcAddr := envOrDefault("GRPC_ADDR", ":9443")
 	tlsSecret := envOrDefault("TLS_SECRET_NAME", "kubesentry-hub-tls")
 	tlsDNS := envOrDefault("TLS_DNS_NAME", "kubesentry-hub."+namespace+".svc")

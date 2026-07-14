@@ -97,7 +97,7 @@ webhookNamespaceSelector:
 # Hub connection (multi-cluster mode). Leave address empty for the
 # single-cluster mode — the operator then never starts the hub link.
 hub:
-  address: ""                  # e.g. "kubesentry-hub.kubesentry-hub-system.svc:9443"
+  address: ""                  # e.g. "kubesentry-hub.kubesentry-system.svc:9443"
   caBundle: ""                 # base64 PEM of the hub CA (ca.crt from the hub TLS secret)
   tlsServerName: ""            # override when address is an IP/NodePort; defaults to cert DNS
   clusterName: ""              # Cluster CR name registered on the hub

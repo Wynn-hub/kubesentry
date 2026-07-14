@@ -1,4 +1,7 @@
-namespace: kubesentry-hub-system
+# Same namespace as the member chart's own components (webhook/operator/
+# console) so the hub sits alongside them and inherits the same built-in
+# policy namespace exclusion — no separate exclusion entry needed.
+namespace: kubesentry-system
 
 hub:
   replicas: 1
