@@ -16,6 +16,7 @@ import (
 
 // Cleanup removes all KubeSentry resources and test namespaces.
 func Cleanup(ctx context.Context) {
+	run(ctx, "helm", "uninstall", "kubesentry-hub", "-n", "kubesentry-system", "--ignore-not-found")
 	run(ctx, "helm", "uninstall", "kubesentry", "-n", "kubesentry-system", "--ignore-not-found")
 	run(ctx, "kubectl", "delete", "namespace", "kubesentry-system", "--ignore-not-found", "--timeout=90s")
 	run(ctx, "kubectl", "delete", "namespace", TestNamespace, "--ignore-not-found", "--timeout=60s")
@@ -24,6 +25,8 @@ func Cleanup(ctx context.Context) {
 		"policygroups.kubesentry.io",
 		"policyversions.kubesentry.io",
 		"policyexceptions.kubesentry.io",
+		"clusters.kubesentry.io",
+		"policydistributions.kubesentry.io",
 	} {
 		run(ctx, "kubectl", "delete", "crd", crd, "--ignore-not-found")
 	}

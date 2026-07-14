@@ -112,6 +112,7 @@ build-image-e2e: build-linux
 	docker build -f Dockerfile.webhook -t wynnhub/kubesentry-webhook:e2e-test .
 	docker build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
 	docker build -f Dockerfile.console -t wynnhub/kubesentry-console:e2e-test .
+	docker build -f Dockerfile.hub -t wynnhub/kubesentry-hub:e2e-test .
 
 # E2E traffic must bypass any local HTTP(S) proxy (e.g. clash): kubectl and
 # client-go honor https_proxy, and a proxied connection to the local API

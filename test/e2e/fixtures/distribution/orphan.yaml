@@ -1,0 +1,21 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: e2e-orphan-managed
+  labels:
+    kubesentry.io/managed-by: platform
+spec:
+  enforcementMode: audit
+  description: "E2E orphan managed policy, must be pruned by first snapshot"
+  match:
+    operations: [CREATE]
+    resources:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+  rego: |
+    package kubesentry
+    deny[msg] {
+      false
+      msg := "never"
+    }

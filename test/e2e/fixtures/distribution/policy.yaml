@@ -1,0 +1,19 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: e2e-dist-policy
+spec:
+  enforcementMode: audit
+  description: "E2E distribution pipeline test policy"
+  match:
+    operations: [CREATE]
+    resources:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+  rego: |
+    package kubesentry
+    deny[msg] {
+      input.request.object.metadata.labels["e2e-dist-deny"] == "true"
+      msg := "e2e distribution test denial"
+    }

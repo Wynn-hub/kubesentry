@@ -1,0 +1,8 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: PolicyDistribution
+metadata:
+  name: e2e-dist
+spec:
+  clusters:
+    byName: [local]
+  policyGroups: [e2e-dist-group]

@@ -38,6 +38,12 @@ func TestMain(m *testing.M) {
 		panic("helm install: " + err.Error())
 	}
 
+	hubChartDir := filepath.Join("..", "..", "charts", "kubesentry-hub")
+	hubValues := filepath.Join("testdata", "values-hub-test.yaml")
+	if err := helpers.HelmInstallHub(ctx, hubChartDir, hubValues); err != nil {
+		panic("helm install hub: " + err.Error())
+	}
+
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
 		home, _ := os.UserHomeDir()
@@ -70,6 +76,9 @@ func TestMain(m *testing.M) {
 	}
 	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-operator", 2*time.Minute); err != nil {
 		panic("operator deployment not ready: " + err.Error())
+	}
+	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-hub", 2*time.Minute); err != nil {
+		panic("hub deployment not ready: " + err.Error())
 	}
 	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-console", 2*time.Minute); err != nil {
 		panic("console deployment not ready: " + err.Error())
