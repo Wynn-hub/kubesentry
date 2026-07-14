@@ -100,7 +100,7 @@ func (s *Server) setClusterEntry(ctx context.Context, dist, cluster string, muta
 		}
 		before := d.Status.Clusters[idx] // plain value copy: no slice fields, LastSyncTime ptr not compared
 		mutate(&d.Status.Clusters[idx])
-		if equalEntry(before, d.Status.Clusters[idx]) && len(d.Status.Clusters) > 0 && before.State != "" {
+		if equalEntry(before, d.Status.Clusters[idx]) {
 			return nil // no-op
 		}
 		return s.client.Status().Update(ctx, &d)

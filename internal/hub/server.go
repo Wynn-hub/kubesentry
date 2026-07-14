@@ -214,6 +214,12 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 	ticker := time.NewTicker(pushResync)
 	defer ticker.Stop()
 	for {
+		// Capture the wait channel before doing any work this iteration: a
+		// Notify() firing anytime during render/send/markPushed below must
+		// still be observed by this same channel in the select — Notifier's
+		// close-and-replace broadcast only wakes waiters registered before
+		// the Notify() call, so capturing after the work would lose it.
+		waitCh := s.changes.Wait()
 		if res, err := s.renderFor(ctx, cluster); err == nil {
 			last, has := sess.last()
 			if !has || last.Hash != res.Hash {
@@ -229,7 +235,7 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 		select {
 		case <-ctx.Done():
 			return
-		case <-s.changes.Wait():
+		case <-waitCh:
 		case <-ticker.C:
 		}
 	}
