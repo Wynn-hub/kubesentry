@@ -151,6 +151,18 @@ func TestDeleteGroup(t *testing.T) {
 	}
 }
 
+func TestDeleteGroupRejectsDefaultName(t *testing.T) {
+	h, c := newTestServer(t, testGroup("default", true))
+	rec, _ := doRequest(t, h, "DELETE", "/api/v1/policygroups/default", nil)
+	if rec.Code != 403 {
+		t.Fatalf("code = %d, want 403", rec.Code)
+	}
+	var g v1alpha1.PolicyGroup
+	if err := c.Get(t.Context(), client.ObjectKey{Name: "default"}, &g); err != nil {
+		t.Fatalf("default group must survive the rejected delete: %v", err)
+	}
+}
+
 func TestCreateGroupWithExclude(t *testing.T) {
 	h, c := newTestServer(t)
 	req := validGroupReq()

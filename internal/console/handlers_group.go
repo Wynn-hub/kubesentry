@@ -183,6 +183,14 @@ func (h *Handlers) deleteGroup(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// "default" is the platform baseline PolicyGroup, preloaded by the hub
+	// chart and referenced by the reserved "default" PolicyDistribution —
+	// deleting it would silently drop baseline enforcement for every
+	// registered cluster.
+	if g.Name == "default" {
+		writeErr(w, http.StatusForbidden, "default policy group cannot be deleted")
+		return
+	}
 	if err := h.Client.Delete(r.Context(), g); err != nil {
 		writeErr(w, http.StatusInternalServerError, "delete policygroup: "+err.Error())
 		return
