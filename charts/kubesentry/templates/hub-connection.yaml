@@ -1,12 +1,10 @@
-{{- if .Values.hub.address }}
 apiVersion: v1
 kind: Secret
 metadata:
   name: kubesentry-hub-ca
   namespace: {{ .Values.namespace }}
 data:
-  ca.crt: {{ .Values.hub.caBundle }}
-{{- if .Values.hub.registrationToken }}
+  ca.crt: {{ required "hub.caBundle is required — standalone deployment is no longer supported" .Values.hub.caBundle }}
 ---
 apiVersion: v1
 kind: Secret
@@ -14,6 +12,4 @@ metadata:
   name: kubesentry-hub-register
   namespace: {{ .Values.namespace }}
 stringData:
-  token: {{ .Values.hub.registrationToken | quote }}
-{{- end }}
-{{- end }}
+  token: {{ required "hub.registrationToken is required" .Values.hub.registrationToken | quote }}

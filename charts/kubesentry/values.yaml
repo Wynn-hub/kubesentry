@@ -33,40 +33,7 @@ policy:
 
 failurePolicy: Fail
 
-# Common namespaceSelector applied to all built-in PolicyGroups by default.
-# Override per-group via builtinGroups.<name>.namespaceSelector.
-builtinNamespaceSelector:
-  matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: NotIn
-      values:
-        - kube-system
-        - kube-public
-        - kube-node-lease
-        - kubesentry-system
-
-# Per-group toggle and optional overrides.
-builtinGroups:
-  security:
-    enabled: true
-    # namespaceSelector: null      # set to override builtinNamespaceSelector
-    # selectorEnforcementMode: ""  # affects bySelector-matched future user policies only
-  efficiency:
-    enabled: true
-  reliability:
-    enabled: true
-
-# Per-policy toggles and per-entry mode overrides.
-# Keys are the Policy.metadata.name (kebab-case) of each built-in policy.
-# Omitted keys default to enabled=true with the mode declared in the policy yaml.
-builtinPolicies: {}
-#   run-as-privileged:
-#     enabled: true   # set false to drop this Policy + remove from group.byName
-#     mode: ""        # "enforce" | "audit" — overrides the policy's default
-
 # Webhook-level namespace exclusion (forwarded to ValidatingWebhookConfiguration).
-# Kept separate from builtinNamespaceSelector: this filters which requests reach
-# the webhook server; the group selector filters which groups evaluate them.
 webhookNamespaceSelector:
   matchExpressions:
     - key: kubernetes.io/metadata.name
@@ -77,8 +44,8 @@ webhookNamespaceSelector:
         - kube-node-lease
         - kubesentry-system
 
-# Hub connection (multi-cluster mode). Leave address empty for the
-# single-cluster mode — the operator then never starts the hub link.
+# Hub connection — required. Standalone deployment (no hub) is no longer
+# supported; every field below must be set at install time.
 hub:
   address: ""                  # e.g. "kubesentry-hub.kubesentry-system.svc:9443"
   caBundle: ""                 # base64 PEM of the hub CA (ca.crt from the hub TLS secret)

@@ -21,26 +21,22 @@ spec:
           env:
             - name: VWC_NAME
               value: kubesentry
-            # —— hub connection（hub.address 为空时以下 env 渲染为空串，operator 跳过）——
+            # —— hub connection (required — standalone deployment removed) ——
             - name: HUB_ADDRESS
-              value: {{ .Values.hub.address | quote }}
+              value: {{ required "hub.address is required — standalone deployment is no longer supported" .Values.hub.address | quote }}
             - name: HUB_TLS_SERVER_NAME
               value: {{ .Values.hub.tlsServerName | quote }}
             - name: CLUSTER_NAME
-              value: {{ .Values.hub.clusterName | quote }}
+              value: {{ required "hub.clusterName is required" .Values.hub.clusterName | quote }}
             - name: OPERATOR_VERSION
               value: {{ .Chart.AppVersion | quote }}
           resources:
             {{- toYaml .Values.operator.resources | nindent 12 }}
-{{- if .Values.hub.address }}
           volumeMounts:
             - name: hub-ca
               mountPath: /etc/kubesentry/hub-ca
               readOnly: true
-{{- end }}
-      {{- if .Values.hub.address }}
       volumes:
         - name: hub-ca
           secret:
             secretName: kubesentry-hub-ca
-      {{- end }}
