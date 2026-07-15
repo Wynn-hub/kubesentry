@@ -184,9 +184,12 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 			// heartbeat/status-report acknowledged; nothing to do
 		case *hubpb.HubMessage_DesiredState:
 			ds := m.DesiredState
-			if ds.VersionHash == getApplied() {
-				continue // idempotent re-push
-			}
+			// No same-hash skip here: applyDesiredState's own upsertObject
+			// already compares each object's spec+labels and skips writes
+			// that are already correct, so resending the same hash is cheap
+			// when there's no drift — and it's exactly how member-side edits
+			// to managed objects get corrected back (see pushResync in
+			// internal/hub/server.go).
 			applyErr := applyDesiredState(ctx, l.cfg.Client, ds)
 			applyMsg := ""
 			if applyErr != nil {

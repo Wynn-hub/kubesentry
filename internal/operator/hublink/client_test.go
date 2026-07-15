@@ -370,6 +370,90 @@ func TestLinkAppliesSnapshotAndReportsBack(t *testing.T) {
 	}, "hub distribution status never reached Synced")
 }
 
+func TestLinkReappliesOnResendEvenWithUnchangedHash(t *testing.T) {
+	const clusterName = "prod"
+	dial, _, _ := startHub(t,
+		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: clusterName}},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: hubNS, Name: hub.AuthSecretName(clusterName)},
+			Data: map[string][]byte{
+				hub.KeyTokenHash:  []byte(hub.HashToken("tok")),
+				hub.KeyClusterUID: []byte("uid-1"),
+			},
+		},
+		&v1alpha1.Policy{
+			ObjectMeta: metav1.ObjectMeta{Name: "p1"},
+			Spec: v1alpha1.PolicySpec{
+				EnforcementMode: v1alpha1.ModeAudit,
+				Rego:            "package kubesentry\ndeny[msg]{false;msg:=\"x\"}",
+			},
+		},
+		&v1alpha1.PolicyGroup{
+			ObjectMeta: metav1.ObjectMeta{Name: "g1"},
+			Spec: v1alpha1.PolicyGroupSpec{
+				Enabled:  true,
+				Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: "p1"}}},
+			},
+		},
+		&v1alpha1.PolicyDistribution{
+			ObjectMeta: metav1.ObjectMeta{Name: "d1"},
+			Spec: v1alpha1.PolicyDistributionSpec{
+				Clusters:     v1alpha1.DistributionClusters{ByName: []string{clusterName}},
+				PolicyGroups: []string{"g1"},
+			},
+		},
+	)
+
+	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
+	kubeSystem.UID = "uid-1"
+	member := fake.NewClientBuilder().WithScheme(buildScheme(t)).WithObjects(
+		kubeSystem,
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: memberNS, Name: "kubesentry-hub-auth"},
+			Data:       map[string][]byte{"clusterToken": []byte("tok")},
+		},
+	).Build()
+
+	l := New(Config{
+		HubAddress: "bufnet", ClusterName: clusterName, Namespace: memberNS,
+		OperatorVersion: "v-drift", Reader: member, Client: member,
+		HeartbeatEvery: 50 * time.Millisecond, DialOverride: dial,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	defer hub.SetPushResyncForTest(30 * time.Millisecond)()
+	go func() { _ = l.Start(ctx) }()
+
+	waitFor(t, 5*time.Second, func() bool {
+		var p v1alpha1.Policy
+		if err := member.Get(ctx, types.NamespacedName{Name: "p1"}, &p); err != nil {
+			return false
+		}
+		return p.Labels[v1alpha1.ManagedByLabel] == v1alpha1.ManagedByPlatform
+	}, "member never applied Policy p1")
+
+	// Simulate local drift on the managed object: flip its mode directly.
+	var drifted v1alpha1.Policy
+	if err := member.Get(ctx, types.NamespacedName{Name: "p1"}, &drifted); err != nil {
+		t.Fatal(err)
+	}
+	drifted.Spec.EnforcementMode = v1alpha1.ModeEnforce
+	if err := member.Update(ctx, &drifted); err != nil {
+		t.Fatal(err)
+	}
+
+	// A second, identical-hash DesiredState arriving over the same connection
+	// must still correct the drift back to audit (SP2's per-connection
+	// dedup no longer blanket-skips applyDesiredState).
+	waitFor(t, 5*time.Second, func() bool {
+		var p v1alpha1.Policy
+		if err := member.Get(ctx, types.NamespacedName{Name: "p1"}, &p); err != nil {
+			return false
+		}
+		return p.Spec.EnforcementMode == v1alpha1.ModeAudit
+	}, "drifted policy was never re-corrected by a resent identical-hash snapshot")
+}
+
 func waitFor(t *testing.T, timeout time.Duration, cond func() bool, msg string) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)

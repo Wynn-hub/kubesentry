@@ -25,7 +25,15 @@ import (
 // pushResync is the fallback interval for re-rendering a cluster's snapshot
 // even without a change notification — a safety net against a missed/dropped
 // Notify (e.g. a goroutine race at startup) rather than the primary trigger.
-const pushResync = 60 * time.Second
+var pushResync = 60 * time.Second
+
+// SetPushResyncForTest lowers the resync interval for tests that need to
+// observe a resync tick without waiting a full minute. Returns a restore func.
+func SetPushResyncForTest(d time.Duration) func() {
+	orig := pushResync
+	pushResync = d
+	return func() { pushResync = orig }
+}
 
 // Server implements the hubpb.Hub gRPC service.
 type Server struct {
@@ -206,13 +214,16 @@ func (s *Server) renderFor(ctx context.Context, cluster string) (RenderResult, e
 }
 
 // pushLoop renders and pushes a DesiredState snapshot immediately, then again
-// whenever s.changes fires or pushResync elapses — but only sends when the
-// content hash actually changed. Returns once the stream errors (the recv
-// loop in Sync will observe the same broken stream and return too) or ctx is
-// canceled (Sync's defer cancelPush on the way out).
+// whenever s.changes fires (only if the content hash changed, to avoid noisy
+// resends during informer event bursts) or whenever pushResync elapses (always
+// resent regardless of hash, to correct member-side drift on managed objects
+// that the hub can't otherwise observe). Returns once the stream errors (the
+// recv loop in Sync will observe the same broken stream and return too) or ctx
+// is canceled (Sync's defer cancelPush on the way out).
 func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string) {
 	ticker := time.NewTicker(pushResync)
 	defer ticker.Stop()
+	forceSend := false
 	for {
 		// Capture the wait channel before doing any work this iteration: a
 		// Notify() firing anytime during render/send/markPushed below must
@@ -222,7 +233,7 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 		waitCh := s.changes.Wait()
 		if res, err := s.renderFor(ctx, cluster); err == nil {
 			last, has := sess.last()
-			if !has || last.Hash != res.Hash {
+			if !has || last.Hash != res.Hash || forceSend {
 				if err := sess.send(&hubpb.HubMessage{Msg: &hubpb.HubMessage_DesiredState{
 					DesiredState: &hubpb.DesiredState{VersionHash: res.Hash, Objects: ToProto(res.Objects)},
 				}}); err != nil {
@@ -232,11 +243,17 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 			}
 			s.markPushed(ctx, cluster, res)
 		}
+		forceSend = false
 		select {
 		case <-ctx.Done():
 			return
 		case <-waitCh:
 		case <-ticker.C:
+			// pushResync fallback: force a resend even if the render hash is
+			// unchanged, so member-side drift on managed objects (which never
+			// changes the hub-side render inputs) gets corrected periodically
+			// instead of persisting until something on the hub actually changes.
+			forceSend = true
 		}
 	}
 }

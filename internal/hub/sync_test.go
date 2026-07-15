@@ -208,3 +208,31 @@ func TestSyncPushesSnapshotOnConnectAndChange(t *testing.T) {
 		t.Fatalf("expected empty snapshot again, got %+v", third)
 	}
 }
+
+func TestSyncResendsOnResyncTickEvenWithUnchangedHash(t *testing.T) {
+	orig := pushResync
+	pushResync = 30 * time.Millisecond
+	defer func() { pushResync = orig }()
+
+	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}}
+	auth := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Namespace: hubNS, Name: AuthSecretName("prod")},
+		Data:       map[string][]byte{KeyTokenHash: []byte(HashToken("tok")), KeyClusterUID: []byte("u")},
+	}
+	c := newHubClient(t, cl, auth)
+	notifier := NewNotifier()
+	client := startBufconnHub(t, NewServer(c, hubNS, NewHeartbeatTracker(), notifier))
+
+	ctx := metadata.AppendToOutgoingContext(context.Background(),
+		MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+	stream, err := client.Sync(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first := recvDesiredState(t, stream, 3*time.Second)
+	second := recvDesiredState(t, stream, 3*time.Second)
+	if first.VersionHash != second.VersionHash {
+		t.Fatalf("expected identical hash across resync tick, got %q vs %q", first.VersionHash, second.VersionHash)
+	}
+}
