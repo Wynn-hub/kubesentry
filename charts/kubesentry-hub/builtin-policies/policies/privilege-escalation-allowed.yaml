@@ -1,0 +1,29 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: privilege-escalation-allowed
+  labels:
+    kubesentry.io/category: security
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+  enforcementMode: enforce
+  description: "Fails when securityContext.allowPrivilegeEscalation is true."
+  rego: |
+    package kubesentry
+
+    deny[msg] {
+      c := input.request.object.spec.containers[_]
+      c.securityContext.allowPrivilegeEscalation == true
+      msg := sprintf("container %q must not allow privilege escalation", [c.name])
+    }
+    deny[msg] {
+      c := input.request.object.spec.initContainers[_]
+      c.securityContext.allowPrivilegeEscalation == true
+      msg := sprintf("initContainer %q must not allow privilege escalation", [c.name])
+    }

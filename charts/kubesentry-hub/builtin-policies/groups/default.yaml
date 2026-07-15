@@ -1,0 +1,43 @@
+metadata:
+  name: default
+spec:
+  displayName: "Default"
+  description: "Platform default baseline (efficiency + reliability + security), applied to every registered cluster unless overridden by a custom distribution"
+  members:
+    - cpu-requests-missing
+    - memory-requests-missing
+    - cpu-limits-missing
+    - memory-limits-missing
+    - readiness-probe-missing
+    - liveness-probe-missing
+    - tag-not-specified
+    - pull-policy-not-always
+    - priority-class-not-set
+    - deployment-missing-replicas
+    - metadata-and-instance-mismatched
+    - topology-spread-constraint
+    - hpa-max-availability
+    - hpa-min-availability
+    - run-as-privileged
+    - privilege-escalation-allowed
+    - run-as-root-allowed
+    - not-read-only-root-filesystem
+    - linux-hardening
+    - insecure-capabilities
+    - dangerous-capabilities
+    - host-pid-set
+    - host-ipc-set
+    - host-network-set
+    - host-port-set
+    - sensitive-container-env-var
+    - automount-service-account-token
+    - sensitive-configmap-content
+    - tls-settings-missing
+    - clusterrole-pod-exec-attach
+    - role-pod-exec-attach
+    - clusterrolebinding-pod-exec-attach
+    - rolebinding-role-pod-exec-attach
+    - rolebinding-cluster-role-pod-exec-attach
+    - clusterrolebinding-cluster-admin
+    - rolebinding-cluster-admin-cluster-role
+    - rolebinding-cluster-admin-role

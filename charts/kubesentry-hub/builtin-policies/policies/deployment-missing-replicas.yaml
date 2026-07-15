@@ -1,0 +1,28 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: deployment-missing-replicas
+  labels:
+    kubesentry.io/category: reliability
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        resources: [deployments]
+  enforcementMode: audit
+  description: "Fails when a Deployment has only one replica."
+  rego: |
+    package kubesentry
+
+    deny[msg] {
+      replicas := input.request.object.spec.replicas
+      replicas < 2
+      msg := sprintf("Deployment has only %d replica(s); set replicas >= 2 for availability", [replicas])
+    }
+    deny[msg] {
+      not input.request.object.spec.replicas
+      msg := "Deployment does not specify replicas; default of 1 is insufficient for availability"
+    }

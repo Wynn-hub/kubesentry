@@ -1,0 +1,36 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: linux-hardening
+  labels:
+    kubesentry.io/category: security
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+  enforcementMode: enforce
+  description: "Fails when neither Seccomp, SELinux, nor capabilities.drop is in use."
+  rego: |
+    package kubesentry
+
+    _has_seccomp(c) {
+      c.securityContext.seccompProfile.type
+    }
+    _has_selinux(c) {
+      c.securityContext.seLinuxOptions.type
+    }
+    _has_drop_caps(c) {
+      c.securityContext.capabilities.drop[_]
+    }
+
+    deny[msg] {
+      c := input.request.object.spec.containers[_]
+      not _has_seccomp(c)
+      not _has_selinux(c)
+      not _has_drop_caps(c)
+      msg := sprintf("container %q has no Linux hardening (set seccompProfile, seLinuxOptions, or capabilities.drop)", [c.name])
+    }

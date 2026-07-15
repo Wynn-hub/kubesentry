@@ -17,7 +17,7 @@ import (
 // webhook compiler. Catches v0 syntax mistakes (rego.v1 / some x in set)
 // and broken sprintf signatures at PR time.
 func TestBuiltinPoliciesCompile(t *testing.T) {
-	chart, err := filepath.Abs("../../charts/kubesentry")
+	chart, err := filepath.Abs("../../charts/kubesentry-hub")
 	if err != nil {
 		t.Fatal(err)
 	}

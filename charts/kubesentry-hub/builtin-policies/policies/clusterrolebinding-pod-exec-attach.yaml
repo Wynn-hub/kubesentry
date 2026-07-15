@@ -1,0 +1,28 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: clusterrolebinding-pod-exec-attach
+  labels:
+    kubesentry.io/category: security
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [rbac.authorization.k8s.io]
+        apiVersions: [v1]
+        resources: [clusterrolebindings]
+  enforcementMode: enforce
+  description: "Fails when the ClusterRoleBinding references a ClusterRole known to allow pods/exec or pods/attach."
+  rego: |
+    package kubesentry
+
+    _known_exec_roles := {"pod-exec", "pod-attach", "exec-pod", "attach-pod"}
+
+    deny[msg] {
+      ref := input.request.object.roleRef
+      ref.kind == "ClusterRole"
+      role := _known_exec_roles[_]
+      contains(lower(ref.name), role)
+      msg := sprintf("ClusterRoleBinding references potentially dangerous ClusterRole %q", [ref.name])
+    }

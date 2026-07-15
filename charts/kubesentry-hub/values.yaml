@@ -53,3 +53,28 @@ tls:
   ca: ""    # PEM CA certificate
   cert: ""  # PEM server certificate
   key: ""   # PEM server private key
+
+# Built-in default policy (Efficiency+Reliability+Security merged into one
+# PolicyGroup named "default"). Applied to every registered cluster via a
+# PolicyDistribution with clusterSelector: {} (matches all clusters).
+builtinNamespaceSelector:
+  matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values:
+        - kube-system
+        - kube-public
+        - kube-node-lease
+        - kubesentry-system
+
+builtinGroups:
+  default:
+    enabled: true
+
+# Per-policy toggles and per-entry mode overrides.
+# Keys are the Policy.metadata.name (kebab-case) of each built-in policy.
+# Omitted keys default to enabled=true with the mode declared in the policy yaml.
+builtinPolicies: {}
+#   run-as-privileged:
+#     enabled: true   # set false to drop this Policy + remove from group.byName
+#     mode: ""        # "enforce" | "audit" — overrides the policy's default

@@ -1,0 +1,24 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: memory-requests-missing
+  labels:
+    kubesentry.io/category: efficiency
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+  enforcementMode: audit
+  description: "Fails when resources.requests.memory is not configured."
+  rego: |
+    package kubesentry
+
+    deny[msg] {
+      c := input.request.object.spec.containers[_]
+      not c.resources.requests.memory
+      msg := sprintf("container %q must set resources.requests.memory", [c.name])
+    }

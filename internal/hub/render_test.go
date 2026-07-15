@@ -227,3 +227,22 @@ func TestRenderSkipsDeletingDistribution(t *testing.T) {
 		t.Fatalf("deleting distribution still rendered: %+v", res)
 	}
 }
+
+func TestRenderEmptyClusterSelectorMatchesEveryCluster(t *testing.T) {
+	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "any-cluster-no-labels"}}
+	dist := v1alpha1.PolicyDistribution{
+		ObjectMeta: metav1.ObjectMeta{Name: "default"},
+		Spec: v1alpha1.PolicyDistributionSpec{
+			Clusters:     v1alpha1.DistributionClusters{ClusterSelector: &metav1.LabelSelector{}},
+			PolicyGroups: []string{"g1"},
+		},
+	}
+	res := Render(cl,
+		[]v1alpha1.PolicyDistribution{dist},
+		[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})},
+		[]v1alpha1.Policy{rPolicy("p1", v1alpha1.ModeAudit)})
+
+	if len(res.Errors) != 0 || len(res.Matched) != 1 || res.Matched[0] != "default" {
+		t.Fatalf("expected empty-selector distribution to match a label-less cluster: matched=%v errors=%v", res.Matched, res.Errors)
+	}
+}

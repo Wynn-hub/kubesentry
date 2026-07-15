@@ -1,0 +1,33 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: sensitive-container-env-var
+  labels:
+    kubesentry.io/category: security
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+  enforcementMode: enforce
+  description: "Fails when the container sets potentially sensitive environment variables."
+  rego: |
+    package kubesentry
+
+    _sensitive_patterns := {
+      "password", "passwd", "secret", "token", "key",
+      "api_key", "apikey", "auth", "credential", "credentials",
+      "private_key", "access_key", "private_token",
+    }
+
+    deny[msg] {
+      c := input.request.object.spec.containers[_]
+      env := c.env[_]
+      name_lower := lower(env.name)
+      pattern := _sensitive_patterns[_]
+      contains(name_lower, pattern)
+      msg := sprintf("container %q has potentially sensitive env var %q", [c.name, env.name])
+    }

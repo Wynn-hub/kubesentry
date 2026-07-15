@@ -1,0 +1,31 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: tag-not-specified
+  labels:
+    kubesentry.io/category: reliability
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+  enforcementMode: enforce
+  description: "Fails when an image tag is not specified or is latest."
+  rego: |
+    package kubesentry
+
+    deny[msg] {
+      c := input.request.object.spec.containers[_]
+      image := c.image
+      not contains(image, ":")
+      msg := sprintf("container %q image %q has no tag", [c.name, image])
+    }
+    deny[msg] {
+      c := input.request.object.spec.containers[_]
+      image := c.image
+      endswith(image, ":latest")
+      msg := sprintf("container %q image %q uses the latest tag", [c.name, image])
+    }

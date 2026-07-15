@@ -1,0 +1,28 @@
+apiVersion: kubesentry.io/v1alpha1
+kind: Policy
+metadata:
+  name: tls-settings-missing
+  labels:
+    kubesentry.io/category: security
+    kubesentry.io/source: builtin
+spec:
+  match:
+    operations: [CREATE, UPDATE]
+    resources:
+      - apiGroups: [networking.k8s.io]
+        apiVersions: [v1]
+        resources: [ingresses]
+  enforcementMode: audit
+  description: "Fails when an Ingress lacks TLS settings."
+  rego: |
+    package kubesentry
+
+    deny[msg] {
+      count(input.request.object.spec.tls) == 0
+      msg := "Ingress should configure TLS settings"
+    }
+
+    deny[msg] {
+      not input.request.object.spec.tls
+      msg := "Ingress should configure TLS settings"
+    }
