@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -18,6 +19,12 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/groupresolve"
 )
+
+// policyGroupCleanupFinalizer holds a PolicyGroup in the API just long enough
+// for the delete-path Reconcile to clear stale Policy.status.referencedBy
+// entries — without it, deletion removes the group before any reconcile can
+// see its last resolved members, so referencedBy never gets recomputed.
+const policyGroupCleanupFinalizer = "kubesentry.io/policygroup-cleanup"
 
 // PolicyGroupReconciler resolves a PolicyGroup's members from byName + bySelector,
 // computes effective mode for each, and writes status to the group + every
@@ -41,6 +48,27 @@ func (r *PolicyGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Snapshot previous resolved set before any mutation, so we can compute the
 	// referencedBy diff at the end of the reconcile.
 	prev := snapshotResolved(pg.Status.ResolvedPolicies)
+
+	if !pg.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(&pg, policyGroupCleanupFinalizer) {
+			return ctrl.Result{}, nil
+		}
+		if err := r.refreshReferencedBy(ctx, prev, map[string]struct{}{}); err != nil {
+			return ctrl.Result{}, err
+		}
+		controllerutil.RemoveFinalizer(&pg, policyGroupCleanupFinalizer)
+		if err := r.client.Update(ctx, &pg); err != nil {
+			return ctrl.Result{}, fmt.Errorf("remove policygroup finalizer: %w", err)
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if !controllerutil.ContainsFinalizer(&pg, policyGroupCleanupFinalizer) {
+		controllerutil.AddFinalizer(&pg, policyGroupCleanupFinalizer)
+		if err := r.client.Update(ctx, &pg); err != nil {
+			return ctrl.Result{}, fmt.Errorf("add policygroup finalizer: %w", err)
+		}
+	}
 
 	if !pg.Spec.Enabled {
 		// Clear status, then refresh referencedBy on previously-resolved policies.
@@ -114,6 +142,12 @@ func (r *PolicyGroupReconciler) refreshReferencedBy(ctx context.Context, prev, c
 		// Collect groups whose status.resolvedPolicies currently include `name`.
 		var refs []string
 		for _, g := range groups.Items {
+			// A group mid-deletion (finalizer still attached) still has a
+			// stale ResolvedPolicies in its status; it must not count as a
+			// current reference or referencedBy never clears on delete.
+			if !g.DeletionTimestamp.IsZero() {
+				continue
+			}
 			for _, m := range g.Status.ResolvedPolicies {
 				if m.Name == name {
 					refs = append(refs, g.Name)

@@ -223,6 +223,56 @@ func TestPolicyGroupReconcileDisabledClearsResolvedAndReferencedBy(t *testing.T)
 	}
 }
 
+func TestPolicyGroupReconcileDeleteClearsReferencedBy(t *testing.T) {
+	pg := newGroup("test", true, []v1alpha1.PolicyRef{{Name: "automount-service-account-token"}}, nil)
+	pol := newLabeledPolicy("automount-service-account-token", v1alpha1.ModeEnforce, nil)
+
+	c := fake.NewClientBuilder().WithScheme(buildScheme()).
+		WithObjects(pg, pol).
+		WithStatusSubresource(pg, pol).
+		Build()
+	ctx := context.Background()
+	req := ctrl.Request{NamespacedName: types.NamespacedName{Name: "test"}}
+	r := operator.NewPolicyGroupReconciler(c)
+
+	// First reconcile: attaches the cleanup finalizer and resolves the member.
+	if _, err := r.Reconcile(ctx, req); err != nil {
+		t.Fatalf("reconcile (add finalizer): %v", err)
+	}
+	var afterFirst v1alpha1.Policy
+	_ = c.Get(ctx, types.NamespacedName{Name: "automount-service-account-token"}, &afterFirst)
+	if len(afterFirst.Status.ReferencedBy) != 1 || afterFirst.Status.ReferencedBy[0] != "test" {
+		t.Fatalf("referencedBy before delete = %v, want [test]", afterFirst.Status.ReferencedBy)
+	}
+
+	// Delete the group. The finalizer blocks immediate removal, so the fake
+	// client sets DeletionTimestamp instead of deleting the object outright.
+	var toDelete v1alpha1.PolicyGroup
+	if err := c.Get(ctx, types.NamespacedName{Name: "test"}, &toDelete); err != nil {
+		t.Fatalf("get before delete: %v", err)
+	}
+	if err := c.Delete(ctx, &toDelete); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+
+	// Second reconcile: runs the delete path, must clear referencedBy on the
+	// policy that only "test" referenced, then remove the finalizer.
+	if _, err := r.Reconcile(ctx, req); err != nil {
+		t.Fatalf("reconcile (delete path): %v", err)
+	}
+
+	var gotPol v1alpha1.Policy
+	_ = c.Get(ctx, types.NamespacedName{Name: "automount-service-account-token"}, &gotPol)
+	if len(gotPol.Status.ReferencedBy) != 0 {
+		t.Errorf("referencedBy after group delete = %v, want empty", gotPol.Status.ReferencedBy)
+	}
+
+	var gone v1alpha1.PolicyGroup
+	if err := c.Get(ctx, types.NamespacedName{Name: "test"}, &gone); err == nil {
+		t.Errorf("expected PolicyGroup %q to be gone after finalizer removal", "test")
+	}
+}
+
 func TestPolicyGroupReconcileSelectorEnforcementModeOverride(t *testing.T) {
 	pg := newGroup("security", true, nil,
 		&metav1.LabelSelector{MatchLabels: map[string]string{v1alpha1.LabelCategory: "security"}},
