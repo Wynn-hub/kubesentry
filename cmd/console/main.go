@@ -19,10 +19,12 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console"
+	"github.com/Wynn-hub/kubesentry/internal/logging"
 	"github.com/Wynn-hub/kubesentry/web"
 )
 
 func main() {
+	logging.Init()
 	addr := os.Getenv("CONSOLE_ADDR")
 	if addr == "" {
 		addr = ":8080"

@@ -20,12 +20,14 @@ import (
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/logging"
 	"github.com/Wynn-hub/kubesentry/internal/operator"
 	"github.com/Wynn-hub/kubesentry/internal/operator/hublink"
 	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
 
 func main() {
+	logging.Init()
 	if len(os.Args) > 1 && os.Args[1] == "tls-setup" {
 		runTLSSetup()
 		return

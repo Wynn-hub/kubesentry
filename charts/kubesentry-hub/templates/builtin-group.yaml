@@ -20,8 +20,10 @@ spec:
   displayName: {{ $g.spec.displayName | quote }}
   description: {{ $g.spec.description | quote }}
   enabled: true
+  {{- if $u.namespaceSelector }}
   namespaceSelector:
-{{ default $.Values.builtinNamespaceSelector $u.namespaceSelector | toYaml | indent 4 }}
+{{ $u.namespaceSelector | toYaml | indent 4 }}
+  {{- end }}
   policies:
     byName:
     {{- range $member := $g.spec.members }}

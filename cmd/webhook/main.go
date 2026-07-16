@@ -15,10 +15,12 @@ import (
 	runtimecache "sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/logging"
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
 func main() {
+	logging.Init()
 	cfg, err := buildConfig()
 	if err != nil {
 		slog.Error("build kubeconfig", "error", err)
