@@ -10,3 +10,6 @@ spec:
     - name: grpc
       port: {{ .Values.hub.grpc.port }}
       targetPort: grpc
+      {{- if and (eq .Values.hub.grpc.serviceType "NodePort") .Values.hub.grpc.nodePort }}
+      nodePort: {{ .Values.hub.grpc.nodePort }}
+      {{- end }}

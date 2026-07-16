@@ -1,9 +1,26 @@
 KubeSentry hub {{ .Chart.AppVersion }} deployed to namespace {{ .Values.namespace }}.
 {{- if .Values.console.enabled }}
 
-Access the web console (no auth — do not expose outside the cluster):
+Access the web console (no auth — do not expose outside a trusted network):
+{{- if eq .Values.console.service.type "NodePort" }}
+
+  export NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "http://$NODE_IP:{{ .Values.console.service.nodePort | default .Values.console.service.port }}"
+{{- else }}
 
   kubectl -n {{ .Values.namespace }} port-forward svc/kubesentry-console {{ .Values.console.service.port }}:{{ .Values.console.service.port }}
 
 Then open http://localhost:{{ .Values.console.service.port }}
+{{- end }}
+{{- end }}
+
+Hub gRPC endpoint for member cluster registration (used as a member chart's
+hub.address value):
+{{- if eq .Values.hub.grpc.serviceType "NodePort" }}
+
+  export NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "$NODE_IP:{{ .Values.hub.grpc.nodePort | default .Values.hub.grpc.port }}"
+{{- else }}
+
+  kubesentry-hub.{{ .Values.namespace }}.svc:{{ .Values.hub.grpc.port }}
 {{- end }}

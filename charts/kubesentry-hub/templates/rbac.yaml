@@ -16,11 +16,25 @@ rules:
     resources: [clusters/status]
     verbs: [get, update, patch]
   - apiGroups: [kubesentry.io]
-    resources: [policydistributions, policygroups, policies]
+    resources: [policydistributions]
     verbs: [get, list, watch]
   - apiGroups: [kubesentry.io]
     resources: [policydistributions/status]
     verbs: [get, update, patch]
+  # policies/policygroups need update+patch (not just read) so the hub's own
+  # PolicyReconciler/PolicyGroupReconciler — reused as-is from
+  # internal/operator — can reconcile the platform's policy library on this
+  # cluster: Rego validation, PolicyVersion snapshotting, rollback handling
+  # (policies spec patch), and PolicyGroup member resolution.
+  - apiGroups: [kubesentry.io]
+    resources: [policies, policygroups]
+    verbs: [get, list, watch, update, patch]
+  - apiGroups: [kubesentry.io]
+    resources: [policies/status, policygroups/status]
+    verbs: [get, update, patch]
+  - apiGroups: [kubesentry.io]
+    resources: [policyversions]
+    verbs: [get, list, watch, create, update, patch, delete]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

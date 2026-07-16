@@ -185,37 +185,17 @@ build-image-local: build-linux
 	docker build -f Dockerfile.hub      -t $(LOCAL_HUB_IMAGE)      .
 
 # Build images + helm install/upgrade in one shot.
-# Two chart installs into the same namespace: kubesentry (webhook + operator,
-# the per-cluster enforcement engine) and kubesentry-hub (hub + console, the
-# "platform" component per design D1). kubesentry installs FIRST: on a cluster
-# still holding console resources from a pre-split chart version (console used
-# to live in kubesentry's own templates), upgrading kubesentry first prunes
-# them from that release before kubesentry-hub tries to create them under its
-# own ownership — installing hub first would hit a Helm ownership conflict on
-# any such cluster. Harmless no-op ordering on a fresh cluster.
+# Two chart installs into the same namespace: kubesentry-hub (hub + console,
+# the "platform" component per design D1) and kubesentry (webhook + operator,
+# the per-cluster enforcement engine). hub installs FIRST now, out of
+# necessity: the member chart's hub.address/caBundle/clusterName/
+# registrationToken are chart-required (standalone deployment removed), and
+# the registration token only exists once the hub has issued it — so
+# scripts/deploy-local.sh installs hub, self-registers this cluster
+# ("local"), harvests the token, then installs the member chart once with
+# every hub field already set. Mirrors test/e2e's TestMain bootstrap order.
 deploy-local: build-image-local
-	@echo "→ Deploying to kube context: $$(kubectl config current-context)"
-	helm upgrade --install kubesentry $(CHART_DIR) \
-	  --namespace $(LOCAL_NAMESPACE) --create-namespace \
-	  --set webhook.image.repository=$(REGISTRY)/kubesentry-webhook \
-	  --set webhook.image.tag=$(LOCAL_TAG) \
-	  --set webhook.image.pullPolicy=Never \
-	  --set operator.image.repository=$(REGISTRY)/kubesentry-operator \
-	  --set operator.image.tag=$(LOCAL_TAG) \
-	  --set operator.image.pullPolicy=Never \
-	  --wait --timeout 5m
-	helm upgrade --install kubesentry-hub $(HUB_CHART_DIR) \
-	  --namespace $(LOCAL_NAMESPACE) --create-namespace \
-	  --set hub.image.repository=$(REGISTRY)/kubesentry-hub \
-	  --set hub.image.tag=$(LOCAL_TAG) \
-	  --set hub.image.pullPolicy=Never \
-	  --set console.image.repository=$(REGISTRY)/kubesentry-console \
-	  --set console.image.tag=$(LOCAL_TAG) \
-	  --set console.image.pullPolicy=Never \
-	  --wait --timeout 5m
-	@echo ""
-	@echo "Deployed. Inspect with:"
-	@echo "  kubectl -n $(LOCAL_NAMESPACE) get pods"
+	@REGISTRY=$(REGISTRY) LOCAL_TAG=$(LOCAL_TAG) LOCAL_NAMESPACE=$(LOCAL_NAMESPACE) ./scripts/deploy-local.sh
 
 undeploy-local:
 	helm uninstall kubesentry --namespace $(LOCAL_NAMESPACE) || true
@@ -225,7 +205,7 @@ undeploy-local:
 	@# so uninstall cannot wipe Policy data); a full dev teardown removes them.
 	@for crd in policies.kubesentry.io policygroups.kubesentry.io \
 	            policyversions.kubesentry.io policyexceptions.kubesentry.io \
-	            clusters.kubesentry.io; do \
+	            clusters.kubesentry.io policydistributions.kubesentry.io; do \
 	  kubectl delete crd $$crd --ignore-not-found; \
 	done
 

@@ -29,6 +29,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/hub"
 	"github.com/Wynn-hub/kubesentry/internal/hubpb"
+	"github.com/Wynn-hub/kubesentry/internal/operator"
 	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
 
@@ -68,6 +69,31 @@ func main() {
 
 	if err := hub.NewClusterReconciler(mgr.GetClient(), namespace).SetupWithManager(mgr); err != nil {
 		slog.Error("setup cluster reconciler", "error", err)
+		os.Exit(1)
+	}
+
+	// Rego validation and version-snapshot/rollback handling for the
+	// platform's own policy library — the same reconciler logic the member
+	// chart's operator runs, reused as-is (no k8s-cluster-specific coupling
+	// in either type). Without this, Policy/PolicyGroup objects authored
+	// directly on the hub (e.g. the "default" catalogue, or anything created
+	// via console) would never get Phase/CurrentVersion/ResolvedPolicies
+	// computed unless an operator happened to be co-located on this same
+	// cluster (self-registration) — hub has no way to reach a genuinely
+	// separate member cluster's API server to reconcile its objects, so this
+	// only ever covers hub's own cluster, same as ClusterReconciler above.
+	// Safe to run alongside a self-registered operator's own copy of these
+	// reconcilers: PolicyReconciler already tolerates a concurrent writer via
+	// its AlreadyExists/spec-match check on PolicyVersion creation, and a
+	// Status().Update conflict just triggers Kubernetes' normal reconcile
+	// retry — no explicit coordination needed.
+	historyLimit := 20
+	if err := operator.NewPolicyReconciler(mgr.GetClient(), historyLimit).SetupWithManager(mgr); err != nil {
+		slog.Error("setup policy reconciler", "error", err)
+		os.Exit(1)
+	}
+	if err := operator.NewPolicyGroupReconciler(mgr.GetClient()).SetupWithManager(mgr); err != nil {
+		slog.Error("setup policygroup reconciler", "error", err)
 		os.Exit(1)
 	}
 
@@ -172,10 +198,12 @@ func ensureTLS(namespace, secretName, dnsName string) (tls.Certificate, error) {
 	var sec corev1.Secret
 	err = c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: secretName}, &sec)
 	if apierrors.IsNotFound(err) {
-		bundle, genErr := tlssetup.GenerateCerts(dnsName)
-		if genErr != nil {
-			return tls.Certificate{}, genErr
-		}
+		// No cert persisted yet — nothing was configured via the hub chart's
+		// tls.ca/cert/key values (those pre-create this same Secret via
+		// tls-secret.yaml before the hub pod ever starts), so fall back to
+		// the hardcoded default bundle rather than generating a fresh random
+		// one each first start.
+		bundle := tlssetup.DefaultCertBundle()
 		sec = corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: secretName},
 			Type:       corev1.SecretTypeTLS,
@@ -188,7 +216,7 @@ func ensureTLS(namespace, secretName, dnsName string) (tls.Certificate, error) {
 		if createErr := c.Create(ctx, &sec); createErr != nil {
 			return tls.Certificate{}, createErr
 		}
-		slog.Info("generated hub TLS secret", "name", secretName, "dns", dnsName)
+		slog.Info("persisted default hub TLS secret", "name", secretName, "dns", dnsName)
 	} else if err != nil {
 		return tls.Certificate{}, err
 	}
