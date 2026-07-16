@@ -45,15 +45,6 @@ func TestT11DistributionPipeline(t *testing.T) {
 	ctx := context.Background()
 	fx := func(f string) string { return filepath.Join("fixtures", "distribution", f) }
 
-	if err := helpers.RegisterLocalCluster(ctx, k8sClient); err != nil {
-		t.Fatalf("self-registration failed: %v", err)
-	}
-	// Registration restarted the operator; make sure the policy plane has
-	// recovered before continuing.
-	if err := helpers.WaitForAllPoliciesReady(ctx, k8sClient, 2*time.Minute); err != nil {
-		t.Fatalf("policies not ready after re-registration: %v", err)
-	}
-
 	// Orphaned managed object pre-exists the distribution → the first
 	// snapshot must prune it.
 	if _, err := helpers.KubectlApplyClusterScoped(ctx, fx("orphan.yaml")); err != nil {

@@ -4,7 +4,7 @@ metadata:
   name: pex-by-group
 spec:
   policyGroupRefs:
-    - security
+    - default
   match:
     namespaces: ["pex-hr-system"]
   duration: 5m

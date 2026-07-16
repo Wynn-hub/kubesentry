@@ -12,10 +12,3 @@ operator:
     tag: "e2e-test"
     pullPolicy: Never
 
-builtinGroups:
-  security:
-    enabled: true
-  efficiency:
-    enabled: true
-  reliability:
-    enabled: true

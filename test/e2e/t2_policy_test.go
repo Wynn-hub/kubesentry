@@ -17,11 +17,9 @@ func TestT2_PolicyGroupsSynced(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	for _, group := range []string{"security", "efficiency", "reliability"} {
-		var pg v1alpha1.PolicyGroup
-		if err := k8sClient.Get(ctx, types.NamespacedName{Name: group}, &pg); err != nil {
-			t.Errorf("PolicyGroup %s not found: %v", group, err)
-		}
+	var pg v1alpha1.PolicyGroup
+	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "default"}, &pg); err != nil {
+		t.Errorf("PolicyGroup default not found: %v", err)
 	}
 }
 

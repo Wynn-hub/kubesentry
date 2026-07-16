@@ -28,17 +28,11 @@ spec:
     {{- $po := index $.Values.builtinPolicies $member | default dict }}
     {{- $polEnabled := hasKey $po "enabled" | ternary $po.enabled true }}
     {{- if $polEnabled }}
+    {{- $srcPol := $.Files.Get (printf "builtin-policies/policies/%s.yaml" $member) | fromYaml }}
       - name: {{ $member }}
-        {{- if and (hasKey $po "mode") (ne (default "" $po.mode) "") }}
-        enforcementMode: {{ $po.mode }}
-        {{- end }}
+        enforcementMode: {{ (and (hasKey $po "mode") (ne (default "" $po.mode) "")) | ternary $po.mode $srcPol.spec.enforcementMode }}
     {{- end }}
     {{- end }}
-    bySelector:
-      matchExpressions:
-        - key: kubesentry.io/category
-          operator: In
-          values: [efficiency, reliability, security]
   {{- if $u.selectorEnforcementMode }}
   selectorEnforcementMode: {{ $u.selectorEnforcementMode }}
   {{- end }}

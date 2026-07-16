@@ -115,6 +115,66 @@ func TestApplyUnmanagedTwinIdenticalIsSatisfied(t *testing.T) {
 	}
 }
 
+func TestApplyUnmanagedTwinGroupSameMembersDifferentOrderIsSatisfied(t *testing.T) {
+	existingSpec := v1alpha1.PolicyGroupSpec{
+		Enabled: true,
+		Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{
+			{Name: "c", EnforcementMode: v1alpha1.ModeAudit},
+			{Name: "a", EnforcementMode: v1alpha1.ModeAudit},
+			{Name: "b", EnforcementMode: v1alpha1.ModeEnforce},
+		}},
+	}
+	twin := &v1alpha1.PolicyGroup{ObjectMeta: metav1.ObjectMeta{Name: "g1"}, Spec: existingSpec}
+	c := newApplyClient(t, twin)
+
+	// render.go always emits ByName alphabetically sorted — same members and
+	// modes, different order than the chart-authored source object above.
+	desiredSpec := v1alpha1.PolicyGroupSpec{
+		Enabled: true,
+		Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{
+			{Name: "a", EnforcementMode: v1alpha1.ModeAudit},
+			{Name: "b", EnforcementMode: v1alpha1.ModeEnforce},
+			{Name: "c", EnforcementMode: v1alpha1.ModeAudit},
+		}},
+	}
+	ds := &hubpb.DesiredState{VersionHash: "h", Objects: []*hubpb.ManagedObject{mObj(t, "PolicyGroup", "g1", desiredSpec)}}
+	if err := applyDesiredState(context.Background(), c, ds); err != nil {
+		t.Fatalf("same members/modes in a different order must satisfy silently: %v", err)
+	}
+	var got v1alpha1.PolicyGroup
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "g1"}, &got); err != nil {
+		t.Fatal(err)
+	}
+	if _, labeled := got.Labels[v1alpha1.ManagedByLabel]; labeled {
+		t.Fatal("must not take ownership of an unmanaged twin")
+	}
+}
+
+func TestApplyUnmanagedTwinGroupDifferentModeStillConflicts(t *testing.T) {
+	twin := &v1alpha1.PolicyGroup{ObjectMeta: metav1.ObjectMeta{Name: "g1"}, Spec: v1alpha1.PolicyGroupSpec{
+		Enabled: true,
+		Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{
+			{Name: "a", EnforcementMode: v1alpha1.ModeAudit},
+			{Name: "b", EnforcementMode: v1alpha1.ModeEnforce},
+		}},
+	}}
+	c := newApplyClient(t, twin)
+
+	// Different order AND a genuinely different mode for "b" — order
+	// tolerance must not mask a real content difference.
+	ds := &hubpb.DesiredState{VersionHash: "h", Objects: []*hubpb.ManagedObject{mObj(t, "PolicyGroup", "g1", v1alpha1.PolicyGroupSpec{
+		Enabled: true,
+		Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{
+			{Name: "b", EnforcementMode: v1alpha1.ModeAudit},
+			{Name: "a", EnforcementMode: v1alpha1.ModeAudit},
+		}},
+	})}}
+	err := applyDesiredState(context.Background(), c, ds)
+	if err == nil || !strings.Contains(err.Error(), "g1") {
+		t.Fatalf("conflict not reported: %v", err)
+	}
+}
+
 func TestApplyUnmanagedConflictReportsError(t *testing.T) {
 	twin := &v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "p1"}, Spec: policySpec(v1alpha1.ModeAudit)}
 	c := newApplyClient(t, twin)

@@ -13,13 +13,58 @@ import (
 	"github.com/Wynn-hub/kubesentry/test/e2e/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// setDefaultGroupMemberMode patches the built-in "default" PolicyGroup's
+// byName entry for policyName to mode, returning its previous mode.
+//
+// Built-in policies now belong to the hub-managed "default" PolicyGroup,
+// whose byName entries carry an explicit per-entry enforcementMode baked in
+// at chart-render time. groupresolve's precedence gives a per-entry override
+// priority over a Policy's own default mode, so that group entry — not the
+// Policy object's own spec.enforcementMode — is what actually governs
+// webhook enforcement. Patching the Policy directly no longer has a durable
+// effect: the hub's periodic resync (internal/hub/server.go's pushResync)
+// keeps reasserting the group's own baked-in mode over any direct Policy
+// edit. This same object is also hub's own source of truth in
+// self-registration, so patching it here does not get corrected away — it
+// *is* the source.
+//
+// The object is under real write contention (hub's periodic push +
+// PolicyGroupReconciler's own status updates), so this retries on conflict
+// like internal/hub/diststatus.go's setClusterEntry does for the same reason.
+func setDefaultGroupMemberMode(ctx context.Context, t *testing.T, policyName, mode string) string {
+	t.Helper()
+	var original string
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var pg v1alpha1.PolicyGroup
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "default"}, &pg); err != nil {
+			return err
+		}
+		found := false
+		for i := range pg.Spec.Policies.ByName {
+			if pg.Spec.Policies.ByName[i].Name == policyName {
+				original = pg.Spec.Policies.ByName[i].EnforcementMode
+				pg.Spec.Policies.ByName[i].EnforcementMode = mode
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("policy %s not found in default group byName", policyName)
+		}
+		return k8sClient.Update(ctx, &pg)
+	})
+	if err != nil {
+		t.Fatalf("update default group: %v", err)
+	}
+	return original
+}
+
 // TestT4_EnforceToAudit: switch a policy from enforce to audit.
 // After switching, a previously-blocked pod should be admitted.
-// In the new model Policy is first-class; the operator no longer owns
-// Policy objects, so we patch the Policy directly instead of via the group.
 func TestT4_EnforceToAudit(t *testing.T) {
 	ctx := context.Background()
 	policyName := "run-as-privileged"
@@ -32,32 +77,14 @@ func TestT4_EnforceToAudit(t *testing.T) {
 	}
 	t.Logf("T4-1: confirmed enforce mode blocks pod. Output: %s", out)
 
-	var pol v1alpha1.Policy
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol); err != nil {
-		t.Fatalf("get policy %s: %v", policyName, err)
-	}
-	patch := client.MergeFrom(pol.DeepCopy())
-	pol.Spec.EnforcementMode = v1alpha1.ModeAudit
-	if err := k8sClient.Patch(ctx, &pol, patch); err != nil {
-		t.Fatalf("patch policy to audit: %v", err)
-	}
+	original := setDefaultGroupMemberMode(ctx, t, policyName, v1alpha1.ModeAudit)
 	t.Cleanup(func() {
-		var pol2 v1alpha1.Policy
-		if k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol2) != nil {
-			return
-		}
-		pt := client.MergeFrom(pol2.DeepCopy())
-		pol2.Spec.EnforcementMode = v1alpha1.ModeEnforce
-		k8sClient.Patch(ctx, &pol2, pt) //nolint:errcheck
+		setDefaultGroupMemberMode(ctx, t, policyName, original)
 	})
 
 	deadline := time.Now().Add(30 * time.Second)
 	passed := false
 	for time.Now().Before(deadline) {
-		var p v1alpha1.Policy
-		if k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &p) == nil {
-			t.Logf("T4-1: policy enforcement mode = %s", p.Spec.EnforcementMode)
-		}
 		applyOut, applyErr := helpers.KubectlApply(ctx, failPath)
 		if applyErr == nil {
 			helpers.KubectlDelete(ctx, failPath)
@@ -78,16 +105,7 @@ func TestT4_AuditToEnforce(t *testing.T) {
 	ctx := context.Background()
 	policyName := "run-as-privileged"
 
-	var pol v1alpha1.Policy
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol); err != nil {
-		t.Fatalf("get policy %s: %v", policyName, err)
-	}
-
-	patch := client.MergeFrom(pol.DeepCopy())
-	pol.Spec.EnforcementMode = v1alpha1.ModeEnforce
-	if err := k8sClient.Patch(ctx, &pol, patch); err != nil {
-		t.Fatalf("patch policy to enforce: %v", err)
-	}
+	setDefaultGroupMemberMode(ctx, t, policyName, v1alpha1.ModeEnforce)
 
 	time.Sleep(3 * time.Second)
 
@@ -103,31 +121,15 @@ func TestT4_AuditToEnforce(t *testing.T) {
 
 // TestT4_DisablePolicy: switch a policy to audit to stop enforcement.
 // In the new model there is no per-Policy enabled toggle in PolicyGroup;
-// the closest equivalent is switching the Policy's own enforcementMode to audit.
+// the closest equivalent is switching the default group's per-entry mode to audit.
 // After switching, the previously-blocked resource should be admitted.
 func TestT4_DisablePolicy(t *testing.T) {
 	ctx := context.Background()
 	policyName := "host-ipc-set"
 
-	var pol v1alpha1.Policy
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol); err != nil {
-		t.Fatalf("get policy %s: %v", policyName, err)
-	}
-	originalMode := pol.Spec.EnforcementMode
-
-	patch := client.MergeFrom(pol.DeepCopy())
-	pol.Spec.EnforcementMode = v1alpha1.ModeAudit
-	if err := k8sClient.Patch(ctx, &pol, patch); err != nil {
-		t.Fatalf("patch policy to audit: %v", err)
-	}
+	original := setDefaultGroupMemberMode(ctx, t, policyName, v1alpha1.ModeAudit)
 	t.Cleanup(func() {
-		var pol2 v1alpha1.Policy
-		if k8sClient.Get(ctx, types.NamespacedName{Name: policyName}, &pol2) != nil {
-			return
-		}
-		pt := client.MergeFrom(pol2.DeepCopy())
-		pol2.Spec.EnforcementMode = originalMode
-		k8sClient.Patch(ctx, &pol2, pt) //nolint:errcheck
+		setDefaultGroupMemberMode(ctx, t, policyName, original)
 	})
 
 	failPath := "../builtin-rules/security/host-ipc-fail.yaml"

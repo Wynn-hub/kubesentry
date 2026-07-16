@@ -13,8 +13,12 @@ import (
 )
 
 // TestT6_BySelectorDynamicBinding asserts that creating a custom Policy
-// labeled with kubesentry.io/category=security makes it appear in the
-// security group's resolvedPolicies within 5s.
+// labeled with kubesentry.io/category=security makes it appear in a
+// bySelector-matching group's resolvedPolicies within 10s. Uses its own
+// throwaway PolicyGroup rather than the built-in "default" group: the
+// built-in catalogue's group membership has changed shape multiple times
+// across this plan, so this test brings its own fixture instead of
+// depending on catalogue content.
 func TestT6_BySelectorDynamicBinding(t *testing.T) {
 	ctx := context.Background()
 
@@ -39,18 +43,34 @@ func TestT6_BySelectorDynamicBinding(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = k8sClient.Delete(ctx, pol) })
 
+	group := &v1alpha1.PolicyGroup{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-byselector-group"},
+		Spec: v1alpha1.PolicyGroupSpec{
+			Enabled: true,
+			Policies: v1alpha1.PolicyGroupPolicies{
+				BySelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"kubesentry.io/category": "security"},
+				},
+			},
+		},
+	}
+	if err := k8sClient.Create(ctx, group); err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+	t.Cleanup(func() { _ = k8sClient.Delete(ctx, group) })
+
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		var pg v1alpha1.PolicyGroup
-		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &pg); err == nil {
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "test-byselector-group"}, &pg); err == nil {
 			for _, m := range pg.Status.ResolvedPolicies {
 				if m.Name == "test-byselector-pol" {
-					t.Log("T6 PASS: custom policy appeared in security.resolvedPolicies via bySelector")
+					t.Log("T6 PASS: custom policy appeared in test-byselector-group.resolvedPolicies via bySelector")
 					return
 				}
 			}
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
-	t.Fatalf("custom policy did not enter security.resolvedPolicies within 10s")
+	t.Fatalf("custom policy did not enter test-byselector-group.resolvedPolicies within 10s")
 }

@@ -4,7 +4,6 @@ package e2e
 
 import (
 	"context"
-	"slices"
 	"testing"
 	"time"
 
@@ -15,9 +14,13 @@ import (
 
 // TestT10_GroupExcludeOverridesBySelector reproduces the original bug report:
 // a policy matched purely via bySelector must be excludable by name, and the
-// exclusion must be reversible.
+// exclusion must be reversible. Uses its own throwaway PolicyGroup rather
+// than the built-in "default" group: the built-in catalogue's group
+// membership has changed shape multiple times across this plan, so this
+// test brings its own fixture instead of depending on catalogue content.
 func TestT10_GroupExcludeOverridesBySelector(t *testing.T) {
 	ctx := context.Background()
+	const groupName = "test-exclude-group"
 
 	pol := &v1alpha1.Policy{
 		ObjectMeta: metav1.ObjectMeta{
@@ -40,37 +43,45 @@ func TestT10_GroupExcludeOverridesBySelector(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = k8sClient.Delete(ctx, pol) })
 
+	group := &v1alpha1.PolicyGroup{
+		ObjectMeta: metav1.ObjectMeta{Name: groupName},
+		Spec: v1alpha1.PolicyGroupSpec{
+			Enabled: true,
+			Policies: v1alpha1.PolicyGroupPolicies{
+				BySelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"kubesentry.io/category": "security"},
+				},
+			},
+		},
+	}
+	if err := k8sClient.Create(ctx, group); err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+	t.Cleanup(func() { _ = k8sClient.Delete(ctx, group) })
+
 	// Step 1: confirm bySelector auto-capture still works (regression guard).
-	waitForMember(t, ctx, "security", "test-exclude-pol", true, 10*time.Second)
+	waitForMember(t, ctx, groupName, "test-exclude-pol", true, 10*time.Second)
 
 	// Step 2: add it to the group's exclude list.
 	var pg v1alpha1.PolicyGroup
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &pg); err != nil {
+	if err := k8sClient.Get(ctx, types.NamespacedName{Name: groupName}, &pg); err != nil {
 		t.Fatalf("get group: %v", err)
 	}
-	t.Cleanup(func() {
-		var g v1alpha1.PolicyGroup
-		if k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &g) == nil {
-			g.Spec.Policies.Exclude = slices.DeleteFunc(g.Spec.Policies.Exclude,
-				func(n string) bool { return n == "test-exclude-pol" })
-			_ = k8sClient.Update(ctx, &g)
-		}
-	})
 	pg.Spec.Policies.Exclude = append(pg.Spec.Policies.Exclude, "test-exclude-pol")
 	if err := k8sClient.Update(ctx, &pg); err != nil {
 		t.Fatalf("update group exclude: %v", err)
 	}
-	waitForMember(t, ctx, "security", "test-exclude-pol", false, 10*time.Second)
+	waitForMember(t, ctx, groupName, "test-exclude-pol", false, 10*time.Second)
 
 	// Step 3: clear the exclude entry, confirm the member reappears.
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "security"}, &pg); err != nil {
+	if err := k8sClient.Get(ctx, types.NamespacedName{Name: groupName}, &pg); err != nil {
 		t.Fatalf("re-get group: %v", err)
 	}
 	pg.Spec.Policies.Exclude = nil
 	if err := k8sClient.Update(ctx, &pg); err != nil {
 		t.Fatalf("clear group exclude: %v", err)
 	}
-	waitForMember(t, ctx, "security", "test-exclude-pol", true, 10*time.Second)
+	waitForMember(t, ctx, groupName, "test-exclude-pol", true, 10*time.Second)
 }
 
 // waitForMember polls the named PolicyGroup until the named member's presence

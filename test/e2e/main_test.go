@@ -31,15 +31,11 @@ func TestMain(m *testing.M) {
 
 	chartDir := filepath.Join("..", "..", "charts", "kubesentry")
 	valuesFile := filepath.Join("testdata", "values-test.yaml")
+	hubChartDir := filepath.Join("..", "..", "charts", "kubesentry-hub")
+	hubValues := filepath.Join("testdata", "values-hub-test.yaml")
 
 	helpers.Cleanup(ctx)
 
-	if err := helpers.HelmInstall(ctx, chartDir, valuesFile); err != nil {
-		panic("helm install: " + err.Error())
-	}
-
-	hubChartDir := filepath.Join("..", "..", "charts", "kubesentry-hub")
-	hubValues := filepath.Join("testdata", "values-hub-test.yaml")
 	if err := helpers.HelmInstallHub(ctx, hubChartDir, hubValues); err != nil {
 		panic("helm install hub: " + err.Error())
 	}
@@ -54,6 +50,15 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic("build kubeconfig: " + err.Error())
 	}
+	// client-go's default QPS=5/Burst=10 is too low for this suite now that
+	// the hub's periodic resync (60s tick, always reapplies) and the
+	// PolicyGroupReconciler's status churn on the hot "default" PolicyGroup
+	// run continuously in the background alongside every test's own
+	// polling — without headroom, a tight-deadline wait (e.g. T5's 30s
+	// exception-phase poll) can have its request queued past its own
+	// context deadline by the client-side limiter alone.
+	cfg.QPS = 50
+	cfg.Burst = 100
 
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
@@ -71,17 +76,31 @@ func TestMain(m *testing.M) {
 		panic("create clientset: " + err.Error())
 	}
 
+	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-hub", 2*time.Minute); err != nil {
+		panic("hub deployment not ready: " + err.Error())
+	}
+	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-console", 2*time.Minute); err != nil {
+		panic("console deployment not ready: " + err.Error())
+	}
+
+	token, caBundleB64, err := helpers.HarvestRegistration(ctx, k8sClient)
+	if err != nil {
+		panic("harvest registration: " + err.Error())
+	}
+
+	if err := helpers.HelmInstallMemberWithHub(ctx, chartDir, valuesFile, caBundleB64, token); err != nil {
+		panic("helm install member: " + err.Error())
+	}
+
 	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-webhook", 2*time.Minute); err != nil {
 		panic("webhook deployment not ready: " + err.Error())
 	}
 	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-operator", 2*time.Minute); err != nil {
 		panic("operator deployment not ready: " + err.Error())
 	}
-	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-hub", 2*time.Minute); err != nil {
-		panic("hub deployment not ready: " + err.Error())
-	}
-	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-console", 2*time.Minute); err != nil {
-		panic("console deployment not ready: " + err.Error())
+
+	if err := helpers.WaitClusterOnline(ctx, k8sClient, "local", 3*time.Minute); err != nil {
+		panic("cluster never reached Online: " + err.Error())
 	}
 
 	if err := helpers.CreateNamespace(ctx, k8sClient, helpers.TestNamespace); err != nil {

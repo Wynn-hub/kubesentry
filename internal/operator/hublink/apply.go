@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -57,6 +58,26 @@ func applyDesiredState(ctx context.Context, c client.Client, ds *hubpb.DesiredSt
 	return nil
 }
 
+// groupSpecsEqual compares two PolicyGroupSpecs treating Policies.ByName as
+// an unordered set: the hub always renders it name-sorted (render.go's
+// sortedKeys), but a group's live spec (e.g. a chart-authored library
+// object) may list members in an arbitrary source order. Plain
+// reflect.DeepEqual on the slice would report a spurious mismatch from
+// order alone even when membership and modes are identical.
+func groupSpecsEqual(a, b v1alpha1.PolicyGroupSpec) bool {
+	if !reflect.DeepEqual(sortedByName(a.Policies.ByName), sortedByName(b.Policies.ByName)) {
+		return false
+	}
+	a.Policies.ByName, b.Policies.ByName = nil, nil
+	return reflect.DeepEqual(a, b)
+}
+
+func sortedByName(refs []v1alpha1.PolicyRef) []v1alpha1.PolicyRef {
+	out := append([]v1alpha1.PolicyRef(nil), refs...)
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
 func upsertObject(ctx context.Context, c client.Client, obj *hubpb.ManagedObject) error {
 	switch obj.Kind {
 	case "Policy":
@@ -104,12 +125,12 @@ func upsertObject(ctx context.Context, c client.Client, obj *hubpb.ManagedObject
 			return err
 		}
 		if existing.Labels[v1alpha1.ManagedByLabel] == "" {
-			if reflect.DeepEqual(existing.Spec, spec) {
+			if groupSpecsEqual(existing.Spec, spec) {
 				return nil
 			}
 			return errors.New("conflicts with existing unmanaged object")
 		}
-		if reflect.DeepEqual(existing.Spec, spec) && reflect.DeepEqual(existing.Labels, obj.Labels) {
+		if groupSpecsEqual(existing.Spec, spec) && reflect.DeepEqual(existing.Labels, obj.Labels) {
 			return nil
 		}
 		existing.Spec = spec
