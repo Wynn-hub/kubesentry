@@ -8,11 +8,10 @@
     v-else-if="operator === 'eq' || operator === 'neq' || operator === 'regex'"
     v-model="strValue" style="width: 220px" :placeholder="$t('ruleBuilder.value')"
   />
-  <el-select
-    v-else-if="operator === 'in' || operator === 'notIn'"
-    v-model="listValue" multiple filterable allow-create default-first-option
-    style="width: 220px" :placeholder="$t('ruleBuilder.valueList')"
-  />
+  <span v-else-if="operator === 'in' || operator === 'notIn'" style="display: flex; align-items: center">
+    <TagInput v-model="listValue" :placeholder="$t('ruleBuilder.valueList')" />
+    <HintMark :content="operator === 'in' ? $t('ruleBuilder.valueListInHint') : $t('ruleBuilder.valueListNotInHint')" />
+  </span>
   <el-input-number v-else-if="operator === 'gt' || operator === 'lt' || operator === 'gte' || operator === 'lte' || operator === 'countEq' || operator === 'countGt' || operator === 'countLt'" v-model="numValue" style="width: 140px" />
   <div v-else-if="operator === 'between'" style="display: flex; gap: 4px; align-items: center">
     <el-input-number v-model="rangeLow" style="width: 100px" />
@@ -25,6 +24,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Condition, FieldLeafType, Operator } from './ruleGroupCodegen'
+import HintMark from './HintMark.vue'
+import TagInput from './TagInput.vue'
 
 defineProps<{ operator: Operator; leafType: FieldLeafType }>()
 const modelValue = defineModel<Condition['value']>({ required: true })

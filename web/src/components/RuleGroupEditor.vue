@@ -26,6 +26,7 @@
       <el-button type="danger" plain @click="modelValue.conditions.splice(i, 1); leafTypes.splice(i, 1)">-</el-button>
     </div>
     <el-button plain @click="addCondition">{{ $t('ruleBuilder.addCondition') }}</el-button>
+    <HintMark :content="$t('ruleBuilder.conditionAndHint')" />
 
     <el-form-item :label="$t('ruleBuilder.message')" style="margin-top: 12px">
       <el-input v-model="modelValue.message" />
@@ -38,6 +39,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import ConditionEditor from './ConditionEditor.vue'
+import HintMark from './HintMark.vue'
 import { ruleGroupToRego, type FieldLeafType, type RuleGroup } from './ruleGroupCodegen'
 import { findGroupVersionForResource } from './fieldTree'
 import type { MatchResource } from '../api/policy'

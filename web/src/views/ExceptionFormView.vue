@@ -22,14 +22,29 @@
       </el-select>
     </el-form-item>
 
-    <el-form-item :label="$t('exception.namespaces')">
-      <el-input v-model="namespacesCSV" placeholder="ns-a, ns-b" />
-    </el-form-item>
-    <el-form-item :label="$t('exception.nsSelector')">
-      <LabelEditor v-model="nsLabels" />
+    <el-form-item :label="$t('exception.nsTarget')" required>
+      <div style="width: 100%">
+        <el-tabs v-model="nsMode">
+          <el-tab-pane :label="$t('group.nsModeName')" name="name">
+            <TagInput v-model="namespaceNames" :placeholder="$t('group.nsNamePlaceholder')" />
+            <HintMark :content="$t('common.multiValueOrHint')" />
+          </el-tab-pane>
+          <el-tab-pane :label="$t('group.nsModeLabel')" name="label">
+            <LabelEditor v-model="nsSelector" />
+          </el-tab-pane>
+        </el-tabs>
+        <p style="color: var(--el-text-color-secondary); margin: 4px 0 0; font-size: 13px">
+          {{ $t('exception.nsAllHint') }}
+        </p>
+      </div>
     </el-form-item>
     <el-form-item :label="$t('exception.resSelector')">
-      <LabelEditor v-model="resLabels" />
+      <div style="width: 100%">
+        <LabelEditor v-model="resourceSelector" />
+        <p style="color: var(--el-text-color-secondary); margin: 4px 0 0; font-size: 13px">
+          {{ $t('exception.resSelectorHint') }}
+        </p>
+      </div>
     </el-form-item>
 
     <el-form-item :label="$t('exception.duration')" required>
@@ -59,8 +74,10 @@ import {
   createException, getException, updateException, type ExceptionRequest,
 } from '../api/exception'
 import { listPolicies } from '../api/policy'
-import { listGroups } from '../api/group'
+import { listGroups, type LabelSelector } from '../api/group'
 import LabelEditor from '../components/LabelEditor.vue'
+import TagInput from '../components/TagInput.vue'
+import HintMark from '../components/HintMark.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -74,9 +91,14 @@ let resourceVersion = ''
 const targetKind = ref<'policies' | 'groups' | 'all'>('policies')
 const policyNames = ref<string[]>([])
 const groupNames = ref<string[]>([])
-const namespacesCSV = ref('')
-const nsLabels = ref<Record<string, string>>({})
-const resLabels = ref<Record<string, string>>({})
+// 命名空间目标：按名称或按标签二选一，两者是同一次匹配的两种录入方式，
+// 不像策略成员的 byName/bySelector 那样可以并存——命名空间名称列表和
+// namespaceSelector 是后端两个独立字段，若同时下发，语义是"名字在列表里
+// 且标签也匹配"的交集，不是"任选一种途径"的并集，所以只提交当前 tab。
+const nsMode = ref<'name' | 'label'>('name')
+const namespaceNames = ref<string[]>([])
+const nsSelector = ref<LabelSelector | null>(null)
+const resourceSelector = ref<LabelSelector | null>(null)
 
 const form = reactive({
   name: '',
@@ -88,16 +110,15 @@ const form = reactive({
 })
 
 function toRequest(): ExceptionRequest {
-  const namespaces = namespacesCSV.value.split(',').map((s) => s.trim()).filter((s) => s !== '')
   return {
     name: isEdit ? undefined : form.name,
     policyRefs: targetKind.value === 'policies' ? form.policyRefs : undefined,
     policyGroupRefs: targetKind.value === 'groups' ? form.policyGroupRefs : undefined,
     allPolicies: targetKind.value === 'all' ? true : undefined,
     match: {
-      namespaces: namespaces.length ? namespaces : undefined,
-      namespaceSelector: Object.keys(nsLabels.value).length ? { matchLabels: nsLabels.value } : undefined,
-      resourceSelector: Object.keys(resLabels.value).length ? { matchLabels: resLabels.value } : undefined,
+      namespaces: nsMode.value === 'name' && namespaceNames.value.length ? namespaceNames.value : undefined,
+      namespaceSelector: nsMode.value === 'label' ? (nsSelector.value ?? undefined) : undefined,
+      resourceSelector: resourceSelector.value ?? undefined,
     },
     duration: form.duration,
     retainAfterExpiry: form.retainAfterExpiry || undefined,
@@ -141,9 +162,10 @@ onMounted(async () => {
     form.policyRefs = d.spec.policyRefs ?? []
     form.policyGroupRefs = d.spec.policyGroupRefs ?? []
     targetKind.value = d.spec.allPolicies ? 'all' : d.spec.policyGroupRefs?.length ? 'groups' : 'policies'
-    namespacesCSV.value = (d.spec.match.namespaces ?? []).join(', ')
-    nsLabels.value = d.spec.match.namespaceSelector?.matchLabels ?? {}
-    resLabels.value = d.spec.match.resourceSelector?.matchLabels ?? {}
+    namespaceNames.value = d.spec.match.namespaces ?? []
+    nsSelector.value = d.spec.match.namespaceSelector ?? null
+    nsMode.value = namespaceNames.value.length ? 'name' : 'label'
+    resourceSelector.value = d.spec.match.resourceSelector ?? null
   } catch (e) {
     ElMessage.error((e as Error).message)
   }

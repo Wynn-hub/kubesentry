@@ -69,6 +69,7 @@
         <el-button plain @click="visualGroups.push({ conditions: [], message: '' })">
           {{ $t('ruleBuilder.addGroup') }}
         </el-button>
+        <HintMark :content="$t('ruleBuilder.groupOrHint')" />
       </div>
     </el-form-item>
 
@@ -91,6 +92,7 @@ import {
   type MatchResource, type PolicyRequest,
 } from '../api/policy'
 import RuleGroupEditor from '../components/RuleGroupEditor.vue'
+import HintMark from '../components/HintMark.vue'
 import {
   deserializeRuleGroups, ruleGroupsToRego, serializeRuleGroups, VISUAL_BUILDER_ANNOTATION,
   type RuleGroup,
