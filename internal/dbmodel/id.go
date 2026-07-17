@@ -24,6 +24,9 @@ func Init(nodeID int64) error {
 
 // NewID returns a freshly generated snowflake ID.
 func NewID() int64 {
+	if node == nil {
+		panic("dbmodel: Init must be called before NewID")
+	}
 	return node.Generate().Int64()
 }
 
