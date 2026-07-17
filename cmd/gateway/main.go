@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"sync/atomic"
 
@@ -77,10 +78,44 @@ func main() {
 		server: gateway.NewServer(repos, namespace, tracker, notifier),
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+	go startHealthServer(ctx, &grpcRun.ready)
+
 	slog.Info("starting gateway", "grpc", grpcAddr, "namespace", namespace)
-	if err := grpcRun.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := grpcRun.Start(ctx); err != nil {
 		slog.Error("grpc server error", "error", err)
 		os.Exit(1)
+	}
+}
+
+// healthAddr matches the hardcoded containerPort 8081 (name: probe) in
+// charts/kubesentry-gateway/templates/deployment.yaml's liveness/readiness
+// probes — not exposed as an env var there, so no envOrDefault indirection.
+const healthAddr = ":8081"
+
+// startHealthServer serves the plain-HTTP probes the chart expects (the gRPC
+// listener is TLS-only, so Kubernetes' native grpc probe type can't reach
+// it). /healthz reports the process is up; /readyz reflects grpcRunnable's
+// ready flag. Shuts down on ctx.Done(), same pattern as grpcRunnable.Start.
+func startHealthServer(ctx context.Context, ready *atomic.Bool) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
+		if ready.Load() {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
+	srv := &http.Server{Addr: healthAddr, Handler: mux}
+	go func() {
+		<-ctx.Done()
+		_ = srv.Shutdown(context.Background())
+	}()
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("health server error", "error", err)
 	}
 }
 
@@ -88,11 +123,10 @@ func main() {
 // webhook/health server, member clusters need an answer from whichever pod
 // they reach.
 //
-// Liveness/readiness are meant to be checked over plain HTTP (not the
-// grpc_health_v1 protocol — Kubernetes' native `grpc` probe type only ever
-// dials in plaintext, so it can never complete a handshake against this
-// TLS-only listener); the `ready` flag below is currently unread pending
-// Task 8 wiring up that HTTP probe endpoint.
+// Liveness/readiness are checked over plain HTTP (not the grpc_health_v1
+// protocol — Kubernetes' native `grpc` probe type only ever dials in
+// plaintext, so it can never complete a handshake against this TLS-only
+// listener); see startHealthServer, which reads the `ready` flag below.
 type grpcRunnable struct {
 	addr   string
 	cert   tls.Certificate
