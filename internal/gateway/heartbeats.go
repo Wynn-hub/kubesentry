@@ -5,10 +5,8 @@ import (
 	"sync"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 // HeartbeatInfo is the in-memory record of a member's last heartbeat.
@@ -56,17 +54,24 @@ func (h *HeartbeatTracker) Snapshot() map[string]HeartbeatInfo {
 	return out
 }
 
-// StatusFlusher periodically persists heartbeat state into Cluster.status.
-// Runs as a manager Runnable on the gateway.
+// StatusFlusher periodically persists heartbeat state into dbrepo.Cluster
+// (Phase/OperatorVersion/LastHeartbeatAt). Runs as a background goroutine on
+// the gateway, alongside the gRPC and health servers.
+//
+// ponytail: dbrepo.Cluster has no PolicySummary column (unlike the old
+// v1alpha1.Cluster.Status CRD field) — ready/invalid policy counts are
+// tracked in-memory only via HeartbeatTracker.Snapshot()[x].Summary for now.
+// Add a column + persist here if a DB-backed summary view turns out to be
+// needed (e.g. for the console-api cluster list).
 type StatusFlusher struct {
-	client       client.Client
+	clusters     *dbrepo.ClusterRepo
 	hb           *HeartbeatTracker
 	interval     time.Duration
 	offlineAfter time.Duration
 }
 
-func NewStatusFlusher(c client.Client, hb *HeartbeatTracker, interval, offlineAfter time.Duration) *StatusFlusher {
-	return &StatusFlusher{client: c, hb: hb, interval: interval, offlineAfter: offlineAfter}
+func NewStatusFlusher(clusters *dbrepo.ClusterRepo, hb *HeartbeatTracker, interval, offlineAfter time.Duration) *StatusFlusher {
+	return &StatusFlusher{clusters: clusters, hb: hb, interval: interval, offlineAfter: offlineAfter}
 }
 
 func (f *StatusFlusher) Start(ctx context.Context) error {
@@ -84,32 +89,28 @@ func (f *StatusFlusher) Start(ctx context.Context) error {
 }
 
 func (f *StatusFlusher) flushOnce(ctx context.Context) error {
-	var clusters v1alpha1.ClusterList
-	if err := f.client.List(ctx, &clusters); err != nil {
+	all, err := f.clusters.List(ctx)
+	if err != nil {
 		return err
 	}
 	snap := f.hb.Snapshot()
 	now := time.Now()
-	for i := range clusters.Items {
-		cl := &clusters.Items[i]
+	for i := range all {
+		cl := &all[i]
 		info, ok := snap[cl.Name]
 		switch {
 		case ok && now.Sub(info.LastSeen) <= f.offlineAfter:
-			t := metav1.NewTime(info.LastSeen)
-			cl.Status.Phase = v1alpha1.ClusterPhaseOnline
-			cl.Status.LastHeartbeat = &t
-			cl.Status.OperatorVersion = info.OperatorVersion
-			if info.Summary != nil {
-				s := *info.Summary
-				cl.Status.PolicySummary = &s
-			}
-		case cl.Status.Phase == v1alpha1.ClusterPhaseOnline:
+			t := info.LastSeen
+			cl.Phase = v1alpha1.ClusterPhaseOnline
+			cl.LastHeartbeatAt = &t
+			cl.OperatorVersion = info.OperatorVersion
+		case cl.Phase == v1alpha1.ClusterPhaseOnline:
 			// 有过心跳但超时（或 gateway 重启后内存丢失）→ Offline
-			cl.Status.Phase = v1alpha1.ClusterPhaseOffline
+			cl.Phase = v1alpha1.ClusterPhaseOffline
 		default:
 			continue // Registering/Offline 且无新心跳：不写
 		}
-		if err := f.client.Status().Update(ctx, cl); err != nil {
+		if err := f.clusters.Update(ctx, cl); err != nil {
 			return err
 		}
 	}

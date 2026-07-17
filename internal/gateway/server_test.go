@@ -20,7 +20,7 @@ func mustCreateCluster(t *testing.T, repos Repos, c *dbrepo.Cluster) {
 
 func doRegister(t *testing.T, repos Repos, req *gatewaypb.RegisterRequest) (*gatewaypb.RegisterResponse, error) {
 	t.Helper()
-	s := NewServer(repos, gatewayNS, nil, NewNotifier())
+	s := NewServer(repos, gatewayNS, nil, NewNotifier(), "test-token")
 	return s.Register(context.Background(), req)
 }
 

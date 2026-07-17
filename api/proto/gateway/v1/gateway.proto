@@ -14,6 +14,16 @@ service Hub {
   // Sync is the long-lived bidirectional stream: member sends heartbeats
   // and status reports, hub replies with acks and desired-state snapshots.
   rpc Sync(stream MemberMessage) returns (stream HubMessage);
+  // Connect is the registration stream for non-cluster components (e.g.
+  // console-api) that want to receive/forward Envelope traffic. Auth is a
+  // shared static token carried in the first frame's ConnectRequest payload.
+  rpc Connect(stream Envelope) returns (stream Envelope);
+  // NotifyChange fires the gateway's change notifier, waking every Sync
+  // session's pushLoop to re-render and (if changed) push a fresh snapshot.
+  rpc NotifyChange(NotifyChangeRequest) returns (NotifyChangeResponse);
+  // Dispatch is a dumb relay: forwards payload to the live Sync session
+  // named by `to`, no destination resolution, no offline queueing.
+  rpc Dispatch(DispatchRequest) returns (DispatchResponse);
 }
 
 message RegisterRequest {
@@ -31,6 +41,7 @@ message MemberMessage {
   oneof msg {
     Heartbeat heartbeat = 1;
     StatusReport status_report = 2;
+    Envelope envelope = 3; // reply path for Dispatch's request/reply correlation
   }
 }
 
@@ -50,6 +61,7 @@ message HubMessage {
   oneof msg {
     Ack ack = 1;
     DesiredState desired_state = 2;
+    Envelope envelope = 3; // carries Dispatch traffic over the existing Sync stream
   }
 }
 
@@ -69,3 +81,36 @@ message ManagedObject {
 }
 
 message Ack {}
+
+// Envelope is the generic point-to-point frame used by Connect and by
+// Dispatch's ride-along traffic over the existing Sync stream.
+message Envelope {
+  string from = 1;
+  string to = 2;
+  string correlation_id = 3;
+  bytes payload = 4;
+}
+
+// ConnectRequest is the first frame's payload on a Connect stream (marshaled
+// into Envelope.payload) — non-cluster components authenticate with a shared
+// static token rather than the cluster Register/rotate flow.
+message ConnectRequest {
+  string component_id = 1; // e.g. "console-api"
+  string shared_token = 2;
+}
+
+message NotifyChangeRequest {
+  string topic = 1;
+}
+
+message NotifyChangeResponse {}
+
+message DispatchRequest {
+  string to = 1;
+  string topic = 2;
+  bytes payload = 3;
+}
+
+message DispatchResponse {
+  bytes payload = 1;
+}

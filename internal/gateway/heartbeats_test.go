@@ -5,10 +5,8 @@ import (
 	"testing"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 func TestTrackerMarkAliveAndSnapshot(t *testing.T) {
@@ -30,11 +28,9 @@ func TestTrackerMarkAliveAndSnapshot(t *testing.T) {
 }
 
 func TestFlusherOnlineAndOffline(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}}
-	cl.Status.Phase = v1alpha1.ClusterPhaseRegistering
-	stale := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "stale"}}
-	stale.Status.Phase = v1alpha1.ClusterPhaseOnline
-	c := newGatewayClient(t, cl, stale)
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", Phase: v1alpha1.ClusterPhaseRegistering})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "stale", Phase: v1alpha1.ClusterPhaseOnline})
 
 	tr := NewHeartbeatTracker()
 	tr.MarkAlive("prod", "v2")
@@ -43,21 +39,25 @@ func TestFlusherOnlineAndOffline(t *testing.T) {
 	tr.beats["stale"] = HeartbeatInfo{LastSeen: time.Now().Add(-10 * time.Minute), OperatorVersion: "v1"}
 	tr.mu.Unlock()
 
-	f := NewStatusFlusher(c, tr, time.Hour, 90*time.Second)
+	f := NewStatusFlusher(repos.Clusters, tr, time.Hour, 90*time.Second)
 	if err := f.flushOnce(context.Background()); err != nil {
 		t.Fatalf("flushOnce: %v", err)
 	}
 
 	ctx := context.Background()
-	var got v1alpha1.Cluster
-	_ = c.Get(ctx, types.NamespacedName{Name: "prod"}, &got)
-	if got.Status.Phase != v1alpha1.ClusterPhaseOnline || got.Status.LastHeartbeat == nil ||
-		got.Status.OperatorVersion != "v2" {
-		t.Fatalf("prod status = %+v", got.Status)
+	got, err := repos.Clusters.GetByName(ctx, "prod")
+	if err != nil {
+		t.Fatal(err)
 	}
-	_ = c.Get(ctx, types.NamespacedName{Name: "stale"}, &got)
-	if got.Status.Phase != v1alpha1.ClusterPhaseOffline {
-		t.Fatalf("stale phase = %q, want Offline", got.Status.Phase)
+	if got.Phase != v1alpha1.ClusterPhaseOnline || got.LastHeartbeatAt == nil || got.OperatorVersion != "v2" {
+		t.Fatalf("prod status = %+v", got)
+	}
+	got, err = repos.Clusters.GetByName(ctx, "stale")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Phase != v1alpha1.ClusterPhaseOffline {
+		t.Fatalf("stale phase = %q, want Offline", got.Phase)
 	}
 }
 
@@ -71,17 +71,20 @@ func TestRecordStatusPreservesVersionAndFlushesSummary(t *testing.T) {
 		t.Fatalf("info = %+v", info)
 	}
 
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
-	c := newGatewayClient(t, cl)
-	f := NewStatusFlusher(c, tr, time.Minute, time.Minute)
+	// dbrepo.Cluster has no PolicySummary column (see StatusFlusher's
+	// ponytail note) — this test now only asserts the version/phase flush
+	// still works when a Summary is present on the in-memory record.
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "c1"})
+	f := NewStatusFlusher(repos.Clusters, tr, time.Minute, time.Minute)
 	if err := f.flushOnce(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	var got v1alpha1.Cluster
-	if err := c.Get(context.Background(), types.NamespacedName{Name: "c1"}, &got); err != nil {
+	got, err := repos.Clusters.GetByName(context.Background(), "c1")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Status.PolicySummary == nil || got.Status.PolicySummary.Ready != 7 {
-		t.Fatalf("summary not flushed: %+v", got.Status)
+	if got.Phase != v1alpha1.ClusterPhaseOnline || got.OperatorVersion != "v1" {
+		t.Fatalf("flushed cluster = %+v", got)
 	}
 }

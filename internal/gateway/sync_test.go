@@ -45,7 +45,7 @@ func TestSyncHeartbeatFlow(t *testing.T) {
 		Name: "prod", AuthTokenHash: HashToken("secret-token"), ClusterUID: "uid-1",
 	})
 	tr := NewHeartbeatTracker()
-	client := startBufconnGateway(t, NewServer(repos, gatewayNS, tr, NewNotifier()))
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, tr, NewNotifier(), "test-token"))
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
 		"x-kubesentry-cluster", "prod",
@@ -92,7 +92,7 @@ func TestSyncHeartbeatFlow(t *testing.T) {
 func TestSyncRejectsBadToken(t *testing.T) {
 	repos := newTestRepos(t)
 	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("right")})
-	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier()))
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
 		"x-kubesentry-cluster", "prod",
@@ -161,7 +161,7 @@ func TestSyncPushesSnapshotOnConnectAndChange(t *testing.T) {
 	}
 
 	notifier := NewNotifier()
-	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), notifier))
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), notifier, "test-token"))
 
 	sctx := metadata.AppendToOutgoingContext(context.Background(),
 		MDClusterKey, "prod", MDAuthKey, "Bearer tok")
@@ -217,7 +217,7 @@ func TestSyncResendsOnResyncTickEvenWithUnchangedHash(t *testing.T) {
 	repos := newTestRepos(t)
 	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
 	notifier := NewNotifier()
-	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), notifier))
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), notifier, "test-token"))
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
 		MDClusterKey, "prod", MDAuthKey, "Bearer tok")

@@ -20,8 +20,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Hub_Register_FullMethodName = "/kubesentry.gateway.v1.Hub/Register"
-	Hub_Sync_FullMethodName     = "/kubesentry.gateway.v1.Hub/Sync"
+	Hub_Register_FullMethodName     = "/kubesentry.gateway.v1.Hub/Register"
+	Hub_Sync_FullMethodName         = "/kubesentry.gateway.v1.Hub/Sync"
+	Hub_Connect_FullMethodName      = "/kubesentry.gateway.v1.Hub/Connect"
+	Hub_NotifyChange_FullMethodName = "/kubesentry.gateway.v1.Hub/NotifyChange"
+	Hub_Dispatch_FullMethodName     = "/kubesentry.gateway.v1.Hub/Dispatch"
 )
 
 // HubClient is the client API for Hub service.
@@ -38,6 +41,16 @@ type HubClient interface {
 	// Sync is the long-lived bidirectional stream: member sends heartbeats
 	// and status reports, hub replies with acks and desired-state snapshots.
 	Sync(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[MemberMessage, HubMessage], error)
+	// Connect is the registration stream for non-cluster components (e.g.
+	// console-api) that want to receive/forward Envelope traffic. Auth is a
+	// shared static token carried in the first frame's ConnectRequest payload.
+	Connect(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Envelope, Envelope], error)
+	// NotifyChange fires the gateway's change notifier, waking every Sync
+	// session's pushLoop to re-render and (if changed) push a fresh snapshot.
+	NotifyChange(ctx context.Context, in *NotifyChangeRequest, opts ...grpc.CallOption) (*NotifyChangeResponse, error)
+	// Dispatch is a dumb relay: forwards payload to the live Sync session
+	// named by `to`, no destination resolution, no offline queueing.
+	Dispatch(ctx context.Context, in *DispatchRequest, opts ...grpc.CallOption) (*DispatchResponse, error)
 }
 
 type hubClient struct {
@@ -71,6 +84,39 @@ func (c *hubClient) Sync(ctx context.Context, opts ...grpc.CallOption) (grpc.Bid
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Hub_SyncClient = grpc.BidiStreamingClient[MemberMessage, HubMessage]
 
+func (c *hubClient) Connect(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Envelope, Envelope], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Hub_ServiceDesc.Streams[1], Hub_Connect_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[Envelope, Envelope]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Hub_ConnectClient = grpc.BidiStreamingClient[Envelope, Envelope]
+
+func (c *hubClient) NotifyChange(ctx context.Context, in *NotifyChangeRequest, opts ...grpc.CallOption) (*NotifyChangeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NotifyChangeResponse)
+	err := c.cc.Invoke(ctx, Hub_NotifyChange_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hubClient) Dispatch(ctx context.Context, in *DispatchRequest, opts ...grpc.CallOption) (*DispatchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DispatchResponse)
+	err := c.cc.Invoke(ctx, Hub_Dispatch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HubServer is the server API for Hub service.
 // All implementations must embed UnimplementedHubServer
 // for forward compatibility.
@@ -85,6 +131,16 @@ type HubServer interface {
 	// Sync is the long-lived bidirectional stream: member sends heartbeats
 	// and status reports, hub replies with acks and desired-state snapshots.
 	Sync(grpc.BidiStreamingServer[MemberMessage, HubMessage]) error
+	// Connect is the registration stream for non-cluster components (e.g.
+	// console-api) that want to receive/forward Envelope traffic. Auth is a
+	// shared static token carried in the first frame's ConnectRequest payload.
+	Connect(grpc.BidiStreamingServer[Envelope, Envelope]) error
+	// NotifyChange fires the gateway's change notifier, waking every Sync
+	// session's pushLoop to re-render and (if changed) push a fresh snapshot.
+	NotifyChange(context.Context, *NotifyChangeRequest) (*NotifyChangeResponse, error)
+	// Dispatch is a dumb relay: forwards payload to the live Sync session
+	// named by `to`, no destination resolution, no offline queueing.
+	Dispatch(context.Context, *DispatchRequest) (*DispatchResponse, error)
 	mustEmbedUnimplementedHubServer()
 }
 
@@ -101,6 +157,18 @@ func (UnimplementedHubServer) Register(context.Context, *RegisterRequest) (*Regi
 
 func (UnimplementedHubServer) Sync(grpc.BidiStreamingServer[MemberMessage, HubMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method Sync not implemented")
+}
+
+func (UnimplementedHubServer) Connect(grpc.BidiStreamingServer[Envelope, Envelope]) error {
+	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
+}
+
+func (UnimplementedHubServer) NotifyChange(context.Context, *NotifyChangeRequest) (*NotifyChangeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NotifyChange not implemented")
+}
+
+func (UnimplementedHubServer) Dispatch(context.Context, *DispatchRequest) (*DispatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Dispatch not implemented")
 }
 func (UnimplementedHubServer) mustEmbedUnimplementedHubServer() {}
 func (UnimplementedHubServer) testEmbeddedByValue()             {}
@@ -148,6 +216,49 @@ func _Hub_Sync_Handler(srv interface{}, stream grpc.ServerStream) error {
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Hub_SyncServer = grpc.BidiStreamingServer[MemberMessage, HubMessage]
 
+func _Hub_Connect_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(HubServer).Connect(&grpc.GenericServerStream[Envelope, Envelope]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Hub_ConnectServer = grpc.BidiStreamingServer[Envelope, Envelope]
+
+func _Hub_NotifyChange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotifyChangeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HubServer).NotifyChange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Hub_NotifyChange_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HubServer).NotifyChange(ctx, req.(*NotifyChangeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Hub_Dispatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DispatchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HubServer).Dispatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Hub_Dispatch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HubServer).Dispatch(ctx, req.(*DispatchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Hub_ServiceDesc is the grpc.ServiceDesc for Hub service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -159,11 +270,25 @@ var Hub_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "Register",
 			Handler:    _Hub_Register_Handler,
 		},
+		{
+			MethodName: "NotifyChange",
+			Handler:    _Hub_NotifyChange_Handler,
+		},
+		{
+			MethodName: "Dispatch",
+			Handler:    _Hub_Dispatch_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Sync",
 			Handler:       _Hub_Sync_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "Connect",
+			Handler:       _Hub_Connect_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

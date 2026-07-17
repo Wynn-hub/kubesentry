@@ -56,7 +56,7 @@ func startHub(t *testing.T, repos gateway.Repos) (dial func(ctx context.Context)
 	tracker = gateway.NewHeartbeatTracker()
 	lis := bufconn.Listen(1024 * 1024)
 	gs := grpc.NewServer()
-	gatewaypb.RegisterHubServer(gs, gateway.NewServer(repos, gatewayNS, tracker, gateway.NewNotifier()))
+	gatewaypb.RegisterHubServer(gs, gateway.NewServer(repos, gatewayNS, tracker, gateway.NewNotifier(), "test-token"))
 	go func() { _ = gs.Serve(lis) }()
 	t.Cleanup(gs.Stop)
 	dial = func(ctx context.Context) (*grpc.ClientConn, error) {

@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
@@ -45,14 +46,25 @@ type Repos struct {
 // Server implements the gatewaypb.Hub gRPC service.
 type Server struct {
 	gatewaypb.UnimplementedHubServer
-	repos     Repos
-	namespace string
-	hb        *HeartbeatTracker
-	changes   *Notifier
+	repos       Repos
+	namespace   string
+	hb          *HeartbeatTracker
+	changes     *Notifier
+	sessions    *sessionRegistry
+	connected   *connectRegistry
+	sharedToken string
 }
 
-func NewServer(repos Repos, namespace string, hb *HeartbeatTracker, changes *Notifier) *Server {
-	return &Server{repos: repos, namespace: namespace, hb: hb, changes: changes}
+func NewServer(repos Repos, namespace string, hb *HeartbeatTracker, changes *Notifier, sharedToken string) *Server {
+	return &Server{
+		repos:       repos,
+		namespace:   namespace,
+		hb:          hb,
+		changes:     changes,
+		sessions:    newSessionRegistry(),
+		connected:   newConnectRegistry(),
+		sharedToken: sharedToken,
+	}
 }
 
 func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (*gatewaypb.RegisterResponse, error) {
@@ -122,14 +134,21 @@ func (s *Server) validateSyncAuth(ctx context.Context, clusterName, token string
 	return nil
 }
 
+// dispatchTimeout bounds how long Dispatch waits for a correlated reply
+// envelope before giving up. Fixed, not configurable — D11a scopes this
+// task to laying down the plumbing, not tuning it.
+const dispatchTimeout = 10 * time.Second
+
 // syncSession serializes stream.Send between the recv loop's Acks and the
 // pusher goroutine, and remembers the last pushed snapshot for StatusReport
-// correlation.
+// correlation. pending tracks in-flight Dispatch calls awaiting a reply
+// Envelope with a matching correlation id.
 type syncSession struct {
 	mu      sync.Mutex
 	stream  gatewaypb.Hub_SyncServer
 	lastRes RenderResult
 	hasLast bool
+	pending map[string]chan *gatewaypb.Envelope
 }
 
 func (ss *syncSession) send(m *gatewaypb.HubMessage) error {
@@ -148,6 +167,63 @@ func (ss *syncSession) last() (RenderResult, bool) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	return ss.lastRes, ss.hasLast
+}
+
+// deliverReply routes a reply Envelope received on the member->hub half of
+// the Sync stream to the pending Dispatch call awaiting that correlation id,
+// if any (a reply with no matching waiter, e.g. one arriving after
+// dispatch's timeout already gave up, is silently dropped).
+func (ss *syncSession) deliverReply(env *gatewaypb.Envelope) {
+	ss.mu.Lock()
+	ch, ok := ss.pending[env.CorrelationId]
+	ss.mu.Unlock()
+	if !ok {
+		return
+	}
+	select {
+	case ch <- env:
+	default:
+	}
+}
+
+// dispatch forwards a Dispatch payload to this cluster over the existing
+// Sync stream and waits up to dispatchTimeout for a correlated reply
+// Envelope. This is a skeleton: nothing on the member side sends a reply
+// Envelope yet (that requires member/operator changes out of this task's
+// scope), so in practice every dispatch to a real member currently ends in
+// DeadlineExceeded — the wire path and correlation bookkeeping are laid
+// down for a later task to complete.
+func (ss *syncSession) dispatch(ctx context.Context, to string, payload []byte) (*gatewaypb.DispatchResponse, error) {
+	corrID, err := NewToken()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "generate correlation id: %v", err)
+	}
+	replyCh := make(chan *gatewaypb.Envelope, 1)
+	ss.mu.Lock()
+	if ss.pending == nil {
+		ss.pending = map[string]chan *gatewaypb.Envelope{}
+	}
+	ss.pending[corrID] = replyCh
+	ss.mu.Unlock()
+	defer func() {
+		ss.mu.Lock()
+		delete(ss.pending, corrID)
+		ss.mu.Unlock()
+	}()
+
+	env := &gatewaypb.Envelope{To: to, CorrelationId: corrID, Payload: payload}
+	if err := ss.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Envelope{Envelope: env}}); err != nil {
+		return nil, status.Errorf(codes.Unavailable, "send dispatch envelope: %v", err)
+	}
+
+	select {
+	case reply := <-replyCh:
+		return &gatewaypb.DispatchResponse{Payload: reply.Payload}, nil
+	case <-ctx.Done():
+		return nil, status.FromContextError(ctx.Err()).Err()
+	case <-time.After(dispatchTimeout):
+		return nil, status.Error(codes.DeadlineExceeded, "dispatch reply timed out")
+	}
 }
 
 // renderFor lists rows from the repos and renders one cluster's snapshot.
@@ -238,6 +314,8 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 	}
 
 	sess := &syncSession{stream: stream}
+	s.sessions.put(cluster, sess)
+	defer s.sessions.remove(cluster)
 	pushCtx, cancelPush := context.WithCancel(stream.Context())
 	defer cancelPush()
 	go s.pushLoop(pushCtx, sess, cluster)
@@ -259,6 +337,9 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 			if last, has := sess.last(); has {
 				s.markReported(stream.Context(), cluster, last, rep)
 			}
+		case *gatewaypb.MemberMessage_Envelope:
+			// Dispatch reply path: route to the pending correlation id, if any.
+			sess.deliverReply(m.Envelope)
 		}
 		if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Ack{Ack: &gatewaypb.Ack{}}}); err != nil {
 			return err
@@ -271,4 +352,66 @@ func firstMD(md metadata.MD, key string) string {
 		return vs[0]
 	}
 	return ""
+}
+
+// NotifyChange fires the shared change notifier, waking every Sync
+// session's pushLoop to re-render and (if the hash changed) push a fresh
+// snapshot. No target/topic-based filtering — every session re-renders and
+// only actually resends if its own content hash changed.
+func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRequest) (*gatewaypb.NotifyChangeResponse, error) {
+	s.changes.Notify()
+	return &gatewaypb.NotifyChangeResponse{}, nil
+}
+
+// Dispatch is a dumb relay (spec D11a): the caller names the exact target
+// cluster via `to`, gateway does zero destination resolution — just looks
+// up the live Sync session and forwards. Unavailable if not connected, no
+// offline queueing.
+func (s *Server) Dispatch(ctx context.Context, req *gatewaypb.DispatchRequest) (*gatewaypb.DispatchResponse, error) {
+	if req.To == "" {
+		return nil, status.Error(codes.InvalidArgument, "to is required")
+	}
+	sess, ok := s.sessions.get(req.To)
+	if !ok {
+		return nil, status.Errorf(codes.Unavailable, "cluster %q not connected", req.To)
+	}
+	return sess.dispatch(ctx, req.To, req.Payload)
+}
+
+// Connect is the registration stream for non-cluster components (console-api
+// today). Auth is a shared static token (spec D11c) carried as a marshaled
+// ConnectRequest in the first frame's payload — lighter than the cluster
+// Register/rotate flow, which is not appropriate across this trust boundary.
+func (s *Server) Connect(stream gatewaypb.Hub_ConnectServer) error {
+	first, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+	var req gatewaypb.ConnectRequest
+	if err := proto.Unmarshal(first.Payload, &req); err != nil {
+		return status.Error(codes.InvalidArgument, "first frame payload must be a marshaled ConnectRequest")
+	}
+	if req.ComponentId == "" {
+		return status.Error(codes.InvalidArgument, "component_id is required")
+	}
+	// s.sharedToken == "" means GATEWAY_SHARED_TOKEN was never configured —
+	// reject outright rather than letting an empty-token caller "match" it
+	// (two empty byte slices compare equal under ConstantTimeCompare).
+	if s.sharedToken == "" {
+		return status.Error(codes.FailedPrecondition, "gateway shared token not configured")
+	}
+	if subtle.ConstantTimeCompare([]byte(req.SharedToken), []byte(s.sharedToken)) != 1 {
+		return status.Error(codes.Unauthenticated, "invalid shared token")
+	}
+
+	s.connected.register(req.ComponentId, stream)
+	defer s.connected.unregister(req.ComponentId)
+	for {
+		if _, err := stream.Recv(); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
 }

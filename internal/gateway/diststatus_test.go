@@ -37,7 +37,7 @@ func TestMarkPushedAndReportedLifecycle(t *testing.T) {
 	if err := repos.Distributions.Create(ctx, &dbrepo.PolicyDistribution{Name: "d1"}); err != nil {
 		t.Fatal(err)
 	}
-	s := NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier())
+	s := NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token")
 
 	res := RenderResult{Hash: "h1", Matched: []string{"d1"}, Errors: map[string]string{}}
 	s.markPushed(ctx, "c1", res)

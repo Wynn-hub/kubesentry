@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sync/atomic"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -59,13 +60,9 @@ func main() {
 		Distributions: dbrepo.NewDistributionRepo(db),
 	}
 
-	// ponytail: heartbeat state is in-memory only now — StatusFlusher (internal/gateway/heartbeats.go)
-	// still persists via a k8s Cluster CRD client and has no DB-backed replacement yet.
-	// Task 8's Connect/NotifyChange RPCs are expected to own liveness tracking against
-	// dbrepo.Cluster (which already has Phase/OperatorVersion/LastHeartbeatAt columns) —
-	// wire a DB-backed flusher there instead of resurrecting the CRD-based one.
 	tracker := gateway.NewHeartbeatTracker()
 	notifier := gateway.NewNotifier()
+	sharedToken := os.Getenv("GATEWAY_SHARED_TOKEN")
 
 	cert, err := ensureTLS(namespace, tlsSecret, tlsDNS)
 	if err != nil {
@@ -75,11 +72,20 @@ func main() {
 	grpcRun := &grpcRunnable{
 		addr:   grpcAddr,
 		cert:   cert,
-		server: gateway.NewServer(repos, namespace, tracker, notifier),
+		server: gateway.NewServer(repos, namespace, tracker, notifier, sharedToken),
 	}
 
 	ctx := ctrl.SetupSignalHandler()
 	go startHealthServer(ctx, &grpcRun.ready)
+
+	flushInterval := envDurationOrDefault("HEARTBEAT_FLUSH_INTERVAL", 15*time.Second)
+	offlineAfter := envDurationOrDefault("HEARTBEAT_OFFLINE_AFTER", 90*time.Second)
+	flusher := gateway.NewStatusFlusher(repos.Clusters, tracker, flushInterval, offlineAfter)
+	go func() {
+		if err := flusher.Start(ctx); err != nil {
+			slog.Error("status flusher error", "error", err)
+		}
+	}()
 
 	slog.Info("starting gateway", "grpc", grpcAddr, "namespace", namespace)
 	if err := grpcRun.Start(ctx); err != nil {
@@ -197,6 +203,15 @@ func ensureTLS(namespace, secretName, dnsName string) (tls.Certificate, error) {
 func envOrDefault(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return def
+}
+
+func envDurationOrDefault(key string, def time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
 	}
 	return def
 }
