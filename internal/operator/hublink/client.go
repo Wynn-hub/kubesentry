@@ -23,8 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/Wynn-hub/kubesentry/internal/hub"
-	"github.com/Wynn-hub/kubesentry/internal/hubpb"
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
 const (
@@ -96,7 +96,7 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		return false, fmt.Errorf("dial hub: %w", err)
 	}
 	defer conn.Close()
-	hc := hubpb.NewHubClient(conn)
+	hc := gatewaypb.NewHubClient(conn)
 
 	token, err := l.ensureRegistered(ctx, hc)
 	if err != nil {
@@ -104,8 +104,8 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 	}
 
 	streamCtx := metadata.AppendToOutgoingContext(ctx,
-		hub.MDClusterKey, l.cfg.ClusterName,
-		hub.MDAuthKey, "Bearer "+token)
+		gateway.MDClusterKey, l.cfg.ClusterName,
+		gateway.MDAuthKey, "Bearer "+token)
 	stream, err := hc.Sync(streamCtx)
 	if err != nil {
 		l.clearCredentialIfUnauthenticated(ctx, err)
@@ -114,7 +114,7 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 	slog.Info("hub link established", "hub", l.cfg.HubAddress, "cluster", l.cfg.ClusterName)
 
 	var sendMu sync.Mutex
-	send := func(m *hubpb.MemberMessage) error {
+	send := func(m *gatewaypb.MemberMessage) error {
 		sendMu.Lock()
 		defer sendMu.Unlock()
 		return stream.Send(m)
@@ -125,12 +125,12 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 	getApplied := func() string { appliedMu.Lock(); defer appliedMu.Unlock(); return lastApplied }
 	setApplied := func(h string) { appliedMu.Lock(); defer appliedMu.Unlock(); lastApplied = h }
 
-	statusReport := func(appliedVersion, applyErr string) *hubpb.MemberMessage {
+	statusReport := func(appliedVersion, applyErr string) *gatewaypb.MemberMessage {
 		ready, invalid, err := policyCounts(ctx, l.cfg.Client)
 		if err != nil {
 			slog.Warn("count policies for status report", "error", err)
 		}
-		return &hubpb.MemberMessage{Msg: &hubpb.MemberMessage_StatusReport{StatusReport: &hubpb.StatusReport{
+		return &gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_StatusReport{StatusReport: &gatewaypb.StatusReport{
 			ReadyPolicies:   ready,
 			InvalidPolicies: invalid,
 			AppliedVersion:  appliedVersion,
@@ -148,8 +148,8 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		defer ticker.Stop()
 		const statusEvery = 4
 		for tick := 0; ; tick++ {
-			if err := send(&hubpb.MemberMessage{Msg: &hubpb.MemberMessage_Heartbeat{
-				Heartbeat: &hubpb.Heartbeat{OperatorVersion: l.cfg.OperatorVersion},
+			if err := send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_Heartbeat{
+				Heartbeat: &gatewaypb.Heartbeat{OperatorVersion: l.cfg.OperatorVersion},
 			}}); err != nil {
 				return
 			}
@@ -180,9 +180,9 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 			return true, fmt.Errorf("recv: %w", err)
 		}
 		switch m := msg.Msg.(type) {
-		case *hubpb.HubMessage_Ack:
+		case *gatewaypb.HubMessage_Ack:
 			// heartbeat/status-report acknowledged; nothing to do
-		case *hubpb.HubMessage_DesiredState:
+		case *gatewaypb.HubMessage_DesiredState:
 			ds := m.DesiredState
 			// No same-hash skip here: applyDesiredState's own upsertObject
 			// already compares each object's spec+labels and skips writes
@@ -219,7 +219,7 @@ func (l *Link) dial(ctx context.Context) (*grpc.ClientConn, error) {
 
 // ensureRegistered returns the long-lived cluster token, registering with
 // the one-time token first if no stored credential exists yet.
-func (l *Link) ensureRegistered(ctx context.Context, hc hubpb.HubClient) (string, error) {
+func (l *Link) ensureRegistered(ctx context.Context, hc gatewaypb.HubClient) (string, error) {
 	var auth corev1.Secret
 	err := l.cfg.Reader.Get(ctx,
 		types.NamespacedName{Namespace: l.cfg.Namespace, Name: authSecretName}, &auth)
@@ -240,7 +240,7 @@ func (l *Link) ensureRegistered(ctx context.Context, hc hubpb.HubClient) (string
 	if err != nil {
 		return "", err
 	}
-	resp, err := hc.Register(ctx, &hubpb.RegisterRequest{
+	resp, err := hc.Register(ctx, &gatewaypb.RegisterRequest{
 		ClusterName:       l.cfg.ClusterName,
 		RegistrationToken: string(reg.Data[keyToken]),
 		ClusterUid:        uid,

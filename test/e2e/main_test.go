@@ -31,13 +31,13 @@ func TestMain(m *testing.M) {
 
 	chartDir := filepath.Join("..", "..", "charts", "kubesentry")
 	valuesFile := filepath.Join("testdata", "values-test.yaml")
-	hubChartDir := filepath.Join("..", "..", "charts", "kubesentry-hub")
-	hubValues := filepath.Join("testdata", "values-hub-test.yaml")
+	gatewayChartDir := filepath.Join("..", "..", "charts", "kubesentry-gateway")
+	gatewayValues := filepath.Join("testdata", "values-gateway-test.yaml")
 
 	helpers.Cleanup(ctx)
 
-	if err := helpers.HelmInstallHub(ctx, hubChartDir, hubValues); err != nil {
-		panic("helm install hub: " + err.Error())
+	if err := helpers.HelmInstallGateway(ctx, gatewayChartDir, gatewayValues); err != nil {
+		panic("helm install gateway: " + err.Error())
 	}
 
 	kubeconfig := os.Getenv("KUBECONFIG")
@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 		panic("build kubeconfig: " + err.Error())
 	}
 	// client-go's default QPS=5/Burst=10 is too low for this suite now that
-	// the hub's periodic resync (60s tick, always reapplies) and the
+	// the gateway's periodic resync (60s tick, always reapplies) and the
 	// PolicyGroupReconciler's status churn on the hot "default" PolicyGroup
 	// run continuously in the background alongside every test's own
 	// polling — without headroom, a tight-deadline wait (e.g. T5's 30s
@@ -76,8 +76,8 @@ func TestMain(m *testing.M) {
 		panic("create clientset: " + err.Error())
 	}
 
-	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-hub", 2*time.Minute); err != nil {
-		panic("hub deployment not ready: " + err.Error())
+	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-gateway", 2*time.Minute); err != nil {
+		panic("gateway deployment not ready: " + err.Error())
 	}
 	if err := helpers.WaitForDeploymentReady(ctx, k8sClient, helpers.WebhookNamespace, "kubesentry-console", 2*time.Minute); err != nil {
 		panic("console deployment not ready: " + err.Error())
@@ -88,7 +88,7 @@ func TestMain(m *testing.M) {
 		panic("harvest registration: " + err.Error())
 	}
 
-	if err := helpers.HelmInstallMemberWithHub(ctx, chartDir, valuesFile, caBundleB64, token); err != nil {
+	if err := helpers.HelmInstallMemberWithGateway(ctx, chartDir, valuesFile, caBundleB64, token); err != nil {
 		panic("helm install member: " + err.Error())
 	}
 

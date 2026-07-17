@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/hubpb"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
 // applyDesiredState upserts snapshot objects (policies before groups) and
@@ -24,11 +24,11 @@ import (
 // shares one store with the platform library — never adopt, never label),
 // different spec = per-object error, never overwritten. Errors are
 // aggregated so one bad object doesn't block the rest.
-func applyDesiredState(ctx context.Context, c client.Client, ds *hubpb.DesiredState) error {
+func applyDesiredState(ctx context.Context, c client.Client, ds *gatewaypb.DesiredState) error {
 	var errs []string
 	inSnapshot := map[string]map[string]bool{"Policy": {}, "PolicyGroup": {}}
 
-	var valid []*hubpb.ManagedObject
+	var valid []*gatewaypb.ManagedObject
 	for _, obj := range ds.Objects {
 		if _, known := inSnapshot[obj.Kind]; !known {
 			errs = append(errs, fmt.Sprintf("unknown kind %q for object %q", obj.Kind, obj.Name))
@@ -78,7 +78,7 @@ func sortedByName(refs []v1alpha1.PolicyRef) []v1alpha1.PolicyRef {
 	return out
 }
 
-func upsertObject(ctx context.Context, c client.Client, obj *hubpb.ManagedObject) error {
+func upsertObject(ctx context.Context, c client.Client, obj *gatewaypb.ManagedObject) error {
 	switch obj.Kind {
 	case "Policy":
 		var spec v1alpha1.PolicySpec

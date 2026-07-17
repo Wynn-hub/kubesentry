@@ -2,7 +2,7 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-// ManagedByLabel marks member-cluster objects materialized from a hub
+// ManagedByLabel marks member-cluster objects materialized from a gateway
 // distribution. The member operator prunes labeled objects that are absent
 // from the current snapshot; objects without the label are never touched.
 const (

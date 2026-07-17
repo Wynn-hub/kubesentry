@@ -74,11 +74,11 @@ func runOperator() {
 		os.Exit(1)
 	}
 
-	if hubAddr := os.Getenv("HUB_ADDRESS"); hubAddr != "" {
+	if gatewayAddr := os.Getenv("GATEWAY_ADDRESS"); gatewayAddr != "" {
 		link := hublink.New(hublink.Config{
-			HubAddress:      hubAddr,
-			TLSCAFile:       envOrDefault("HUB_CA_FILE", "/etc/kubesentry/hub-ca/ca.crt"),
-			TLSServerName:   os.Getenv("HUB_TLS_SERVER_NAME"),
+			HubAddress:      gatewayAddr,
+			TLSCAFile:       envOrDefault("GATEWAY_CA_FILE", "/etc/kubesentry/hub-ca/ca.crt"),
+			TLSServerName:   os.Getenv("GATEWAY_TLS_SERVER_NAME"),
 			ClusterName:     envOrDefault("CLUSTER_NAME", "local"),
 			Namespace:       envOrDefault("NAMESPACE", "kubesentry-system"),
 			OperatorVersion: envOrDefault("OPERATOR_VERSION", "dev"),
@@ -87,10 +87,10 @@ func runOperator() {
 			HeartbeatEvery:  15 * time.Second,
 		})
 		if err := mgr.Add(link); err != nil {
-			slog.Error("add hub link", "error", err)
+			slog.Error("add gateway link", "error", err)
 			os.Exit(1)
 		}
-		slog.Info("hub link enabled", "hub", hubAddr)
+		slog.Info("gateway link enabled", "gateway", gatewayAddr)
 	}
 
 	slog.Info("starting operator")

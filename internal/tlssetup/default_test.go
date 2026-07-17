@@ -27,7 +27,7 @@ func TestDefaultCertBundleVerifies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	opts := x509.VerifyOptions{Roots: pool, DNSName: "kubesentry-hub.kubesentry-system.svc"}
+	opts := x509.VerifyOptions{Roots: pool, DNSName: "kubesentry-gateway.kubesentry-system.svc"}
 	if _, err := leaf.Verify(opts); err != nil {
 		t.Errorf("cert verification failed: %v", err)
 	}

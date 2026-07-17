@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/hubpb"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
 func newApplyClient(t *testing.T, objs ...client.Object) client.Client {
@@ -25,13 +25,13 @@ func newApplyClient(t *testing.T, objs ...client.Object) client.Client {
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
 }
 
-func mObj(t *testing.T, kind, name string, spec any) *hubpb.ManagedObject {
+func mObj(t *testing.T, kind, name string, spec any) *gatewaypb.ManagedObject {
 	t.Helper()
 	raw, err := json.Marshal(spec)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &hubpb.ManagedObject{
+	return &gatewaypb.ManagedObject{
 		Kind: kind, Name: name,
 		Labels:   map[string]string{v1alpha1.ManagedByLabel: v1alpha1.ManagedByPlatform},
 		SpecJson: raw,
@@ -49,7 +49,7 @@ func TestApplyCreatesAndPrunes(t *testing.T) {
 	}}
 	c := newApplyClient(t, orphan)
 
-	ds := &hubpb.DesiredState{VersionHash: "h1", Objects: []*hubpb.ManagedObject{
+	ds := &gatewaypb.DesiredState{VersionHash: "h1", Objects: []*gatewaypb.ManagedObject{
 		mObj(t, "Policy", "p1", policySpec(v1alpha1.ModeAudit)),
 		mObj(t, "PolicyGroup", "g1", v1alpha1.PolicyGroupSpec{
 			Enabled:  true,
@@ -84,7 +84,7 @@ func TestApplyEmptySnapshotCascades(t *testing.T) {
 	local := &v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "user-own"}}
 	c := newApplyClient(t, managed, local)
 
-	if err := applyDesiredState(context.Background(), c, &hubpb.DesiredState{VersionHash: "h"}); err != nil {
+	if err := applyDesiredState(context.Background(), c, &gatewaypb.DesiredState{VersionHash: "h"}); err != nil {
 		t.Fatal(err)
 	}
 	var gone v1alpha1.Policy
@@ -102,7 +102,7 @@ func TestApplyUnmanagedTwinIdenticalIsSatisfied(t *testing.T) {
 	twin := &v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "p1"}, Spec: spec}
 	c := newApplyClient(t, twin)
 
-	ds := &hubpb.DesiredState{VersionHash: "h", Objects: []*hubpb.ManagedObject{mObj(t, "Policy", "p1", spec)}}
+	ds := &gatewaypb.DesiredState{VersionHash: "h", Objects: []*gatewaypb.ManagedObject{mObj(t, "Policy", "p1", spec)}}
 	if err := applyDesiredState(context.Background(), c, ds); err != nil {
 		t.Fatalf("identical twin must satisfy silently: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestApplyUnmanagedTwinGroupSameMembersDifferentOrderIsSatisfied(t *testing.
 			{Name: "c", EnforcementMode: v1alpha1.ModeAudit},
 		}},
 	}
-	ds := &hubpb.DesiredState{VersionHash: "h", Objects: []*hubpb.ManagedObject{mObj(t, "PolicyGroup", "g1", desiredSpec)}}
+	ds := &gatewaypb.DesiredState{VersionHash: "h", Objects: []*gatewaypb.ManagedObject{mObj(t, "PolicyGroup", "g1", desiredSpec)}}
 	if err := applyDesiredState(context.Background(), c, ds); err != nil {
 		t.Fatalf("same members/modes in a different order must satisfy silently: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestApplyUnmanagedTwinGroupDifferentModeStillConflicts(t *testing.T) {
 
 	// Different order AND a genuinely different mode for "b" — order
 	// tolerance must not mask a real content difference.
-	ds := &hubpb.DesiredState{VersionHash: "h", Objects: []*hubpb.ManagedObject{mObj(t, "PolicyGroup", "g1", v1alpha1.PolicyGroupSpec{
+	ds := &gatewaypb.DesiredState{VersionHash: "h", Objects: []*gatewaypb.ManagedObject{mObj(t, "PolicyGroup", "g1", v1alpha1.PolicyGroupSpec{
 		Enabled: true,
 		Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{
 			{Name: "b", EnforcementMode: v1alpha1.ModeAudit},
@@ -179,7 +179,7 @@ func TestApplyUnmanagedConflictReportsError(t *testing.T) {
 	twin := &v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "p1"}, Spec: policySpec(v1alpha1.ModeAudit)}
 	c := newApplyClient(t, twin)
 
-	ds := &hubpb.DesiredState{VersionHash: "h", Objects: []*hubpb.ManagedObject{
+	ds := &gatewaypb.DesiredState{VersionHash: "h", Objects: []*gatewaypb.ManagedObject{
 		mObj(t, "Policy", "p1", policySpec(v1alpha1.ModeEnforce)),
 	}}
 	err := applyDesiredState(context.Background(), c, ds)
@@ -205,7 +205,7 @@ func TestApplyUpdatesManagedObjectInPlace(t *testing.T) {
 	}
 	c := newApplyClient(t, existing)
 
-	ds := &hubpb.DesiredState{VersionHash: "h", Objects: []*hubpb.ManagedObject{
+	ds := &gatewaypb.DesiredState{VersionHash: "h", Objects: []*gatewaypb.ManagedObject{
 		mObj(t, "Policy", "p1", policySpec(v1alpha1.ModeEnforce)),
 	}}
 	if err := applyDesiredState(context.Background(), c, ds); err != nil {
@@ -223,7 +223,7 @@ func TestApplyUpdatesManagedObjectInPlace(t *testing.T) {
 func TestApplyUnknownKindReportsErrorAndSkipsOnlyThatObject(t *testing.T) {
 	c := newApplyClient(t)
 
-	ds := &hubpb.DesiredState{VersionHash: "h", Objects: []*hubpb.ManagedObject{
+	ds := &gatewaypb.DesiredState{VersionHash: "h", Objects: []*gatewaypb.ManagedObject{
 		mObj(t, "Policy", "p1", policySpec(v1alpha1.ModeAudit)),
 		mObj(t, "Widget", "w1", policySpec(v1alpha1.ModeAudit)),
 	}}

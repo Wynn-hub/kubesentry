@@ -2,21 +2,21 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-// Cluster lifecycle phases (hub-side view of a member cluster).
+// Cluster lifecycle phases (gateway-side view of a member cluster).
 const (
 	ClusterPhaseRegistering = "Registering"
 	ClusterPhaseOnline      = "Online"
 	ClusterPhaseOffline     = "Offline"
 )
 
-// ClusterSpec defines a member cluster registered on the hub.
+// ClusterSpec defines a member cluster registered on the gateway.
 type ClusterSpec struct {
 	DisplayName string `json:"displayName,omitempty"`
 	// Labels drive PolicyDistribution clusterSelector matching (SP2).
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
-// ClusterStatus is maintained by the hub.
+// ClusterStatus is maintained by the gateway.
 // SP2/SP3 add policySummary/baselineStatus/drift incrementally.
 type ClusterStatus struct {
 	Phase string `json:"phase,omitempty"`

@@ -1,5 +1,5 @@
 // Command gen-seed-migration converts the existing
-// charts/kubesentry-hub/builtin-policies/ source yaml into the SQL INSERT
+// charts/kubesentry-gateway/builtin-policies/ source yaml into the SQL INSERT
 // statements for migration 0002 (spec D9). Run once, review the output,
 // paste it into 0002_seed_builtin_policies.up.sql — not run at deploy time.
 package main
@@ -88,7 +88,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	dir := "charts/kubesentry-hub/builtin-policies/policies"
+	dir := "charts/kubesentry-gateway/builtin-policies/policies"
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

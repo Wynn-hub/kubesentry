@@ -1,0 +1,13 @@
+gateway:
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-gateway
+    tag: "e2e-test"
+    pullPolicy: Never
+
+console:
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-console
+    tag: "e2e-test"
+    pullPolicy: Never

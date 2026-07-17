@@ -9,7 +9,7 @@ REGISTRY ?= wynnhub
 PLATFORMS ?= linux/amd64,linux/arm64
 BUILDER   ?= kubesentry-builder
 CHART_DIR  = charts/kubesentry
-HUB_CHART_DIR = charts/kubesentry-hub
+GATEWAY_CHART_DIR = charts/kubesentry-gateway
 DIST_DIR   = dist
 REPORT_DIR = $(DIST_DIR)/test-reports
 
@@ -60,7 +60,7 @@ build:
 	go build -trimpath -o bin/webhook  ./cmd/webhook
 	go build -trimpath -o bin/operator ./cmd/operator
 	go build -trimpath -o bin/console  ./cmd/console
-	go build -trimpath -o bin/hub      ./cmd/hub
+	go build -trimpath -o bin/gateway  ./cmd/gateway
 
 # ── Step 2: Cross-compile inside a Docker container ──────────────────────────
 # Produces: bin/linux-amd64/{webhook,operator}  bin/linux-arm64/{webhook,operator}
@@ -83,7 +83,7 @@ build-linux: web-build
 	    sh -c 'go build -trimpath -o bin/linux-'"$$arch"'/webhook ./cmd/webhook && \
 	           go build -trimpath -o bin/linux-'"$$arch"'/operator ./cmd/operator && \
 	           go build -trimpath -o bin/linux-'"$$arch"'/console ./cmd/console && \
-	           go build -trimpath -o bin/linux-'"$$arch"'/hub ./cmd/hub' \
+	           go build -trimpath -o bin/linux-'"$$arch"'/gateway ./cmd/gateway' \
 	  || exit 1; \
 	done
 
@@ -94,7 +94,7 @@ proto:
 	protoc \
 	  --go_out=. --go_opt=module=github.com/Wynn-hub/kubesentry \
 	  --go-grpc_out=. --go-grpc_opt=module=github.com/Wynn-hub/kubesentry \
-	  api/proto/hub/v1/hub.proto
+	  api/proto/gateway/v1/gateway.proto
 
 # ── Test & Lint ───────────────────────────────────────────────────────────────
 # Quick run for local development — no report files produced.
@@ -112,7 +112,7 @@ build-image-e2e: build-linux
 	docker build -f Dockerfile.webhook -t wynnhub/kubesentry-webhook:e2e-test .
 	docker build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
 	docker build -f Dockerfile.console -t wynnhub/kubesentry-console:e2e-test .
-	docker build -f Dockerfile.hub -t wynnhub/kubesentry-hub:e2e-test .
+	docker build -f Dockerfile.gateway -t wynnhub/kubesentry-gateway:e2e-test .
 
 # E2E traffic must bypass any local HTTP(S) proxy (e.g. clash): kubectl and
 # client-go honor https_proxy, and a proxied connection to the local API
@@ -175,31 +175,31 @@ LOCAL_NAMESPACE  ?= kubesentry-system
 LOCAL_WEBHOOK_IMAGE  = $(REGISTRY)/kubesentry-webhook:$(LOCAL_TAG)
 LOCAL_OPERATOR_IMAGE = $(REGISTRY)/kubesentry-operator:$(LOCAL_TAG)
 LOCAL_CONSOLE_IMAGE  = $(REGISTRY)/kubesentry-console:$(LOCAL_TAG)
-LOCAL_HUB_IMAGE      = $(REGISTRY)/kubesentry-hub:$(LOCAL_TAG)
+LOCAL_GATEWAY_IMAGE  = $(REGISTRY)/kubesentry-gateway:$(LOCAL_TAG)
 
 # Build single-arch images (host arch only) for local k8s — faster than buildx.
 build-image-local: build-linux
 	docker build -f Dockerfile.webhook  -t $(LOCAL_WEBHOOK_IMAGE)  .
 	docker build -f Dockerfile.operator -t $(LOCAL_OPERATOR_IMAGE) .
 	docker build -f Dockerfile.console  -t $(LOCAL_CONSOLE_IMAGE)  .
-	docker build -f Dockerfile.hub      -t $(LOCAL_HUB_IMAGE)      .
+	docker build -f Dockerfile.gateway  -t $(LOCAL_GATEWAY_IMAGE)  .
 
 # Build images + helm install/upgrade in one shot.
-# Two chart installs into the same namespace: kubesentry-hub (hub + console,
-# the "platform" component per design D1) and kubesentry (webhook + operator,
-# the per-cluster enforcement engine). hub installs FIRST now, out of
-# necessity: the member chart's hub.address/caBundle/clusterName/
+# Two chart installs into the same namespace: kubesentry-gateway (gateway +
+# console, the "platform" component per design D1) and kubesentry (webhook +
+# operator, the per-cluster enforcement engine). gateway installs FIRST now,
+# out of necessity: the member chart's gateway.address/caBundle/clusterName/
 # registrationToken are chart-required (standalone deployment removed), and
-# the registration token only exists once the hub has issued it — so
-# scripts/deploy-local.sh installs hub, self-registers this cluster
+# the registration token only exists once the gateway has issued it — so
+# scripts/deploy-local.sh installs gateway, self-registers this cluster
 # ("local"), harvests the token, then installs the member chart once with
-# every hub field already set. Mirrors test/e2e's TestMain bootstrap order.
+# every gateway field already set. Mirrors test/e2e's TestMain bootstrap order.
 deploy-local: build-image-local
 	@REGISTRY=$(REGISTRY) LOCAL_TAG=$(LOCAL_TAG) LOCAL_NAMESPACE=$(LOCAL_NAMESPACE) ./scripts/deploy-local.sh
 
 undeploy-local:
 	helm uninstall kubesentry --namespace $(LOCAL_NAMESPACE) || true
-	helm uninstall kubesentry-hub --namespace $(LOCAL_NAMESPACE) || true
+	helm uninstall kubesentry-gateway --namespace $(LOCAL_NAMESPACE) || true
 	kubectl delete namespace $(LOCAL_NAMESPACE) --ignore-not-found
 	@# CRDs live in crds/ and are never touched by helm uninstall (by design,
 	@# so uninstall cannot wipe Policy data); a full dev teardown removes them.

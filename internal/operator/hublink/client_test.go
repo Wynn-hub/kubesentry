@@ -18,13 +18,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/hub"
-	"github.com/Wynn-hub/kubesentry/internal/hubpb"
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
 const (
-	hubNS    = "kubesentry-hub-system"
-	memberNS = "kubesentry-system"
+	gatewayNS = "kubesentry-gateway-system"
+	memberNS  = "kubesentry-system"
 )
 
 func buildScheme(t *testing.T) *runtime.Scheme {
@@ -40,14 +40,14 @@ func buildScheme(t *testing.T) *runtime.Scheme {
 }
 
 // startHub 起 bufconn hub，返回 dial 函数与 hub 侧 fake client。
-func startHub(t *testing.T, objs ...client.Object) (func(ctx context.Context) (*grpc.ClientConn, error), client.Client, *hub.HeartbeatTracker) {
+func startHub(t *testing.T, objs ...client.Object) (func(ctx context.Context) (*grpc.ClientConn, error), client.Client, *gateway.HeartbeatTracker) {
 	t.Helper()
 	hc := fake.NewClientBuilder().WithScheme(buildScheme(t)).
 		WithStatusSubresource(&v1alpha1.Cluster{}, &v1alpha1.PolicyDistribution{}).WithObjects(objs...).Build()
-	tracker := hub.NewHeartbeatTracker()
+	tracker := gateway.NewHeartbeatTracker()
 	lis := bufconn.Listen(1024 * 1024)
 	gs := grpc.NewServer()
-	hubpb.RegisterHubServer(gs, hub.NewServer(hc, hubNS, tracker, hub.NewNotifier()))
+	gatewaypb.RegisterHubServer(gs, gateway.NewServer(hc, gatewayNS, tracker, gateway.NewNotifier()))
 	go func() { _ = gs.Serve(lis) }()
 	t.Cleanup(gs.Stop)
 	dial := func(ctx context.Context) (*grpc.ClientConn, error) {
@@ -65,10 +65,10 @@ func TestLinkRegistersAndHeartbeats(t *testing.T) {
 		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: hubNS, Name: hub.RegTokenSecretName("prod"),
+				Namespace: gatewayNS, Name: gateway.RegTokenSecretName("prod"),
 				Labels: map[string]string{"kubesentry.io/cluster": "prod"},
 			},
-			Data: map[string][]byte{hub.KeyToken: []byte("reg-tok")},
+			Data: map[string][]byte{gateway.KeyToken: []byte("reg-tok")},
 		},
 	)
 
@@ -116,10 +116,10 @@ func TestLinkRegistersAndHeartbeats(t *testing.T) {
 func TestLinkReusesStoredToken(t *testing.T) {
 	// 成员侧 auth Secret 已存在（此前注册过）→ 不走 Register，直接用存量 token 心跳
 	dial, _, tracker := startHub(t, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: hubNS, Name: hub.AuthSecretName("prod")},
+		ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: gateway.AuthSecretName("prod")},
 		Data: map[string][]byte{
-			hub.KeyTokenHash:  []byte(hub.HashToken("stored-token")),
-			hub.KeyClusterUID: []byte("uid-1"),
+			gateway.KeyTokenHash:  []byte(gateway.HashToken("stored-token")),
+			gateway.KeyClusterUID: []byte("uid-1"),
 		},
 	})
 
@@ -158,10 +158,10 @@ func TestRunOnceConnectedReporting(t *testing.T) {
 		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: hubNS, Name: hub.RegTokenSecretName("prod"),
+				Namespace: gatewayNS, Name: gateway.RegTokenSecretName("prod"),
 				Labels: map[string]string{"kubesentry.io/cluster": "prod"},
 			},
-			Data: map[string][]byte{hub.KeyToken: []byte("reg-tok")},
+			Data: map[string][]byte{gateway.KeyToken: []byte("reg-tok")},
 		},
 	)
 
@@ -219,10 +219,10 @@ func TestLinkSelfHealsAfterTokenRotation(t *testing.T) {
 		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: hubNS, Name: hub.RegTokenSecretName("prod"),
+				Namespace: gatewayNS, Name: gateway.RegTokenSecretName("prod"),
 				Labels: map[string]string{"kubesentry.io/cluster": "prod"},
 			},
-			Data: map[string][]byte{hub.KeyToken: []byte("fresh-reg-tok")},
+			Data: map[string][]byte{gateway.KeyToken: []byte("fresh-reg-tok")},
 		},
 		// Deliberately no hub-side kubesentry-hub-auth-prod Secret: the
 		// member's stored token below is orphaned/unrecognized by the hub.
@@ -276,7 +276,7 @@ func TestLinkSelfHealsAfterTokenRotation(t *testing.T) {
 	}, "heartbeat never resumed after self-healing re-registration")
 }
 
-// TestLinkAppliesSnapshotAndReportsBack drives the real hub.Server (bufconn)
+// TestLinkAppliesSnapshotAndReportsBack drives the real gateway.Server (bufconn)
 // against a member Link end to end: the hub renders a snapshot from a
 // PolicyDistribution targeting this cluster, the member applies it (creating
 // the managed Policy/PolicyGroup and pruning a pre-existing managed orphan),
@@ -287,10 +287,10 @@ func TestLinkAppliesSnapshotAndReportsBack(t *testing.T) {
 	dial, hubClient, _ := startHub(t,
 		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: clusterName}},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Namespace: hubNS, Name: hub.AuthSecretName(clusterName)},
+			ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: gateway.AuthSecretName(clusterName)},
 			Data: map[string][]byte{
-				hub.KeyTokenHash:  []byte(hub.HashToken("tok")),
-				hub.KeyClusterUID: []byte("uid-1"),
+				gateway.KeyTokenHash:  []byte(gateway.HashToken("tok")),
+				gateway.KeyClusterUID: []byte("uid-1"),
 			},
 		},
 		&v1alpha1.Policy{
@@ -375,10 +375,10 @@ func TestLinkReappliesOnResendEvenWithUnchangedHash(t *testing.T) {
 	dial, _, _ := startHub(t,
 		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: clusterName}},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Namespace: hubNS, Name: hub.AuthSecretName(clusterName)},
+			ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: gateway.AuthSecretName(clusterName)},
 			Data: map[string][]byte{
-				hub.KeyTokenHash:  []byte(hub.HashToken("tok")),
-				hub.KeyClusterUID: []byte("uid-1"),
+				gateway.KeyTokenHash:  []byte(gateway.HashToken("tok")),
+				gateway.KeyClusterUID: []byte("uid-1"),
 			},
 		},
 		&v1alpha1.Policy{
@@ -421,7 +421,7 @@ func TestLinkReappliesOnResendEvenWithUnchangedHash(t *testing.T) {
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	defer hub.SetPushResyncForTest(30 * time.Millisecond)()
+	defer gateway.SetPushResyncForTest(30 * time.Millisecond)()
 	go func() { _ = l.Start(ctx) }()
 
 	waitFor(t, 5*time.Second, func() bool {

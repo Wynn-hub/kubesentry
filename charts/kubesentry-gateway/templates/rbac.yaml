@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubesentry-gateway
+  namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubesentry-gateway
+rules:
+  - apiGroups: [kubesentry.io]
+    resources: [clusters]
+    verbs: [get, list, watch]
+  - apiGroups: [kubesentry.io]
+    resources: [clusters/status]
+    verbs: [get, update, patch]
+  - apiGroups: [kubesentry.io]
+    resources: [policydistributions]
+    verbs: [get, list, watch]
+  - apiGroups: [kubesentry.io]
+    resources: [policydistributions/status]
+    verbs: [get, update, patch]
+  # policies/policygroups need update+patch (not just read) so the gateway's own
+  # PolicyReconciler/PolicyGroupReconciler — reused as-is from
+  # internal/operator — can reconcile the platform's policy library on this
+  # cluster: Rego validation, PolicyVersion snapshotting, rollback handling
+  # (policies spec patch), and PolicyGroup member resolution.
+  - apiGroups: [kubesentry.io]
+    resources: [policies, policygroups]
+    verbs: [get, list, watch, update, patch]
+  - apiGroups: [kubesentry.io]
+    resources: [policies/status, policygroups/status]
+    verbs: [get, update, patch]
+  - apiGroups: [kubesentry.io]
+    resources: [policyversions]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubesentry-gateway
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubesentry-gateway
+subjects:
+  - kind: ServiceAccount
+    name: kubesentry-gateway
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubesentry-gateway
+  namespace: {{ .Values.namespace }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list, watch, create, update, delete]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesentry-gateway
+  namespace: {{ .Values.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubesentry-gateway
+subjects:
+  - kind: ServiceAccount
+    name: kubesentry-gateway
+    namespace: {{ .Values.namespace }}

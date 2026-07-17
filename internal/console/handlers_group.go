@@ -183,7 +183,7 @@ func (h *Handlers) deleteGroup(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// "default" is the platform baseline PolicyGroup, preloaded by the hub
+	// "default" is the platform baseline PolicyGroup, preloaded by the gateway
 	// chart and referenced by the reserved "default" PolicyDistribution —
 	// deleting it would silently drop baseline enforcement for every
 	// registered cluster.

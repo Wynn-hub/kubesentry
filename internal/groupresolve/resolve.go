@@ -1,6 +1,6 @@
 // Package groupresolve computes a PolicyGroup's effective members from its
 // spec against an in-memory Policy list. It is shared by the member-side
-// operator reconciler and the hub-side snapshot renderer — the hub cannot
+// operator reconciler and the gateway-side snapshot renderer — the gateway cannot
 // use PolicyGroup.status because a pure management cluster runs no operator.
 package groupresolve
 

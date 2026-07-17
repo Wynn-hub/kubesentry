@@ -4,7 +4,7 @@ metadata:
   name: kubesentry-hub-ca
   namespace: {{ .Values.namespace }}
 data:
-  ca.crt: {{ required "hub.caBundle is required — standalone deployment is no longer supported" .Values.hub.caBundle }}
+  ca.crt: {{ required "gateway.caBundle is required — standalone deployment is no longer supported" .Values.gateway.caBundle }}
 ---
 apiVersion: v1
 kind: Secret
@@ -12,4 +12,4 @@ metadata:
   name: kubesentry-hub-register
   namespace: {{ .Values.namespace }}
 stringData:
-  token: {{ required "hub.registrationToken is required" .Values.hub.registrationToken | quote }}
+  token: {{ required "gateway.registrationToken is required" .Values.gateway.registrationToken | quote }}

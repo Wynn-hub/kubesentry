@@ -20,21 +20,21 @@ import (
 // setDefaultGroupMemberMode patches the built-in "default" PolicyGroup's
 // byName entry for policyName to mode, returning its previous mode.
 //
-// Built-in policies now belong to the hub-managed "default" PolicyGroup,
+// Built-in policies now belong to the gateway-managed "default" PolicyGroup,
 // whose byName entries carry an explicit per-entry enforcementMode baked in
 // at chart-render time. groupresolve's precedence gives a per-entry override
 // priority over a Policy's own default mode, so that group entry — not the
 // Policy object's own spec.enforcementMode — is what actually governs
 // webhook enforcement. Patching the Policy directly no longer has a durable
-// effect: the hub's periodic resync (internal/hub/server.go's pushResync)
+// effect: the gateway's periodic resync (internal/gateway/server.go's pushResync)
 // keeps reasserting the group's own baked-in mode over any direct Policy
-// edit. This same object is also hub's own source of truth in
+// edit. This same object is also gateway's own source of truth in
 // self-registration, so patching it here does not get corrected away — it
 // *is* the source.
 //
-// The object is under real write contention (hub's periodic push +
+// The object is under real write contention (gateway's periodic push +
 // PolicyGroupReconciler's own status updates), so this retries on conflict
-// like internal/hub/diststatus.go's setClusterEntry does for the same reason.
+// like internal/gateway/diststatus.go's setClusterEntry does for the same reason.
 func setDefaultGroupMemberMode(ctx context.Context, t *testing.T, policyName, mode string) string {
 	t.Helper()
 	var original string

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubesentry-gateway
+  namespace: {{ .Values.namespace }}
+  labels: { app: kubesentry-gateway }
+spec:
+  replicas: {{ .Values.gateway.replicas }}
+  selector:
+    matchLabels: { app: kubesentry-gateway }
+  template:
+    metadata:
+      labels: { app: kubesentry-gateway }
+    spec:
+      serviceAccountName: kubesentry-gateway
+      containers:
+        - name: gateway
+          image: "{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag }}"
+          imagePullPolicy: {{ .Values.gateway.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.gateway.grpc.port }}
+              name: grpc
+            - containerPort: 8081
+              name: probe
+          env:
+            - name: NAMESPACE
+              value: {{ .Values.namespace }}
+            - name: GRPC_ADDR
+              value: ":{{ .Values.gateway.grpc.port }}"
+            - name: TLS_SECRET_NAME
+              value: {{ .Values.tls.secretName }}
+            - name: TLS_DNS_NAME
+              value: "kubesentry-gateway.{{ .Values.namespace }}.svc"
+          # Plain HTTP, not the grpc probe type: the gRPC listener is
+          # TLS-only, and Kubernetes' native `grpc` probe always dials in
+          # plaintext, so it can never complete a handshake against it.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: probe
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: probe
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+{{ toYaml .Values.gateway.resources | indent 12 }}

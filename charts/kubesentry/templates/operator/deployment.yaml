@@ -21,13 +21,13 @@ spec:
           env:
             - name: VWC_NAME
               value: kubesentry
-            # —— hub connection (required — standalone deployment removed) ——
-            - name: HUB_ADDRESS
-              value: {{ required "hub.address is required — standalone deployment is no longer supported" .Values.hub.address | quote }}
-            - name: HUB_TLS_SERVER_NAME
-              value: {{ .Values.hub.tlsServerName | quote }}
+            # —— gateway connection (required — standalone deployment removed) ——
+            - name: GATEWAY_ADDRESS
+              value: {{ required "gateway.address is required — standalone deployment is no longer supported" .Values.gateway.address | quote }}
+            - name: GATEWAY_TLS_SERVER_NAME
+              value: {{ .Values.gateway.tlsServerName | quote }}
             - name: CLUSTER_NAME
-              value: {{ required "hub.clusterName is required" .Values.hub.clusterName | quote }}
+              value: {{ required "gateway.clusterName is required" .Values.gateway.clusterName | quote }}
             - name: OPERATOR_VERSION
               value: {{ .Chart.AppVersion | quote }}
           resources:

@@ -1,0 +1,84 @@
+# Same namespace as the member chart's own components (webhook/operator/
+# console) so the gateway sits alongside them; kubesentry-system is one of the
+# systemNamespaces below, so the gateway is exempt from policy enforcement too.
+namespace: kubesentry-system
+
+gateway:
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-gateway
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  grpc:
+    port: 9443
+    # 对成员集群暴露方式：ClusterIP（同集群自注册）/ NodePort / LoadBalancer
+    serviceType: NodePort
+    nodePort: 30443
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Console is a platform component (D1: 中台 = console + gateway), packaged
+# here rather than in the member chart. Note this means single-cluster
+# users need both charts installed (gateway for the UI, member for
+# webhook/operator enforcement) — see `make deploy-local`/`undeploy-local`
+# for the two-install pattern.
+console:
+  enabled: true
+  replicas: 1
+  image:
+    repository: wynnhub/kubesentry-console
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8080
+    nodePort: 30080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+tls:
+  secretName: kubesentry-gateway-tls
+  # Bring your own CA-issued certificate instead of the built-in
+  # self-signed one. Leave all three empty (default) to let the gateway use
+  # its baked-in 99-year default self-signed CA + server cert (see
+  # internal/tlssetup.DefaultCertBundle — hardcoded in Go, not this chart;
+  # persisted into `secretName` on first start). Provide all three
+  # (PEM text, not base64 — Helm encodes it) to use your own cert instead;
+  # it must cover the DNS name the gateway is actually reached at (default:
+  # kubesentry-gateway.<namespace>.svc, override via TLS_DNS_NAME if exposed
+  # differently, e.g. NodePort/LB).
+  ca: ""    # PEM CA certificate
+  cert: ""  # PEM server certificate
+  key: ""   # PEM server private key
+
+# System namespaces that are always exempted from every policy on every
+# cluster, via a permanent default PolicyException (see
+# templates/default-exception.yaml) — independent of which policy group or
+# distribution is in effect.
+systemNamespaces:
+  - kube-system
+  - kube-public
+  - kube-node-lease
+  - kubesentry-system
+
+# Built-in default policy (Efficiency+Reliability+Security merged into one
+# PolicyGroup named "default"). Applied to every registered cluster via a
+# PolicyDistribution with clusterSelector: {} (matches all clusters).
+builtinGroups:
+  default:
+    enabled: true
+
+# Per-policy toggles and per-entry mode overrides.
+# Keys are the Policy.metadata.name (kebab-case) of each built-in policy.
+# Omitted keys default to enabled=true with the mode declared in the policy yaml.
+builtinPolicies: {}
+#   run-as-privileged:
+#     enabled: true   # set false to drop this Policy + remove from group.byName
+#     mode: ""        # "enforce" | "audit" — overrides the policy's default

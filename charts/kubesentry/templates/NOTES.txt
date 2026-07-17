@@ -1,6 +1,6 @@
 KubeSentry {{ .Chart.AppVersion }} deployed to namespace {{ .Values.namespace }}.
 
-The web console is packaged in the kubesentry-hub chart, not here — install
-it alongside this chart to get the UI:
+The web console is packaged in the kubesentry-gateway chart, not here —
+install it alongside this chart to get the UI:
 
-  helm install kubesentry-hub charts/kubesentry-hub --namespace {{ .Values.namespace }}
+  helm install kubesentry-gateway charts/kubesentry-gateway --namespace {{ .Values.namespace }}
