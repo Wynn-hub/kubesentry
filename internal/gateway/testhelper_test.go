@@ -9,11 +9,47 @@ import (
 	tcwait "github.com/testcontainers/testcontainers-go/wait"
 	gormpg "gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
+
+// gatewayNS is the namespace used across gateway package tests for Server
+// construction; shared here since deleting cluster_reconciler_test.go (its
+// original home) orphaned every other test file that referenced it.
+const gatewayNS = "kubesentry-gateway-system"
+
+// buildGatewayScheme and newGatewayClient are the fake controller-runtime
+// client builders StatusFlusher's tests (heartbeats_test.go) still need —
+// StatusFlusher is still k8s-CRD-backed pending its own DB migration, out of
+// scope for this cleanup. Shared here since cluster_reconciler_test.go, their
+// original home, is gone.
+func buildGatewayScheme(t *testing.T) *runtime.Scheme {
+	t.Helper()
+	s := runtime.NewScheme()
+	if err := v1alpha1.AddToScheme(s); err != nil {
+		t.Fatal(err)
+	}
+	if err := corev1.AddToScheme(s); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+func newGatewayClient(t *testing.T, objs ...client.Object) client.Client {
+	t.Helper()
+	return fake.NewClientBuilder().
+		WithScheme(buildGatewayScheme(t)).
+		WithStatusSubresource(&v1alpha1.Cluster{}, &v1alpha1.PolicyDistribution{}).
+		WithObjects(objs...).
+		Build()
+}
 
 // newTestRepos wraps a fresh newTestDB in the four repos the Server needs.
 func newTestRepos(t *testing.T) Repos {

@@ -4,13 +4,10 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"sync/atomic"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -21,23 +18,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
-	"github.com/Wynn-hub/kubesentry/internal/operator"
 	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
-
-var errGRPCNotReady = errors.New("grpc listener not yet serving")
 
 func main() {
 	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseDevMode(true)))
@@ -46,8 +36,6 @@ func main() {
 	grpcAddr := envOrDefault("GRPC_ADDR", ":9443")
 	tlsSecret := envOrDefault("TLS_SECRET_NAME", "kubesentry-gateway-tls")
 	tlsDNS := envOrDefault("TLS_DNS_NAME", "kubesentry-gateway."+namespace+".svc")
-	flushEvery := envDuration("HEARTBEAT_FLUSH_INTERVAL", 30*time.Second)
-	offlineAfter := envDuration("OFFLINE_AFTER", 90*time.Second)
 
 	dsn := os.Getenv("DATABASE_DSN")
 	if dsn == "" {
@@ -70,69 +58,13 @@ func main() {
 		Distributions: dbrepo.NewDistributionRepo(db),
 	}
 
-	scheme := runtime.NewScheme()
-	_ = v1alpha1.AddToScheme(scheme)
-	_ = corev1.AddToScheme(scheme)
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme,
-		Client: client.Options{
-			Cache: &client.CacheOptions{DisableFor: []client.Object{&corev1.Secret{}}},
-		},
-		LeaderElection:         true,
-		LeaderElectionID:       "kubesentry-gateway-leader",
-		HealthProbeBindAddress: envOrDefault("HEALTH_PROBE_ADDR", ":8081"),
-	})
-	if err != nil {
-		slog.Error("create manager", "error", err)
-		os.Exit(1)
-	}
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		slog.Error("add healthz check", "error", err)
-		os.Exit(1)
-	}
-
-	if err := gateway.NewClusterReconciler(mgr.GetClient(), namespace).SetupWithManager(mgr); err != nil {
-		slog.Error("setup cluster reconciler", "error", err)
-		os.Exit(1)
-	}
-
-	// Rego validation and version-snapshot/rollback handling for the
-	// platform's own policy library — the same reconciler logic the member
-	// chart's operator runs, reused as-is (no k8s-cluster-specific coupling
-	// in either type). Without this, Policy/PolicyGroup objects authored
-	// directly on the gateway (e.g. the "default" catalogue, or anything created
-	// via console) would never get Phase/CurrentVersion/ResolvedPolicies
-	// computed unless an operator happened to be co-located on this same
-	// cluster (self-registration) — gateway has no way to reach a genuinely
-	// separate member cluster's API server to reconcile its objects, so this
-	// only ever covers gateway's own cluster, same as ClusterReconciler above.
-	// Safe to run alongside a self-registered operator's own copy of these
-	// reconcilers: PolicyReconciler already tolerates a concurrent writer via
-	// its AlreadyExists/spec-match check on PolicyVersion creation, and a
-	// Status().Update conflict just triggers Kubernetes' normal reconcile
-	// retry — no explicit coordination needed.
-	historyLimit := 20
-	if err := operator.NewPolicyReconciler(mgr.GetClient(), historyLimit).SetupWithManager(mgr); err != nil {
-		slog.Error("setup policy reconciler", "error", err)
-		os.Exit(1)
-	}
-	if err := operator.NewPolicyGroupReconciler(mgr.GetClient()).SetupWithManager(mgr); err != nil {
-		slog.Error("setup policygroup reconciler", "error", err)
-		os.Exit(1)
-	}
-
+	// ponytail: heartbeat state is in-memory only now — StatusFlusher (internal/gateway/heartbeats.go)
+	// still persists via a k8s Cluster CRD client and has no DB-backed replacement yet.
+	// Task 8's Connect/NotifyChange RPCs are expected to own liveness tracking against
+	// dbrepo.Cluster (which already has Phase/OperatorVersion/LastHeartbeatAt columns) —
+	// wire a DB-backed flusher there instead of resurrecting the CRD-based one.
 	tracker := gateway.NewHeartbeatTracker()
-	if err := mgr.Add(gateway.NewStatusFlusher(mgr.GetClient(), tracker, flushEvery, offlineAfter)); err != nil {
-		slog.Error("add status flusher", "error", err)
-		os.Exit(1)
-	}
-
 	notifier := gateway.NewNotifier()
-	if err := mgr.Add(&changefeed{cache: mgr.GetCache(), notifier: notifier}); err != nil {
-		slog.Error("add changefeed", "error", err)
-		os.Exit(1)
-	}
 
 	cert, err := ensureTLS(namespace, tlsSecret, tlsDNS)
 	if err != nil {
@@ -144,49 +76,29 @@ func main() {
 		cert:   cert,
 		server: gateway.NewServer(repos, namespace, tracker, notifier),
 	}
-	if err := mgr.Add(grpcRun); err != nil {
-		slog.Error("add grpc runnable", "error", err)
-		os.Exit(1)
-	}
-	if err := mgr.AddReadyzCheck("readyz", func(_ *http.Request) error {
-		if !grpcRun.ready.Load() {
-			return errGRPCNotReady
-		}
-		return nil
-	}); err != nil {
-		slog.Error("add readyz check", "error", err)
-		os.Exit(1)
-	}
 
 	slog.Info("starting gateway", "grpc", grpcAddr, "namespace", namespace)
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		slog.Error("manager error", "error", err)
+	if err := grpcRun.Start(ctrl.SetupSignalHandler()); err != nil {
+		slog.Error("grpc server error", "error", err)
 		os.Exit(1)
 	}
 }
 
-// grpcRunnable serves gRPC under the manager's lifecycle. It must run on
-// every replica regardless of leader status — like a webhook/health server,
-// member clusters need an answer from whichever pod they reach. Without
-// NeedLeaderElection()==false, controller-runtime's default treats a plain
-// Runnable as leader-gated: on a single-replica rolling update, the new pod
-// can't become ready (gRPC never starts) until it's leader, and it can't
-// become leader until the old pod (still serving, still Ready) releases the
-// lease — a deadlock the Deployment can never resolve on its own. Only the
-// stateful writers (ClusterReconciler, StatusFlusher) should stay leader-only.
+// grpcRunnable serves gRPC. It must run on every replica — like a
+// webhook/health server, member clusters need an answer from whichever pod
+// they reach.
 //
-// Liveness/readiness are checked over the manager's plain HTTP health probe
-// port (see mgr.AddReadyzCheck below), not the grpc_health_v1 protocol —
-// Kubernetes' native `grpc` probe type only ever dials in plaintext, so it
-// can never complete a handshake against this TLS-only listener.
+// Liveness/readiness are meant to be checked over plain HTTP (not the
+// grpc_health_v1 protocol — Kubernetes' native `grpc` probe type only ever
+// dials in plaintext, so it can never complete a handshake against this
+// TLS-only listener); the `ready` flag below is currently unread pending
+// Task 8 wiring up that HTTP probe endpoint.
 type grpcRunnable struct {
 	addr   string
 	cert   tls.Certificate
 	server *gateway.Server
 	ready  atomic.Bool
 }
-
-func (g *grpcRunnable) NeedLeaderElection() bool { return false }
 
 func (g *grpcRunnable) Start(ctx context.Context) error {
 	lis, err := net.Listen("tcp", g.addr)
@@ -253,45 +165,4 @@ func envOrDefault(key, def string) string {
 		return v
 	}
 	return def
-}
-
-func envDuration(key string, def time.Duration) time.Duration {
-	if v := os.Getenv(key); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			return d
-		}
-		slog.Warn("invalid duration env, using default", "key", key, "default", def)
-	}
-	return def
-}
-
-// changefeed nudges the push notifier on any change to the CRDs a snapshot
-// depends on. Runs on every replica (pure fan-out, no writes).
-type changefeed struct {
-	cache    cache.Cache
-	notifier *gateway.Notifier
-}
-
-func (c *changefeed) NeedLeaderElection() bool { return false }
-
-func (c *changefeed) Start(ctx context.Context) error {
-	h := toolscache.ResourceEventHandlerFuncs{
-		AddFunc:    func(any) { c.notifier.Notify() },
-		UpdateFunc: func(any, any) { c.notifier.Notify() },
-		DeleteFunc: func(any) { c.notifier.Notify() },
-	}
-	for _, obj := range []client.Object{
-		&v1alpha1.PolicyDistribution{}, &v1alpha1.PolicyGroup{},
-		&v1alpha1.Policy{}, &v1alpha1.Cluster{},
-	} {
-		inf, err := c.cache.GetInformer(ctx, obj)
-		if err != nil {
-			return err
-		}
-		if _, err := inf.AddEventHandler(h); err != nil {
-			return err
-		}
-	}
-	<-ctx.Done()
-	return nil
 }
