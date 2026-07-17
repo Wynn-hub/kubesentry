@@ -1,0 +1,9 @@
+SET search_path TO kubesentry;
+DROP TABLE IF EXISTS distribution_cluster_status;
+DROP TABLE IF EXISTS policy_distributions;
+DROP TABLE IF EXISTS policy_exceptions;
+DROP TABLE IF EXISTS policy_groups;
+DROP TABLE IF EXISTS policy_versions;
+DROP TABLE IF EXISTS policies;
+DROP TABLE IF EXISTS clusters;
+DROP SCHEMA IF EXISTS kubesentry;
