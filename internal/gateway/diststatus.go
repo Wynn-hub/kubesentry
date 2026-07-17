@@ -2,12 +2,26 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
+
+// logRepoErr logs a failed repo call at Error level, except when the failure
+// is just the request ctx being canceled or timing out — e.g. a member's
+// Sync stream disconnecting mid-iteration (pod restart, network blip,
+// controlled shutdown). That's a routine, self-correcting event, not a fault,
+// so it's logged at Debug to keep it out of error-based alerting.
+func logRepoErr(err error, msg string, args ...any) {
+	level := slog.LevelError
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		level = slog.LevelDebug
+	}
+	slog.Log(context.Background(), level, msg, append(args, "error", err)...)
+}
 
 // markPushed reconciles every distribution's per-cluster status row with the
 // freshly rendered snapshot: render errors → Error, awaiting the member ack →
@@ -19,7 +33,7 @@ import (
 func (s *Server) markPushed(ctx context.Context, cluster string, res RenderResult) {
 	cl, err := s.repos.Clusters.GetByName(ctx, cluster)
 	if err != nil {
-		slog.Error("get cluster for status update", "cluster", cluster, "error", err)
+		logRepoErr(err, "get cluster for status update", "cluster", cluster)
 		return
 	}
 	matched := map[string]bool{}
@@ -28,7 +42,7 @@ func (s *Server) markPushed(ctx context.Context, cluster string, res RenderResul
 	}
 	dists, err := s.repos.Distributions.List(ctx)
 	if err != nil {
-		slog.Error("list distributions for status", "error", err)
+		logRepoErr(err, "list distributions for status")
 		return
 	}
 	for i := range dists {
@@ -50,7 +64,7 @@ func (s *Server) markPushed(ctx context.Context, cluster string, res RenderResul
 			})
 		default:
 			if err := s.repos.Distributions.DeleteClusterStatus(ctx, d.ID, cl.ID); err != nil {
-				slog.Error("remove distribution status entry", "distribution", d.Name, "cluster", cluster, "error", err)
+				logRepoErr(err, "remove distribution status entry", "distribution", d.Name, "cluster", cluster)
 			}
 		}
 	}
@@ -64,7 +78,7 @@ func (s *Server) markReported(ctx context.Context, cluster string, last RenderRe
 	}
 	cl, err := s.repos.Clusters.GetByName(ctx, cluster)
 	if err != nil {
-		slog.Error("get cluster for status report", "cluster", cluster, "error", err)
+		logRepoErr(err, "get cluster for status report", "cluster", cluster)
 		return
 	}
 	for _, name := range last.Matched {
@@ -73,7 +87,7 @@ func (s *Server) markReported(ctx context.Context, cluster string, last RenderRe
 		}
 		d, err := s.repos.Distributions.GetByName(ctx, name)
 		if err != nil {
-			slog.Error("get distribution for status report", "distribution", name, "error", err)
+			logRepoErr(err, "get distribution for status report", "distribution", name)
 			continue
 		}
 		if rep.ApplyError != "" {
@@ -108,7 +122,7 @@ func (s *Server) markReported(ctx context.Context, cluster string, last RenderRe
 func (s *Server) setClusterStatus(ctx context.Context, distID, clusterID int64, clusterName string, mutate func(*dbrepo.DistributionClusterStatus)) {
 	cur, err := s.repos.Distributions.GetClusterStatus(ctx, distID, clusterID)
 	if err != nil {
-		slog.Error("get distribution cluster status", "cluster", clusterName, "error", err)
+		logRepoErr(err, "get distribution cluster status", "cluster", clusterName)
 		return
 	}
 	entry := dbrepo.DistributionClusterStatus{DistributionID: distID, ClusterID: clusterID}
@@ -121,6 +135,6 @@ func (s *Server) setClusterStatus(ctx context.Context, distID, clusterID int64, 
 		return // no-op
 	}
 	if err := s.repos.Distributions.UpsertClusterStatus(ctx, &entry); err != nil {
-		slog.Error("update distribution cluster status", "cluster", clusterName, "error", err)
+		logRepoErr(err, "update distribution cluster status", "cluster", clusterName)
 	}
 }
