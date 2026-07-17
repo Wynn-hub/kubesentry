@@ -204,9 +204,20 @@ func (h *Handlers) updateException(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	// expectedUpdatedAt anchors the compare-and-swap to the exact row state
+	// fetchException just read, closing the check-then-act race.
+	expectedUpdatedAt := e.UpdatedAt
 	e.Spec = datatypes.NewJSONType(exceptionSpecFrom(&req))
 	e.ExpiresAt = &expiresAt
-	if err := h.Repos.Exceptions.Update(r.Context(), e); err != nil {
+	fields := map[string]any{
+		"spec":       e.Spec,
+		"expires_at": e.ExpiresAt,
+	}
+	if err := h.Repos.Exceptions.UpdateCAS(r.Context(), e.ID, expectedUpdatedAt, fields); err != nil {
+		if errors.Is(err, dbrepo.ErrConflict) {
+			writeErr(w, http.StatusConflict, "exception has been modified, refresh and retry")
+			return
+		}
 		writeErr(w, http.StatusInternalServerError, "update exception: "+err.Error())
 		return
 	}

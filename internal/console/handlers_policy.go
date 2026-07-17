@@ -232,21 +232,26 @@ func (h *Handlers) createPolicy(w http.ResponseWriter, r *http.Request) {
 		Labels:          datatypes.NewJSONType(req.Labels),
 		Annotations:     datatypes.NewJSONType(applyAnnotations(nil, req.Annotations)),
 	}
-	if err := h.Repos.Policies.Create(r.Context(), p); err != nil {
+	// Policy row + its v1 PolicyVersion snapshot commit or roll back
+	// together — a failed version insert (e.g. a constraint violation) must
+	// not leave an orphaned Policy row that would spuriously 409 on retry.
+	err := h.Repos.Policies.WithTx(r.Context(), func(tx *dbrepo.PolicyRepo) error {
+		if err := tx.Create(r.Context(), p); err != nil {
+			return err
+		}
+		return tx.CreateVersion(r.Context(), &dbrepo.PolicyVersion{
+			PolicyID:     p.ID,
+			Version:      1,
+			Rego:         p.Rego,
+			SpecSnapshot: datatypes.NewJSONType(policySpecSnapshot(p)),
+		})
+	})
+	if err != nil {
 		if isUniqueViolation(err) {
 			writeErr(w, http.StatusConflict, "policy "+req.Name+" already exists")
 		} else {
 			writeErr(w, http.StatusInternalServerError, "create policy: "+err.Error())
 		}
-		return
-	}
-	if err := h.Repos.Policies.CreateVersion(r.Context(), &dbrepo.PolicyVersion{
-		PolicyID:     p.ID,
-		Version:      1,
-		Rego:         p.Rego,
-		SpecSnapshot: datatypes.NewJSONType(policySpecSnapshot(p)),
-	}); err != nil {
-		writeErr(w, http.StatusInternalServerError, "create version: "+err.Error())
 		return
 	}
 	writeOK(w, map[string]string{"name": p.Name})
@@ -293,41 +298,67 @@ func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, "policy has been modified, refresh and retry")
 		return
 	}
-	p.Match = datatypes.NewJSONType(req.Match)
-	p.EnforcementMode = req.EnforcementMode
-	p.Rego = req.Rego
-	p.Description = req.Description
-	p.CompileOK = true
-	p.CompileError = ""
+	// expectedUpdatedAt anchors the compare-and-swap below to the exact row
+	// state we just read — closing the gap between this check and the write
+	// that a plain "read, compare, then unconditional Save" leaves open.
+	expectedUpdatedAt := p.UpdatedAt
+	lbl := p.Labels.Data()
 	if req.Labels != nil {
-		lbl := p.Labels.Data()
 		if lbl == nil {
 			lbl = map[string]string{}
 		}
 		for k, v := range req.Labels {
 			lbl[k] = v
 		}
-		p.Labels = datatypes.NewJSONType(lbl)
 	}
 	ann := p.Annotations.Data()
 	delete(ann, visualBuilderSpecAnnotation)
-	p.Annotations = datatypes.NewJSONType(applyAnnotations(ann, req.Annotations))
-	if err := h.Repos.Policies.Update(r.Context(), p); err != nil {
-		writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
-		return
-	}
+	ann = applyAnnotations(ann, req.Annotations)
+
 	_, current, err := h.latestPolicyVersion(r, p.ID)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list versions: "+err.Error())
 		return
 	}
-	if err := h.Repos.Policies.CreateVersion(r.Context(), &dbrepo.PolicyVersion{
-		PolicyID:     p.ID,
-		Version:      current + 1,
-		Rego:         p.Rego,
-		SpecSnapshot: datatypes.NewJSONType(policySpecSnapshot(p)),
-	}); err != nil {
-		writeErr(w, http.StatusInternalServerError, "create version: "+err.Error())
+
+	p.Match = datatypes.NewJSONType(req.Match)
+	p.EnforcementMode = req.EnforcementMode
+	p.Rego = req.Rego
+	p.Description = req.Description
+	p.CompileOK = true
+	p.CompileError = ""
+	p.Labels = datatypes.NewJSONType(lbl)
+	p.Annotations = datatypes.NewJSONType(ann)
+
+	fields := map[string]any{
+		"match":            p.Match,
+		"enforcement_mode": p.EnforcementMode,
+		"rego":             p.Rego,
+		"description":      p.Description,
+		"compile_ok":       p.CompileOK,
+		"compile_error":    p.CompileError,
+		"labels":           p.Labels,
+		"annotations":      p.Annotations,
+	}
+	// Policy row update + its new PolicyVersion snapshot commit or roll back
+	// together (same reasoning as createPolicy above).
+	err = h.Repos.Policies.WithTx(r.Context(), func(tx *dbrepo.PolicyRepo) error {
+		if err := tx.UpdateCAS(r.Context(), p.ID, expectedUpdatedAt, fields); err != nil {
+			return err
+		}
+		return tx.CreateVersion(r.Context(), &dbrepo.PolicyVersion{
+			PolicyID:     p.ID,
+			Version:      current + 1,
+			Rego:         p.Rego,
+			SpecSnapshot: datatypes.NewJSONType(policySpecSnapshot(p)),
+		})
+	})
+	if err != nil {
+		if errors.Is(err, dbrepo.ErrConflict) {
+			writeErr(w, http.StatusConflict, "policy has been modified, refresh and retry")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
 		return
 	}
 	writeOK(w, map[string]string{"name": p.Name})
@@ -500,6 +531,9 @@ func (h *Handlers) rollbackPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// expectedUpdatedAt anchors the compare-and-swap below to the exact row
+	// state fetchPolicy just read.
+	expectedUpdatedAt := p.UpdatedAt
 	snap := targetVersion.SpecSnapshot.Data()
 	p.Rego = targetVersion.Rego
 	p.Match = datatypes.NewJSONType(snap.Match)
@@ -507,18 +541,34 @@ func (h *Handlers) rollbackPolicy(w http.ResponseWriter, r *http.Request) {
 	p.Description = snap.Description
 	p.CompileOK = true
 	p.CompileError = ""
-	if err := h.Repos.Policies.Update(r.Context(), p); err != nil {
-		writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
-		return
+	fields := map[string]any{
+		"rego":             p.Rego,
+		"match":            p.Match,
+		"enforcement_mode": p.EnforcementMode,
+		"description":      p.Description,
+		"compile_ok":       p.CompileOK,
+		"compile_error":    p.CompileError,
 	}
 	newVersion := current + 1
-	if err := h.Repos.Policies.CreateVersion(r.Context(), &dbrepo.PolicyVersion{
-		PolicyID:     p.ID,
-		Version:      newVersion,
-		Rego:         targetVersion.Rego,
-		SpecSnapshot: targetVersion.SpecSnapshot,
-	}); err != nil {
-		writeErr(w, http.StatusInternalServerError, "create version: "+err.Error())
+	// Policy row rollback + its new PolicyVersion snapshot commit or roll
+	// back together (same reasoning as createPolicy above).
+	err = h.Repos.Policies.WithTx(r.Context(), func(tx *dbrepo.PolicyRepo) error {
+		if err := tx.UpdateCAS(r.Context(), p.ID, expectedUpdatedAt, fields); err != nil {
+			return err
+		}
+		return tx.CreateVersion(r.Context(), &dbrepo.PolicyVersion{
+			PolicyID:     p.ID,
+			Version:      newVersion,
+			Rego:         targetVersion.Rego,
+			SpecSnapshot: targetVersion.SpecSnapshot,
+		})
+	})
+	if err != nil {
+		if errors.Is(err, dbrepo.ErrConflict) {
+			writeErr(w, http.StatusConflict, "policy has been modified, refresh and retry")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
 		return
 	}
 	writeOK(w, map[string]int{"restoredFromVersion": target, "newVersion": newVersion})

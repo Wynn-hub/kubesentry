@@ -3,6 +3,7 @@ package dbrepo
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -10,6 +11,15 @@ import (
 type PolicyRepo struct{ db *gorm.DB }
 
 func NewPolicyRepo(db *gorm.DB) *PolicyRepo { return &PolicyRepo{db: db} }
+
+// WithTx runs fn against a PolicyRepo bound to a single DB transaction, so a
+// Policy write and its matching PolicyVersion insert commit or roll back
+// together instead of leaving an orphaned Policy row behind on failure.
+func (r *PolicyRepo) WithTx(ctx context.Context, fn func(txRepo *PolicyRepo) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(&PolicyRepo{db: tx})
+	})
+}
 
 func (r *PolicyRepo) Create(ctx context.Context, p *Policy) error {
 	return r.db.WithContext(ctx).Create(p).Error
@@ -33,6 +43,23 @@ func (r *PolicyRepo) List(ctx context.Context) ([]Policy, error) {
 
 func (r *PolicyRepo) Update(ctx context.Context, p *Policy) error {
 	return r.db.WithContext(ctx).Save(p).Error
+}
+
+// UpdateCAS applies fields to the Policy row id, but only if its updated_at
+// still equals expectedUpdatedAt (the value the caller read before building
+// fields) — a real compare-and-swap instead of a check-then-act race.
+// Returns ErrConflict if another writer changed the row in between.
+func (r *PolicyRepo) UpdateCAS(ctx context.Context, id int64, expectedUpdatedAt time.Time, fields map[string]any) error {
+	result := r.db.WithContext(ctx).Model(&Policy{}).
+		Where("id = ? AND updated_at = ?", id, expectedUpdatedAt).
+		Updates(fields)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrConflict
+	}
+	return nil
 }
 
 func (r *PolicyRepo) Delete(ctx context.Context, id int64) error {

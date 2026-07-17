@@ -3,6 +3,7 @@ package dbrepo
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -33,6 +34,21 @@ func (r *ExceptionRepo) List(ctx context.Context) ([]PolicyException, error) {
 
 func (r *ExceptionRepo) Update(ctx context.Context, e *PolicyException) error {
 	return r.db.WithContext(ctx).Save(e).Error
+}
+
+// UpdateCAS applies fields to the PolicyException row id, but only if its
+// updated_at still equals expectedUpdatedAt — see PolicyRepo.UpdateCAS.
+func (r *ExceptionRepo) UpdateCAS(ctx context.Context, id int64, expectedUpdatedAt time.Time, fields map[string]any) error {
+	result := r.db.WithContext(ctx).Model(&PolicyException{}).
+		Where("id = ? AND updated_at = ?", id, expectedUpdatedAt).
+		Updates(fields)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrConflict
+	}
+	return nil
 }
 
 func (r *ExceptionRepo) Delete(ctx context.Context, id int64) error {

@@ -142,8 +142,16 @@ func (h *Handlers) updateGroup(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, "policygroup has been modified, refresh and retry")
 		return
 	}
+	// expectedUpdatedAt anchors the compare-and-swap to the exact row state
+	// fetchGroup just read, closing the check-then-act race.
+	expectedUpdatedAt := g.UpdatedAt
 	g.Spec = datatypes.NewJSONType(groupSpecFrom(&req))
-	if err := h.Repos.Groups.Update(r.Context(), g); err != nil {
+	err := h.Repos.Groups.UpdateCAS(r.Context(), g.ID, expectedUpdatedAt, map[string]any{"spec": g.Spec})
+	if err != nil {
+		if errors.Is(err, dbrepo.ErrConflict) {
+			writeErr(w, http.StatusConflict, "policygroup has been modified, refresh and retry")
+			return
+		}
 		writeErr(w, http.StatusInternalServerError, "update policygroup: "+err.Error())
 		return
 	}
@@ -171,9 +179,15 @@ func (h *Handlers) setGroupEnabled(w http.ResponseWriter, r *http.Request) {
 	}
 	spec := g.Spec.Data()
 	if spec.Enabled != *req.Enabled {
+		expectedUpdatedAt := g.UpdatedAt
 		spec.Enabled = *req.Enabled
 		g.Spec = datatypes.NewJSONType(spec)
-		if err := h.Repos.Groups.Update(r.Context(), g); err != nil {
+		err := h.Repos.Groups.UpdateCAS(r.Context(), g.ID, expectedUpdatedAt, map[string]any{"spec": g.Spec})
+		if err != nil {
+			if errors.Is(err, dbrepo.ErrConflict) {
+				writeErr(w, http.StatusConflict, "policygroup has been modified, refresh and retry")
+				return
+			}
 			writeErr(w, http.StatusInternalServerError, "update policygroup: "+err.Error())
 			return
 		}
