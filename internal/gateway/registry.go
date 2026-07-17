@@ -29,10 +29,15 @@ func (r *sessionRegistry) get(name string) (*syncSession, bool) {
 	return s, ok
 }
 
-func (r *sessionRegistry) remove(name string) {
+// remove is compare-and-delete: it only removes the entry if it still holds
+// sess. A disconnect/reconnect race can otherwise let a stale Sync's deferred
+// remove(cluster) evict the new, live session that already replaced it.
+func (r *sessionRegistry) remove(name string, sess *syncSession) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.byID, name)
+	if r.byID[name] == sess {
+		delete(r.byID, name)
+	}
 }
 
 // connectRegistry tracks live Connect streams by component id (e.g.
@@ -56,10 +61,13 @@ func (r *connectRegistry) register(id string, stream gatewaypb.Hub_ConnectServer
 	r.byID[id] = stream
 }
 
-func (r *connectRegistry) unregister(id string) {
+// unregister is compare-and-delete, same rationale as sessionRegistry.remove.
+func (r *connectRegistry) unregister(id string, stream gatewaypb.Hub_ConnectServer) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.byID, id)
+	if r.byID[id] == stream {
+		delete(r.byID, id)
+	}
 }
 
 func (r *connectRegistry) get(id string) (gatewaypb.Hub_ConnectServer, bool) {

@@ -3,6 +3,7 @@ package dbrepo_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
@@ -75,5 +76,75 @@ func TestClusterRepoRecreateAfterSoftDeleteSameName(t *testing.T) {
 	second := &dbrepo.Cluster{Name: "reused-name"}
 	if err := repo.Create(ctx, second); err != nil {
 		t.Fatalf("expected recreate with same name after soft delete to succeed: %v", err)
+	}
+}
+
+// TestClusterRepoUpdateHeartbeatDoesNotClobberAuthFields reproduces the
+// StatusFlusher/Register race at a logic level: StatusFlusher.flushOnce
+// lists clusters, then (in the old buggy code) does a full-struct Save()
+// back using that in-memory copy. If Register committed AuthTokenHash /
+// cleared RegTokenHash in between, that stale Save() would stomp them back.
+// UpdateHeartbeat only ever touches phase/last_heartbeat_at/operator_version
+// columns, so it must leave AuthTokenHash/RegTokenHash/ClusterUID exactly as
+// Register left them, regardless of what a stale caller believes those
+// fields are.
+func TestClusterRepoUpdateHeartbeatDoesNotClobberAuthFields(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewClusterRepo(db)
+	ctx := context.Background()
+
+	c := &dbrepo.Cluster{Name: "prod", Phase: "Registering", RegTokenHash: "reg-hash"}
+	if err := repo.Create(ctx, c); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// Snapshot the pre-registration row — this stands in for the stale
+	// in-memory copy StatusFlusher.flushOnce's List() would have captured
+	// right before a concurrent Register call landed.
+	stale, err := repo.GetByName(ctx, "prod")
+	if err != nil {
+		t.Fatalf("get by name: %v", err)
+	}
+
+	// Simulate Register (reading fresh, as the real handler does): commits
+	// AuthTokenHash + ClusterUID, consumes the one-time RegTokenHash.
+	registered, err := repo.GetByName(ctx, "prod")
+	if err != nil {
+		t.Fatalf("get by name: %v", err)
+	}
+	registered.AuthTokenHash = "auth-hash"
+	registered.ClusterUID = "uid-1"
+	registered.RegTokenHash = ""
+	if err := repo.Update(ctx, registered); err != nil {
+		t.Fatalf("simulate register update: %v", err)
+	}
+
+	// StatusFlusher's targeted heartbeat update, using the STALE
+	// pre-registration copy for id/phase/heartbeat/version — must not
+	// resurrect RegTokenHash or wipe AuthTokenHash/ClusterUID even though
+	// the stale copy itself still carries the old (empty) values.
+	now := time.Now()
+	stale.Phase = "Online"
+	stale.LastHeartbeatAt = &now
+	stale.OperatorVersion = "v1.2.3"
+	if err := repo.UpdateHeartbeat(ctx, stale.ID, stale.Phase, stale.LastHeartbeatAt, stale.OperatorVersion); err != nil {
+		t.Fatalf("update heartbeat: %v", err)
+	}
+
+	got, err := repo.GetByName(ctx, "prod")
+	if err != nil {
+		t.Fatalf("get by name: %v", err)
+	}
+	if got.AuthTokenHash != "auth-hash" {
+		t.Errorf("AuthTokenHash = %q, want auth-hash (must survive UpdateHeartbeat)", got.AuthTokenHash)
+	}
+	if got.RegTokenHash != "" {
+		t.Errorf("RegTokenHash = %q, want empty (must not be resurrected)", got.RegTokenHash)
+	}
+	if got.ClusterUID != "uid-1" {
+		t.Errorf("ClusterUID = %q, want uid-1", got.ClusterUID)
+	}
+	if got.Phase != "Online" || got.OperatorVersion != "v1.2.3" || got.LastHeartbeatAt == nil {
+		t.Errorf("phase/version/heartbeat = %q/%q/%v, want Online/v1.2.3/non-nil", got.Phase, got.OperatorVersion, got.LastHeartbeatAt)
 	}
 }

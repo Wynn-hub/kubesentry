@@ -110,7 +110,7 @@ func (f *StatusFlusher) flushOnce(ctx context.Context) error {
 		default:
 			continue // Registering/Offline 且无新心跳：不写
 		}
-		if err := f.clusters.Update(ctx, cl); err != nil {
+		if err := f.clusters.UpdateHeartbeat(ctx, cl.ID, cl.Phase, cl.LastHeartbeatAt, cl.OperatorVersion); err != nil {
 			return err
 		}
 	}

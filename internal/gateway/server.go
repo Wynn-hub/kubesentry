@@ -315,7 +315,7 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 
 	sess := &syncSession{stream: stream}
 	s.sessions.put(cluster, sess)
-	defer s.sessions.remove(cluster)
+	defer s.sessions.remove(cluster, sess)
 	pushCtx, cancelPush := context.WithCancel(stream.Context())
 	defer cancelPush()
 	go s.pushLoop(pushCtx, sess, cluster)
@@ -405,7 +405,7 @@ func (s *Server) Connect(stream gatewaypb.Hub_ConnectServer) error {
 	}
 
 	s.connected.register(req.ComponentId, stream)
-	defer s.connected.unregister(req.ComponentId)
+	defer s.connected.unregister(req.ComponentId, stream)
 	for {
 		if _, err := stream.Recv(); err != nil {
 			if err == io.EOF {

@@ -3,6 +3,7 @@ package dbrepo
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -33,6 +34,19 @@ func (r *ClusterRepo) List(ctx context.Context) ([]Cluster, error) {
 
 func (r *ClusterRepo) Update(ctx context.Context, c *Cluster) error {
 	return r.db.WithContext(ctx).Save(c).Error
+}
+
+// UpdateHeartbeat touches only the columns StatusFlusher owns. A full-row
+// Save() here would race with Register (which mutates AuthTokenHash /
+// RegTokenHash / ClusterUID / Phase on the same row): flushOnce works off a
+// List() snapshot that can be stale by the time it writes back, and Save()
+// would stomp Register's changes with that stale copy.
+func (r *ClusterRepo) UpdateHeartbeat(ctx context.Context, id int64, phase string, lastHeartbeatAt *time.Time, operatorVersion string) error {
+	return r.db.WithContext(ctx).Model(&Cluster{}).Where("id = ?", id).Updates(map[string]any{
+		"phase":             phase,
+		"last_heartbeat_at": lastHeartbeatAt,
+		"operator_version":  operatorVersion,
+	}).Error
 }
 
 func (r *ClusterRepo) Delete(ctx context.Context, id int64) error {
