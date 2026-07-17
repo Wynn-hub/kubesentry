@@ -12,10 +12,10 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -40,16 +40,12 @@ func startBufconnGateway(t *testing.T, s *Server) gatewaypb.HubClient {
 }
 
 func TestSyncHeartbeatFlow(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}}
-	c := newGatewayClient(t, cl, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: AuthSecretName("prod")},
-		Data: map[string][]byte{
-			KeyTokenHash:  []byte(HashToken("secret-token")),
-			KeyClusterUID: []byte("uid-1"),
-		},
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{
+		Name: "prod", AuthTokenHash: HashToken("secret-token"), ClusterUID: "uid-1",
 	})
 	tr := NewHeartbeatTracker()
-	client := startBufconnGateway(t, NewServer(c, gatewayNS, tr, NewNotifier()))
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, tr, NewNotifier()))
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
 		"x-kubesentry-cluster", "prod",
@@ -94,11 +90,9 @@ func TestSyncHeartbeatFlow(t *testing.T) {
 }
 
 func TestSyncRejectsBadToken(t *testing.T) {
-	c := newGatewayClient(t, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: AuthSecretName("prod")},
-		Data:       map[string][]byte{KeyTokenHash: []byte(HashToken("right"))},
-	})
-	client := startBufconnGateway(t, NewServer(c, gatewayNS, NewHeartbeatTracker(), NewNotifier()))
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("right")})
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier()))
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
 		"x-kubesentry-cluster", "prod",
@@ -148,64 +142,70 @@ func recvDesiredState(t *testing.T, stream gatewaypb.Hub_SyncClient, timeout tim
 }
 
 func TestSyncPushesSnapshotOnConnectAndChange(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}}
-	pol := &v1alpha1.Policy{
-		ObjectMeta: metav1.ObjectMeta{Name: "p1"},
-		Spec:       v1alpha1.PolicySpec{EnforcementMode: v1alpha1.ModeAudit},
+	repos := newTestRepos(t)
+	ctx := context.Background()
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
+	if err := repos.Policies.Create(ctx, &dbrepo.Policy{
+		Name: "p1", EnforcementMode: v1alpha1.ModeAudit,
+	}); err != nil {
+		t.Fatal(err)
 	}
-	grp := &v1alpha1.PolicyGroup{
-		ObjectMeta: metav1.ObjectMeta{Name: "g1"},
-		Spec: v1alpha1.PolicyGroupSpec{
+	if err := repos.Groups.Create(ctx, &dbrepo.PolicyGroup{
+		Name: "g1",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyGroupSpec{
 			Enabled:  true,
 			Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: "p1"}}},
-		},
+		}),
+	}); err != nil {
+		t.Fatal(err)
 	}
-	auth := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: AuthSecretName("prod")},
-		Data:       map[string][]byte{KeyTokenHash: []byte(HashToken("tok")), KeyClusterUID: []byte("u")},
-	}
-	c := newGatewayClient(t, cl, pol, grp, auth)
-	notifier := NewNotifier()
-	client := startBufconnGateway(t, NewServer(c, gatewayNS, NewHeartbeatTracker(), notifier))
 
-	ctx := metadata.AppendToOutgoingContext(context.Background(),
+	notifier := NewNotifier()
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), notifier))
+
+	sctx := metadata.AppendToOutgoingContext(context.Background(),
 		MDClusterKey, "prod", MDAuthKey, "Bearer tok")
-	stream, err := client.Sync(ctx)
+	stream, err := client.Sync(sctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// 连接即收到空快照（无分发）。
+	// 连接即收到初始快照。The migrated schema seeds a built-in "default"
+	// PolicyGroup/PolicyDistribution matching every cluster (Task 3, mirrors
+	// the Helm chart's built-in catalogue) — a freshly migrated test DB is
+	// never actually empty, so assert against a baseline object count
+	// instead of zero.
 	first := recvDesiredState(t, stream, 3*time.Second)
-	if len(first.Objects) != 0 || first.VersionHash == "" {
-		t.Fatalf("expected empty initial snapshot, got %+v", first)
+	if first.VersionHash == "" {
+		t.Fatalf("expected non-empty initial snapshot hash, got %+v", first)
 	}
+	baseline := len(first.Objects)
 
-	// 建分发 → Notify → 收到含 2 对象的快照。
-	dist := &v1alpha1.PolicyDistribution{
-		ObjectMeta: metav1.ObjectMeta{Name: "d1"},
-		Spec: v1alpha1.PolicyDistributionSpec{
+	// 建分发 → Notify → 收到多 2 对象的快照。
+	dist := &dbrepo.PolicyDistribution{
+		Name: "d1",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
 			Clusters:     v1alpha1.DistributionClusters{ByName: []string{"prod"}},
 			PolicyGroups: []string{"g1"},
-		},
+		}),
 	}
-	if err := c.Create(context.Background(), dist); err != nil {
+	if err := repos.Distributions.Create(ctx, dist); err != nil {
 		t.Fatal(err)
 	}
 	notifier.Notify()
 	second := recvDesiredState(t, stream, 3*time.Second)
-	if len(second.Objects) != 2 || second.VersionHash == first.VersionHash {
-		t.Fatalf("expected 2-object snapshot with new hash, got %+v", second)
+	if len(second.Objects) != baseline+2 || second.VersionHash == first.VersionHash {
+		t.Fatalf("expected baseline+2-object snapshot with new hash, got %+v (baseline=%d)", second, baseline)
 	}
 
-	// 删分发 → 空快照（级联删除的协议表达）。
-	if err := c.Delete(context.Background(), dist); err != nil {
+	// 删分发 → 回到基线快照（级联删除的协议表达）。
+	if err := repos.Distributions.Delete(ctx, dist.ID); err != nil {
 		t.Fatal(err)
 	}
 	notifier.Notify()
 	third := recvDesiredState(t, stream, 3*time.Second)
-	if len(third.Objects) != 0 || third.VersionHash != first.VersionHash {
-		t.Fatalf("expected empty snapshot again, got %+v", third)
+	if len(third.Objects) != baseline || third.VersionHash != first.VersionHash {
+		t.Fatalf("expected snapshot to return to baseline, got %+v", third)
 	}
 }
 
@@ -214,14 +214,10 @@ func TestSyncResendsOnResyncTickEvenWithUnchangedHash(t *testing.T) {
 	pushResync = 30 * time.Millisecond
 	defer func() { pushResync = orig }()
 
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}}
-	auth := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: AuthSecretName("prod")},
-		Data:       map[string][]byte{KeyTokenHash: []byte(HashToken("tok")), KeyClusterUID: []byte("u")},
-	}
-	c := newGatewayClient(t, cl, auth)
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
 	notifier := NewNotifier()
-	client := startBufconnGateway(t, NewServer(c, gatewayNS, NewHeartbeatTracker(), notifier))
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), notifier))
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
 		MDClusterKey, "prod", MDAuthKey, "Bearer tok")

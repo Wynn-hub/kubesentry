@@ -6,39 +6,29 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
-func regTokenSecret(cluster, token string) *corev1.Secret {
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: gatewayNS,
-			Name:      RegTokenSecretName(cluster),
-			Labels:    map[string]string{"kubesentry.io/cluster": cluster},
-		},
-		Data: map[string][]byte{KeyToken: []byte(token)},
+func mustCreateCluster(t *testing.T, repos Repos, c *dbrepo.Cluster) {
+	t.Helper()
+	if err := repos.Clusters.Create(context.Background(), c); err != nil {
+		t.Fatalf("create cluster: %v", err)
 	}
 }
 
-func doRegister(t *testing.T, c client.Client, req *gatewaypb.RegisterRequest) (*gatewaypb.RegisterResponse, error) {
+func doRegister(t *testing.T, repos Repos, req *gatewaypb.RegisterRequest) (*gatewaypb.RegisterResponse, error) {
 	t.Helper()
-	s := NewServer(c, gatewayNS, nil, NewNotifier())
+	s := NewServer(repos, gatewayNS, nil, NewNotifier())
 	return s.Register(context.Background(), req)
 }
 
 func TestRegisterHappyPath(t *testing.T) {
-	c := newGatewayClient(t,
-		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
-		regTokenSecret("prod", "tok123"),
-	)
-	resp, err := doRegister(t, c, &gatewaypb.RegisterRequest{
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: HashToken("tok123")})
+
+	resp, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "prod", RegistrationToken: "tok123",
 		ClusterUid: "uid-1", OperatorVersion: "v1.2.0",
 	})
@@ -50,36 +40,28 @@ func TestRegisterHappyPath(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	// 注册 token 一次性：Secret 必须被删除
-	var reg corev1.Secret
-	if err := c.Get(ctx, types.NamespacedName{Namespace: gatewayNS, Name: RegTokenSecretName("prod")}, &reg); !apierrors.IsNotFound(err) {
-		t.Fatalf("reg token secret still exists (err=%v)", err)
+	cl, err := repos.Clusters.GetByName(ctx, "prod")
+	if err != nil {
+		t.Fatal(err)
 	}
-	// auth Secret 只存哈希 + 绑定 UID
-	var auth corev1.Secret
-	if err := c.Get(ctx, types.NamespacedName{Namespace: gatewayNS, Name: AuthSecretName("prod")}, &auth); err != nil {
-		t.Fatalf("auth secret missing: %v", err)
+	// 注册 token 一次性：哈希必须被清空
+	if cl.RegTokenHash != "" {
+		t.Fatal("reg token hash still present")
 	}
-	if string(auth.Data[KeyTokenHash]) != HashToken(resp.ClusterToken) {
+	// auth 只存哈希 + 绑定 UID
+	if cl.AuthTokenHash != HashToken(resp.ClusterToken) {
 		t.Fatal("stored hash does not match issued token")
 	}
-	if string(auth.Data[KeyClusterUID]) != "uid-1" {
-		t.Fatalf("bound uid = %q", auth.Data[KeyClusterUID])
-	}
-	// Cluster.status 记录 UID 与版本
-	var cl v1alpha1.Cluster
-	_ = c.Get(ctx, types.NamespacedName{Name: "prod"}, &cl)
-	if cl.Status.ClusterUID != "uid-1" || cl.Status.OperatorVersion != "v1.2.0" {
-		t.Fatalf("status = %+v", cl.Status)
+	if cl.ClusterUID != "uid-1" || cl.OperatorVersion != "v1.2.0" {
+		t.Fatalf("cluster = %+v", cl)
 	}
 }
 
 func TestRegisterWrongToken(t *testing.T) {
-	c := newGatewayClient(t,
-		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
-		regTokenSecret("prod", "tok123"),
-	)
-	_, err := doRegister(t, c, &gatewaypb.RegisterRequest{
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: HashToken("tok123")})
+
+	_, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "prod", RegistrationToken: "WRONG", ClusterUid: "uid-1",
 	})
 	if status.Code(err) != codes.PermissionDenied {
@@ -88,10 +70,12 @@ func TestRegisterWrongToken(t *testing.T) {
 }
 
 func TestRegisterConsumedToken(t *testing.T) {
-	// No reg-token Secret present — simulates a token already consumed by
-	// a prior successful registration (or never issued).
-	c := newGatewayClient(t, &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}})
-	_, err := doRegister(t, c, &gatewaypb.RegisterRequest{
+	// RegTokenHash empty — simulates a token already consumed by a prior
+	// successful registration (or never issued).
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod"})
+
+	_, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "prod", RegistrationToken: "any-token", ClusterUid: "uid-1",
 	})
 	if status.Code(err) != codes.PermissionDenied {
@@ -100,8 +84,8 @@ func TestRegisterConsumedToken(t *testing.T) {
 }
 
 func TestRegisterUnknownCluster(t *testing.T) {
-	c := newGatewayClient(t)
-	_, err := doRegister(t, c, &gatewaypb.RegisterRequest{
+	repos := newTestRepos(t)
+	_, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "ghost", RegistrationToken: "x", ClusterUid: "uid-1",
 	})
 	if status.Code(err) != codes.NotFound {
@@ -110,14 +94,11 @@ func TestRegisterUnknownCluster(t *testing.T) {
 }
 
 func TestRegisterUIDConflictAcrossClusters(t *testing.T) {
-	other := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "other"}}
-	other.Status.ClusterUID = "uid-1"
-	c := newGatewayClient(t,
-		other,
-		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
-		regTokenSecret("prod", "tok123"),
-	)
-	_, err := doRegister(t, c, &gatewaypb.RegisterRequest{
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "other", ClusterUID: "uid-1"})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: HashToken("tok123")})
+
+	_, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "prod", RegistrationToken: "tok123", ClusterUid: "uid-1",
 	})
 	if status.Code(err) != codes.AlreadyExists {
@@ -126,20 +107,20 @@ func TestRegisterUIDConflictAcrossClusters(t *testing.T) {
 }
 
 func TestReRegisterSameUIDRotatesToken(t *testing.T) {
-	// 已注册集群（auth 存在且绑定 uid-1）重新注册：管理员删 auth 后 reconciler
-	// 会重发 reg token；此处模拟新一轮注册必须校验 UID 一致。
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}}
-	cl.Status.ClusterUID = "uid-1"
-	c := newGatewayClient(t, cl, regTokenSecret("prod", "tok456"))
+	// 已注册集群（绑定 uid-1）重新注册：管理员触发重发 reg token 后，此处模拟
+	// 新一轮注册必须校验 UID 一致。
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", ClusterUID: "uid-1", RegTokenHash: HashToken("tok456")})
+
 	// UID 不一致 → 拒绝
-	_, err := doRegister(t, c, &gatewaypb.RegisterRequest{
+	_, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "prod", RegistrationToken: "tok456", ClusterUid: "uid-OTHER",
 	})
 	if status.Code(err) != codes.PermissionDenied {
 		t.Fatalf("code = %v, want PermissionDenied for UID mismatch", status.Code(err))
 	}
 	// UID 一致 → 成功换新
-	resp, err := doRegister(t, c, &gatewaypb.RegisterRequest{
+	resp, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "prod", RegistrationToken: "tok456", ClusterUid: "uid-1",
 	})
 	if err != nil || len(resp.ClusterToken) != 64 {

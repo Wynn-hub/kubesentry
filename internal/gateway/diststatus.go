@@ -2,53 +2,56 @@ package gateway
 
 import (
 	"context"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	"log/slog"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
-// markPushed reconciles every distribution's per-cluster status entry with
-// the freshly rendered snapshot: render errors → Error, awaiting the member
-// ack → Pending (Synced- or Error-at-current-hash entries stay put — an
-// unresolved apply conflict must not be reported back to Pending on every
-// resync tick just because Render() itself has no way to know a given hash
-// already failed on the member), no longer targeted → entry removed. Writes
-// only when the entry actually changes.
+// markPushed reconciles every distribution's per-cluster status row with the
+// freshly rendered snapshot: render errors → Error, awaiting the member ack →
+// Pending (Synced- or Error-at-current-hash rows stay put — an unresolved
+// apply conflict must not be reported back to Pending on every resync tick
+// just because Render() itself has no way to know a given hash already
+// failed on the member), no longer targeted → row removed. Writes only when
+// the row actually changes (setClusterStatus's before/after diff).
 func (s *Server) markPushed(ctx context.Context, cluster string, res RenderResult) {
+	cl, err := s.repos.Clusters.GetByName(ctx, cluster)
+	if err != nil {
+		slog.Error("get cluster for status update", "cluster", cluster, "error", err)
+		return
+	}
 	matched := map[string]bool{}
 	for _, n := range res.Matched {
 		matched[n] = true
 	}
-	var dists v1alpha1.PolicyDistributionList
-	if err := s.client.List(ctx, &dists); err != nil {
-		log.FromContext(ctx).Error(err, "list distributions for status")
+	dists, err := s.repos.Distributions.List(ctx)
+	if err != nil {
+		slog.Error("list distributions for status", "error", err)
 		return
 	}
-	for i := range dists.Items {
-		name := dists.Items[i].Name
+	for i := range dists {
+		d := &dists[i]
 		switch {
-		case matched[name] && res.Errors[name] != "":
-			s.setClusterEntry(ctx, name, cluster, func(e *v1alpha1.DistributionClusterStatus) {
-				e.State = v1alpha1.DistributionError
-				e.Message = res.Errors[name]
+		case matched[d.Name] && res.Errors[d.Name] != "":
+			s.setClusterStatus(ctx, d.ID, cl.ID, cluster, func(e *dbrepo.DistributionClusterStatus) {
+				e.Status = v1alpha1.DistributionError
+				e.LastError = res.Errors[d.Name]
 			})
-		case matched[name]:
-			s.setClusterEntry(ctx, name, cluster, func(e *v1alpha1.DistributionClusterStatus) {
-				if e.AppliedVersion == res.Hash &&
-					(e.State == v1alpha1.DistributionSynced || e.State == v1alpha1.DistributionError) {
+		case matched[d.Name]:
+			s.setClusterStatus(ctx, d.ID, cl.ID, cluster, func(e *dbrepo.DistributionClusterStatus) {
+				if e.AppliedVersionHash == res.Hash &&
+					(e.Status == v1alpha1.DistributionSynced || e.Status == v1alpha1.DistributionError) {
 					return // already resolved (success or failure) for this exact snapshot
 				}
-				e.State = v1alpha1.DistributionPending
-				e.Message = ""
+				e.Status = v1alpha1.DistributionPending
+				e.LastError = ""
 			})
 		default:
-			s.removeClusterEntry(ctx, name, cluster)
+			if err := s.repos.Distributions.DeleteClusterStatus(ctx, d.ID, cl.ID); err != nil {
+				slog.Error("remove distribution status entry", "distribution", d.Name, "cluster", cluster, "error", err)
+			}
 		}
 	}
 }
@@ -59,88 +62,65 @@ func (s *Server) markReported(ctx context.Context, cluster string, last RenderRe
 	if rep.AppliedVersion == "" || rep.AppliedVersion != last.Hash {
 		return
 	}
-	now := metav1.Now()
+	cl, err := s.repos.Clusters.GetByName(ctx, cluster)
+	if err != nil {
+		slog.Error("get cluster for status report", "cluster", cluster, "error", err)
+		return
+	}
 	for _, name := range last.Matched {
 		if last.Errors[name] != "" {
 			continue // render error owns this entry
 		}
+		d, err := s.repos.Distributions.GetByName(ctx, name)
+		if err != nil {
+			slog.Error("get distribution for status report", "distribution", name, "error", err)
+			continue
+		}
 		if rep.ApplyError != "" {
-			s.setClusterEntry(ctx, name, cluster, func(e *v1alpha1.DistributionClusterStatus) {
-				e.State = v1alpha1.DistributionError
-				e.AppliedVersion = rep.AppliedVersion
-				e.Message = rep.ApplyError
+			s.setClusterStatus(ctx, d.ID, cl.ID, cluster, func(e *dbrepo.DistributionClusterStatus) {
+				e.Status = v1alpha1.DistributionError
+				e.AppliedVersionHash = rep.AppliedVersion
+				e.LastError = rep.ApplyError
 			})
 			continue
 		}
-		s.setClusterEntry(ctx, name, cluster, func(e *v1alpha1.DistributionClusterStatus) {
-			if e.State == v1alpha1.DistributionSynced && e.AppliedVersion == rep.AppliedVersion {
-				return // avoid lastSyncTime churn on periodic reports
-			}
-			e.State = v1alpha1.DistributionSynced
-			e.AppliedVersion = rep.AppliedVersion
-			e.Message = ""
-			e.LastSyncTime = &now
+		s.setClusterStatus(ctx, d.ID, cl.ID, cluster, func(e *dbrepo.DistributionClusterStatus) {
+			e.Status = v1alpha1.DistributionSynced
+			e.AppliedVersionHash = rep.AppliedVersion
+			e.LastError = ""
 		})
 	}
 }
 
-// setClusterEntry mutates one cluster's entry under RetryOnConflict,
-// skipping the write when the mutator leaves the entry unchanged.
-func (s *Server) setClusterEntry(ctx context.Context, dist, cluster string, mutate func(*v1alpha1.DistributionClusterStatus)) {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		var d v1alpha1.PolicyDistribution
-		if err := s.client.Get(ctx, types.NamespacedName{Name: dist}, &d); err != nil {
-			return client.IgnoreNotFound(err)
-		}
-		idx := -1
-		for i := range d.Status.Clusters {
-			if d.Status.Clusters[i].Name == cluster {
-				idx = i
-				break
-			}
-		}
-		if idx == -1 {
-			d.Status.Clusters = append(d.Status.Clusters, v1alpha1.DistributionClusterStatus{Name: cluster})
-			idx = len(d.Status.Clusters) - 1
-		}
-		before := d.Status.Clusters[idx] // plain value copy: no slice fields, LastSyncTime ptr not compared
-		mutate(&d.Status.Clusters[idx])
-		if equalEntry(before, d.Status.Clusters[idx]) {
-			return nil // no-op
-		}
-		return s.client.Status().Update(ctx, &d)
-	})
+// setClusterStatus mutates one (distribution, cluster) status row, skipping
+// the write when the mutator leaves the row unchanged (matches the previous
+// CRD-status equalEntry no-op guard; there's no separate lastSyncTime column
+// in this schema, so "no write" is the observable equivalent of "no churn").
+//
+// ponytail: no retry/lock around the read-then-write — markPushed (pushLoop)
+// and markReported (Sync's recv loop) can race on the same row from two
+// goroutines, same as the previous k8s-object version's reliance on
+// RetryOnConflict for serialization. Every mutator here is idempotent and
+// convergent (a later render or report always supersedes a stale one), so a
+// lost update just gets corrected on the next push/report cycle. Add a
+// per-row mutex or SELECT ... FOR UPDATE if strict linearizability is ever
+// required.
+func (s *Server) setClusterStatus(ctx context.Context, distID, clusterID int64, clusterName string, mutate func(*dbrepo.DistributionClusterStatus)) {
+	cur, err := s.repos.Distributions.GetClusterStatus(ctx, distID, clusterID)
 	if err != nil {
-		log.FromContext(ctx).Error(err, "update distribution status", "distribution", dist, "cluster", cluster)
+		slog.Error("get distribution cluster status", "cluster", clusterName, "error", err)
+		return
 	}
-}
-
-func (s *Server) removeClusterEntry(ctx context.Context, dist, cluster string) {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		var d v1alpha1.PolicyDistribution
-		if err := s.client.Get(ctx, types.NamespacedName{Name: dist}, &d); err != nil {
-			return client.IgnoreNotFound(err)
-		}
-		kept := d.Status.Clusters[:0]
-		removed := false
-		for _, e := range d.Status.Clusters {
-			if e.Name == cluster {
-				removed = true
-				continue
-			}
-			kept = append(kept, e)
-		}
-		if !removed {
-			return nil
-		}
-		d.Status.Clusters = kept
-		return s.client.Status().Update(ctx, &d)
-	})
-	if err != nil {
-		log.FromContext(ctx).Error(err, "remove distribution status entry", "distribution", dist, "cluster", cluster)
+	entry := dbrepo.DistributionClusterStatus{DistributionID: distID, ClusterID: clusterID}
+	if cur != nil {
+		entry = *cur
 	}
-}
-
-func equalEntry(a, b v1alpha1.DistributionClusterStatus) bool {
-	return a.State == b.State && a.AppliedVersion == b.AppliedVersion && a.Message == b.Message
+	before := entry
+	mutate(&entry)
+	if before.Status == entry.Status && before.AppliedVersionHash == entry.AppliedVersionHash && before.LastError == entry.LastError {
+		return // no-op
+	}
+	if err := s.repos.Distributions.UpsertClusterStatus(ctx, &entry); err != nil {
+		slog.Error("update distribution cluster status", "cluster", clusterName, "error", err)
+	}
 }

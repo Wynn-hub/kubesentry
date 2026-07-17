@@ -9,15 +9,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+	"gorm.io/datatypes"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
@@ -39,38 +40,39 @@ func buildScheme(t *testing.T) *runtime.Scheme {
 	return s
 }
 
-// startHub 起 bufconn hub，返回 dial 函数与 hub 侧 fake client。
-func startHub(t *testing.T, objs ...client.Object) (func(ctx context.Context) (*grpc.ClientConn, error), client.Client, *gateway.HeartbeatTracker) {
+func mustCreateCluster(t *testing.T, repos gateway.Repos, c *dbrepo.Cluster) {
 	t.Helper()
-	hc := fake.NewClientBuilder().WithScheme(buildScheme(t)).
-		WithStatusSubresource(&v1alpha1.Cluster{}, &v1alpha1.PolicyDistribution{}).WithObjects(objs...).Build()
-	tracker := gateway.NewHeartbeatTracker()
+	if err := repos.Clusters.Create(context.Background(), c); err != nil {
+		t.Fatalf("create cluster: %v", err)
+	}
+}
+
+// startHub starts a real gateway.Server (bufconn) backed by repos — the hub
+// side of these end-to-end tests. Callers seed repos with whatever
+// Cluster/Policy/PolicyGroup/PolicyDistribution rows the scenario needs
+// before calling this.
+func startHub(t *testing.T, repos gateway.Repos) (dial func(ctx context.Context) (*grpc.ClientConn, error), tracker *gateway.HeartbeatTracker) {
+	t.Helper()
+	tracker = gateway.NewHeartbeatTracker()
 	lis := bufconn.Listen(1024 * 1024)
 	gs := grpc.NewServer()
-	gatewaypb.RegisterHubServer(gs, gateway.NewServer(hc, gatewayNS, tracker, gateway.NewNotifier()))
+	gatewaypb.RegisterHubServer(gs, gateway.NewServer(repos, gatewayNS, tracker, gateway.NewNotifier()))
 	go func() { _ = gs.Serve(lis) }()
 	t.Cleanup(gs.Stop)
-	dial := func(ctx context.Context) (*grpc.ClientConn, error) {
+	dial = func(ctx context.Context) (*grpc.ClientConn, error) {
 		return grpc.NewClient("passthrough:///bufnet",
 			grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 				return lis.DialContext(ctx)
 			}),
 			grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
-	return dial, hc, tracker
+	return dial, tracker
 }
 
 func TestLinkRegistersAndHeartbeats(t *testing.T) {
-	dial, hubClient, tracker := startHub(t,
-		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: gatewayNS, Name: gateway.RegTokenSecretName("prod"),
-				Labels: map[string]string{"kubesentry.io/cluster": "prod"},
-			},
-			Data: map[string][]byte{gateway.KeyToken: []byte("reg-tok")},
-		},
-	)
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gateway.HashToken("reg-tok")})
+	dial, tracker := startHub(t, repos)
 
 	// 成员集群侧：kube-system（提供 UID）+ 注册 token Secret
 	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
@@ -101,9 +103,8 @@ func TestLinkRegistersAndHeartbeats(t *testing.T) {
 
 	// hub 侧注册 token 被消费 + UID 记录
 	waitFor(t, 3*time.Second, func() bool {
-		var cl v1alpha1.Cluster
-		_ = hubClient.Get(ctx, types.NamespacedName{Name: "prod"}, &cl)
-		return cl.Status.ClusterUID == "uid-1"
+		cl, err := repos.Clusters.GetByName(context.Background(), "prod")
+		return err == nil && cl.ClusterUID == "uid-1"
 	}, "hub did not record cluster uid")
 
 	// 心跳送达 tracker
@@ -115,13 +116,11 @@ func TestLinkRegistersAndHeartbeats(t *testing.T) {
 
 func TestLinkReusesStoredToken(t *testing.T) {
 	// 成员侧 auth Secret 已存在（此前注册过）→ 不走 Register，直接用存量 token 心跳
-	dial, _, tracker := startHub(t, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: gateway.AuthSecretName("prod")},
-		Data: map[string][]byte{
-			gateway.KeyTokenHash:  []byte(gateway.HashToken("stored-token")),
-			gateway.KeyClusterUID: []byte("uid-1"),
-		},
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{
+		Name: "prod", AuthTokenHash: gateway.HashToken("stored-token"), ClusterUID: "uid-1",
 	})
+	dial, tracker := startHub(t, repos)
 
 	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 	kubeSystem.UID = "uid-1"
@@ -154,16 +153,9 @@ func TestLinkReusesStoredToken(t *testing.T) {
 // true once the stream has opened and the heartbeat loop has started
 // (ctx cancellation while heartbeating still counts as "was connected").
 func TestRunOnceConnectedReporting(t *testing.T) {
-	dial, _, _ := startHub(t,
-		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: gatewayNS, Name: gateway.RegTokenSecretName("prod"),
-				Labels: map[string]string{"kubesentry.io/cluster": "prod"},
-			},
-			Data: map[string][]byte{gateway.KeyToken: []byte("reg-tok")},
-		},
-	)
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gateway.HashToken("reg-tok")})
+	dial, _ := startHub(t, repos)
 
 	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 	kubeSystem.UID = "uid-1"
@@ -208,25 +200,18 @@ func TestRunOnceConnectedReporting(t *testing.T) {
 
 // TestLinkSelfHealsAfterTokenRotation reproduces the documented admin
 // recovery procedure: the member holds a stale kubesentry-hub-auth token the
-// hub no longer recognizes (simulating the hub-side auth Secret having been
-// deleted), while a fresh registration token has already been issued on both
-// sides (simulating ClusterReconciler's half of the recovery). The stale
-// token must get the member's Sync stream rejected as Unauthenticated,
-// which should clear the local stored credential and let the next retry
+// hub no longer recognizes (simulating the hub-side auth having been
+// cleared), while a fresh registration token has already been issued on both
+// sides (simulating the reconciler's half of the recovery). The stale token
+// must get the member's Sync stream rejected as Unauthenticated, which
+// should clear the local stored credential and let the next retry
 // re-register with the fresh token — no manual intervention on the member.
 func TestLinkSelfHealsAfterTokenRotation(t *testing.T) {
-	dial, hubClient, tracker := startHub(t,
-		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "prod"}},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: gatewayNS, Name: gateway.RegTokenSecretName("prod"),
-				Labels: map[string]string{"kubesentry.io/cluster": "prod"},
-			},
-			Data: map[string][]byte{gateway.KeyToken: []byte("fresh-reg-tok")},
-		},
-		// Deliberately no hub-side kubesentry-hub-auth-prod Secret: the
-		// member's stored token below is orphaned/unrecognized by the hub.
-	)
+	repos := newTestRepos(t)
+	// Deliberately no AuthTokenHash set: the member's stored token below is
+	// orphaned/unrecognized by the hub.
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gateway.HashToken("fresh-reg-tok")})
+	dial, tracker := startHub(t, repos)
 
 	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 	kubeSystem.UID = "uid-1"
@@ -264,9 +249,8 @@ func TestLinkSelfHealsAfterTokenRotation(t *testing.T) {
 
 	// Re-registration completed on the hub side too.
 	waitFor(t, 5*time.Second, func() bool {
-		var cl v1alpha1.Cluster
-		_ = hubClient.Get(ctx, types.NamespacedName{Name: "prod"}, &cl)
-		return cl.Status.ClusterUID == "uid-1"
+		cl, err := repos.Clusters.GetByName(context.Background(), "prod")
+		return err == nil && cl.ClusterUID == "uid-1"
 	}, "hub did not record cluster uid after re-registration")
 
 	// Heartbeats flow again using the new token.
@@ -284,37 +268,36 @@ func TestLinkSelfHealsAfterTokenRotation(t *testing.T) {
 // status.
 func TestLinkAppliesSnapshotAndReportsBack(t *testing.T) {
 	const clusterName = "prod"
-	dial, hubClient, _ := startHub(t,
-		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: clusterName}},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: gateway.AuthSecretName(clusterName)},
-			Data: map[string][]byte{
-				gateway.KeyTokenHash:  []byte(gateway.HashToken("tok")),
-				gateway.KeyClusterUID: []byte("uid-1"),
-			},
-		},
-		&v1alpha1.Policy{
-			ObjectMeta: metav1.ObjectMeta{Name: "p1"},
-			Spec: v1alpha1.PolicySpec{
-				EnforcementMode: v1alpha1.ModeAudit,
-				Rego:            "package kubesentry\ndeny[msg]{false;msg:=\"x\"}",
-			},
-		},
-		&v1alpha1.PolicyGroup{
-			ObjectMeta: metav1.ObjectMeta{Name: "g1"},
-			Spec: v1alpha1.PolicyGroupSpec{
-				Enabled:  true,
-				Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: "p1"}}},
-			},
-		},
-		&v1alpha1.PolicyDistribution{
-			ObjectMeta: metav1.ObjectMeta{Name: "d1"},
-			Spec: v1alpha1.PolicyDistributionSpec{
-				Clusters:     v1alpha1.DistributionClusters{ByName: []string{clusterName}},
-				PolicyGroups: []string{"g1"},
-			},
-		},
-	)
+	repos := newTestRepos(t)
+	ctx0 := context.Background()
+	mustCreateCluster(t, repos, &dbrepo.Cluster{
+		Name: clusterName, AuthTokenHash: gateway.HashToken("tok"), ClusterUID: "uid-1",
+	})
+	if err := repos.Policies.Create(ctx0, &dbrepo.Policy{
+		Name: "p1", EnforcementMode: v1alpha1.ModeAudit,
+		Rego: "package kubesentry\ndeny[msg]{false;msg:=\"x\"}",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Groups.Create(ctx0, &dbrepo.PolicyGroup{
+		Name: "g1",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyGroupSpec{
+			Enabled:  true,
+			Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: "p1"}}},
+		}),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Distributions.Create(ctx0, &dbrepo.PolicyDistribution{
+		Name: "d1",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
+			Clusters:     v1alpha1.DistributionClusters{ByName: []string{clusterName}},
+			PolicyGroups: []string{"g1"},
+		}),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	dial, _ := startHub(t, repos)
 
 	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 	kubeSystem.UID = "uid-1"
@@ -357,52 +340,51 @@ func TestLinkAppliesSnapshotAndReportsBack(t *testing.T) {
 
 	// Member's StatusReport flows back into the hub's distribution status.
 	waitFor(t, 5*time.Second, func() bool {
-		var d v1alpha1.PolicyDistribution
-		if err := hubClient.Get(ctx, types.NamespacedName{Name: "d1"}, &d); err != nil {
+		d, err := repos.Distributions.GetByName(context.Background(), "d1")
+		if err != nil {
 			return false
 		}
-		for _, e := range d.Status.Clusters {
-			if e.Name == clusterName && e.State == v1alpha1.DistributionSynced {
-				return true
-			}
+		cl, err := repos.Clusters.GetByName(context.Background(), clusterName)
+		if err != nil {
+			return false
 		}
-		return false
+		e, err := repos.Distributions.GetClusterStatus(context.Background(), d.ID, cl.ID)
+		return err == nil && e != nil && e.Status == v1alpha1.DistributionSynced
 	}, "hub distribution status never reached Synced")
 }
 
 func TestLinkReappliesOnResendEvenWithUnchangedHash(t *testing.T) {
 	const clusterName = "prod"
-	dial, _, _ := startHub(t,
-		&v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: clusterName}},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Namespace: gatewayNS, Name: gateway.AuthSecretName(clusterName)},
-			Data: map[string][]byte{
-				gateway.KeyTokenHash:  []byte(gateway.HashToken("tok")),
-				gateway.KeyClusterUID: []byte("uid-1"),
-			},
-		},
-		&v1alpha1.Policy{
-			ObjectMeta: metav1.ObjectMeta{Name: "p1"},
-			Spec: v1alpha1.PolicySpec{
-				EnforcementMode: v1alpha1.ModeAudit,
-				Rego:            "package kubesentry\ndeny[msg]{false;msg:=\"x\"}",
-			},
-		},
-		&v1alpha1.PolicyGroup{
-			ObjectMeta: metav1.ObjectMeta{Name: "g1"},
-			Spec: v1alpha1.PolicyGroupSpec{
-				Enabled:  true,
-				Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: "p1"}}},
-			},
-		},
-		&v1alpha1.PolicyDistribution{
-			ObjectMeta: metav1.ObjectMeta{Name: "d1"},
-			Spec: v1alpha1.PolicyDistributionSpec{
-				Clusters:     v1alpha1.DistributionClusters{ByName: []string{clusterName}},
-				PolicyGroups: []string{"g1"},
-			},
-		},
-	)
+	repos := newTestRepos(t)
+	ctx0 := context.Background()
+	mustCreateCluster(t, repos, &dbrepo.Cluster{
+		Name: clusterName, AuthTokenHash: gateway.HashToken("tok"), ClusterUID: "uid-1",
+	})
+	if err := repos.Policies.Create(ctx0, &dbrepo.Policy{
+		Name: "p1", EnforcementMode: v1alpha1.ModeAudit,
+		Rego: "package kubesentry\ndeny[msg]{false;msg:=\"x\"}",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Groups.Create(ctx0, &dbrepo.PolicyGroup{
+		Name: "g1",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyGroupSpec{
+			Enabled:  true,
+			Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: "p1"}}},
+		}),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Distributions.Create(ctx0, &dbrepo.PolicyDistribution{
+		Name: "d1",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
+			Clusters:     v1alpha1.DistributionClusters{ByName: []string{clusterName}},
+			PolicyGroups: []string{"g1"},
+		}),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	dial, _ := startHub(t, repos)
 
 	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 	kubeSystem.UID = "uid-1"

@@ -2,6 +2,7 @@ package dbrepo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -48,4 +49,29 @@ func (r *DistributionRepo) UpsertClusterStatus(ctx context.Context, s *Distribut
 			Status: s.Status, AppliedVersionHash: s.AppliedVersionHash, LastError: s.LastError,
 		}).
 		FirstOrCreate(s).Error
+}
+
+// GetClusterStatus returns the current per-cluster status entry, or nil if
+// none has been recorded yet (a distribution just started targeting this
+// cluster).
+func (r *DistributionRepo) GetClusterStatus(ctx context.Context, distributionID, clusterID int64) (*DistributionClusterStatus, error) {
+	var s DistributionClusterStatus
+	err := r.db.WithContext(ctx).
+		Where("distribution_id = ? AND cluster_id = ?", distributionID, clusterID).
+		First(&s).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get distribution cluster status: %w", err)
+	}
+	return &s, nil
+}
+
+// DeleteClusterStatus removes a per-cluster status entry (the distribution no
+// longer targets this cluster). A no-op if no entry exists.
+func (r *DistributionRepo) DeleteClusterStatus(ctx context.Context, distributionID, clusterID int64) error {
+	return r.db.WithContext(ctx).
+		Where("distribution_id = ? AND cluster_id = ?", distributionID, clusterID).
+		Delete(&DistributionClusterStatus{}).Error
 }

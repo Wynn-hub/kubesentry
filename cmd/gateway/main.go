@@ -14,6 +14,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	gormpg "gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +29,8 @@ import (
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/operator"
@@ -44,6 +48,27 @@ func main() {
 	tlsDNS := envOrDefault("TLS_DNS_NAME", "kubesentry-gateway."+namespace+".svc")
 	flushEvery := envDuration("HEARTBEAT_FLUSH_INTERVAL", 30*time.Second)
 	offlineAfter := envDuration("OFFLINE_AFTER", 90*time.Second)
+
+	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		slog.Error("DATABASE_DSN is required")
+		os.Exit(1)
+	}
+	db, err := gorm.Open(gormpg.Open(dsn), &gorm.Config{})
+	if err != nil {
+		slog.Error("open database", "error", err)
+		os.Exit(1)
+	}
+	if err := dbmodel.Init(dbmodel.NodeIDFromPodName(os.Getenv("POD_NAME"))); err != nil {
+		slog.Error("init id generator", "error", err)
+		os.Exit(1)
+	}
+	repos := gateway.Repos{
+		Clusters:      dbrepo.NewClusterRepo(db),
+		Policies:      dbrepo.NewPolicyRepo(db),
+		Groups:        dbrepo.NewGroupRepo(db),
+		Distributions: dbrepo.NewDistributionRepo(db),
+	}
 
 	scheme := runtime.NewScheme()
 	_ = v1alpha1.AddToScheme(scheme)
@@ -117,7 +142,7 @@ func main() {
 	grpcRun := &grpcRunnable{
 		addr:   grpcAddr,
 		cert:   cert,
-		server: gateway.NewServer(mgr.GetClient(), namespace, tracker, notifier),
+		server: gateway.NewServer(repos, namespace, tracker, notifier),
 	}
 	if err := mgr.Add(grpcRun); err != nil {
 		slog.Error("add grpc runnable", "error", err)
