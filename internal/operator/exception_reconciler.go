@@ -237,4 +237,3 @@ func requeueAllExceptions(c client.Client) handler.EventHandler {
 		return out
 	})
 }
-

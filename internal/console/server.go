@@ -8,10 +8,16 @@ import (
 	"sync"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
 // Handlers holds dependencies shared by all API handlers.
 type Handlers struct {
+	// Repos is the GORM data-access layer backing the policy/group/exception
+	// handlers (this task). Client is still used by handlers_summary.go /
+	// handlers_schema.go, which have not been converted yet — see Task 10.
+	Repos         gateway.Repos
 	Client        client.Client
 	Discovery     discoveryInterface
 	SchemaFetcher schemaFetcher // optional override for tests; nil uses discoverySchemaFetcher

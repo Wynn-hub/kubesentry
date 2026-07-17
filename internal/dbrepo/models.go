@@ -35,6 +35,8 @@ type Policy struct {
 	Match           datatypes.JSONType[v1alpha1.PolicyMatch]
 	CompileOK       bool
 	CompileError    string
+	Labels          datatypes.JSONType[map[string]string]
+	Annotations     datatypes.JSONType[map[string]string]
 }
 
 func (Policy) TableName() string { return "kubesentry.policies" }
@@ -51,17 +53,21 @@ func (PolicyVersion) TableName() string { return "kubesentry.policy_versions" }
 
 type PolicyGroup struct {
 	dbmodel.Base
-	Name string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
-	Spec datatypes.JSONType[v1alpha1.PolicyGroupSpec]
+	Name        string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
+	Spec        datatypes.JSONType[v1alpha1.PolicyGroupSpec]
+	Labels      datatypes.JSONType[map[string]string]
+	Annotations datatypes.JSONType[map[string]string]
 }
 
 func (PolicyGroup) TableName() string { return "kubesentry.policy_groups" }
 
 type PolicyException struct {
 	dbmodel.Base
-	Name      string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
-	Spec      datatypes.JSONType[v1alpha1.PolicyExceptionSpec]
-	ExpiresAt *time.Time
+	Name        string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
+	Spec        datatypes.JSONType[v1alpha1.PolicyExceptionSpec]
+	ExpiresAt   *time.Time
+	Labels      datatypes.JSONType[map[string]string]
+	Annotations datatypes.JSONType[map[string]string]
 }
 
 func (PolicyException) TableName() string { return "kubesentry.policy_exceptions" }

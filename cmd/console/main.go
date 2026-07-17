@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
+	gormpg "gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,6 +21,9 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console"
+	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
 	"github.com/Wynn-hub/kubesentry/web"
 )
@@ -28,6 +33,30 @@ func main() {
 	addr := os.Getenv("CONSOLE_ADDR")
 	if addr == "" {
 		addr = ":8080"
+	}
+
+	// Policy/PolicyGroup/PolicyException handlers read/write the same
+	// Postgres store as cmd/gateway (task 9: console-api GORM handlers).
+	// Discovery/VWCName below still talk to the live cluster for the
+	// summary/schema handlers, which haven't been converted yet (Task 10).
+	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		slog.Error("DATABASE_DSN is required")
+		os.Exit(1)
+	}
+	db, err := gorm.Open(gormpg.Open(dsn), &gorm.Config{})
+	if err != nil {
+		slog.Error("open database", "error", err)
+		os.Exit(1)
+	}
+	if err := dbmodel.Init(dbmodel.NodeIDFromPodName(os.Getenv("POD_NAME"))); err != nil {
+		slog.Error("init id generator", "error", err)
+		os.Exit(1)
+	}
+	repos := gateway.Repos{
+		Policies:   dbrepo.NewPolicyRepo(db),
+		Groups:     dbrepo.NewGroupRepo(db),
+		Exceptions: dbrepo.NewExceptionRepo(db),
 	}
 
 	cfg, err := buildConfig()
@@ -90,7 +119,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	h := &console.Handlers{Client: cl.GetClient(), Discovery: disc, VWCName: os.Getenv("VWC_NAME")}
+	h := &console.Handlers{Repos: repos, Client: cl.GetClient(), Discovery: disc, VWCName: os.Getenv("VWC_NAME")}
 	srv := console.NewServer(h, dist, ready)
 
 	slog.Info("console listening", "addr", addr)

@@ -4,11 +4,12 @@ package console
 import (
 	"strings"
 	"testing"
+	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 func validExceptionReq() *exceptionRequest {
@@ -54,11 +55,20 @@ func TestValidateExceptionRequest(t *testing.T) {
 }
 
 func TestExceptionCRUD(t *testing.T) {
-	h, c := newTestServer(t)
+	h, repos := newDBTestServer(t)
 
+	before := time.Now()
 	rec, _ := doRequest(t, h, "POST", "/api/v1/exceptions", validExceptionReq())
 	if rec.Code != 200 {
 		t.Fatalf("create code = %d", rec.Code)
+	}
+
+	created, err := repos.Exceptions.GetByName(t.Context(), "my-exception")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.ExpiresAt == nil || created.ExpiresAt.Before(before.Add(23*time.Hour)) {
+		t.Fatalf("expiresAt = %v, want ~24h from now", created.ExpiresAt)
 	}
 
 	rec, env := doRequest(t, h, "GET", "/api/v1/exceptions", nil)
@@ -77,35 +87,94 @@ func TestExceptionCRUD(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("update code = %d", rec.Code)
 	}
-	var pex v1alpha1.PolicyException
-	_ = c.Get(t.Context(), client.ObjectKey{Name: "my-exception"}, &pex)
-	if pex.Spec.Reason != "extended migration" {
-		t.Fatalf("reason = %q", pex.Spec.Reason)
+	updated, _ := repos.Exceptions.GetByName(t.Context(), "my-exception")
+	if updated.Spec.Data().Reason != "extended migration" {
+		t.Fatalf("reason = %q", updated.Spec.Data().Reason)
 	}
 
 	rec, _ = doRequest(t, h, "DELETE", "/api/v1/exceptions/my-exception", nil)
 	if rec.Code != 200 {
 		t.Fatalf("delete code = %d", rec.Code)
 	}
+	if _, err := repos.Exceptions.GetByName(t.Context(), "my-exception"); err == nil {
+		t.Fatal("exception should be deleted")
+	}
+}
+
+func TestCreateExceptionDuplicate(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	expiresAt := time.Now().Add(time.Hour)
+	if err := repos.Exceptions.Create(t.Context(), &dbrepo.PolicyException{
+		Name:      "my-exception",
+		Spec:      datatypes.NewJSONType(v1alpha1.PolicyExceptionSpec{AllPolicies: true, Duration: "1h", Reason: "seed"}),
+		ExpiresAt: &expiresAt,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rec, _ := doRequest(t, h, "POST", "/api/v1/exceptions", validExceptionReq())
+	if rec.Code != 409 {
+		t.Fatalf("code = %d, want 409", rec.Code)
+	}
+}
+
+func TestCreateExceptionBadDurationRejected(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	req := validExceptionReq()
+	req.Duration = "not-a-duration"
+	rec, env := doRequest(t, h, "POST", "/api/v1/exceptions", req)
+	if rec.Code != 400 || env.Error == nil {
+		t.Fatalf("code=%d env=%+v", rec.Code, env)
+	}
 }
 
 func TestGetExceptionDetail(t *testing.T) {
-	pex := &v1alpha1.PolicyException{
-		ObjectMeta: metav1.ObjectMeta{Name: "e1"},
-		Spec: v1alpha1.PolicyExceptionSpec{
+	h, repos := newDBTestServer(t)
+	expiresAt := time.Now().Add(time.Hour)
+	if err := repos.Exceptions.Create(t.Context(), &dbrepo.PolicyException{
+		Name: "e1",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyExceptionSpec{
 			AllPolicies: true,
 			Duration:    "1h",
 			Reason:      "drill",
-		},
-		Status: v1alpha1.PolicyExceptionStatus{Phase: "Active"},
+		}),
+		ExpiresAt: &expiresAt,
+	}); err != nil {
+		t.Fatal(err)
 	}
-	h, _ := newTestServer(t, pex)
 	rec, env := doRequest(t, h, "GET", "/api/v1/exceptions/e1", nil)
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
 	d := mustUnmarshal[exceptionDetail](t, env.Data)
-	if !d.Spec.AllPolicies || d.Status.Phase != "Active" {
+	if !d.Spec.AllPolicies || d.Phase != "Active" {
 		t.Fatalf("detail = %+v", d)
+	}
+}
+
+func TestGetExceptionDetailExpired(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	expiresAt := time.Now().Add(-time.Hour)
+	if err := repos.Exceptions.Create(t.Context(), &dbrepo.PolicyException{
+		Name:      "e2",
+		Spec:      datatypes.NewJSONType(v1alpha1.PolicyExceptionSpec{AllPolicies: true, Duration: "1h", Reason: "drill"}),
+		ExpiresAt: &expiresAt,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rec, env := doRequest(t, h, "GET", "/api/v1/exceptions/e2", nil)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	d := mustUnmarshal[exceptionDetail](t, env.Data)
+	if d.Phase != "Expired" {
+		t.Fatalf("phase = %q, want Expired", d.Phase)
+	}
+}
+
+func TestGetExceptionNotFound(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	rec, _ := doRequest(t, h, "GET", "/api/v1/exceptions/nope", nil)
+	if rec.Code != 404 {
+		t.Fatalf("code = %d, want 404", rec.Code)
 	}
 }

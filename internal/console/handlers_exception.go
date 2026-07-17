@@ -1,33 +1,62 @@
+// internal/console/handlers_exception.go
 package console
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 type exceptionListItem struct {
-	Name          string       `json:"name"`
-	Phase         string       `json:"phase"`
-	Reason        string       `json:"reason"`
-	Duration      string       `json:"duration"`
-	TargetSummary string       `json:"targetSummary"`
-	ExpiresAt     *metav1.Time `json:"expiresAt,omitempty"`
+	Name          string     `json:"name"`
+	Phase         string     `json:"phase"`
+	Reason        string     `json:"reason"`
+	Duration      string     `json:"duration"`
+	TargetSummary string     `json:"targetSummary"`
+	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`
 }
 
 type exceptionDetail struct {
-	Name            string                         `json:"name"`
-	ResourceVersion string                         `json:"resourceVersion"`
-	Spec            v1alpha1.PolicyExceptionSpec   `json:"spec"`
-	Status          v1alpha1.PolicyExceptionStatus `json:"status"`
+	Name            string                       `json:"name"`
+	Phase           string                       `json:"phase"`
+	ResourceVersion string                       `json:"resourceVersion"`
+	Spec            v1alpha1.PolicyExceptionSpec `json:"spec"`
+	ExpiresAt       *time.Time                   `json:"expiresAt,omitempty"`
+}
+
+// exceptionPhase derives Active/Expired from ExpiresAt at read time — the
+// GORM-era equivalent of the old ExceptionReconciler's async Status.Phase
+// computation, which no longer runs against console-created rows.
+func exceptionPhase(expiresAt *time.Time) string {
+	if expiresAt != nil && expiresAt.Before(time.Now()) {
+		return v1alpha1.PhaseExpired
+	}
+	return v1alpha1.PhaseActive
+}
+
+func exceptionResourceVersion(e *dbrepo.PolicyException) string {
+	return strconv.FormatInt(e.UpdatedAt.UnixNano(), 10)
+}
+
+func toExceptionDetail(e *dbrepo.PolicyException) exceptionDetail {
+	return exceptionDetail{
+		Name:            e.Name,
+		Phase:           exceptionPhase(e.ExpiresAt),
+		ResourceVersion: exceptionResourceVersion(e),
+		Spec:            e.Spec.Data(),
+		ExpiresAt:       e.ExpiresAt,
+	}
 }
 
 func targetSummary(spec *v1alpha1.PolicyExceptionSpec) string {
@@ -50,21 +79,22 @@ func joinMax(items []string, max int) string {
 }
 
 func (h *Handlers) listExceptions(w http.ResponseWriter, r *http.Request) {
-	var list v1alpha1.PolicyExceptionList
-	if err := h.Client.List(r.Context(), &list); err != nil {
+	exceptions, err := h.Repos.Exceptions.List(r.Context())
+	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list exceptions: "+err.Error())
 		return
 	}
-	items := make([]exceptionListItem, 0, len(list.Items))
-	for i := range list.Items {
-		e := &list.Items[i]
+	items := make([]exceptionListItem, 0, len(exceptions))
+	for i := range exceptions {
+		e := &exceptions[i]
+		spec := e.Spec.Data()
 		items = append(items, exceptionListItem{
 			Name:          e.Name,
-			Phase:         e.Status.Phase,
-			Reason:        e.Spec.Reason,
-			Duration:      e.Spec.Duration,
-			TargetSummary: targetSummary(&e.Spec),
-			ExpiresAt:     e.Status.ExpiresAt,
+			Phase:         exceptionPhase(e.ExpiresAt),
+			Reason:        spec.Reason,
+			Duration:      spec.Duration,
+			TargetSummary: targetSummary(&spec),
+			ExpiresAt:     e.ExpiresAt,
 		})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
@@ -76,26 +106,22 @@ func (h *Handlers) getException(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeOK(w, exceptionDetail{
-		Name:            e.Name,
-		ResourceVersion: e.ResourceVersion,
-		Spec:            e.Spec,
-		Status:          e.Status,
-	})
+	writeOK(w, toExceptionDetail(e))
 }
 
-func (h *Handlers) fetchException(w http.ResponseWriter, r *http.Request) (*v1alpha1.PolicyException, bool) {
+// fetchException loads the {name} path exception, writing 404/500 on failure.
+func (h *Handlers) fetchException(w http.ResponseWriter, r *http.Request) (*dbrepo.PolicyException, bool) {
 	name := r.PathValue("name")
-	var e v1alpha1.PolicyException
-	if err := h.Client.Get(r.Context(), client.ObjectKey{Name: name}, &e); err != nil {
-		if apierrors.IsNotFound(err) {
+	e, err := h.Repos.Exceptions.GetByName(r.Context(), name)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			writeErr(w, http.StatusNotFound, "exception "+name+" not found")
 		} else {
 			writeErr(w, http.StatusInternalServerError, "get exception: "+err.Error())
 		}
 		return nil, false
 	}
-	return &e, true
+	return e, true
 }
 
 func exceptionSpecFrom(req *exceptionRequest) v1alpha1.PolicyExceptionSpec {
@@ -110,6 +136,20 @@ func exceptionSpecFrom(req *exceptionRequest) v1alpha1.PolicyExceptionSpec {
 	}
 }
 
+// exceptionExpiresAt parses spec.Duration (already validated as a positive
+// Go duration by validateExceptionRequest) and returns the absolute
+// expiration timestamp to persist — this replaces the old async
+// ExceptionReconciler's Status.ExpiresAt computation with a synchronous,
+// create/update-time calculation per the DB schema (no separate Status
+// subresource to reconcile into).
+func exceptionExpiresAt(duration string) (time.Time, error) {
+	d, err := time.ParseDuration(duration)
+	if err != nil || d <= 0 {
+		return time.Time{}, fmt.Errorf("duration must be a positive Go duration string")
+	}
+	return time.Now().Add(d), nil
+}
+
 func (h *Handlers) createException(w http.ResponseWriter, r *http.Request) {
 	var req exceptionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -120,12 +160,18 @@ func (h *Handlers) createException(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	e := &v1alpha1.PolicyException{
-		ObjectMeta: metav1.ObjectMeta{Name: req.Name},
-		Spec:       exceptionSpecFrom(&req),
+	expiresAt, err := exceptionExpiresAt(req.Duration)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
 	}
-	if err := h.Client.Create(r.Context(), e); err != nil {
-		if apierrors.IsAlreadyExists(err) {
+	e := &dbrepo.PolicyException{
+		Name:      req.Name,
+		Spec:      datatypes.NewJSONType(exceptionSpecFrom(&req)),
+		ExpiresAt: &expiresAt,
+	}
+	if err := h.Repos.Exceptions.Create(r.Context(), e); err != nil {
+		if isUniqueViolation(err) {
 			writeErr(w, http.StatusConflict, "exception "+req.Name+" already exists")
 		} else {
 			writeErr(w, http.StatusInternalServerError, "create exception: "+err.Error())
@@ -149,17 +195,19 @@ func (h *Handlers) updateException(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if req.ResourceVersion != "" && req.ResourceVersion != e.ResourceVersion {
+	if req.ResourceVersion != "" && req.ResourceVersion != exceptionResourceVersion(e) {
 		writeErr(w, http.StatusConflict, "exception has been modified, refresh and retry")
 		return
 	}
-	e.Spec = exceptionSpecFrom(&req)
-	if err := h.Client.Update(r.Context(), e); err != nil {
-		if apierrors.IsConflict(err) {
-			writeErr(w, http.StatusConflict, "exception has been modified, refresh and retry")
-		} else {
-			writeErr(w, http.StatusInternalServerError, "update exception: "+err.Error())
-		}
+	expiresAt, err := exceptionExpiresAt(req.Duration)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	e.Spec = datatypes.NewJSONType(exceptionSpecFrom(&req))
+	e.ExpiresAt = &expiresAt
+	if err := h.Repos.Exceptions.Update(r.Context(), e); err != nil {
+		writeErr(w, http.StatusInternalServerError, "update exception: "+err.Error())
 		return
 	}
 	writeOK(w, map[string]string{"name": e.Name})
@@ -170,7 +218,7 @@ func (h *Handlers) deleteException(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := h.Client.Delete(r.Context(), e); err != nil {
+	if err := h.Repos.Exceptions.Delete(r.Context(), e.ID); err != nil {
 		writeErr(w, http.StatusInternalServerError, "delete exception: "+err.Error())
 		return
 	}

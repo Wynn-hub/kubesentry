@@ -2,45 +2,79 @@ package console
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/groupresolve"
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
 const (
-	cursorAnnotation            = "kubesentry.io/logical-cursor"
+	// cursorAnnotation is kept only so cursor.go / cursor_test.go (out of
+	// scope for this task, still exercised as a pure function over
+	// v1alpha1.Policy) keep compiling. The GORM-backed handlers below no
+	// longer read or write it via this constant: rollback here is
+	// roll-forward via a freshly appended PolicyVersion row rather than an
+	// async in-flight marker a controller has to settle — see
+	// rollbackPolicy. dbrepo.Policy.Annotations (added alongside Labels in
+	// migration 0003) is a plain user-editable annotations bag now, not a
+	// vehicle for this internal bookkeeping key.
+	cursorAnnotation = "kubesentry.io/logical-cursor"
+	// visualBuilderSpecAnnotation stores the visual policy builder's editor
+	// state as JSON. Cleared by sending an empty string for this key — see
+	// applyAnnotations.
 	visualBuilderSpecAnnotation = "kubesentry.io/visual-builder-spec"
 )
 
 type policyListItem struct {
-	Name            string       `json:"name"`
-	Source          string       `json:"source"`
-	EnforcementMode string       `json:"enforcementMode"`
-	Phase           string       `json:"phase"`
-	Description     string       `json:"description"`
-	ReferencedBy    []string     `json:"referencedBy"`
-	CurrentVersion  int64        `json:"currentVersion"`
-	CreatedAt       metav1.Time  `json:"createdAt"`
-	UpdatedAt       *metav1.Time `json:"updatedAt"`
+	Name            string    `json:"name"`
+	EnforcementMode string    `json:"enforcementMode"`
+	Phase           string    `json:"phase"`
+	Description     string    `json:"description"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 type policyDetail struct {
-	Name            string                `json:"name"`
-	Source          string                `json:"source"`
-	Labels          map[string]string     `json:"labels"`
-	Annotations     map[string]string     `json:"annotations"`
-	ResourceVersion string                `json:"resourceVersion"`
-	Spec            v1alpha1.PolicySpec   `json:"spec"`
-	Status          v1alpha1.PolicyStatus `json:"status"`
+	Name            string               `json:"name"`
+	Description     string               `json:"description"`
+	Labels          map[string]string    `json:"labels"`
+	Annotations     map[string]string    `json:"annotations"`
+	EnforcementMode string               `json:"enforcementMode"`
+	Match           v1alpha1.PolicyMatch `json:"match"`
+	Rego            string               `json:"rego"`
+	Phase           string               `json:"phase"`
+	CompileError    string               `json:"compileError,omitempty"`
+	ResourceVersion string               `json:"resourceVersion"`
+	CreatedAt       time.Time            `json:"createdAt"`
+	UpdatedAt       time.Time            `json:"updatedAt"`
+}
+
+// applyAnnotations merges src into dst (lazy-initializing dst), treating
+// empty-string values as "do not set" — this is how the visual builder
+// clears its annotation on save (see visualBuilderSpecAnnotation).
+func applyAnnotations(dst map[string]string, src map[string]string) map[string]string {
+	for k, v := range src {
+		if v == "" {
+			continue
+		}
+		if dst == nil {
+			dst = map[string]string{}
+		}
+		dst[k] = v
+	}
+	return dst
 }
 
 type resourceSuggestionsResponse struct {
@@ -77,67 +111,76 @@ func matchAny(filter []string, v string) bool {
 	return false
 }
 
-func sourceOf(labels map[string]string) string {
-	if s := labels[v1alpha1.LabelSource]; s != "" {
-		return s
+// policyPhase derives Ready/Invalid from CompileOK at read time. There is no
+// async controller re-validating rows anymore (validatePolicyRequest already
+// runs webhook.CompileRego synchronously before any write reaches the DB —
+// see createPolicy/updatePolicy), so in practice every row a console client
+// can see has CompileOK=true; the field is kept for API-shape continuity and
+// in case a future non-console writer ever persists a failed compile.
+func policyPhase(compileOK bool) string {
+	if compileOK {
+		return v1alpha1.PhaseReady
 	}
-	return v1alpha1.SourceCustom
+	return v1alpha1.PhaseInvalid
 }
 
-// applyAnnotations merges src into dst (lazy-initializing dst), treating empty-string values as
-// "do not set"—this is how the visual builder clears its annotation on save.
-func applyAnnotations(dst map[string]string, src map[string]string) map[string]string {
-	for k, v := range src {
-		if v == "" {
-			continue
-		}
-		if dst == nil {
-			dst = map[string]string{}
-		}
-		dst[k] = v
+// policyResourceVersion derives an opaque optimistic-concurrency token from
+// the row's UpdatedAt, mirroring the CRD-era resourceVersion contract
+// without needing a dedicated column.
+func policyResourceVersion(p *dbrepo.Policy) string {
+	return strconv.FormatInt(p.UpdatedAt.UnixNano(), 10)
+}
+
+func toPolicyDetail(p *dbrepo.Policy) policyDetail {
+	return policyDetail{
+		Name:            p.Name,
+		Description:     p.Description,
+		Labels:          p.Labels.Data(),
+		Annotations:     p.Annotations.Data(),
+		EnforcementMode: p.EnforcementMode,
+		Match:           p.Match.Data(),
+		Rego:            p.Rego,
+		Phase:           policyPhase(p.CompileOK),
+		CompileError:    p.CompileError,
+		ResourceVersion: policyResourceVersion(p),
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
 	}
-	return dst
 }
 
 func (h *Handlers) listPolicies(w http.ResponseWriter, r *http.Request) {
-	var list v1alpha1.PolicyList
-	if err := h.Client.List(r.Context(), &list); err != nil {
+	policies, err := h.Repos.Policies.List(r.Context())
+	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list policies: "+err.Error())
 		return
 	}
 	q := r.URL.Query()
-	sources := multiValue(q.Get("source"))
 	phases := multiValue(q.Get("phase"))
 	modes := multiValue(q.Get("mode"))
 	keyword := strings.ToLower(q.Get("keyword"))
 
-	items := make([]policyListItem, 0, len(list.Items))
-	for i := range list.Items {
-		p := &list.Items[i]
-		if !matchAny(sources, sourceOf(p.Labels)) {
+	items := make([]policyListItem, 0, len(policies))
+	for i := range policies {
+		p := &policies[i]
+		phase := policyPhase(p.CompileOK)
+		if !matchAny(phases, phase) {
 			continue
 		}
-		if !matchAny(phases, p.Status.Phase) {
-			continue
-		}
-		if !matchAny(modes, p.Spec.EnforcementMode) {
+		if !matchAny(modes, p.EnforcementMode) {
 			continue
 		}
 		if keyword != "" &&
 			!strings.Contains(strings.ToLower(p.Name), keyword) &&
-			!strings.Contains(strings.ToLower(p.Spec.Description), keyword) {
+			!strings.Contains(strings.ToLower(p.Description), keyword) {
 			continue
 		}
 		items = append(items, policyListItem{
 			Name:            p.Name,
-			Source:          sourceOf(p.Labels),
-			EnforcementMode: p.Spec.EnforcementMode,
-			Phase:           p.Status.Phase,
-			Description:     p.Spec.Description,
-			ReferencedBy:    p.Status.ReferencedBy,
-			CurrentVersion:  p.Status.CurrentVersion,
-			CreatedAt:       p.CreationTimestamp,
-			UpdatedAt:       p.Status.LastSyncTime,
+			EnforcementMode: p.EnforcementMode,
+			Phase:           phase,
+			Description:     p.Description,
+			CreatedAt:       p.CreatedAt,
+			UpdatedAt:       p.UpdatedAt,
 		})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
@@ -149,30 +192,22 @@ func (h *Handlers) getPolicy(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeOK(w, policyDetail{
-		Name:            p.Name,
-		Source:          sourceOf(p.Labels),
-		Labels:          p.Labels,
-		Annotations:     p.Annotations,
-		ResourceVersion: p.ResourceVersion,
-		Spec:            p.Spec,
-		Status:          p.Status,
-	})
+	writeOK(w, toPolicyDetail(p))
 }
 
 // fetchPolicy loads the {name} path policy, writing 404/500 on failure.
-func (h *Handlers) fetchPolicy(w http.ResponseWriter, r *http.Request) (*v1alpha1.Policy, bool) {
+func (h *Handlers) fetchPolicy(w http.ResponseWriter, r *http.Request) (*dbrepo.Policy, bool) {
 	name := r.PathValue("name")
-	var p v1alpha1.Policy
-	if err := h.Client.Get(r.Context(), client.ObjectKey{Name: name}, &p); err != nil {
-		if apierrors.IsNotFound(err) {
+	p, err := h.Repos.Policies.GetByName(r.Context(), name)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			writeErr(w, http.StatusNotFound, "policy "+name+" not found")
 		} else {
 			writeErr(w, http.StatusInternalServerError, "get policy: "+err.Error())
 		}
 		return nil, false
 	}
-	return &p, true
+	return p, true
 }
 
 func (h *Handlers) createPolicy(w http.ResponseWriter, r *http.Request) {
@@ -181,33 +216,63 @@ func (h *Handlers) createPolicy(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
+	// validatePolicyRequest calls webhook.CompileRego synchronously — invalid
+	// rego is rejected here with 400 and never reaches the database.
 	if err := validatePolicyRequest(&req, true); err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	labels := map[string]string{v1alpha1.LabelSource: v1alpha1.SourceCustom}
-	for k, v := range req.Labels {
-		labels[k] = v
+	p := &dbrepo.Policy{
+		Name:            req.Name,
+		Description:     req.Description,
+		Rego:            req.Rego,
+		EnforcementMode: req.EnforcementMode,
+		Match:           datatypes.NewJSONType(req.Match),
+		CompileOK:       true,
+		Labels:          datatypes.NewJSONType(req.Labels),
+		Annotations:     datatypes.NewJSONType(applyAnnotations(nil, req.Annotations)),
 	}
-	p := &v1alpha1.Policy{
-		ObjectMeta: metav1.ObjectMeta{Name: req.Name, Labels: labels},
-		Spec: v1alpha1.PolicySpec{
-			Match:           req.Match,
-			EnforcementMode: req.EnforcementMode,
-			Rego:            req.Rego,
-			Description:     req.Description,
-		},
-	}
-	p.Annotations = applyAnnotations(p.Annotations, req.Annotations)
-	if err := h.Client.Create(r.Context(), p); err != nil {
-		if apierrors.IsAlreadyExists(err) {
+	if err := h.Repos.Policies.Create(r.Context(), p); err != nil {
+		if isUniqueViolation(err) {
 			writeErr(w, http.StatusConflict, "policy "+req.Name+" already exists")
 		} else {
 			writeErr(w, http.StatusInternalServerError, "create policy: "+err.Error())
 		}
 		return
 	}
+	if err := h.Repos.Policies.CreateVersion(r.Context(), &dbrepo.PolicyVersion{
+		PolicyID:     p.ID,
+		Version:      1,
+		Rego:         p.Rego,
+		SpecSnapshot: datatypes.NewJSONType(policySpecSnapshot(p)),
+	}); err != nil {
+		writeErr(w, http.StatusInternalServerError, "create version: "+err.Error())
+		return
+	}
 	writeOK(w, map[string]string{"name": p.Name})
+}
+
+func policySpecSnapshot(p *dbrepo.Policy) v1alpha1.PolicySpec {
+	return v1alpha1.PolicySpec{
+		Match:           p.Match.Data(),
+		EnforcementMode: p.EnforcementMode,
+		Rego:            p.Rego,
+		Description:     p.Description,
+	}
+}
+
+// latestPolicyVersion returns a policy's version rows (newest first) and its
+// current (highest) version number.
+func (h *Handlers) latestPolicyVersion(r *http.Request, policyID int64) ([]dbrepo.PolicyVersion, int, error) {
+	versions, err := h.Repos.Policies.ListVersions(r.Context(), policyID)
+	if err != nil {
+		return nil, 0, err
+	}
+	current := 0
+	if len(versions) > 0 {
+		current = versions[0].Version
+	}
+	return versions, current, nil
 }
 
 func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
@@ -224,35 +289,45 @@ func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if p.Spec.RollbackTo != nil {
-		writeErr(w, http.StatusConflict, "a rollback is in progress, retry after it settles")
-		return
-	}
-	if req.ResourceVersion != "" && req.ResourceVersion != p.ResourceVersion {
+	if req.ResourceVersion != "" && req.ResourceVersion != policyResourceVersion(p) {
 		writeErr(w, http.StatusConflict, "policy has been modified, refresh and retry")
 		return
 	}
-	p.Spec.Match = req.Match
-	p.Spec.EnforcementMode = req.EnforcementMode
-	p.Spec.Rego = req.Rego
-	p.Spec.Description = req.Description
+	p.Match = datatypes.NewJSONType(req.Match)
+	p.EnforcementMode = req.EnforcementMode
+	p.Rego = req.Rego
+	p.Description = req.Description
+	p.CompileOK = true
+	p.CompileError = ""
 	if req.Labels != nil {
-		if p.Labels == nil {
-			p.Labels = map[string]string{}
+		lbl := p.Labels.Data()
+		if lbl == nil {
+			lbl = map[string]string{}
 		}
 		for k, v := range req.Labels {
-			p.Labels[k] = v
+			lbl[k] = v
 		}
+		p.Labels = datatypes.NewJSONType(lbl)
 	}
-	delete(p.Annotations, visualBuilderSpecAnnotation)
-	p.Annotations = applyAnnotations(p.Annotations, req.Annotations)
-	delete(p.Annotations, cursorAnnotation) // console edit resets the timeline cursor
-	if err := h.Client.Update(r.Context(), p); err != nil {
-		if apierrors.IsConflict(err) {
-			writeErr(w, http.StatusConflict, "policy has been modified, refresh and retry")
-		} else {
-			writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
-		}
+	ann := p.Annotations.Data()
+	delete(ann, visualBuilderSpecAnnotation)
+	p.Annotations = datatypes.NewJSONType(applyAnnotations(ann, req.Annotations))
+	if err := h.Repos.Policies.Update(r.Context(), p); err != nil {
+		writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
+		return
+	}
+	_, current, err := h.latestPolicyVersion(r, p.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "list versions: "+err.Error())
+		return
+	}
+	if err := h.Repos.Policies.CreateVersion(r.Context(), &dbrepo.PolicyVersion{
+		PolicyID:     p.ID,
+		Version:      current + 1,
+		Rego:         p.Rego,
+		SpecSnapshot: datatypes.NewJSONType(policySpecSnapshot(p)),
+	}); err != nil {
+		writeErr(w, http.StatusInternalServerError, "create version: "+err.Error())
 		return
 	}
 	writeOK(w, map[string]string{"name": p.Name})
@@ -273,18 +348,60 @@ func (h *Handlers) validatePolicy(w http.ResponseWriter, r *http.Request) {
 	writeOK(w, nil)
 }
 
+// referencingGroups returns the names of PolicyGroups that resolve
+// policyName as an effective member (byName or bySelector, minus exclude),
+// using the same groupresolve.Resolve the operator and gateway use — now
+// that dbrepo.Policy carries real Labels (migration 0003), bySelector
+// membership can be evaluated here too, not just byName.
+func (h *Handlers) referencingGroups(r *http.Request, policyName string) ([]string, error) {
+	groups, err := h.Repos.Groups.List(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	policies, err := h.Repos.Policies.List(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	resolvePolicies := make([]v1alpha1.Policy, len(policies))
+	for i := range policies {
+		resolvePolicies[i] = v1alpha1.Policy{
+			ObjectMeta: metav1.ObjectMeta{Name: policies[i].Name, Labels: policies[i].Labels.Data()},
+			Spec:       v1alpha1.PolicySpec{EnforcementMode: policies[i].EnforcementMode},
+		}
+	}
+	var refs []string
+	for i := range groups {
+		members, _ := groupresolve.Resolve(groups[i].Spec.Data(), resolvePolicies)
+		for _, m := range members {
+			if m.Name == policyName {
+				refs = append(refs, groups[i].Name)
+				break
+			}
+		}
+	}
+	sort.Strings(refs)
+	return refs, nil
+}
+
 func (h *Handlers) deletePolicy(w http.ResponseWriter, r *http.Request) {
 	p, ok := h.fetchPolicy(w, r)
 	if !ok {
 		return
 	}
-	if len(p.Status.ReferencedBy) > 0 && r.URL.Query().Get("force") != "true" {
-		writeErrData(w, http.StatusConflict,
-			"policy is referenced by policy groups",
-			map[string][]string{"referencedBy": p.Status.ReferencedBy})
-		return
+	if r.URL.Query().Get("force") != "true" {
+		refs, err := h.referencingGroups(r, p.Name)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "list policy groups: "+err.Error())
+			return
+		}
+		if len(refs) > 0 {
+			writeErrData(w, http.StatusConflict,
+				"policy is referenced by policy groups",
+				map[string][]string{"referencedBy": refs})
+			return
+		}
 	}
-	if err := h.Client.Delete(r.Context(), p); err != nil {
+	if err := h.Repos.Policies.Delete(r.Context(), p.ID); err != nil {
 		writeErr(w, http.StatusInternalServerError, "delete policy: "+err.Error())
 		return
 	}
@@ -292,22 +409,16 @@ func (h *Handlers) deletePolicy(w http.ResponseWriter, r *http.Request) {
 }
 
 type versionEntry struct {
-	Version         int64                `json:"version"`
-	CreatedAt       metav1.Time          `json:"createdAt"`
-	Phase           string               `json:"phase"`
+	Version         int                  `json:"version"`
+	CreatedAt       time.Time            `json:"createdAt"`
 	Rego            string               `json:"rego"`
 	Match           v1alpha1.PolicyMatch `json:"match"`
 	EnforcementMode string               `json:"enforcementMode"`
 	IsCurrent       bool                 `json:"isCurrent"`
 }
 
-type versionTimeline struct {
-	CurrentVersion int64          `json:"currentVersion"`
-	Cursor         int64          `json:"cursor"`
-	Head           int64          `json:"head"`
-	InFlight       bool           `json:"inFlight"`
-	PrevEnabled    bool           `json:"prevEnabled"`
-	NextEnabled    bool           `json:"nextEnabled"`
+type versionList struct {
+	CurrentVersion int            `json:"currentVersion"`
 	Versions       []versionEntry `json:"versions"`
 }
 
@@ -317,51 +428,35 @@ func (h *Handlers) listPolicyVersions(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var pvList v1alpha1.PolicyVersionList
-	if err := h.Client.List(r.Context(), &pvList,
-		client.MatchingLabels{"kubesentry/policy": p.Name}); err != nil {
+	versions, current, err := h.latestPolicyVersion(r, p.ID)
+	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list versions: "+err.Error())
 		return
 	}
-
-	phaseByVersion := map[int64]string{}
-	for _, s := range p.Status.VersionHistory {
-		phaseByVersion[s.Version] = s.Phase
-	}
-
-	cursor, head, inFlight := resolveCursor(p)
-	if p.Spec.RollbackTo != nil {
-		inFlight = true
-	}
-
-	exists := map[int64]bool{}
-	entries := make([]versionEntry, 0, len(pvList.Items))
-	for i := range pvList.Items {
-		pv := &pvList.Items[i]
-		exists[pv.Spec.Version] = true
+	entries := make([]versionEntry, 0, len(versions))
+	for i := range versions {
+		v := &versions[i]
+		snap := v.SpecSnapshot.Data()
 		entries = append(entries, versionEntry{
-			Version:         pv.Spec.Version,
-			CreatedAt:       pv.Spec.CreatedAt,
-			Phase:           phaseByVersion[pv.Spec.Version],
-			Rego:            pv.Spec.Rego,
-			Match:           pv.Spec.Match,
-			EnforcementMode: pv.Spec.EnforcementMode,
-			IsCurrent:       pv.Spec.Version == cursor,
+			Version:         v.Version,
+			CreatedAt:       v.CreatedAt,
+			Rego:            v.Rego,
+			Match:           snap.Match,
+			EnforcementMode: snap.EnforcementMode,
+			IsCurrent:       v.Version == current,
 		})
 	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Version > entries[j].Version })
-
-	writeOK(w, versionTimeline{
-		CurrentVersion: p.Status.CurrentVersion,
-		Cursor:         cursor,
-		Head:           head,
-		InFlight:       inFlight,
-		PrevEnabled:    !inFlight && cursor > 1 && exists[cursor-1],
-		NextEnabled:    !inFlight && cursor < head && exists[cursor+1],
-		Versions:       entries,
-	})
+	writeOK(w, versionList{CurrentVersion: current, Versions: entries})
 }
 
+// rollbackPolicy restores a policy to an earlier version's content. Unlike
+// the CRD-era flow (which set spec.rollbackTo and waited for an operator to
+// asynchronously settle it, tracked via a logical-cursor annotation — see
+// cursor.go), this is synchronous and roll-forward only: "prev" appends a
+// brand-new PolicyVersion whose content matches the snapshot one below the
+// current head, exactly like a git revert. There is no controller loop left
+// to settle an in-flight marker against, so "next" (undoing an undo) is not
+// supported — the current version is always the head.
 func (h *Handlers) rollbackPolicy(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Direction string `json:"direction"`
@@ -378,64 +473,62 @@ func (h *Handlers) rollbackPolicy(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
-	cursor, head, inFlight := resolveCursor(p)
-	if inFlight || p.Spec.RollbackTo != nil {
-		writeErr(w, http.StatusConflict, "a rollback is already in progress")
+	if req.Direction == "next" {
+		writeErr(w, http.StatusBadRequest, "already at the latest version")
 		return
 	}
 
-	var target int64
-	if req.Direction == "prev" {
-		if cursor <= 1 {
-			writeErr(w, http.StatusBadRequest, "already at the oldest version")
-			return
-		}
-		target = cursor - 1
-	} else {
-		if cursor >= head {
-			writeErr(w, http.StatusBadRequest, "already at the latest version")
-			return
-		}
-		target = cursor + 1
-	}
-
-	var pvList v1alpha1.PolicyVersionList
-	if err := h.Client.List(r.Context(), &pvList, client.MatchingLabels{
-		"kubesentry/policy":  p.Name,
-		"kubesentry/version": strconv.FormatInt(target, 10),
-	}); err != nil {
+	versions, current, err := h.latestPolicyVersion(r, p.ID)
+	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list versions: "+err.Error())
 		return
 	}
-	if len(pvList.Items) == 0 {
+	target := current - 1
+	if target < 1 {
+		writeErr(w, http.StatusBadRequest, "already at the oldest version")
+		return
+	}
+	var targetVersion *dbrepo.PolicyVersion
+	for i := range versions {
+		if versions[i].Version == target {
+			targetVersion = &versions[i]
+			break
+		}
+	}
+	if targetVersion == nil {
 		writeErr(w, http.StatusGone, fmt.Sprintf("version %d snapshot has been pruned", target))
 		return
 	}
 
-	ann, _ := json.Marshal(logicalCursor{
-		Cursor:    target,
-		AtVersion: p.Status.CurrentVersion,
-		Head:      head,
-	})
-	patch := client.MergeFrom(p.DeepCopy())
-	if p.Annotations == nil {
-		p.Annotations = map[string]string{}
-	}
-	p.Annotations[cursorAnnotation] = string(ann)
-	p.Spec.RollbackTo = &v1alpha1.RollbackTo{Version: target}
-	if err := h.Client.Patch(r.Context(), p, patch); err != nil {
-		writeErr(w, http.StatusInternalServerError, "patch policy: "+err.Error())
+	snap := targetVersion.SpecSnapshot.Data()
+	p.Rego = targetVersion.Rego
+	p.Match = datatypes.NewJSONType(snap.Match)
+	p.EnforcementMode = snap.EnforcementMode
+	p.Description = snap.Description
+	p.CompileOK = true
+	p.CompileError = ""
+	if err := h.Repos.Policies.Update(r.Context(), p); err != nil {
+		writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
 		return
 	}
-	writeOK(w, map[string]int64{"targetVersion": target})
+	newVersion := current + 1
+	if err := h.Repos.Policies.CreateVersion(r.Context(), &dbrepo.PolicyVersion{
+		PolicyID:     p.ID,
+		Version:      newVersion,
+		Rego:         targetVersion.Rego,
+		SpecSnapshot: targetVersion.SpecSnapshot,
+	}); err != nil {
+		writeErr(w, http.StatusInternalServerError, "create version: "+err.Error())
+		return
+	}
+	writeOK(w, map[string]int{"restoredFromVersion": target, "newVersion": newVersion})
 }
 
 // resourceSuggestions 聚合所有 Policy 用过的 apiGroups/apiVersions/resources，
-// 去重后供前端下拉建议使用；不读取 spec.rego，避免不必要的大字段传输。
+// 去重后供前端下拉建议使用；不读取 rego，避免不必要的大字段传输。
 func (h *Handlers) resourceSuggestions(w http.ResponseWriter, r *http.Request) {
-	var list v1alpha1.PolicyList
-	if err := h.Client.List(r.Context(), &list); err != nil {
+	policies, err := h.Repos.Policies.List(r.Context())
+	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list policies: "+err.Error())
 		return
 	}
@@ -443,8 +536,9 @@ func (h *Handlers) resourceSuggestions(w http.ResponseWriter, r *http.Request) {
 	versions := map[string]struct{}{}
 	resources := map[string]struct{}{}
 	resourcesByGroup := map[string]map[string]struct{}{}
-	for i := range list.Items {
-		for _, res := range list.Items[i].Spec.Match.Resources {
+	for i := range policies {
+		match := policies[i].Match.Data()
+		for _, res := range match.Resources {
 			for _, g := range res.APIGroups {
 				groups[g] = struct{}{}
 				if resourcesByGroup[g] == nil {

@@ -23,7 +23,7 @@ func toV1alpha1Policies(in []dbrepo.Policy) []v1alpha1.Policy {
 	out := make([]v1alpha1.Policy, len(in))
 	for i, p := range in {
 		out[i] = v1alpha1.Policy{
-			ObjectMeta: metav1.ObjectMeta{Name: p.Name},
+			ObjectMeta: metav1.ObjectMeta{Name: p.Name, Labels: p.Labels.Data(), Annotations: p.Annotations.Data()},
 			Spec: v1alpha1.PolicySpec{
 				Match: p.Match.Data(), EnforcementMode: p.EnforcementMode,
 				Rego: p.Rego, Description: p.Description,
@@ -36,7 +36,10 @@ func toV1alpha1Policies(in []dbrepo.Policy) []v1alpha1.Policy {
 func toV1alpha1Groups(in []dbrepo.PolicyGroup) []v1alpha1.PolicyGroup {
 	out := make([]v1alpha1.PolicyGroup, len(in))
 	for i, g := range in {
-		out[i] = v1alpha1.PolicyGroup{ObjectMeta: metav1.ObjectMeta{Name: g.Name}, Spec: g.Spec.Data()}
+		out[i] = v1alpha1.PolicyGroup{
+			ObjectMeta: metav1.ObjectMeta{Name: g.Name, Labels: g.Labels.Data(), Annotations: g.Annotations.Data()},
+			Spec:       g.Spec.Data(),
+		}
 	}
 	return out
 }

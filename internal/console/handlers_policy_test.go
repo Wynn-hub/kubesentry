@@ -1,119 +1,167 @@
 package console
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
 	"reflect"
-	"sort"
-	"strconv"
 	"testing"
 
+	"gorm.io/datatypes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
-func testPolicy(name, source, mode, phase string) *v1alpha1.Policy {
-	return &v1alpha1.Policy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: map[string]string{v1alpha1.LabelSource: source},
-		},
-		Spec: v1alpha1.PolicySpec{
-			Match: v1alpha1.PolicyMatch{
-				Operations: []string{"CREATE"},
-				Resources: []v1alpha1.MatchResource{
-					{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}},
-				},
-			},
-			EnforcementMode: mode,
-			Rego:            validRego,
-			Description:     "desc of " + name,
-		},
-		Status: v1alpha1.PolicyStatus{
-			Phase:          phase,
-			CurrentVersion: 1,
-			LastSyncTime:   &metav1.Time{Time: metav1.Now().Time},
+func testMatch() v1alpha1.PolicyMatch {
+	return v1alpha1.PolicyMatch{
+		Operations: []string{"CREATE"},
+		Resources: []v1alpha1.MatchResource{
+			{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}},
 		},
 	}
 }
 
+// seedPolicyBare inserts a Policy row without any policy_versions rows —
+// used by the "pruned snapshot" tests, which need a policy whose early
+// version history has already been garbage-collected.
+func seedPolicyBare(t *testing.T, repos gateway.Repos, name, mode string) *dbrepo.Policy {
+	t.Helper()
+	p := &dbrepo.Policy{
+		Name:            name,
+		Description:     "desc of " + name,
+		Rego:            validRego,
+		EnforcementMode: mode,
+		Match:           datatypes.NewJSONType(testMatch()),
+		CompileOK:       true,
+	}
+	if err := repos.Policies.Create(context.Background(), p); err != nil {
+		t.Fatalf("seed policy %s: %v", name, err)
+	}
+	return p
+}
+
+func seedPolicyVersion(t *testing.T, repos gateway.Repos, p *dbrepo.Policy, version int, mode string) {
+	t.Helper()
+	if err := repos.Policies.CreateVersion(context.Background(), &dbrepo.PolicyVersion{
+		PolicyID: p.ID,
+		Version:  version,
+		Rego:     validRego,
+		SpecSnapshot: datatypes.NewJSONType(v1alpha1.PolicySpec{
+			Match: p.Match.Data(), EnforcementMode: mode, Rego: validRego, Description: p.Description,
+		}),
+	}); err != nil {
+		t.Fatalf("seed policy version %s/v%d: %v", p.Name, version, err)
+	}
+}
+
+// seedPolicy inserts a Policy row plus its matching v1 policy_versions row —
+// the shape every policy created through the console API has.
+func seedPolicy(t *testing.T, repos gateway.Repos, name, mode string) *dbrepo.Policy {
+	t.Helper()
+	p := seedPolicyBare(t, repos, name, mode)
+	seedPolicyVersion(t, repos, p, 1, mode)
+	return p
+}
+
+func findPolicy(items []policyListItem, name string) (policyListItem, bool) {
+	for _, it := range items {
+		if it.Name == name {
+			return it, true
+		}
+	}
+	return policyListItem{}, false
+}
+
+// zzTestKeyword prefixes fixture names in list-filter tests. The migration
+// seeds 37 real builtin policies alongside whatever a test creates (see
+// internal/dbmigrate/seed_test.go), so a plain mode/phase filter also
+// matches builtin rows — these tests narrow with an always-included keyword
+// filter unlikely to collide with any real policy name, then assert on the
+// narrowed set instead of the full list.
+const zzTestKeyword = "zz-test-"
+
 func TestListPoliciesFiltered(t *testing.T) {
-	h, _ := newTestServer(t,
-		testPolicy("a-builtin", "builtin", "enforce", "Ready"),
-		testPolicy("b-custom", "custom", "audit", "Invalid"),
-	)
-	rec, env := doRequest(t, h, "GET", "/api/v1/policies?source=custom", nil)
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, zzTestKeyword+"a-ready", "enforce")
+	bad := seedPolicy(t, repos, zzTestKeyword+"b-invalid", "audit")
+	bad.CompileOK = false
+	bad.CompileError = "boom"
+	if err := repos.Policies.Update(t.Context(), bad); err != nil {
+		t.Fatal(err)
+	}
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/policies?mode=audit&keyword="+zzTestKeyword, nil)
 	if rec.Code != 200 || !env.Success {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 	items := mustUnmarshal[[]policyListItem](t, env.Data)
-	if len(items) != 1 || items[0].Name != "b-custom" {
-		t.Fatalf("items = %+v", items)
+	if len(items) != 1 || items[0].Name != zzTestKeyword+"b-invalid" {
+		t.Fatalf("mode filter items = %+v", items)
 	}
-	if items[0].UpdatedAt == nil || items[0].UpdatedAt.IsZero() {
+	if items[0].UpdatedAt.IsZero() {
 		t.Fatalf("updatedAt not populated: %+v", items[0])
 	}
 
-	_, env = doRequest(t, h, "GET", "/api/v1/policies?phase=Ready", nil)
+	_, env = doRequest(t, h, "GET", "/api/v1/policies?phase=Invalid&keyword="+zzTestKeyword, nil)
 	items = mustUnmarshal[[]policyListItem](t, env.Data)
-	if len(items) != 1 || items[0].Name != "a-builtin" {
+	if len(items) != 1 || items[0].Name != zzTestKeyword+"b-invalid" {
 		t.Fatalf("phase filter items = %+v", items)
 	}
 
-	_, env = doRequest(t, h, "GET", "/api/v1/policies?keyword=b-cus", nil)
+	_, env = doRequest(t, h, "GET", "/api/v1/policies?keyword="+zzTestKeyword+"a-rea", nil)
 	items = mustUnmarshal[[]policyListItem](t, env.Data)
-	if len(items) != 1 || items[0].Name != "b-custom" {
+	if len(items) != 1 || items[0].Name != zzTestKeyword+"a-ready" {
 		t.Fatalf("keyword filter items = %+v", items)
-	}
-
-	_, env = doRequest(t, h, "GET", "/api/v1/policies?mode=audit", nil)
-	items = mustUnmarshal[[]policyListItem](t, env.Data)
-	if len(items) != 1 || items[0].Name != "b-custom" {
-		t.Fatalf("mode filter items = %+v", items)
 	}
 }
 
 func TestListPoliciesMultiValueFilters(t *testing.T) {
-	h, _ := newTestServer(t,
-		testPolicy("a-builtin", "builtin", "enforce", "Ready"),
-		testPolicy("b-custom", "custom", "audit", "Invalid"),
-		testPolicy("c-custom", "custom", "enforce", "Syncing"),
-	)
-	_, env := doRequest(t, h, "GET", "/api/v1/policies?source=builtin,custom", nil)
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, zzTestKeyword+"a-enforce", "enforce")
+	seedPolicy(t, repos, zzTestKeyword+"b-audit", "audit")
+	seedPolicy(t, repos, zzTestKeyword+"c-enforce", "enforce")
+
+	_, env := doRequest(t, h, "GET", "/api/v1/policies?mode=enforce,audit&keyword="+zzTestKeyword, nil)
 	items := mustUnmarshal[[]policyListItem](t, env.Data)
 	if len(items) != 3 {
-		t.Fatalf("multi source items = %+v", items)
+		t.Fatalf("multi mode items = %+v", items)
 	}
 
-	_, env = doRequest(t, h, "GET", "/api/v1/policies?phase=Ready,Syncing", nil)
+	_, env = doRequest(t, h, "GET", "/api/v1/policies?mode=enforce&keyword="+zzTestKeyword, nil)
 	items = mustUnmarshal[[]policyListItem](t, env.Data)
-	if len(items) != 2 || items[0].Name != "a-builtin" || items[1].Name != "c-custom" {
-		t.Fatalf("multi phase items = %+v", items)
+	if len(items) != 2 {
+		t.Fatalf("mode=enforce items = %+v", items)
+	}
+	if _, ok := findPolicy(items, zzTestKeyword+"a-enforce"); !ok {
+		t.Fatalf("missing a-enforce: %+v", items)
+	}
+	if _, ok := findPolicy(items, zzTestKeyword+"c-enforce"); !ok {
+		t.Fatalf("missing c-enforce: %+v", items)
 	}
 
-	_, env = doRequest(t, h, "GET", "/api/v1/policies?mode=enforce&source=custom", nil)
+	_, env = doRequest(t, h, "GET", "/api/v1/policies?mode=enforce&keyword="+zzTestKeyword+"c-en", nil)
 	items = mustUnmarshal[[]policyListItem](t, env.Data)
-	if len(items) != 1 || items[0].Name != "c-custom" {
-		t.Fatalf("mode+source items = %+v", items)
+	if len(items) != 1 || items[0].Name != zzTestKeyword+"c-enforce" {
+		t.Fatalf("mode+keyword items = %+v", items)
 	}
 }
 
 func TestGetPolicy(t *testing.T) {
-	h, _ := newTestServer(t, testPolicy("p1", "custom", "enforce", "Ready"))
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "enforce")
 	rec, env := doRequest(t, h, "GET", "/api/v1/policies/p1", nil)
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
 	d := mustUnmarshal[policyDetail](t, env.Data)
-	if d.Name != "p1" || d.Spec.EnforcementMode != "enforce" || d.ResourceVersion == "" {
+	if d.Name != "p1" || d.EnforcementMode != "enforce" || d.ResourceVersion == "" {
 		t.Fatalf("detail = %+v", d)
 	}
 }
 
 func TestGetPolicyNotFound(t *testing.T) {
-	h, _ := newTestServer(t)
+	h, _ := newDBTestServer(t)
 	rec, _ := doRequest(t, h, "GET", "/api/v1/policies/nope", nil)
 	if rec.Code != 404 {
 		t.Fatalf("code = %d, want 404", rec.Code)
@@ -121,22 +169,27 @@ func TestGetPolicyNotFound(t *testing.T) {
 }
 
 func TestCreatePolicy(t *testing.T) {
-	h, c := newTestServer(t)
+	h, repos := newDBTestServer(t)
 	rec, env := doRequest(t, h, "POST", "/api/v1/policies", validReq())
 	if rec.Code != 200 || !env.Success {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
-	var p v1alpha1.Policy
-	if err := c.Get(t.Context(), client.ObjectKey{Name: "my-policy"}, &p); err != nil {
+	p, err := repos.Policies.GetByName(t.Context(), "my-policy")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Labels[v1alpha1.LabelSource] != v1alpha1.SourceCustom {
-		t.Fatalf("source label = %q", p.Labels[v1alpha1.LabelSource])
+	if !p.CompileOK {
+		t.Fatalf("compileOK = %v, want true", p.CompileOK)
+	}
+	versions, err := repos.Policies.ListVersions(t.Context(), p.ID)
+	if err != nil || len(versions) != 1 || versions[0].Version != 1 {
+		t.Fatalf("versions = %+v, err = %v", versions, err)
 	}
 }
 
 func TestCreatePolicyDuplicate(t *testing.T) {
-	h, _ := newTestServer(t, testPolicy("my-policy", "custom", "audit", "Ready"))
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "my-policy", "audit")
 	rec, _ := doRequest(t, h, "POST", "/api/v1/policies", validReq())
 	if rec.Code != 409 {
 		t.Fatalf("code = %d, want 409", rec.Code)
@@ -144,7 +197,7 @@ func TestCreatePolicyDuplicate(t *testing.T) {
 }
 
 func TestCreatePolicyBadRego(t *testing.T) {
-	h, _ := newTestServer(t)
+	h, _ := newDBTestServer(t)
 	req := validReq()
 	req.Rego = "package kubesentry\ndeny[msg] {"
 	rec, env := doRequest(t, h, "POST", "/api/v1/policies", req)
@@ -153,8 +206,29 @@ func TestCreatePolicyBadRego(t *testing.T) {
 	}
 }
 
+func TestUpdatePolicy(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "audit")
+	req := validReq()
+	req.Name = ""
+	req.EnforcementMode = "enforce"
+	rec, _ := doRequest(t, h, "PUT", "/api/v1/policies/p1", req)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	got, _ := repos.Policies.GetByName(t.Context(), "p1")
+	if got.EnforcementMode != "enforce" {
+		t.Fatalf("mode = %q", got.EnforcementMode)
+	}
+	versions, _ := repos.Policies.ListVersions(t.Context(), got.ID)
+	if len(versions) != 2 || versions[0].Version != 2 {
+		t.Fatalf("versions = %+v, want a new v2 snapshot", versions)
+	}
+}
+
 func TestUpdatePolicyStaleResourceVersion(t *testing.T) {
-	h, _ := newTestServer(t, testPolicy("p1", "custom", "audit", "Ready"))
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "audit")
 	req := validReq()
 	req.Name = ""
 	req.ResourceVersion = "stale-does-not-match"
@@ -164,42 +238,30 @@ func TestUpdatePolicyStaleResourceVersion(t *testing.T) {
 	}
 }
 
-func TestUpdatePolicyClearsCursor(t *testing.T) {
-	p := testPolicy("p1", "custom", "audit", "Ready")
-	p.Annotations = map[string]string{cursorAnnotation: `{"cursor":1,"atVersion":2,"head":2}`}
-	h, c := newTestServer(t, p)
+func TestUpdatePolicyNotFound(t *testing.T) {
+	h, _ := newDBTestServer(t)
 	req := validReq()
 	req.Name = ""
-	rec, _ := doRequest(t, h, "PUT", "/api/v1/policies/p1", req)
-	if rec.Code != 200 {
-		t.Fatalf("code = %d", rec.Code)
-	}
-	var got v1alpha1.Policy
-	if err := c.Get(t.Context(), client.ObjectKey{Name: "p1"}, &got); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := got.Annotations[cursorAnnotation]; ok {
-		t.Fatal("cursor annotation should be cleared on update")
-	}
-	if got.Spec.EnforcementMode != "audit" || got.Spec.Description != "" {
-		t.Fatalf("spec = %+v", got.Spec)
+	rec, _ := doRequest(t, h, "PUT", "/api/v1/policies/nope", req)
+	if rec.Code != 404 {
+		t.Fatalf("code = %d, want 404", rec.Code)
 	}
 }
 
-func TestUpdatePolicyRejectedDuringRollback(t *testing.T) {
-	p := testPolicy("p1", "custom", "audit", "Ready")
-	p.Spec.RollbackTo = &v1alpha1.RollbackTo{Version: 1}
-	h, _ := newTestServer(t, p)
+func TestUpdatePolicyBadRego(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "audit")
 	req := validReq()
 	req.Name = ""
-	rec, _ := doRequest(t, h, "PUT", "/api/v1/policies/p1", req)
-	if rec.Code != 409 {
-		t.Fatalf("code = %d, want 409", rec.Code)
+	req.Rego = "package kubesentry\ndeny[msg] {"
+	rec, env := doRequest(t, h, "PUT", "/api/v1/policies/p1", req)
+	if rec.Code != 400 || env.Error == nil {
+		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 }
 
 func TestValidateEndpoint(t *testing.T) {
-	h, _ := newTestServer(t)
+	h, _ := newDBTestServer(t)
 	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/validate", map[string]string{"rego": validRego})
 	if rec.Code != 200 {
 		t.Fatalf("valid rego: code = %d", rec.Code)
@@ -211,9 +273,80 @@ func TestValidateEndpoint(t *testing.T) {
 }
 
 func TestDeletePolicyReferenced(t *testing.T) {
-	p := testPolicy("p1", "custom", "audit", "Ready")
-	p.Status.ReferencedBy = []string{"security"}
-	h, _ := newTestServer(t, p)
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "audit")
+	group := &dbrepo.PolicyGroup{
+		Name: "security",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyGroupSpec{
+			Enabled:  true,
+			Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: "p1"}}},
+		}),
+	}
+	if err := repos.Groups.Create(t.Context(), group); err != nil {
+		t.Fatal(err)
+	}
+
+	rec, env := doRequest(t, h, "DELETE", "/api/v1/policies/p1", nil)
+	if rec.Code != 409 {
+		t.Fatalf("code = %d, want 409", rec.Code)
+	}
+	d := mustUnmarshal[map[string][]string](t, env.Data)
+	if len(d["referencedBy"]) != 1 || d["referencedBy"][0] != "security" {
+		t.Fatalf("data = %+v", d)
+	}
+
+	rec, _ = doRequest(t, h, "DELETE", "/api/v1/policies/p1?force=true", nil)
+	if rec.Code != 200 {
+		t.Fatalf("force delete code = %d", rec.Code)
+	}
+}
+
+func TestDeletePolicyExcludedNotReferenced(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "audit")
+	group := &dbrepo.PolicyGroup{
+		Name: "security",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyGroupSpec{
+			Enabled: true,
+			Policies: v1alpha1.PolicyGroupPolicies{
+				ByName:  []v1alpha1.PolicyRef{{Name: "p1"}},
+				Exclude: []string{"p1"},
+			},
+		}),
+	}
+	if err := repos.Groups.Create(t.Context(), group); err != nil {
+		t.Fatal(err)
+	}
+	rec, _ := doRequest(t, h, "DELETE", "/api/v1/policies/p1", nil)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d, want 200 (excluded members are not references)", rec.Code)
+	}
+}
+
+// TestDeletePolicyReferencedBySelector exercises the labels-column fix
+// (migration 0003): a PolicyGroup that only references a policy via
+// policies.bySelector now blocks deletion too, since referencingGroups uses
+// groupresolve.Resolve against real Policy.Labels instead of only checking
+// policies.byName.
+func TestDeletePolicyReferencedBySelector(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	p := seedPolicyBare(t, repos, "p1", "audit")
+	p.Labels = datatypes.NewJSONType(map[string]string{"team": "security"})
+	if err := repos.Policies.Update(t.Context(), p); err != nil {
+		t.Fatal(err)
+	}
+	group := &dbrepo.PolicyGroup{
+		Name: "security",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyGroupSpec{
+			Enabled: true,
+			Policies: v1alpha1.PolicyGroupPolicies{
+				BySelector: &metav1.LabelSelector{MatchLabels: map[string]string{"team": "security"}},
+			},
+		}),
+	}
+	if err := repos.Groups.Create(t.Context(), group); err != nil {
+		t.Fatal(err)
+	}
 
 	rec, env := doRequest(t, h, "DELETE", "/api/v1/policies/p1", nil)
 	if rec.Code != 409 {
@@ -231,192 +364,170 @@ func TestDeletePolicyReferenced(t *testing.T) {
 }
 
 func TestDeletePolicyUnreferenced(t *testing.T) {
-	h, c := newTestServer(t, testPolicy("p1", "custom", "audit", "Ready"))
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "audit")
 	rec, _ := doRequest(t, h, "DELETE", "/api/v1/policies/p1", nil)
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	var got v1alpha1.Policy
-	err := c.Get(t.Context(), client.ObjectKey{Name: "p1"}, &got)
-	if err == nil {
+	if _, err := repos.Policies.GetByName(t.Context(), "p1"); err == nil {
 		t.Fatal("policy should be deleted")
 	}
 }
 
-func testVersion(policy string, version int64, mode string) *v1alpha1.PolicyVersion {
-	return &v1alpha1.PolicyVersion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-v%d", policy, version),
-			Labels: map[string]string{
-				"kubesentry/policy":  policy,
-				"kubesentry/version": strconv.FormatInt(version, 10),
-			},
-		},
-		Spec: v1alpha1.PolicyVersionSpec{
-			PolicyRef:       policy,
-			Version:         version,
-			Rego:            validRego,
-			EnforcementMode: mode,
-		},
+func TestDeletePolicyNotFound(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	rec, _ := doRequest(t, h, "DELETE", "/api/v1/policies/nope", nil)
+	if rec.Code != 404 {
+		t.Fatalf("code = %d, want 404", rec.Code)
 	}
 }
 
-func TestListVersionsTimeline(t *testing.T) {
-	p := testPolicy("p1", "custom", "enforce", "Ready")
-	p.Status.CurrentVersion = 2
-	p.Status.VersionHistory = []v1alpha1.PolicyVersionSummary{
-		{Version: 1, Phase: "Ready"}, {Version: 2, Phase: "Ready"},
-	}
-	h, _ := newTestServer(t, p, testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"))
+func TestListPolicyVersions(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	p := seedPolicyBare(t, repos, "p1", "enforce")
+	seedPolicyVersion(t, repos, p, 1, "audit")
+	seedPolicyVersion(t, repos, p, 2, "enforce")
 
 	rec, env := doRequest(t, h, "GET", "/api/v1/policies/p1/versions", nil)
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	tl := mustUnmarshal[versionTimeline](t, env.Data)
-	if tl.Cursor != 2 || tl.Head != 2 || tl.InFlight {
-		t.Fatalf("timeline = %+v", tl)
+	vl := mustUnmarshal[versionList](t, env.Data)
+	if vl.CurrentVersion != 2 || len(vl.Versions) != 2 {
+		t.Fatalf("versions = %+v", vl)
 	}
-	if !tl.PrevEnabled || tl.NextEnabled {
-		t.Fatalf("prev/next = %v/%v, want true/false", tl.PrevEnabled, tl.NextEnabled)
+	if vl.Versions[0].Version != 2 || !vl.Versions[0].IsCurrent {
+		t.Fatalf("newest entry = %+v, want v2 current", vl.Versions[0])
 	}
-	if len(tl.Versions) != 2 || tl.Versions[0].Version != 2 || !tl.Versions[0].IsCurrent {
-		t.Fatalf("versions = %+v", tl.Versions)
-	}
-}
-
-func TestListVersionsPrunedPrevDisabled(t *testing.T) {
-	p := testPolicy("p1", "custom", "enforce", "Ready")
-	p.Status.CurrentVersion = 5
-	h, _ := newTestServer(t, p, testVersion("p1", 5, "enforce")) // v4 已被剪枝
-	_, env := doRequest(t, h, "GET", "/api/v1/policies/p1/versions", nil)
-	tl := mustUnmarshal[versionTimeline](t, env.Data)
-	if tl.PrevEnabled {
-		t.Fatal("prev should be disabled when v4 snapshot is pruned")
+	if vl.Versions[1].Version != 1 || vl.Versions[1].IsCurrent {
+		t.Fatalf("oldest entry = %+v, want v1 not current", vl.Versions[1])
 	}
 }
 
-func TestListVersionsRollbackToForcesInFlight(t *testing.T) {
-	// settled cursor (cur=3, atVersion=2) but RollbackTo still set —
-	// the handler must report in-flight and disable navigation.
-	p := testPolicy("p1", "custom", "enforce", "Ready")
-	p.Status.CurrentVersion = 3
-	p.Annotations = map[string]string{cursorAnnotation: `{"cursor":1,"atVersion":2,"head":2}`}
-	p.Spec.RollbackTo = &v1alpha1.RollbackTo{Version: 1}
-	h, _ := newTestServer(t, p,
-		testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"), testVersion("p1", 3, "audit"))
-	_, env := doRequest(t, h, "GET", "/api/v1/policies/p1/versions", nil)
-	tl := mustUnmarshal[versionTimeline](t, env.Data)
-	if !tl.InFlight || tl.PrevEnabled || tl.NextEnabled {
-		t.Fatalf("timeline = %+v, want inFlight=true and navigation disabled", tl)
+func TestListPolicyVersionsPruned(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	p := seedPolicyBare(t, repos, "p1", "enforce")
+	seedPolicyVersion(t, repos, p, 5, "enforce") // v1-v4 已被剪枝
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/policies/p1/versions", nil)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	vl := mustUnmarshal[versionList](t, env.Data)
+	if vl.CurrentVersion != 5 || len(vl.Versions) != 1 {
+		t.Fatalf("versions = %+v", vl)
 	}
 }
 
-func TestRollbackPrevFromHead(t *testing.T) {
-	p := testPolicy("p1", "custom", "enforce", "Ready")
-	p.Status.CurrentVersion = 2
-	h, c := newTestServer(t, p, testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"))
+func TestRollbackPrev(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	p := seedPolicyBare(t, repos, "p1", "enforce")
+	seedPolicyVersion(t, repos, p, 1, "audit")
+	seedPolicyVersion(t, repos, p, 2, "enforce")
 
-	rec, env := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
-		map[string]string{"direction": "prev"})
+	rec, env := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback", map[string]string{"direction": "prev"})
 	if rec.Code != 200 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
-	var got v1alpha1.Policy
-	if err := c.Get(t.Context(), client.ObjectKey{Name: "p1"}, &got); err != nil {
+	got, err := repos.Policies.GetByName(t.Context(), "p1")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Spec.RollbackTo == nil || got.Spec.RollbackTo.Version != 1 {
-		t.Fatalf("rollbackTo = %+v", got.Spec.RollbackTo)
+	if got.EnforcementMode != "audit" {
+		t.Fatalf("mode = %q, want audit (restored from v1)", got.EnforcementMode)
 	}
-	var cur logicalCursor
-	if err := json.Unmarshal([]byte(got.Annotations[cursorAnnotation]), &cur); err != nil {
+	versions, err := repos.Policies.ListVersions(t.Context(), p.ID)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if cur.Cursor != 1 || cur.AtVersion != 2 || cur.Head != 2 {
-		t.Fatalf("cursor annotation = %+v", cur)
+	if len(versions) != 3 || versions[0].Version != 3 {
+		t.Fatalf("versions = %+v, want a new v3 appended", versions)
 	}
 }
 
-func TestRollbackNextAtHead(t *testing.T) {
-	p := testPolicy("p1", "custom", "enforce", "Ready")
-	p.Status.CurrentVersion = 2
-	h, _ := newTestServer(t, p, testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"))
-	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
-		map[string]string{"direction": "next"})
+func TestRollbackNextAlwaysRejected(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "enforce")
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback", map[string]string{"direction": "next"})
 	if rec.Code != 400 {
 		t.Fatalf("code = %d, want 400", rec.Code)
 	}
 }
 
-func TestRollbackNextAfterSettled(t *testing.T) {
-	// 已回滚到 v1（settled：cur=3, annotation {1,2,2}），next 应指向 v2
-	p := testPolicy("p1", "custom", "enforce", "Ready")
-	p.Status.CurrentVersion = 3
-	p.Annotations = map[string]string{cursorAnnotation: `{"cursor":1,"atVersion":2,"head":2}`}
-	h, c := newTestServer(t, p,
-		testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"), testVersion("p1", 3, "audit"))
-
-	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
-		map[string]string{"direction": "next"})
-	if rec.Code != 200 {
-		t.Fatalf("code = %d", rec.Code)
-	}
-	var got v1alpha1.Policy
-	_ = c.Get(t.Context(), client.ObjectKey{Name: "p1"}, &got)
-	if got.Spec.RollbackTo.Version != 2 {
-		t.Fatalf("rollbackTo = %+v", got.Spec.RollbackTo)
-	}
-	var cur logicalCursor
-	_ = json.Unmarshal([]byte(got.Annotations[cursorAnnotation]), &cur)
-	if cur.Cursor != 2 || cur.AtVersion != 3 || cur.Head != 2 {
-		t.Fatalf("cursor = %+v", cur)
-	}
-}
-
-func TestRollbackInFlightRejected(t *testing.T) {
-	p := testPolicy("p1", "custom", "enforce", "Ready")
-	p.Status.CurrentVersion = 2
-	p.Annotations = map[string]string{cursorAnnotation: `{"cursor":1,"atVersion":2,"head":2}`}
-	h, _ := newTestServer(t, p, testVersion("p1", 1, "audit"), testVersion("p1", 2, "enforce"))
-	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
-		map[string]string{"direction": "prev"})
-	if rec.Code != 409 {
-		t.Fatalf("code = %d, want 409", rec.Code)
+func TestRollbackAtOldestRejected(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "enforce") // only v1 exists
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback", map[string]string{"direction": "prev"})
+	if rec.Code != 400 {
+		t.Fatalf("code = %d, want 400", rec.Code)
 	}
 }
 
 func TestRollbackTargetPruned(t *testing.T) {
-	p := testPolicy("p1", "custom", "enforce", "Ready")
-	p.Status.CurrentVersion = 5
-	h, _ := newTestServer(t, p, testVersion("p1", 5, "enforce")) // v4 被剪枝
-	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
-		map[string]string{"direction": "prev"})
+	h, repos := newDBTestServer(t)
+	p := seedPolicyBare(t, repos, "p1", "enforce")
+	seedPolicyVersion(t, repos, p, 5, "enforce") // v4 已被剪枝
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback", map[string]string{"direction": "prev"})
 	if rec.Code != 410 {
 		t.Fatalf("code = %d, want 410", rec.Code)
 	}
 }
 
 func TestRollbackBadDirection(t *testing.T) {
-	h, _ := newTestServer(t, testPolicy("p1", "custom", "enforce", "Ready"))
-	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback",
-		map[string]string{"direction": "jump"})
+	h, repos := newDBTestServer(t)
+	seedPolicy(t, repos, "p1", "enforce")
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/p1/rollback", map[string]string{"direction": "jump"})
 	if rec.Code != 400 {
 		t.Fatalf("code = %d, want 400", rec.Code)
 	}
 }
 
+func TestRollbackNotFound(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	rec, _ := doRequest(t, h, "POST", "/api/v1/policies/nope/rollback", map[string]string{"direction": "prev"})
+	if rec.Code != 404 {
+		t.Fatalf("code = %d, want 404", rec.Code)
+	}
+}
+
+func containsStr(items []string, want string) bool {
+	for _, it := range items {
+		if it == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestResourceSuggestions(t *testing.T) {
-	p1 := testPolicy("p1", "custom", "audit", "Ready")
-	p1.Spec.Match.Resources = []v1alpha1.MatchResource{
-		{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods", "services"}},
+	// The migration seeds 37 real builtin policies (see
+	// internal/dbmigrate/seed_test.go), which contribute their own
+	// apiGroups/resources to this aggregate — assert our fixtures' values
+	// are present (and the intra-policy duplicate "pods" entry collapses to
+	// one), rather than asserting the aggregate equals only our fixtures.
+	h, repos := newDBTestServer(t)
+	p1 := seedPolicyBare(t, repos, "zz-test-p1", "audit")
+	p1.Match = datatypes.NewJSONType(v1alpha1.PolicyMatch{
+		Operations: []string{"CREATE"},
+		Resources: []v1alpha1.MatchResource{
+			{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods", "zz-test-services"}},
+		},
+	})
+	if err := repos.Policies.Update(t.Context(), p1); err != nil {
+		t.Fatal(err)
 	}
-	p2 := testPolicy("p2", "custom", "audit", "Ready")
-	p2.Spec.Match.Resources = []v1alpha1.MatchResource{
-		{APIGroups: []string{"apps"}, APIVersions: []string{"v1"}, Resources: []string{"deployments"}},
-		{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}}, // 与 p1 重复，验证去重
+	p2 := seedPolicyBare(t, repos, "zz-test-p2", "audit")
+	p2.Match = datatypes.NewJSONType(v1alpha1.PolicyMatch{
+		Operations: []string{"CREATE"},
+		Resources: []v1alpha1.MatchResource{
+			{APIGroups: []string{"zz-test-apps"}, APIVersions: []string{"v1"}, Resources: []string{"deployments"}},
+			{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}}, // 与 p1 重复，验证去重
+		},
+	})
+	if err := repos.Policies.Update(t.Context(), p2); err != nil {
+		t.Fatal(err)
 	}
-	h, _ := newTestServer(t, p1, p2)
 
 	rec, env := doRequest(t, h, "GET", "/api/v1/policies/resource-suggestions", nil)
 	if rec.Code != 200 || !env.Success {
@@ -424,29 +535,35 @@ func TestResourceSuggestions(t *testing.T) {
 	}
 	got := mustUnmarshal[resourceSuggestionsResponse](t, env.Data)
 
-	sort.Strings(got.APIGroups)
-	sort.Strings(got.APIVersions)
-	sort.Strings(got.Resources)
-	if want := []string{"", "apps"}; !reflect.DeepEqual(got.APIGroups, want) {
-		t.Fatalf("apiGroups = %v, want %v", got.APIGroups, want)
+	if !containsStr(got.APIGroups, "") || !containsStr(got.APIGroups, "zz-test-apps") {
+		t.Fatalf("apiGroups = %v, want to contain \"\" and zz-test-apps", got.APIGroups)
 	}
-	if want := []string{"v1"}; !reflect.DeepEqual(got.APIVersions, want) {
-		t.Fatalf("apiVersions = %v, want %v", got.APIVersions, want)
+	if !containsStr(got.APIVersions, "v1") {
+		t.Fatalf("apiVersions = %v, want to contain v1", got.APIVersions)
 	}
-	if want := []string{"deployments", "pods", "services"}; !reflect.DeepEqual(got.Resources, want) {
-		t.Fatalf("resources = %v, want %v", got.Resources, want)
+	if !containsStr(got.Resources, "deployments") || !containsStr(got.Resources, "pods") || !containsStr(got.Resources, "zz-test-services") {
+		t.Fatalf("resources = %v, want to contain deployments/pods/zz-test-services", got.Resources)
 	}
 
-	if want := []string{"pods", "services"}; !reflect.DeepEqual(got.ResourcesByGroup[""], want) {
-		t.Fatalf("resourcesByGroup[\"\"] = %v, want %v", got.ResourcesByGroup[""], want)
+	// Group "" (core) is shared with builtin policies, so only assert our
+	// fixtures' entries are present (deduped) — not that the group is
+	// exclusively ours.
+	core := got.ResourcesByGroup[""]
+	if !containsStr(core, "pods") || !containsStr(core, "zz-test-services") {
+		t.Fatalf("resourcesByGroup[\"\"] = %v, want to contain pods and zz-test-services", core)
 	}
-	if want := []string{"deployments"}; !reflect.DeepEqual(got.ResourcesByGroup["apps"], want) {
-		t.Fatalf("resourcesByGroup[\"apps\"] = %v, want %v", got.ResourcesByGroup["apps"], want)
+	if want := []string{"deployments"}; !reflect.DeepEqual(got.ResourcesByGroup["zz-test-apps"], want) {
+		t.Fatalf("resourcesByGroup[\"zz-test-apps\"] = %v, want %v", got.ResourcesByGroup["zz-test-apps"], want)
 	}
 }
 
+// TestPolicyAnnotationsRoundTrip restores the CRD-era annotations round-trip
+// test (dropped when Task 9 first converted these handlers, since
+// dbrepo.Policy had no annotations column at the time) now that migration
+// 0003 added Policy.Annotations. Mirrors the pre-Task-9 test at
+// git show 761e4b6:internal/console/handlers_policy_test.go.
 func TestPolicyAnnotationsRoundTrip(t *testing.T) {
-	h, _ := newTestServer(t)
+	h, _ := newDBTestServer(t)
 
 	create := map[string]any{
 		"name":            "p-ann",
@@ -493,5 +610,44 @@ func TestPolicyAnnotationsRoundTrip(t *testing.T) {
 	d = mustUnmarshal[policyDetail](t, env.Data)
 	if v, ok := d.Annotations["kubesentry.io/visual-builder-spec"]; ok {
 		t.Fatalf("annotation should have been cleared, got %q", v)
+	}
+}
+
+// TestCreatePolicyPersistsLabels covers the other half of migration 0003:
+// Labels round-trip through create/get, which is what makes
+// TestDeletePolicyReferencedBySelector (and real bySelector group
+// resolution via internal/groupresolve) possible again.
+func TestCreatePolicyPersistsLabels(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	create := map[string]any{
+		"name":            "p-lbl",
+		"enforcementMode": "audit",
+		"rego":            validRego,
+		"labels":          map[string]string{"team": "security"},
+		"match": map[string]any{
+			"operations": []string{"CREATE"},
+			"resources": []map[string]any{
+				{"apiGroups": []string{""}, "apiVersions": []string{"v1"}, "resources": []string{"pods"}},
+			},
+		},
+	}
+	if rec, env := doRequest(t, h, "POST", "/api/v1/policies", create); rec.Code != 200 {
+		t.Fatalf("create: code=%d env=%+v", rec.Code, env)
+	}
+	p, err := repos.Policies.GetByName(t.Context(), "p-lbl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Labels.Data()["team"] != "security" {
+		t.Fatalf("labels = %+v", p.Labels.Data())
+	}
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/policies/p-lbl", nil)
+	if rec.Code != 200 {
+		t.Fatalf("get: code=%d", rec.Code)
+	}
+	d := mustUnmarshal[policyDetail](t, env.Data)
+	if d.Labels["team"] != "security" {
+		t.Fatalf("response labels = %+v", d.Labels)
 	}
 }

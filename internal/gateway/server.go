@@ -36,11 +36,15 @@ func SetPushResyncForTest(d time.Duration) func() {
 
 // Repos bundles the GORM repositories the gateway server reads/writes at
 // runtime, replacing the controller-runtime client this server used to hold.
+// Exceptions is unused by the gateway's own render/push path today but lives
+// here so console-api (internal/console) can share this same bundle type
+// (task 9: console-api GORM handlers) instead of defining a second one.
 type Repos struct {
 	Clusters      *dbrepo.ClusterRepo
 	Policies      *dbrepo.PolicyRepo
 	Groups        *dbrepo.GroupRepo
 	Distributions *dbrepo.DistributionRepo
+	Exceptions    *dbrepo.ExceptionRepo
 }
 
 // Server implements the gatewaypb.Hub gRPC service.
