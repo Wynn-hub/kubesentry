@@ -10,6 +10,11 @@ const (
 	ManagedByPlatform = "platform"
 )
 
+// LastTraceIDAnnotation records the trace_id (spec D18) of the most recent
+// NotifyChange-triggered push that actually changed this managed object —
+// ticker-driven resyncs carry an empty trace_id and must never clobber it.
+const LastTraceIDAnnotation = "kubesentry.io/last-trace-id"
+
 // Per-cluster distribution sync states.
 const (
 	DistributionSynced  = "Synced"

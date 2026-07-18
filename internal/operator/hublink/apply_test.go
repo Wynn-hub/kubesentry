@@ -238,6 +238,71 @@ func TestApplyUnknownKindReportsErrorAndSkipsOnlyThatObject(t *testing.T) {
 	}
 }
 
+func TestApplyWritesLastTraceIDAnnotation(t *testing.T) {
+	c := newApplyClient(t)
+
+	ds := &gatewaypb.DesiredState{VersionHash: "h1", TraceId: "trace-abc", Objects: []*gatewaypb.ManagedObject{
+		mObj(t, "Policy", "p1", policySpec(v1alpha1.ModeAudit)),
+	}}
+	if err := applyDesiredState(context.Background(), c, ds); err != nil {
+		t.Fatal(err)
+	}
+	var p v1alpha1.Policy
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "p1"}, &p); err != nil {
+		t.Fatal(err)
+	}
+	if got := p.Annotations[v1alpha1.LastTraceIDAnnotation]; got != "trace-abc" {
+		t.Fatalf("last-trace-id annotation = %q, want trace-abc", got)
+	}
+
+	// Simulated 60s resync fallback: same spec, but no trace_id this time —
+	// must not clobber the previously recorded value.
+	ds2 := &gatewaypb.DesiredState{VersionHash: "h1", TraceId: "", Objects: []*gatewaypb.ManagedObject{
+		mObj(t, "Policy", "p1", policySpec(v1alpha1.ModeAudit)),
+	}}
+	if err := applyDesiredState(context.Background(), c, ds2); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "p1"}, &p); err != nil {
+		t.Fatal(err)
+	}
+	if got := p.Annotations[v1alpha1.LastTraceIDAnnotation]; got != "trace-abc" {
+		t.Fatalf("empty-trace resync clobbered annotation: got %q, want trace-abc", got)
+	}
+
+	// A resync that also carries a genuine spec change but still an empty
+	// trace_id must still preserve the previously recorded trace_id.
+	ds3 := &gatewaypb.DesiredState{VersionHash: "h2", TraceId: "", Objects: []*gatewaypb.ManagedObject{
+		mObj(t, "Policy", "p1", policySpec(v1alpha1.ModeEnforce)),
+	}}
+	if err := applyDesiredState(context.Background(), c, ds3); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "p1"}, &p); err != nil {
+		t.Fatal(err)
+	}
+	if p.Spec.EnforcementMode != v1alpha1.ModeEnforce {
+		t.Fatal("spec change from resync was not applied")
+	}
+	if got := p.Annotations[v1alpha1.LastTraceIDAnnotation]; got != "trace-abc" {
+		t.Fatalf("spec-changing empty-trace resync clobbered annotation: got %q, want trace-abc", got)
+	}
+
+	// A later NotifyChange-triggered push with a new trace_id does overwrite.
+	ds4 := &gatewaypb.DesiredState{VersionHash: "h3", TraceId: "trace-xyz", Objects: []*gatewaypb.ManagedObject{
+		mObj(t, "Policy", "p1", policySpec(v1alpha1.ModeEnforce)),
+	}}
+	if err := applyDesiredState(context.Background(), c, ds4); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Get(context.Background(), types.NamespacedName{Name: "p1"}, &p); err != nil {
+		t.Fatal(err)
+	}
+	if got := p.Annotations[v1alpha1.LastTraceIDAnnotation]; got != "trace-xyz" {
+		t.Fatalf("last-trace-id annotation = %q, want trace-xyz", got)
+	}
+}
+
 func TestPolicyCounts(t *testing.T) {
 	ready := &v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "a"}, Status: v1alpha1.PolicyStatus{Phase: v1alpha1.PhaseReady}}
 	invalid := &v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "b"}, Status: v1alpha1.PolicyStatus{Phase: v1alpha1.PhaseInvalid}}

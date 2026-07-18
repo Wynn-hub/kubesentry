@@ -71,6 +71,7 @@ message HubMessage {
 message DesiredState {
   string version_hash = 1;
   repeated ManagedObject objects = 2;
+  string trace_id = 3; // spec D18 correlation id; set only on a NotifyChange-triggered push, empty on ticker resync
 }
 
 message ManagedObject {

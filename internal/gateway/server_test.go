@@ -3,10 +3,14 @@ package gateway
 import (
 	"context"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"gorm.io/datatypes"
 
+	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
@@ -104,6 +108,88 @@ func TestRegisterUIDConflictAcrossClusters(t *testing.T) {
 	if status.Code(err) != codes.AlreadyExists {
 		t.Fatalf("code = %v, want AlreadyExists", status.Code(err))
 	}
+}
+
+// TestPushLoopIncludesTraceIDFromNotifyChange proves the trace_id chain:
+// NotifyChange's TraceId reaches the next actually-sent DesiredState, while
+// the plain 60s ticker resync path (which never stashes a trace_id) sends
+// an empty one. Split into two independent connections so the ticker phase
+// (deliberately shortened) can't race with the NotifyChange phase (which
+// relies on the default, effectively-infinite ticker never firing first).
+func TestPushLoopIncludesTraceIDFromNotifyChange(t *testing.T) {
+	t.Run("NotifyChange trace_id reaches the push", func(t *testing.T) {
+		repos := newTestRepos(t)
+		ctx := context.Background()
+		mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
+		if err := repos.Policies.Create(ctx, &dbrepo.Policy{Name: "p1", EnforcementMode: v1alpha1.ModeAudit}); err != nil {
+			t.Fatal(err)
+		}
+		if err := repos.Groups.Create(ctx, &dbrepo.PolicyGroup{
+			Name: "g1",
+			Spec: datatypes.NewJSONType(v1alpha1.PolicyGroupSpec{
+				Enabled:  true,
+				Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: "p1"}}},
+			}),
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
+		sctx := metadata.AppendToOutgoingContext(context.Background(),
+			MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+		stream, err := client.Sync(sctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := recvDesiredState(t, stream, 3*time.Second)
+		if first.TraceId != "" {
+			t.Fatalf("initial push trace_id = %q, want empty", first.TraceId)
+		}
+
+		// Pair a real content change with the NotifyChange call so pushLoop's
+		// hash-gated send actually fires (an unchanged-hash NotifyChange has
+		// nothing new to push, trace_id included).
+		dist := &dbrepo.PolicyDistribution{
+			Name: "d1",
+			Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
+				Clusters:     v1alpha1.DistributionClusters{ByName: []string{"prod"}},
+				PolicyGroups: []string{"g1"},
+			}),
+		}
+		if err := repos.Distributions.Create(ctx, dist); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := client.NotifyChange(ctx, &gatewaypb.NotifyChangeRequest{TraceId: "trace-abc"}); err != nil {
+			t.Fatal(err)
+		}
+		second := recvDesiredState(t, stream, 3*time.Second)
+		if second.TraceId != "trace-abc" {
+			t.Fatalf("NotifyChange-triggered push trace_id = %q, want trace-abc", second.TraceId)
+		}
+	})
+
+	t.Run("ticker resync never carries a trace_id", func(t *testing.T) {
+		restore := SetPushResyncForTest(30 * time.Millisecond)
+		defer restore()
+
+		repos := newTestRepos(t)
+		mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
+		client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(),
+			MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+		stream, err := client.Sync(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_ = recvDesiredState(t, stream, 3*time.Second) // initial push
+		tick := recvDesiredState(t, stream, 3*time.Second)
+		if tick.TraceId != "" {
+			t.Fatalf("ticker-driven resync trace_id = %q, want empty", tick.TraceId)
+		}
+	})
 }
 
 func TestReRegisterSameUIDRotatesToken(t *testing.T) {

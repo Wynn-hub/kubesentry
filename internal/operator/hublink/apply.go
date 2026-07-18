@@ -43,7 +43,7 @@ func applyDesiredState(ctx context.Context, c client.Client, ds *gatewaypb.Desir
 				continue
 			}
 			inSnapshot[obj.Kind][obj.Name] = true
-			if err := upsertObject(ctx, c, obj); err != nil {
+			if err := upsertObject(ctx, c, obj, ds.TraceId); err != nil {
 				errs = append(errs, fmt.Sprintf("%s %s: %v", obj.Kind, obj.Name, err))
 			}
 		}
@@ -78,7 +78,25 @@ func sortedByName(refs []v1alpha1.PolicyRef) []v1alpha1.PolicyRef {
 	return out
 }
 
-func upsertObject(ctx context.Context, c client.Client, obj *gatewaypb.ManagedObject) error {
+// mergeTraceAnnotation returns the annotation map to write for this apply.
+// A non-empty traceID always wins (a copy of existing plus the new value).
+// An empty traceID (the 60s ticker resync fallback) returns existing
+// untouched — otherwise every resync would wipe out a meaningful trace_id,
+// making it impossible to correlate a member CR back to the change that
+// produced it.
+func mergeTraceAnnotation(existing map[string]string, traceID string) map[string]string {
+	if traceID == "" {
+		return existing
+	}
+	out := make(map[string]string, len(existing)+1)
+	for k, v := range existing {
+		out[k] = v
+	}
+	out[v1alpha1.LastTraceIDAnnotation] = traceID
+	return out
+}
+
+func upsertObject(ctx context.Context, c client.Client, obj *gatewaypb.ManagedObject, traceID string) error {
 	switch obj.Kind {
 	case "Policy":
 		var spec v1alpha1.PolicySpec
@@ -89,7 +107,7 @@ func upsertObject(ctx context.Context, c client.Client, obj *gatewaypb.ManagedOb
 		err := c.Get(ctx, types.NamespacedName{Name: obj.Name}, &existing)
 		if apierrors.IsNotFound(err) {
 			return c.Create(ctx, &v1alpha1.Policy{
-				ObjectMeta: metav1.ObjectMeta{Name: obj.Name, Labels: obj.Labels},
+				ObjectMeta: metav1.ObjectMeta{Name: obj.Name, Labels: obj.Labels, Annotations: mergeTraceAnnotation(nil, traceID)},
 				Spec:       spec,
 			})
 		}
@@ -102,11 +120,13 @@ func upsertObject(ctx context.Context, c client.Client, obj *gatewaypb.ManagedOb
 			}
 			return errors.New("conflicts with existing unmanaged object")
 		}
-		if reflect.DeepEqual(existing.Spec, spec) && reflect.DeepEqual(existing.Labels, obj.Labels) {
+		newAnnotations := mergeTraceAnnotation(existing.Annotations, traceID)
+		if reflect.DeepEqual(existing.Spec, spec) && reflect.DeepEqual(existing.Labels, obj.Labels) && reflect.DeepEqual(existing.Annotations, newAnnotations) {
 			return nil
 		}
 		existing.Spec = spec
 		existing.Labels = obj.Labels
+		existing.Annotations = newAnnotations
 		return c.Update(ctx, &existing)
 	case "PolicyGroup":
 		var spec v1alpha1.PolicyGroupSpec
@@ -117,7 +137,7 @@ func upsertObject(ctx context.Context, c client.Client, obj *gatewaypb.ManagedOb
 		err := c.Get(ctx, types.NamespacedName{Name: obj.Name}, &existing)
 		if apierrors.IsNotFound(err) {
 			return c.Create(ctx, &v1alpha1.PolicyGroup{
-				ObjectMeta: metav1.ObjectMeta{Name: obj.Name, Labels: obj.Labels},
+				ObjectMeta: metav1.ObjectMeta{Name: obj.Name, Labels: obj.Labels, Annotations: mergeTraceAnnotation(nil, traceID)},
 				Spec:       spec,
 			})
 		}
@@ -130,11 +150,13 @@ func upsertObject(ctx context.Context, c client.Client, obj *gatewaypb.ManagedOb
 			}
 			return errors.New("conflicts with existing unmanaged object")
 		}
-		if groupSpecsEqual(existing.Spec, spec) && reflect.DeepEqual(existing.Labels, obj.Labels) {
+		newAnnotations := mergeTraceAnnotation(existing.Annotations, traceID)
+		if groupSpecsEqual(existing.Spec, spec) && reflect.DeepEqual(existing.Labels, obj.Labels) && reflect.DeepEqual(existing.Annotations, newAnnotations) {
 			return nil
 		}
 		existing.Spec = spec
 		existing.Labels = obj.Labels
+		existing.Annotations = newAnnotations
 		return c.Update(ctx, &existing)
 	default:
 		return fmt.Errorf("unknown kind %q", obj.Kind)
