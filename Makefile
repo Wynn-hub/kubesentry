@@ -32,9 +32,11 @@ CHART_VERSION = $(shell \
     && echo "$$semver" \
     || echo "0.0.0-$$v")
 
-WEBHOOK_IMAGE  = $(REGISTRY)/kubesentry-webhook:$(TAG)
-OPERATOR_IMAGE = $(REGISTRY)/kubesentry-operator:$(TAG)
-CONSOLE_IMAGE  = $(REGISTRY)/kubesentry-console:$(TAG)
+WEBHOOK_IMAGE     = $(REGISTRY)/kubesentry-webhook:$(TAG)
+OPERATOR_IMAGE    = $(REGISTRY)/kubesentry-operator:$(TAG)
+CONSOLE_IMAGE     = $(REGISTRY)/kubesentry-console:$(TAG)
+DB_IMAGE          = $(REGISTRY)/kubesentry-db:$(TAG)
+CONSOLE_WEB_IMAGE = $(REGISTRY)/kubesentry-console-web:$(TAG)
 
 CMDS = webhook operator console
 
@@ -61,6 +63,7 @@ build:
 	go build -trimpath -o bin/operator ./cmd/operator
 	go build -trimpath -o bin/console  ./cmd/console
 	go build -trimpath -o bin/gateway  ./cmd/gateway
+	go build -trimpath -o bin/db       ./cmd/db
 
 # ── Step 2: Cross-compile inside a Docker container ──────────────────────────
 # Produces: bin/linux-amd64/{webhook,operator}  bin/linux-arm64/{webhook,operator}
@@ -83,7 +86,8 @@ build-linux: web-build
 	    sh -c 'go build -trimpath -o bin/linux-'"$$arch"'/webhook ./cmd/webhook && \
 	           go build -trimpath -o bin/linux-'"$$arch"'/operator ./cmd/operator && \
 	           go build -trimpath -o bin/linux-'"$$arch"'/console ./cmd/console && \
-	           go build -trimpath -o bin/linux-'"$$arch"'/gateway ./cmd/gateway' \
+	           go build -trimpath -o bin/linux-'"$$arch"'/gateway ./cmd/gateway && \
+	           go build -trimpath -o bin/linux-'"$$arch"'/db ./cmd/db' \
 	  || exit 1; \
 	done
 
@@ -113,6 +117,8 @@ build-image-e2e: build-linux
 	docker build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
 	docker build -f Dockerfile.console -t wynnhub/kubesentry-console:e2e-test .
 	docker build -f Dockerfile.gateway -t wynnhub/kubesentry-gateway:e2e-test .
+	docker build -f Dockerfile.db -t wynnhub/kubesentry-db:e2e-test .
+	docker build -f charts/kubesentry-gateway/console/Dockerfile.web -t wynnhub/kubesentry-console-web:e2e-test .
 
 # E2E traffic must bypass any local HTTP(S) proxy (e.g. clash): kubectl and
 # client-go honor https_proxy, and a proxied connection to the local API
@@ -172,10 +178,12 @@ test-all: test-report test-web build-image-e2e test-e2e-report
 # Uses tag "local" with pullPolicy=Never so kubelet never tries to pull from a registry.
 LOCAL_TAG        ?= local
 LOCAL_NAMESPACE  ?= kubesentry-system
-LOCAL_WEBHOOK_IMAGE  = $(REGISTRY)/kubesentry-webhook:$(LOCAL_TAG)
-LOCAL_OPERATOR_IMAGE = $(REGISTRY)/kubesentry-operator:$(LOCAL_TAG)
-LOCAL_CONSOLE_IMAGE  = $(REGISTRY)/kubesentry-console:$(LOCAL_TAG)
-LOCAL_GATEWAY_IMAGE  = $(REGISTRY)/kubesentry-gateway:$(LOCAL_TAG)
+LOCAL_WEBHOOK_IMAGE     = $(REGISTRY)/kubesentry-webhook:$(LOCAL_TAG)
+LOCAL_OPERATOR_IMAGE    = $(REGISTRY)/kubesentry-operator:$(LOCAL_TAG)
+LOCAL_CONSOLE_IMAGE     = $(REGISTRY)/kubesentry-console:$(LOCAL_TAG)
+LOCAL_GATEWAY_IMAGE     = $(REGISTRY)/kubesentry-gateway:$(LOCAL_TAG)
+LOCAL_DB_IMAGE          = $(REGISTRY)/kubesentry-db:$(LOCAL_TAG)
+LOCAL_CONSOLE_WEB_IMAGE = $(REGISTRY)/kubesentry-console-web:$(LOCAL_TAG)
 
 # Build single-arch images (host arch only) for local k8s — faster than buildx.
 build-image-local: build-linux
@@ -183,6 +191,8 @@ build-image-local: build-linux
 	docker build -f Dockerfile.operator -t $(LOCAL_OPERATOR_IMAGE) .
 	docker build -f Dockerfile.console  -t $(LOCAL_CONSOLE_IMAGE)  .
 	docker build -f Dockerfile.gateway  -t $(LOCAL_GATEWAY_IMAGE)  .
+	docker build -f Dockerfile.db       -t $(LOCAL_DB_IMAGE)       .
+	docker build -f charts/kubesentry-gateway/console/Dockerfile.web -t $(LOCAL_CONSOLE_WEB_IMAGE) .
 
 # Build images + helm install/upgrade in one shot.
 # Two chart installs into the same namespace: kubesentry-gateway (gateway +
@@ -246,6 +256,27 @@ image: .builder build-linux
 	  --tag $(CONSOLE_IMAGE) \
 	  --load \
 	  .
+	docker buildx build \
+	  --builder $(BUILDER) \
+	  --platform $(PLATFORMS) \
+	  --file Dockerfile.gateway \
+	  --tag $(REGISTRY)/kubesentry-gateway:$(TAG) \
+	  --load \
+	  .
+	docker buildx build \
+	  --builder $(BUILDER) \
+	  --platform $(PLATFORMS) \
+	  --file Dockerfile.db \
+	  --tag $(DB_IMAGE) \
+	  --load \
+	  .
+	docker buildx build \
+	  --builder $(BUILDER) \
+	  --platform $(PLATFORMS) \
+	  --file charts/kubesentry-gateway/console/Dockerfile.web \
+	  --tag $(CONSOLE_WEB_IMAGE) \
+	  --load \
+	  .
 
 # Build and push multi-platform manifest to registry.
 # Always pushes both a versioned tag and :latest.
@@ -272,6 +303,30 @@ image-push: .builder build-linux
 	  --file Dockerfile.console \
 	  --tag $(CONSOLE_IMAGE) \
 	  --tag $(REGISTRY)/kubesentry-console:latest \
+	  --push \
+	  .
+	docker buildx build \
+	  --builder $(BUILDER) \
+	  --platform $(PLATFORMS) \
+	  --file Dockerfile.gateway \
+	  --tag $(REGISTRY)/kubesentry-gateway:$(TAG) \
+	  --tag $(REGISTRY)/kubesentry-gateway:latest \
+	  --push \
+	  .
+	docker buildx build \
+	  --builder $(BUILDER) \
+	  --platform $(PLATFORMS) \
+	  --file Dockerfile.db \
+	  --tag $(DB_IMAGE) \
+	  --tag $(REGISTRY)/kubesentry-db:latest \
+	  --push \
+	  .
+	docker buildx build \
+	  --builder $(BUILDER) \
+	  --platform $(PLATFORMS) \
+	  --file charts/kubesentry-gateway/console/Dockerfile.web \
+	  --tag $(CONSOLE_WEB_IMAGE) \
+	  --tag $(REGISTRY)/kubesentry-console-web:latest \
 	  --push \
 	  .
 

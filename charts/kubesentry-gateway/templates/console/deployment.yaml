@@ -15,6 +15,13 @@ spec:
         app: kubesentry-console
     spec:
       serviceAccountName: kubesentry-console
+      initContainers:
+        - name: wait-for-gateway
+          image: "busybox:1.36"
+          command: ["sh", "-c"]
+          args:
+            - |
+              until nc -z kubesentry-gateway.{{ .Values.namespace }}.svc {{ .Values.gateway.grpc.port }}; do sleep 2; done
       containers:
         - name: web
           image: "{{ .Values.console.webImage.repository }}:{{ .Values.console.webImage.tag | default .Chart.AppVersion }}"

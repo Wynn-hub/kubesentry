@@ -1,71 +1,78 @@
 package builtins_test
 
 import (
-	"bytes"
-	"os/exec"
-	"path/filepath"
-	"strings"
+	"context"
+	"database/sql"
 	"testing"
 
-	"sigs.k8s.io/yaml"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	tcwait "github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
-// TestBuiltinPoliciesCompile runs `helm template` against the chart and
-// verifies that every Policy CR's spec.rego compiles via the production
-// webhook compiler. Catches v0 syntax mistakes (rego.v1 / some x in set)
-// and broken sprintf signatures at PR time.
+// TestBuiltinPoliciesCompile runs the real migration pipeline (0002 seeds
+// the built-in policies, spec D9) against a throwaway Postgres and verifies
+// every seeded policy's rego compiles via the production webhook compiler.
+// Catches v0 syntax mistakes (rego.v1 / some x in set) and broken sprintf
+// signatures at PR time — the chart no longer renders any Policy CRs
+// (spec D17), so this replaces the old `helm template` based check.
 func TestBuiltinPoliciesCompile(t *testing.T) {
-	chart, err := filepath.Abs("../../charts/kubesentry-gateway")
+	ctx := context.Background()
+	pgc, err := postgres.Run(ctx, "postgres:16-alpine",
+		postgres.WithDatabase("kubesentry"),
+		postgres.WithUsername("kubesentry"),
+		postgres.WithPassword("kubesentry"),
+		testcontainers.WithWaitStrategy(tcwait.ForListeningPort("5432/tcp")),
+	)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("start postgres container: %v", err)
+	}
+	t.Cleanup(func() { _ = pgc.Terminate(ctx) })
+
+	dsn, err := pgc.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatalf("connection string: %v", err)
+	}
+	if err := dbmigrate.Migrate(dsn); err != nil {
+		t.Fatalf("migrate: %v", err)
 	}
 
-	cmd := exec.Command("helm", "template", chart)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("helm template: %v\nstderr=%s", err, stderr.String())
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("open: %v", err)
 	}
+	defer db.Close()
 
-	docs := strings.Split(stdout.String(), "\n---\n")
+	rows, err := db.Query(`SELECT name, rego FROM kubesentry.policies`)
+	if err != nil {
+		t.Fatalf("query policies: %v", err)
+	}
+	defer rows.Close()
+
 	policyCount := 0
-	for _, doc := range docs {
-		if !strings.Contains(doc, "kind: Policy\n") {
-			continue
+	for rows.Next() {
+		var name, rego string
+		if err := rows.Scan(&name, &rego); err != nil {
+			t.Fatalf("scan: %v", err)
 		}
-		var obj struct {
-			Kind     string `yaml:"kind"`
-			Metadata struct {
-				Name string `yaml:"name"`
-			} `yaml:"metadata"`
-			Spec struct {
-				Rego string `yaml:"rego"`
-			} `yaml:"spec"`
-		}
-		if err := yaml.Unmarshal([]byte(doc), &obj); err != nil {
-			t.Errorf("yaml unmarshal: %v\ndoc=%q", err, doc[:minInt(200, len(doc))])
-			continue
-		}
-		if obj.Kind != "Policy" || obj.Spec.Rego == "" {
+		if rego == "" {
+			t.Errorf("policy %s: empty rego", name)
 			continue
 		}
 		policyCount++
-		if _, err := webhook.CompileRego(obj.Spec.Rego); err != nil {
-			t.Errorf("policy %s rego compile: %v", obj.Metadata.Name, err)
+		if _, err := webhook.CompileRego(rego); err != nil {
+			t.Errorf("policy %s rego compile: %v", name, err)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
 	}
 
 	if policyCount < 37 {
-		t.Errorf("expected ≥37 Policy CRs rendered, got %d", policyCount)
+		t.Errorf("expected ≥37 seeded policies, got %d", policyCount)
 	}
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

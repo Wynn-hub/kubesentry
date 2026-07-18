@@ -1,6 +1,7 @@
 # Same namespace as the member chart's own components (webhook/operator/
-# console) so the gateway sits alongside them; kubesentry-system is one of the
-# systemNamespaces below, so the gateway is exempt from policy enforcement too.
+# console) so the gateway sits alongside them; kubesentry-system is one of
+# the system namespaces exempted from policy enforcement by the
+# 0004_seed_default_exception migration, so the gateway is exempt too.
 namespace: kubesentry-system
 
 gateway:
@@ -57,6 +58,18 @@ console:
       cpu: 100m
       memory: 64Mi
 
+postgres:
+  enabled: true
+  password: "kubesentry"
+  storage: "10Gi"
+  external:
+    dsn: ""
+
+db:
+  image:
+    repository: wynnhub/kubesentry-db
+    tag: "latest"
+
 tls:
   secretName: kubesentry-gateway-tls
   # Bring your own CA-issued certificate instead of the built-in
@@ -71,28 +84,3 @@ tls:
   ca: ""    # PEM CA certificate
   cert: ""  # PEM server certificate
   key: ""   # PEM server private key
-
-# System namespaces that are always exempted from every policy on every
-# cluster, via a permanent default PolicyException (see
-# templates/default-exception.yaml) — independent of which policy group or
-# distribution is in effect.
-systemNamespaces:
-  - kube-system
-  - kube-public
-  - kube-node-lease
-  - kubesentry-system
-
-# Built-in default policy (Efficiency+Reliability+Security merged into one
-# PolicyGroup named "default"). Applied to every registered cluster via a
-# PolicyDistribution with clusterSelector: {} (matches all clusters).
-builtinGroups:
-  default:
-    enabled: true
-
-# Per-policy toggles and per-entry mode overrides.
-# Keys are the Policy.metadata.name (kebab-case) of each built-in policy.
-# Omitted keys default to enabled=true with the mode declared in the policy yaml.
-builtinPolicies: {}
-#   run-as-privileged:
-#     enabled: true   # set false to drop this Policy + remove from group.byName
-#     mode: ""        # "enforce" | "audit" — overrides the policy's default

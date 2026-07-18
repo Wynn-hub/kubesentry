@@ -19,6 +19,12 @@ rules:
   - apiGroups: [""]
     resources: [events]
     verbs: [create, patch]
+  # initContainer wait-for-migration polls this Job's status via `kubectl
+  # wait` before the gateway container starts (spec D17).
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch]
+    resourceNames: [kubesentry-db-migrate]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

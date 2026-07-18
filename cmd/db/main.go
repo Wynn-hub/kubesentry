@@ -4,9 +4,21 @@ package main
 import (
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
+)
+
+// ponytail: fixed retry budget instead of a shell pg_isready probe — this
+// binary ships on distroless/static (no shell, no postgres client tools)
+// like every other kubesentry image, and the post-install hook Job that
+// runs this fires right after Postgres's StatefulSet is submitted, not
+// necessarily Ready (spec D17). 60 attempts * 5s covers first-boot/PVC
+// provisioning latency; bump if that ever isn't enough.
+const (
+	migrateRetryAttempts = 60
+	migrateRetryDelay    = 5 * time.Second
 )
 
 func main() {
@@ -20,9 +32,18 @@ func main() {
 		slog.Error("DATABASE_DSN is required")
 		os.Exit(1)
 	}
-	if err := dbmigrate.Migrate(dsn); err != nil {
-		slog.Error("migrate", "error", err)
-		os.Exit(1)
+
+	var err error
+	for attempt := 1; attempt <= migrateRetryAttempts; attempt++ {
+		if err = dbmigrate.Migrate(dsn); err == nil {
+			slog.Info("migration complete")
+			return
+		}
+		if attempt < migrateRetryAttempts {
+			slog.Warn("migrate attempt failed, retrying", "attempt", attempt, "error", err)
+			time.Sleep(migrateRetryDelay)
+		}
 	}
-	slog.Info("migration complete")
+	slog.Error("migrate", "error", err)
+	os.Exit(1)
 }

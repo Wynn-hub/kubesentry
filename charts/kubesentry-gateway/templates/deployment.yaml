@@ -13,6 +13,13 @@ spec:
       labels: { app: kubesentry-gateway }
     spec:
       serviceAccountName: kubesentry-gateway
+      initContainers:
+        - name: wait-for-migration
+          image: "bitnami/kubectl:1.31"
+          command: ["sh", "-c"]
+          args:
+            - |
+              until kubectl wait --for=condition=complete job/kubesentry-db-migrate -n {{ .Values.namespace }} --timeout=5s; do sleep 2; done
       containers:
         - name: gateway
           image: "{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag }}"
