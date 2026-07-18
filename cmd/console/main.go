@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -22,6 +23,13 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
+)
+
+// Startup revalidation is a one-shot local DB scan; readyz pings must fail
+// fast so a hung DB connection doesn't wedge probes indefinitely.
+const (
+	startupRevalidateTimeout = 30 * time.Second
+	readyzPingTimeout        = 2 * time.Second
 )
 
 func main() {
@@ -70,7 +78,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx := context.Background()
+	// gatewayCtx backs only the long-lived Connect registration loop below,
+	// which retries/reconnects for the life of the process. It must stay
+	// separate from the bounded, one-shot contexts used for startup
+	// revalidation and readyz pings (see startupRevalidateTimeout,
+	// readyzPingTimeout) — reusing one context.Background() for both let a
+	// hung DB connection block startup and every readyz probe forever.
+	gatewayCtx := context.Background()
 
 	// gatewayClient talks NotifyChange for the write handlers (Task 11) and
 	// backs the Connect registration loop below. Both are a soft
@@ -88,7 +102,7 @@ func main() {
 			slog.Error("dial gateway, continuing without gateway link", "error", err)
 		} else {
 			gatewayClient = gatewaypb.NewHubClient(conn)
-			go console.RunGatewayLink(ctx, gatewayClient, "console-api", os.Getenv("GATEWAY_SHARED_TOKEN"))
+			go console.RunGatewayLink(gatewayCtx, gatewayClient, "console-api", os.Getenv("GATEWAY_SHARED_TOKEN"))
 			slog.Info("gateway link enabled", "gateway", gatewayAddr)
 		}
 	} else {
@@ -100,7 +114,10 @@ func main() {
 	// the server starts serving — a single pass of local DB round-trips, not
 	// worth backgrounding — but a failure here is logged and never fatal:
 	// console-api must still come up even if revalidation itself errors.
-	if err := console.RevalidateAllPolicies(ctx, repos); err != nil {
+	revalidateCtx, revalidateCancel := context.WithTimeout(context.Background(), startupRevalidateTimeout)
+	err = console.RevalidateAllPolicies(revalidateCtx, repos)
+	revalidateCancel()
+	if err != nil {
 		slog.Error("revalidate policies at startup", "error", err)
 	} else {
 		slog.Info("revalidated all policies at startup")
@@ -112,7 +129,9 @@ func main() {
 		os.Exit(1)
 	}
 	ready := func() bool {
-		return sqlDB.PingContext(ctx) == nil
+		pingCtx, cancel := context.WithTimeout(context.Background(), readyzPingTimeout)
+		defer cancel()
+		return sqlDB.PingContext(pingCtx) == nil
 	}
 
 	h := &console.Handlers{Repos: repos, Discovery: disc, Gateway: gatewayClient}
