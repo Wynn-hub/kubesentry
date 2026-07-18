@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,22 +12,16 @@ import (
 	"google.golang.org/grpc/credentials"
 	gormpg "gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	admissionregv1 "k8s.io/api/admissionregistration/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/controller-runtime/pkg/cluster"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
-	"github.com/Wynn-hub/kubesentry/web"
 )
 
 func main() {
@@ -62,32 +55,15 @@ func main() {
 		Exceptions: dbrepo.NewExceptionRepo(db),
 	}
 
+	// console-api's k8s footprint is intentionally minimal: only a discovery
+	// client, kept for handlers_schema.go's OpenAPI field lookups. Every
+	// other handler is DB-backed (Task 9-11), so there is no cache to build
+	// or informers to run here anymore.
 	cfg, err := buildConfig()
 	if err != nil {
 		slog.Error("build kubeconfig", "error", err)
 		os.Exit(1)
 	}
-
-	scheme := runtime.NewScheme()
-	if err := v1alpha1.AddToScheme(scheme); err != nil {
-		slog.Error("add scheme", "error", err)
-		os.Exit(1)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		slog.Error("add corev1 scheme", "error", err)
-		os.Exit(1)
-	}
-	if err := admissionregv1.AddToScheme(scheme); err != nil {
-		slog.Error("add admissionregv1 scheme", "error", err)
-		os.Exit(1)
-	}
-
-	cl, err := cluster.New(cfg, func(o *cluster.Options) { o.Scheme = scheme })
-	if err != nil {
-		slog.Error("create cluster", "error", err)
-		os.Exit(1)
-	}
-
 	disc, err := discovery.NewDiscoveryClientForConfig(cfg)
 	if err != nil {
 		slog.Error("build discovery client", "error", err)
@@ -95,12 +71,6 @@ func main() {
 	}
 
 	ctx := context.Background()
-	go func() {
-		if err := cl.Start(ctx); err != nil {
-			slog.Error("start cache", "error", err)
-			os.Exit(1)
-		}
-	}()
 
 	// gatewayClient talks NotifyChange for the write handlers (Task 11) and
 	// backs the Connect registration loop below. Both are a soft
@@ -125,28 +95,28 @@ func main() {
 		slog.Info("GATEWAY_ADDRESS not set; console-api will not notify the gateway of writes")
 	}
 
-	readyCh := make(chan struct{})
-	go func() {
-		cl.GetCache().WaitForCacheSync(ctx)
-		close(readyCh)
-	}()
-	ready := func() bool {
-		select {
-		case <-readyCh:
-			return true
-		default:
-			return false
-		}
+	// Defense against someone editing the database directly, bypassing the
+	// API's synchronous Rego validation (spec D8). Runs synchronously before
+	// the server starts serving — a single pass of local DB round-trips, not
+	// worth backgrounding — but a failure here is logged and never fatal:
+	// console-api must still come up even if revalidation itself errors.
+	if err := console.RevalidateAllPolicies(ctx, repos); err != nil {
+		slog.Error("revalidate policies at startup", "error", err)
+	} else {
+		slog.Info("revalidated all policies at startup")
 	}
 
-	dist, err := fs.Sub(web.DistFS, "dist")
+	sqlDB, err := db.DB()
 	if err != nil {
-		slog.Error("sub dist fs", "error", err)
+		slog.Error("get underlying sql.DB for readiness check", "error", err)
 		os.Exit(1)
+	}
+	ready := func() bool {
+		return sqlDB.PingContext(ctx) == nil
 	}
 
 	h := &console.Handlers{Repos: repos, Discovery: disc, Gateway: gatewayClient}
-	srv := console.NewServer(h, dist, ready)
+	srv := console.NewServer(h, ready)
 
 	slog.Info("console listening", "addr", addr)
 	if err := http.ListenAndServe(addr, srv.Handler); err != nil {

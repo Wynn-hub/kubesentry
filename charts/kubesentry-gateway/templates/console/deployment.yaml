@@ -16,9 +16,9 @@ spec:
     spec:
       serviceAccountName: kubesentry-console
       containers:
-        - name: console
-          image: "{{ .Values.console.image.repository }}:{{ .Values.console.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.console.image.pullPolicy }}
+        - name: web
+          image: "{{ .Values.console.webImage.repository }}:{{ .Values.console.webImage.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.console.webImage.pullPolicy }}
           ports:
             - containerPort: 8080
           livenessProbe:
@@ -27,8 +27,37 @@ spec:
               port: 8080
           readinessProbe:
             httpGet:
-              path: /readyz
+              path: /healthz
               port: 8080
+          resources:
+            {{- toYaml .Values.console.webResources | nindent 12 }}
+        - name: api
+          image: "{{ .Values.console.image.repository }}:{{ .Values.console.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.console.image.pullPolicy }}
+          ports:
+            - containerPort: 8081
+          env:
+            - name: CONSOLE_ADDR
+              value: ":8081"
+            - name: GATEWAY_ADDRESS
+              value: "kubesentry-gateway.{{ .Values.namespace }}.svc:{{ .Values.gateway.grpc.port }}"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DATABASE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: kubesentry-postgres-credentials
+                  key: dsn
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
           resources:
             {{- toYaml .Values.console.resources | nindent 12 }}
 {{- end }}

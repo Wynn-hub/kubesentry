@@ -5,7 +5,6 @@ import (
 	"context"
 	"net/http"
 	"testing"
-	"testing/fstest"
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -75,7 +74,7 @@ func newDBTestServer(t *testing.T) (http.Handler, gateway.Repos) {
 	t.Helper()
 	repos := dbRepos(t)
 	h := &Handlers{Repos: repos}
-	srv := NewServer(h, fstest.MapFS{}, func() bool { return true })
+	srv := NewServer(h, func() bool { return true })
 	return srv.Handler, repos
 }
 
@@ -87,6 +86,6 @@ func newDBTestServerWithHandlers(t *testing.T) (http.Handler, gateway.Repos, *Ha
 	t.Helper()
 	repos := dbRepos(t)
 	h := &Handlers{Repos: repos}
-	srv := NewServer(h, fstest.MapFS{}, func() bool { return true })
+	srv := NewServer(h, func() bool { return true })
 	return srv.Handler, repos, h
 }

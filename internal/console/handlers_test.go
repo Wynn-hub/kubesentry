@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"testing/fstest"
 )
 
 // validRego is a minimal v0-syntax module satisfying the kubesentry contract.
@@ -28,7 +27,7 @@ type testEnvelope struct {
 // swapped for a fake in tests rather than backed by Repos/Discovery).
 func newTestServer(t *testing.T) http.Handler {
 	t.Helper()
-	srv := NewServer(&Handlers{}, fstest.MapFS{}, func() bool { return true })
+	srv := NewServer(&Handlers{}, func() bool { return true })
 	return srv.Handler
 }
 
@@ -38,7 +37,7 @@ func newTestServer(t *testing.T) http.Handler {
 func newTestServerWithHandlers(t *testing.T) (http.Handler, *Handlers) {
 	t.Helper()
 	h := &Handlers{}
-	srv := NewServer(h, fstest.MapFS{}, func() bool { return true })
+	srv := NewServer(h, func() bool { return true })
 	return srv.Handler, h
 }
 

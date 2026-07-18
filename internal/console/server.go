@@ -1,8 +1,6 @@
 package console
 
 import (
-	"io"
-	"io/fs"
 	"net/http"
 	"strings"
 	"sync"
@@ -58,12 +56,18 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/schema/fields", h.getFieldSchema)
 }
 
-// Server is the console HTTP server (plain HTTP; accessed via port-forward).
+// Server is the console HTTP server (plain HTTP; accessed via port-forward,
+// or fronted by the nginx `web` container which proxies /api/* and /healthz
+// here and serves the built SPA itself — see charts/kubesentry-gateway/console).
 type Server struct {
 	Handler http.Handler
 }
 
-func NewServer(h *Handlers, dist fs.FS, ready func() bool) *Server {
+// NewServer wires the REST API only; the SPA is served by a separate nginx
+// container (see charts/kubesentry-gateway/console/{Dockerfile.web,nginx.conf}).
+// ready reports whether console-api's dependencies (currently: the database)
+// are reachable; nil always reports ready.
+func NewServer(h *Handlers, ready func() bool) *Server {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -79,33 +83,18 @@ func NewServer(h *Handlers, dist fs.FS, ready func() bool) *Server {
 
 	h.Register(mux)
 
-	mux.Handle("/", spaHandler(dist))
-	return &Server{Handler: mux}
-}
-
-// spaHandler serves the embedded SPA: real files as-is, unknown non-API
-// paths fall back to index.html (history routing), unknown API paths 404.
-func spaHandler(dist fs.FS) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// The nginx `web` container only proxies /healthz and /api/* here (see
+	// charts/kubesentry-gateway/console/nginx.conf); anything else served by
+	// this process directly (e.g. port-forward during dev) is an unmatched
+	// API route, so keep the same JSON error envelope other handlers use
+	// rather than falling back to ServeMux's plain-text 404.
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			writeErr(w, http.StatusNotFound, "unknown API route")
 			return
 		}
-		name := strings.TrimPrefix(r.URL.Path, "/")
-		if name != "" && name != "index.html" {
-			if f, err := dist.Open(name); err == nil {
-				_ = f.Close()
-				http.FileServerFS(dist).ServeHTTP(w, r)
-				return
-			}
-		}
-		idx, err := dist.Open("index.html")
-		if err != nil {
-			http.Error(w, "console UI not built", http.StatusServiceUnavailable)
-			return
-		}
-		defer idx.Close()
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.Copy(w, idx)
+		http.NotFound(w, r)
 	})
+
+	return &Server{Handler: mux}
 }

@@ -27,8 +27,15 @@ gateway:
 console:
   enabled: true
   replicas: 1
+  # api container: the Go REST API only (no embedded frontend, Task 13).
   image:
     repository: wynnhub/kubesentry-console
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  # web container: nginx serving the built Vue SPA, proxying /api/* and
+  # /healthz to the api container over localhost within the same pod.
+  webImage:
+    repository: wynnhub/kubesentry-console-web
     tag: "latest"
     pullPolicy: IfNotPresent
   service:
@@ -42,6 +49,13 @@ console:
     limits:
       cpu: 200m
       memory: 128Mi
+  webResources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
 
 tls:
   secretName: kubesentry-gateway-tls
