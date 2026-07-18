@@ -7,21 +7,19 @@ import (
 	"strings"
 	"sync"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
 // Handlers holds dependencies shared by all API handlers.
 type Handlers struct {
-	// Repos is the GORM data-access layer backing the policy/group/exception
-	// handlers (this task). Client is still used by handlers_summary.go /
-	// handlers_schema.go, which have not been converted yet — see Task 10.
+	// Repos is the GORM data-access layer backing the policy/group/exception/
+	// summary handlers (Task 9 + Task 10). Discovery is still used by
+	// handlers_schema.go, the one remaining handler that legitimately talks
+	// to a live cluster (OpenAPI field schema for the visual policy builder)
+	// rather than the database — out of scope for this task.
 	Repos         gateway.Repos
-	Client        client.Client
 	Discovery     discoveryInterface
 	SchemaFetcher schemaFetcher // optional override for tests; nil uses discoverySchemaFetcher
-	VWCName       string        // ValidatingWebhookConfiguration 名称；空值时用默认 "kubesentry"
 
 	schemaCacheOnce sync.Once
 	schemaCacheMap  *sync.Map

@@ -18,7 +18,7 @@ func (f *fakeSchemaFetcher) FieldsFor(group, version, resource string) ([]FieldN
 }
 
 func TestGetFieldSchema_MissingParams(t *testing.T) {
-	h, _ := newTestServer(t)
+	h := newTestServer(t)
 	rec, env := doRequest(t, h, "GET", "/api/v1/schema/fields?group=apps", nil)
 	if rec.Code != 400 || env.Success {
 		t.Fatalf("code=%d env=%+v, want 400", rec.Code, env)

@@ -35,10 +35,10 @@ func main() {
 		addr = ":8080"
 	}
 
-	// Policy/PolicyGroup/PolicyException handlers read/write the same
-	// Postgres store as cmd/gateway (task 9: console-api GORM handlers).
-	// Discovery/VWCName below still talk to the live cluster for the
-	// summary/schema handlers, which haven't been converted yet (Task 10).
+	// Policy/PolicyGroup/PolicyException/summary handlers read/write the
+	// same Postgres store as cmd/gateway (Task 9 + Task 10: console-api
+	// GORM handlers). Discovery below still talks to the live cluster only
+	// for handlers_schema.go's OpenAPI field lookups.
 	dsn := os.Getenv("DATABASE_DSN")
 	if dsn == "" {
 		slog.Error("DATABASE_DSN is required")
@@ -119,7 +119,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	h := &console.Handlers{Repos: repos, Client: cl.GetClient(), Discovery: disc, VWCName: os.Getenv("VWC_NAME")}
+	h := &console.Handlers{Repos: repos, Discovery: disc}
 	srv := console.NewServer(h, dist, ready)
 
 	slog.Info("console listening", "addr", addr)
