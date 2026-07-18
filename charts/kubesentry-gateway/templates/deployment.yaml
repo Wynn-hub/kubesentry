@@ -38,6 +38,15 @@ spec:
               value: {{ .Values.tls.secretName }}
             - name: TLS_DNS_NAME
               value: "kubesentry-gateway.{{ .Values.namespace }}.svc"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DATABASE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: kubesentry-postgres-credentials
+                  key: dsn
           # Plain HTTP, not the grpc probe type: the gRPC listener is
           # TLS-only, and Kubernetes' native `grpc` probe always dials in
           # plaintext, so it can never complete a handshake against it.

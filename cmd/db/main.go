@@ -2,9 +2,12 @@
 package main
 
 import (
+	"database/sql"
 	"log/slog"
 	"os"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
@@ -33,17 +36,43 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := waitForConnection(dsn); err != nil {
+		slog.Error("db unreachable", "error", err)
+		os.Exit(1)
+	}
+
+	// Connection is reachable — a migrate failure past this point is a real
+	// problem (bad migration state, permissions, etc.), not a "still
+	// starting up" transient. Fail fast, no retry.
+	if err := dbmigrate.Migrate(dsn); err != nil {
+		slog.Error("migrate", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("migration complete")
+}
+
+// waitForConnection retries a lightweight ping until Postgres accepts
+// connections, up to migrateRetryAttempts. This only proves the server is
+// reachable and the DSN is well-formed — it does not run any migrations.
+func waitForConnection(dsn string) error {
 	var err error
 	for attempt := 1; attempt <= migrateRetryAttempts; attempt++ {
-		if err = dbmigrate.Migrate(dsn); err == nil {
-			slog.Info("migration complete")
-			return
+		if err = ping(dsn); err == nil {
+			return nil
 		}
 		if attempt < migrateRetryAttempts {
-			slog.Warn("migrate attempt failed, retrying", "attempt", attempt, "error", err)
+			slog.Warn("db connection attempt failed, retrying", "attempt", attempt, "error", err)
 			time.Sleep(migrateRetryDelay)
 		}
 	}
-	slog.Error("migrate", "error", err)
-	os.Exit(1)
+	return err
+}
+
+func ping(dsn string) error {
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	return db.Ping()
 }
