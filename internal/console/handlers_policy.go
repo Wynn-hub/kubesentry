@@ -254,6 +254,7 @@ func (h *Handlers) createPolicy(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	h.notifyChange(r, "policy")
 	writeOK(w, map[string]string{"name": p.Name})
 }
 
@@ -361,6 +362,7 @@ func (h *Handlers) updatePolicy(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
 		return
 	}
+	h.notifyChange(r, "policy")
 	writeOK(w, map[string]string{"name": p.Name})
 }
 
@@ -436,6 +438,7 @@ func (h *Handlers) deletePolicy(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "delete policy: "+err.Error())
 		return
 	}
+	h.notifyChange(r, "policy")
 	writeOK(w, nil)
 }
 
@@ -571,6 +574,7 @@ func (h *Handlers) rollbackPolicy(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "update policy: "+err.Error())
 		return
 	}
+	h.notifyChange(r, "policy")
 	writeOK(w, map[string]int{"restoredFromVersion": target, "newVersion": newVersion})
 }
 

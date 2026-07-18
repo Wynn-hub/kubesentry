@@ -121,6 +121,7 @@ func (h *Handlers) createGroup(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	h.notifyChange(r, "group")
 	writeOK(w, map[string]string{"name": g.Name})
 }
 
@@ -155,6 +156,7 @@ func (h *Handlers) updateGroup(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "update policygroup: "+err.Error())
 		return
 	}
+	h.notifyChange(r, "group")
 	writeOK(w, map[string]string{"name": g.Name})
 }
 
@@ -191,6 +193,7 @@ func (h *Handlers) setGroupEnabled(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusInternalServerError, "update policygroup: "+err.Error())
 			return
 		}
+		h.notifyChange(r, "group")
 	}
 	writeOK(w, map[string]bool{"enabled": *req.Enabled})
 }
@@ -208,5 +211,6 @@ func (h *Handlers) deleteGroup(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "delete policygroup: "+err.Error())
 		return
 	}
+	h.notifyChange(r, "group")
 	writeOK(w, nil)
 }

@@ -78,3 +78,15 @@ func newDBTestServer(t *testing.T) (http.Handler, gateway.Repos) {
 	srv := NewServer(h, fstest.MapFS{}, func() bool { return true })
 	return srv.Handler, repos
 }
+
+// newDBTestServerWithHandlers is like newDBTestServer but also returns the
+// *Handlers, so a test can set h.Gateway (e.g. to a fakeHubClient) before
+// issuing requests — used to verify NotifyChange best-effort wiring (Task
+// 11) without needing a real gateway.
+func newDBTestServerWithHandlers(t *testing.T) (http.Handler, gateway.Repos, *Handlers) {
+	t.Helper()
+	repos := dbRepos(t)
+	h := &Handlers{Repos: repos}
+	srv := NewServer(h, fstest.MapFS{}, func() bool { return true })
+	return srv.Handler, repos, h
+}

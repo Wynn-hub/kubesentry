@@ -101,6 +101,7 @@ message ConnectRequest {
 
 message NotifyChangeRequest {
   string topic = 1;
+  string trace_id = 3; // spec D18 correlation id; console-api sets this, gateway just logs it for now
 }
 
 message NotifyChangeResponse {}

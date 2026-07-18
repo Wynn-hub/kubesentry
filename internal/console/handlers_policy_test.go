@@ -187,6 +187,40 @@ func TestCreatePolicy(t *testing.T) {
 	}
 }
 
+// TestCreatePolicyNotifiesGatewayOnSuccess verifies the write handler calls
+// NotifyChange with the "policy" topic after a successful commit (Task 11).
+func TestCreatePolicyNotifiesGatewayOnSuccess(t *testing.T) {
+	h, _, handlers := newDBTestServerWithHandlers(t)
+	fake := &fakeHubClient{}
+	handlers.Gateway = fake
+
+	rec, env := doRequest(t, h, "POST", "/api/v1/policies", validReq())
+	if rec.Code != 200 || !env.Success {
+		t.Fatalf("code=%d env=%+v", rec.Code, env)
+	}
+	topics, _ := fake.calls()
+	if len(topics) != 1 || topics[0] != "policy" {
+		t.Fatalf("NotifyChange topics = %v, want [policy]", topics)
+	}
+}
+
+// TestCreatePolicySucceedsWhenGatewayNotifyFails is the core best-effort
+// guarantee: a failing gRPC NotifyChange call must never fail the HTTP
+// request or leave the DB write unrolled-back — the 60s gateway resync is
+// the documented fallback (spec D12).
+func TestCreatePolicySucceedsWhenGatewayNotifyFails(t *testing.T) {
+	h, repos, handlers := newDBTestServerWithHandlers(t)
+	handlers.Gateway = &fakeHubClient{notifyChangeErr: context.DeadlineExceeded}
+
+	rec, env := doRequest(t, h, "POST", "/api/v1/policies", validReq())
+	if rec.Code != 200 || !env.Success {
+		t.Fatalf("code=%d env=%+v, want a successful response despite gateway failure", rec.Code, env)
+	}
+	if _, err := repos.Policies.GetByName(t.Context(), "my-policy"); err != nil {
+		t.Fatalf("policy row missing despite successful response: %v", err)
+	}
+}
+
 func TestCreatePolicyDuplicate(t *testing.T) {
 	h, repos := newDBTestServer(t)
 	seedPolicy(t, repos, "my-policy", "audit")

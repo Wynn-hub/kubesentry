@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	gormpg "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
@@ -24,6 +26,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
 	"github.com/Wynn-hub/kubesentry/web"
 )
@@ -99,6 +102,29 @@ func main() {
 		}
 	}()
 
+	// gatewayClient talks NotifyChange for the write handlers (Task 11) and
+	// backs the Connect registration loop below. Both are a soft
+	// dependency — GATEWAY_ADDRESS unset, or any dial-time setup error,
+	// just leaves gatewayClient nil; console-api's REST API must keep
+	// working either way (see console.Handlers.Gateway).
+	var gatewayClient gatewaypb.HubClient
+	if gatewayAddr := os.Getenv("GATEWAY_ADDRESS"); gatewayAddr != "" {
+		creds, err := credentials.NewClientTLSFromFile(
+			envOrDefault("GATEWAY_CA_FILE", "/etc/kubesentry/gateway-ca/ca.crt"),
+			os.Getenv("GATEWAY_TLS_SERVER_NAME"))
+		if err != nil {
+			slog.Error("load gateway ca, continuing without gateway link", "error", err)
+		} else if conn, err := grpc.NewClient(gatewayAddr, grpc.WithTransportCredentials(creds)); err != nil {
+			slog.Error("dial gateway, continuing without gateway link", "error", err)
+		} else {
+			gatewayClient = gatewaypb.NewHubClient(conn)
+			go console.RunGatewayLink(ctx, gatewayClient, "console-api", os.Getenv("GATEWAY_SHARED_TOKEN"))
+			slog.Info("gateway link enabled", "gateway", gatewayAddr)
+		}
+	} else {
+		slog.Info("GATEWAY_ADDRESS not set; console-api will not notify the gateway of writes")
+	}
+
 	readyCh := make(chan struct{})
 	go func() {
 		cl.GetCache().WaitForCacheSync(ctx)
@@ -119,7 +145,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	h := &console.Handlers{Repos: repos, Discovery: disc}
+	h := &console.Handlers{Repos: repos, Discovery: disc, Gateway: gatewayClient}
 	srv := console.NewServer(h, dist, ready)
 
 	slog.Info("console listening", "addr", addr)
@@ -127,6 +153,13 @@ func main() {
 		slog.Error("serve", "error", err)
 		os.Exit(1)
 	}
+}
+
+func envOrDefault(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
 }
 
 func buildConfig() (*rest.Config, error) {

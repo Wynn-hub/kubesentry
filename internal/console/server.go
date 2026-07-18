@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
 // Handlers holds dependencies shared by all API handlers.
@@ -20,6 +21,12 @@ type Handlers struct {
 	Repos         gateway.Repos
 	Discovery     discoveryInterface
 	SchemaFetcher schemaFetcher // optional override for tests; nil uses discoverySchemaFetcher
+
+	// Gateway is the gRPC client used to notify the gateway of writes (see
+	// notifyChange in traceid.go) so its pushLoop wakes without waiting for
+	// the 60s resync fallback. nil when GATEWAY_ADDRESS wasn't configured at
+	// startup — every write handler must tolerate that (soft dependency).
+	Gateway gatewaypb.HubClient
 
 	schemaCacheOnce sync.Once
 	schemaCacheMap  *sync.Map

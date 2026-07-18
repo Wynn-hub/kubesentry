@@ -178,6 +178,7 @@ func (h *Handlers) createException(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	h.notifyChange(r, "exception")
 	writeOK(w, map[string]string{"name": e.Name})
 }
 
@@ -221,6 +222,7 @@ func (h *Handlers) updateException(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "update exception: "+err.Error())
 		return
 	}
+	h.notifyChange(r, "exception")
 	writeOK(w, map[string]string{"name": e.Name})
 }
 
@@ -233,5 +235,6 @@ func (h *Handlers) deleteException(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "delete exception: "+err.Error())
 		return
 	}
+	h.notifyChange(r, "exception")
 	writeOK(w, nil)
 }

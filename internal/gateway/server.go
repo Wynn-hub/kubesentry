@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -363,6 +364,11 @@ func firstMD(md metadata.MD, key string) string {
 // snapshot. No target/topic-based filtering — every session re-renders and
 // only actually resends if its own content hash changed.
 func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRequest) (*gatewaypb.NotifyChangeResponse, error) {
+	// trace_id isn't propagated any further than this log line yet (spec
+	// D18) — wiring it through DesiredState/ManagedObject to the member CR
+	// is a later task's job; this just makes sure the field is received and
+	// visible instead of silently dropped.
+	slog.Info("notify change", "topic", req.Topic, "trace_id", req.TraceId)
 	s.changes.Notify()
 	return &gatewaypb.NotifyChangeResponse{}, nil
 }
