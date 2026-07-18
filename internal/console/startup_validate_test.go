@@ -2,9 +2,11 @@ package console
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
 func TestRevalidateAllPoliciesFlagsBrokenRego(t *testing.T) {
@@ -78,5 +80,69 @@ func TestRevalidateAllPoliciesRecoversFixedPolicy(t *testing.T) {
 	}
 	if got.CompileError != "" {
 		t.Errorf("expected compile_error cleared, got %q", got.CompileError)
+	}
+}
+
+// TestRevalidateAllPoliciesContinuesPastUpdateFailure proves the pass no
+// longer fail-fasts on the first DB write error: one row's Update is forced
+// to fail via a real Postgres trigger (simulating lock contention / a bad
+// row), and every other policy must still be revalidated and persisted, with
+// the failing row's name surfaced in the returned aggregate error.
+func TestRevalidateAllPoliciesContinuesPastUpdateFailure(t *testing.T) {
+	db := newTestDB(t)
+	repos := gateway.Repos{Policies: dbrepo.NewPolicyRepo(db)}
+	ctx := context.Background()
+
+	victim := &dbrepo.Policy{Name: "victim", Rego: "package kubesentry\ndeny[msg]{false;msg:=\"x\"}", CompileOK: true}
+	okPeer := &dbrepo.Policy{Name: "ok-peer", Rego: "package kubesentry\ndeny[msg]{false;msg:=\"x\"}", CompileOK: true}
+	badPeer := &dbrepo.Policy{Name: "bad-peer", Rego: "not valid rego {{{", CompileOK: true}
+	for _, p := range []*dbrepo.Policy{victim, okPeer, badPeer} {
+		if err := repos.Policies.Create(ctx, p); err != nil {
+			t.Fatalf("create %s: %v", p.Name, err)
+		}
+	}
+
+	// Force every UPDATE on the "victim" row to fail at the DB level, like a
+	// transient write failure (lock contention, one bad row) would.
+	installErr := db.Exec(`
+		CREATE OR REPLACE FUNCTION kubesentry.fail_victim_update() RETURNS trigger AS $$
+		BEGIN
+			IF NEW.name = 'victim' THEN
+				RAISE EXCEPTION 'simulated write failure for %', NEW.name;
+			END IF;
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+		CREATE TRIGGER fail_victim_update BEFORE UPDATE ON kubesentry.policies
+		FOR EACH ROW EXECUTE FUNCTION kubesentry.fail_victim_update();
+	`).Error
+	if installErr != nil {
+		t.Fatalf("install failing trigger: %v", installErr)
+	}
+
+	err := RevalidateAllPolicies(ctx, repos)
+	if err == nil {
+		t.Fatal("expected a non-nil aggregate error from the failing update")
+	}
+	if !strings.Contains(err.Error(), "victim") {
+		t.Errorf("expected aggregate error to mention the failing policy name, got: %v", err)
+	}
+
+	// The peers must have been revalidated and persisted despite the victim
+	// row's write failure — proving the scan did not abort early.
+	gotOK, err := repos.Policies.GetByName(ctx, "ok-peer")
+	if err != nil {
+		t.Fatalf("get ok-peer: %v", err)
+	}
+	if !gotOK.CompileOK || gotOK.CompileError != "" {
+		t.Errorf("expected ok-peer revalidated as compile_ok=true, got ok=%v err=%q", gotOK.CompileOK, gotOK.CompileError)
+	}
+
+	gotBad, err := repos.Policies.GetByName(ctx, "bad-peer")
+	if err != nil {
+		t.Fatalf("get bad-peer: %v", err)
+	}
+	if gotBad.CompileOK || gotBad.CompileError == "" {
+		t.Errorf("expected bad-peer flagged compile_ok=false with an error, got ok=%v err=%q", gotBad.CompileOK, gotBad.CompileError)
 	}
 }

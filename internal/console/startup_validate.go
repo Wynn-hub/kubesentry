@@ -6,6 +6,7 @@ package console
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
@@ -17,6 +18,7 @@ func RevalidateAllPolicies(ctx context.Context, repos gateway.Repos) error {
 	if err != nil {
 		return fmt.Errorf("list policies for revalidation: %w", err)
 	}
+	var errs []error
 	for i := range policies {
 		p := &policies[i]
 		_, compileErr := webhook.CompileRego(p.Rego)
@@ -27,8 +29,9 @@ func RevalidateAllPolicies(ctx context.Context, repos gateway.Repos) error {
 			p.CompileError = ""
 		}
 		if err := repos.Policies.Update(ctx, p); err != nil {
-			return fmt.Errorf("update policy %q after revalidation: %w", p.Name, err)
+			errs = append(errs, fmt.Errorf("update policy %q after revalidation: %w", p.Name, err))
+			continue
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
