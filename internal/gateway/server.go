@@ -268,6 +268,12 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 	ticker := time.NewTicker(pushResync)
 	defer ticker.Stop()
 	forceSend := false
+	// wokeByNotify records whether the *previous* iteration's select woke via
+	// waitCh (a genuine Notify/NotifyWithTrace event) rather than ticker.C
+	// (resync fallback) or the implicit first pass (initial connect send).
+	// Only a waitCh-driven wakeup that also has a real content change earns
+	// a trace_id — see the gating below.
+	wokeByNotify := false
 	for {
 		// Capture the wait channel before doing any work this iteration: a
 		// Notify() firing anytime during render/send/markPushed below must
@@ -275,18 +281,28 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 		// close-and-replace broadcast only wakes waiters registered before
 		// the Notify() call, so capturing after the work would lose it.
 		waitCh := s.changes.Wait()
-		// consumeTraceID drains whatever NotifyChange stashed since the
-		// last consume: it belongs to this iteration because it's what
-		// just woke the previous iteration's select on waitCh (or was set
-		// before the loop's very first pass). A ticker-driven wake never
-		// stashes anything, so this is "" then — the resync fallback path
-		// never carries a stale trace_id.
-		traceID := s.changes.consumeTraceID()
+		// Non-destructive peek: every connected cluster's pushLoop goroutine
+		// wakes on the same Notify() and sees the same stashed value here.
+		// Which ones actually attach it to their outgoing DesiredState is
+		// decided per-goroutine below, based on whether THIS cluster has a
+		// real content change to send this iteration.
+		traceID := s.changes.lastTraceID()
 		if res, err := s.renderFor(ctx, cluster); err == nil {
 			last, has := sess.last()
-			if !has || last.Hash != res.Hash || forceSend {
+			changed := !has || last.Hash != res.Hash
+			if changed || forceSend {
+				sendTraceID := ""
+				// Only attach the trace_id when this wakeup was a genuine
+				// Notify (not the ticker resync, not the initial connect
+				// send) AND this cluster actually has a content change to
+				// report — a ticker-forced resend of an unchanged hash, or
+				// another cluster's unrelated hash change, must never carry
+				// a trace_id that belongs to a different trigger.
+				if wokeByNotify && changed {
+					sendTraceID = traceID
+				}
 				if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_DesiredState{
-					DesiredState: &gatewaypb.DesiredState{VersionHash: res.Hash, Objects: ToProto(res.Objects), TraceId: traceID},
+					DesiredState: &gatewaypb.DesiredState{VersionHash: res.Hash, Objects: ToProto(res.Objects), TraceId: sendTraceID},
 				}}); err != nil {
 					return // stream already broken; recv loop will wind down too
 				}
@@ -295,10 +311,12 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 			s.markPushed(ctx, cluster, res)
 		}
 		forceSend = false
+		wokeByNotify = false
 		select {
 		case <-ctx.Done():
 			return
 		case <-waitCh:
+			wokeByNotify = true
 		case <-ticker.C:
 			// pushResync fallback: force a resend even if the render hash is
 			// unchanged, so member-side drift on managed objects (which never
@@ -372,7 +390,7 @@ func firstMD(md metadata.MD, key string) string {
 // only actually resends if its own content hash changed.
 func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRequest) (*gatewaypb.NotifyChangeResponse, error) {
 	// req.TraceId rides along to the next pushLoop-sent DesiredState (spec
-	// D18) via Notifier.NotifyWithTrace/consumeTraceID, and from there gets
+	// D18) via Notifier.NotifyWithTrace/lastTraceID, and from there gets
 	// written as the kubesentry.io/last-trace-id annotation on the member
 	// CRs the operator applies (internal/operator/hublink/apply.go).
 	slog.Info("notify change", "topic", req.Topic, "trace_id", req.TraceId)

@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -190,6 +191,155 @@ func TestPushLoopIncludesTraceIDFromNotifyChange(t *testing.T) {
 			t.Fatalf("ticker-driven resync trace_id = %q, want empty", tick.TraceId)
 		}
 	})
+}
+
+// dsReader forwards every DesiredState frame off a Sync stream into a
+// buffered channel via a single dedicated background reader goroutine.
+// Needed here (rather than reusing recvDesiredState per-call) because the
+// multi-cluster test below must repeatedly check "no frame arrived" on one
+// stream while frames are actively expected on another — spawning a fresh
+// goroutine calling stream.Recv() per check would leave prior calls' Recv
+// still blocked, and grpc-go does not allow concurrent RecvMsg calls on the
+// same stream.
+type dsReader struct {
+	ch chan *gatewaypb.DesiredState
+}
+
+func newDSReader(stream gatewaypb.Hub_SyncClient) *dsReader {
+	r := &dsReader{ch: make(chan *gatewaypb.DesiredState, 16)}
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err != nil {
+				close(r.ch)
+				return
+			}
+			if ds := msg.GetDesiredState(); ds != nil {
+				r.ch <- ds
+			}
+		}
+	}()
+	return r
+}
+
+func (r *dsReader) recv(t *testing.T, timeout time.Duration) *gatewaypb.DesiredState {
+	t.Helper()
+	select {
+	case ds, ok := <-r.ch:
+		if !ok {
+			t.Fatal("stream closed while waiting for DesiredState")
+		}
+		return ds
+	case <-time.After(timeout):
+		t.Fatal("no DesiredState received")
+		return nil
+	}
+}
+
+func (r *dsReader) expectNone(t *testing.T, timeout time.Duration) {
+	t.Helper()
+	select {
+	case ds, ok := <-r.ch:
+		if ok {
+			t.Fatalf("unexpected DesiredState received on unaffected cluster's stream: %+v", ds)
+		}
+	case <-time.After(timeout):
+	}
+}
+
+// TestNotifyChangeTraceIDGoesToTheClusterThatActuallyChanged reproduces the
+// multi-cluster fan-out race: Notifier.Notify() broadcasts to every
+// connected cluster's pushLoop goroutine at once, but only ONE of them
+// (cluster-a or cluster-b, alternating each iteration) actually has a
+// content change to send. Before the fix, a single read-then-clear
+// consumeTraceID() meant whichever goroutine won the mutex race got the
+// trace_id — sometimes the unaffected cluster (which then had nothing to
+// send, silently dropping the trace_id), sometimes correctly the affected
+// one, entirely up to goroutine scheduling. The fix makes this deterministic:
+// every goroutine peeks the same stashed value and only attaches it when
+// its OWN render hash changed. Alternating which cluster is "the changed
+// one" across iterations means any scheduler bias toward one cluster's
+// goroutine winning a would-be race is still caught — on the iterations
+// where the biased winner isn't the actually-changed cluster, the old
+// behavior would have misattributed or dropped the trace_id.
+func TestNotifyChangeTraceIDGoesToTheClusterThatActuallyChanged(t *testing.T) {
+	repos := newTestRepos(t)
+	ctx := context.Background()
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "cluster-a", AuthTokenHash: HashToken("tok-a"), ClusterUID: "ua"})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "cluster-b", AuthTokenHash: HashToken("tok-b"), ClusterUID: "ub"})
+
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
+
+	connect := func(cluster, tok string) gatewaypb.Hub_SyncClient {
+		sctx := metadata.AppendToOutgoingContext(context.Background(),
+			MDClusterKey, cluster, MDAuthKey, "Bearer "+tok)
+		stream, err := client.Sync(sctx)
+		if err != nil {
+			t.Fatalf("connect %s: %v", cluster, err)
+		}
+		return stream
+	}
+	streamA := connect("cluster-a", "tok-a")
+	streamB := connect("cluster-b", "tok-b")
+	readerA := newDSReader(streamA)
+	readerB := newDSReader(streamB)
+
+	// Drain the initial connect-triggered push on both — never carries a
+	// trace_id and isn't part of what this test is checking.
+	readerA.recv(t, 3*time.Second)
+	readerB.recv(t, 3*time.Second)
+
+	readers := map[string]*dsReader{"cluster-a": readerA, "cluster-b": readerB}
+	targets := []string{"cluster-a", "cluster-b"}
+
+	const iterations = 8
+	for i := 0; i < iterations; i++ {
+		target := targets[i%2]
+		other := targets[(i+1)%2]
+
+		// Unique policy/group/distribution names per iteration: Render dedupes
+		// objects by policy/group name, so re-targeting the same names would
+		// leave the target's hash unchanged and the test wouldn't exercise a
+		// real content change on this iteration.
+		pname := fmt.Sprintf("p-%d", i)
+		gname := fmt.Sprintf("g-%d", i)
+		dname := fmt.Sprintf("d-%d", i)
+		if err := repos.Policies.Create(ctx, &dbrepo.Policy{Name: pname, EnforcementMode: v1alpha1.ModeAudit}); err != nil {
+			t.Fatal(err)
+		}
+		if err := repos.Groups.Create(ctx, &dbrepo.PolicyGroup{
+			Name: gname,
+			Spec: datatypes.NewJSONType(v1alpha1.PolicyGroupSpec{
+				Enabled:  true,
+				Policies: v1alpha1.PolicyGroupPolicies{ByName: []v1alpha1.PolicyRef{{Name: pname}}},
+			}),
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := repos.Distributions.Create(ctx, &dbrepo.PolicyDistribution{
+			Name: dname,
+			Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
+				Clusters:     v1alpha1.DistributionClusters{ByName: []string{target}},
+				PolicyGroups: []string{gname},
+			}),
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		traceID := fmt.Sprintf("trace-%d", i)
+		if _, err := client.NotifyChange(ctx, &gatewaypb.NotifyChangeRequest{TraceId: traceID}); err != nil {
+			t.Fatal(err)
+		}
+
+		ds := readers[target].recv(t, 3*time.Second)
+		if ds.TraceId != traceID {
+			t.Fatalf("iter %d: target %s trace_id = %q, want %q", i, target, ds.TraceId, traceID)
+		}
+		// The unaffected cluster's hash didn't change, so it must not send
+		// a frame at all — and critically, it must not have stolen the
+		// trace_id in the process (verified above: the target got it).
+		readers[other].expectNone(t, 500*time.Millisecond)
+	}
 }
 
 func TestReRegisterSameUIDRotatesToken(t *testing.T) {
