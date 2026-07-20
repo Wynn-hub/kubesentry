@@ -1,0 +1,27 @@
+# Helm does not delete hook resources on `helm uninstall` — only on the next
+# hook trigger within the SAME release, via `before-hook-creation`
+# (db-migrate-job.yaml). Without this, `kubesentry-db-migrate` (and its
+# terminated Pod) survives every uninstall as an orphan. This is a separate
+# `pre-delete` hook — deliberately NOT `hook-succeeded` on the migrate Job
+# itself, which would race the gateway Deployment's `wait-for-migration`
+# initContainer (a Job deleted the instant it completes can vanish before
+# that `kubectl wait` call ever observes condition=complete, and the
+# initContainer's retry loop treats "not found" the same as "not done yet",
+# hanging forever on a fresh install).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubesentry-db-migrate-cleanup
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      serviceAccountName: kubesentry-gateway
+      restartPolicy: Never
+      containers:
+        - name: cleanup
+          image: "alpine/k8s:1.31.0"
+          command: ["kubectl", "delete", "job", "kubesentry-db-migrate", "-n", "{{ .Values.namespace }}", "--ignore-not-found"]

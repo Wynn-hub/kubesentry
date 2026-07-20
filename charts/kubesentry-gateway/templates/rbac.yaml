@@ -20,10 +20,14 @@ rules:
     resources: [events]
     verbs: [create, patch]
   # initContainer wait-for-migration polls this Job's status via `kubectl
-  # wait` before the gateway container starts (spec D17).
+  # wait` before the gateway container starts (spec D17). `delete` is for
+  # the pre-delete cleanup hook (db-migrate-cleanup-job.yaml) — `helm
+  # uninstall` does not remove hook resources on its own, so without this
+  # the migrate Job (and its terminated Pod) is orphaned in the namespace
+  # after every uninstall.
   - apiGroups: [batch]
     resources: [jobs]
-    verbs: [get, list, watch]
+    verbs: [get, list, watch, delete]
     resourceNames: [kubesentry-db-migrate]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
