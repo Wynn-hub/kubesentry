@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
@@ -15,22 +17,31 @@ import (
 // internal/operator/hublink's maxBackoff.
 const gatewayLinkMaxBackoff = 60 * time.Second
 
+// gatewayLinkInitialBackoff and gatewayLinkMinHealthyDuration are vars (not
+// consts) purely so tests can shrink them and avoid waiting on real timers;
+// production behavior is unaffected by their being mutable.
+var (
+	gatewayLinkInitialBackoff     = time.Second
+	gatewayLinkMinHealthyDuration = 3 * time.Second
+)
+
 // RunGatewayLink maintains console-api's Connect registration stream to the
 // gateway (spec D11c). This is a soft dependency: it retries forever with
 // exponential backoff and only returns when ctx is canceled, so it must run
 // in its own goroutine — a temporarily unreachable gateway must never block
 // console-api's own HTTP readiness.
 func RunGatewayLink(ctx context.Context, client gatewaypb.HubClient, componentID, sharedToken string) {
-	backoff := time.Second
+	backoff := gatewayLinkInitialBackoff
 	for {
 		connected := runGatewayLinkOnce(ctx, client, componentID, sharedToken)
 		if ctx.Err() != nil {
 			return
 		}
 		if connected {
-			// A session that reached the server is not a persistent
-			// failure — start the next retry fast, same as hublink.
-			backoff = time.Second
+			// The stream proved itself alive/accepted (see
+			// runGatewayLinkOnce) — not a persistent failure, so start the
+			// next retry fast, same as hublink.
+			backoff = gatewayLinkInitialBackoff
 		}
 		select {
 		case <-ctx.Done():
@@ -44,10 +55,19 @@ func RunGatewayLink(ctx context.Context, client gatewaypb.HubClient, componentID
 }
 
 // runGatewayLinkOnce opens one Connect stream, sends the ConnectRequest
-// handshake, and blocks on Recv until the stream breaks. The returned bool
-// reports whether the handshake frame was sent (used only to decide whether
-// the caller resets its backoff) — it is not proof the gateway accepted the
-// token, since a rejection surfaces asynchronously on the following Recv.
+// handshake, and blocks on Recv until the stream breaks. The gateway's
+// Connect handler (internal/gateway/server.go) never sends any payload back
+// on a successful registration — it just registers the caller and blocks on
+// its own Recv — so there is no "ack" frame to wait for. The returned bool
+// therefore reports:
+//   - false immediately on Unauthenticated/FailedPrecondition (the gateway's
+//     specific rejection of a bad/missing/unconfigured shared token): this
+//     can never resolve itself by retrying sooner, so the caller must keep
+//     backing off instead of hot-looping;
+//   - false if the stream broke before surviving gatewayLinkMinHealthyDuration
+//     (handshake-sent-but-unproven, e.g. a network blip right after Send);
+//   - true only once the stream has stayed open that long, which is the best
+//     available proxy for "genuinely connected" absent any server ack.
 func runGatewayLinkOnce(ctx context.Context, client gatewaypb.HubClient, componentID, sharedToken string) bool {
 	stream, err := client.Connect(ctx)
 	if err != nil {
@@ -63,11 +83,17 @@ func runGatewayLinkOnce(ctx context.Context, client gatewaypb.HubClient, compone
 		slog.Warn("register with gateway, retrying", "error", err)
 		return false
 	}
-	slog.Info("registered with gateway", "component", componentID)
+	slog.Info("sent gateway registration handshake", "component", componentID)
+	start := time.Now()
 	for {
 		if _, err := stream.Recv(); err != nil {
-			slog.Warn("gateway connect stream closed, reconnecting", "error", err)
-			return true
+			if code := status.Code(err); code == codes.Unauthenticated || code == codes.FailedPrecondition {
+				slog.Error("gateway rejected registration, will keep backing off", "component", componentID, "error", err)
+				return false
+			}
+			healthy := time.Since(start) >= gatewayLinkMinHealthyDuration
+			slog.Warn("gateway connect stream closed, reconnecting", "error", err, "healthy", healthy)
+			return healthy
 		}
 	}
 }
