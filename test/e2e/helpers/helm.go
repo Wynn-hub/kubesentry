@@ -38,14 +38,26 @@ func HelmUninstall(ctx context.Context) {
 	_ = exec.CommandContext(ctx, "helm", "uninstall", "kubesentry", "-n", "kubesentry-system", "--ignore-not-found").Run()
 }
 
-// HelmInstallGateway installs the gateway chart (gateway + console) alongside the member release.
+// HelmInstallGateway installs the gateway chart (gateway + console) alongside
+// the member release.
+//
+// Deliberately no --wait here (unlike the member chart install): the
+// gateway/console Deployments each carry an initContainer that blocks until
+// the db-migrate Job (a post-install hook, per spec D17) reaches Complete —
+// but Helm's --wait blocks on ordinary-resource readiness *before* it fires
+// post-install hooks, so combining the two deadlocks every install (the
+// Deployments can never become Ready because the Job that unblocks their
+// initContainer is never created). Hook execution itself is still waited
+// on (bounded by --timeout) regardless of --wait, so this still blocks
+// until migration completes; callers must poll Deployment readiness
+// themselves afterward (see helpers.WaitForDeploymentReady, already called
+// by TestMain right after this).
 func HelmInstallGateway(ctx context.Context, chartDir, valuesFile string) error {
 	var out bytes.Buffer
 	cmd := exec.CommandContext(ctx, "helm", "install", "kubesentry-gateway", chartDir,
 		"-f", valuesFile,
 		"--namespace", "kubesentry-system",
 		"--create-namespace",
-		"--wait",
 		"--timeout", "180s",
 	)
 	cmd.Stdout = &out

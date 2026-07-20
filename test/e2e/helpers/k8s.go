@@ -106,6 +106,46 @@ func CountPolicyVersions(ctx context.Context, c client.Client, policyName string
 	return len(list.Items), nil
 }
 
+// WaitForGroupMemberPresence polls the named PolicyGroup's
+// status.resolvedPolicies until memberName's presence matches wantPresent —
+// the propagation-layer check that a console-api write (member add/remove,
+// exclude add/remove) actually reached this cluster via the gateway push.
+func WaitForGroupMemberPresence(ctx context.Context, c client.Client, group, memberName string, wantPresent bool, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
+		var pg v1alpha1.PolicyGroup
+		if err := c.Get(ctx, types.NamespacedName{Name: group}, &pg); err != nil {
+			return false, nil
+		}
+		present := false
+		for _, m := range pg.Status.ResolvedPolicies {
+			if m.Name == memberName {
+				present = true
+				break
+			}
+		}
+		return present == wantPresent, nil
+	})
+}
+
+// WaitForGroupMemberMode polls the named PolicyGroup's
+// status.resolvedPolicies until memberName appears with exactly the given
+// enforcementMode — the propagation-layer check for a console-api mode
+// change (e.g. default group byName override).
+func WaitForGroupMemberMode(ctx context.Context, c client.Client, group, memberName, mode string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
+		var pg v1alpha1.PolicyGroup
+		if err := c.Get(ctx, types.NamespacedName{Name: group}, &pg); err != nil {
+			return false, nil
+		}
+		for _, m := range pg.Status.ResolvedPolicies {
+			if m.Name == memberName {
+				return m.EnforcementMode == mode, nil
+			}
+		}
+		return false, nil
+	})
+}
+
 // WaitForExceptionPhase polls until the PolicyException has the desired phase.
 func WaitForExceptionPhase(ctx context.Context, c client.Client, name, phase string, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {

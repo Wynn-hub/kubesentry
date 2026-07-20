@@ -4,8 +4,11 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,59 +16,91 @@ import (
 	"github.com/Wynn-hub/kubesentry/test/e2e/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// setDefaultGroupMemberMode patches the built-in "default" PolicyGroup's
-// byName entry for policyName to mode, returning its previous mode.
-//
-// Built-in policies now belong to the gateway-managed "default" PolicyGroup,
-// whose byName entries carry an explicit per-entry enforcementMode baked in
-// at chart-render time. groupresolve's precedence gives a per-entry override
-// priority over a Policy's own default mode, so that group entry — not the
-// Policy object's own spec.enforcementMode — is what actually governs
-// webhook enforcement. Patching the Policy directly no longer has a durable
-// effect: the gateway's periodic resync (internal/gateway/server.go's pushResync)
-// keeps reasserting the group's own baked-in mode over any direct Policy
-// edit. This same object is also gateway's own source of truth in
-// self-registration, so patching it here does not get corrected away — it
-// *is* the source.
-//
-// The object is under real write contention (gateway's periodic push +
-// PolicyGroupReconciler's own status updates), so this retries on conflict
-// like internal/gateway/diststatus.go's setClusterEntry does for the same reason.
-func setDefaultGroupMemberMode(ctx context.Context, t *testing.T, policyName, mode string) string {
+// groupPayload mirrors internal/console's private groupRequest — the fields
+// a create/update PUT accepts. Kept local since the console type is
+// unexported.
+type groupPayload struct {
+	DisplayName             string                       `json:"displayName"`
+	Description             string                       `json:"description"`
+	Enabled                 bool                         `json:"enabled"`
+	NamespaceSelector       *metav1.LabelSelector        `json:"namespaceSelector,omitempty"`
+	Policies                v1alpha1.PolicyGroupPolicies `json:"policies"`
+	SelectorEnforcementMode string                       `json:"selectorEnforcementMode,omitempty"`
+}
+
+// groupDetailPayload mirrors internal/console's groupDetail response shape.
+type groupDetailPayload struct {
+	Name            string                   `json:"name"`
+	ResourceVersion string                   `json:"resourceVersion"`
+	Spec            v1alpha1.PolicyGroupSpec `json:"spec"`
+}
+
+// getGroupSpec fetches a PolicyGroup's current spec via console-api — the
+// starting point for any read-modify-write update, since PUT replaces the
+// whole spec rather than merging.
+func getGroupSpec(t *testing.T, name string) v1alpha1.PolicyGroupSpec {
 	t.Helper()
-	var original string
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		var pg v1alpha1.PolicyGroup
-		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "default"}, &pg); err != nil {
-			return err
-		}
-		found := false
-		for i := range pg.Spec.Policies.ByName {
-			if pg.Spec.Policies.ByName[i].Name == policyName {
-				original = pg.Spec.Policies.ByName[i].EnforcementMode
-				pg.Spec.Policies.ByName[i].EnforcementMode = mode
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Fatalf("policy %s not found in default group byName", policyName)
-		}
-		return k8sClient.Update(ctx, &pg)
-	})
-	if err != nil {
-		t.Fatalf("update default group: %v", err)
+	code, env := consoleDo(t, http.MethodGet, "/api/v1/policygroups/"+name, nil)
+	if code != http.StatusOK {
+		t.Fatalf("get group %s via console-api: status %d env=%+v", name, code, env)
 	}
+	var d groupDetailPayload
+	if err := json.Unmarshal(env.Data, &d); err != nil {
+		t.Fatalf("decode group %s: %v", name, err)
+	}
+	return d.Spec
+}
+
+// putGroupSpec writes spec back for name via console-api.
+func putGroupSpec(t *testing.T, name string, spec v1alpha1.PolicyGroupSpec) {
+	t.Helper()
+	body := groupPayload{
+		DisplayName:             spec.DisplayName,
+		Description:             spec.Description,
+		Enabled:                 spec.Enabled,
+		NamespaceSelector:       spec.NamespaceSelector,
+		Policies:                spec.Policies,
+		SelectorEnforcementMode: spec.SelectorEnforcementMode,
+	}
+	code, env := consoleDo(t, http.MethodPut, "/api/v1/policygroups/"+name, body)
+	if code != http.StatusOK {
+		t.Fatalf("update group %s via console-api: status %d env=%+v", name, code, env)
+	}
+}
+
+// setDefaultGroupMemberMode patches the built-in "default" PolicyGroup's
+// byName entry for policyName to mode via console-api (the gateway's own
+// source of truth — the periodic push resync keeps reasserting this
+// group's DB-stored spec over any direct member-CR edit, so a direct
+// k8sClient patch no longer has a durable effect), returning its previous
+// mode.
+func setDefaultGroupMemberMode(t *testing.T, policyName, mode string) string {
+	t.Helper()
+	spec := getGroupSpec(t, "default")
+	var original string
+	found := false
+	for i := range spec.Policies.ByName {
+		if spec.Policies.ByName[i].Name == policyName {
+			original = spec.Policies.ByName[i].EnforcementMode
+			spec.Policies.ByName[i].EnforcementMode = mode
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("policy %s not found in default group byName", policyName)
+	}
+	putGroupSpec(t, "default", spec)
 	return original
 }
 
 // TestT4_EnforceToAudit: switch a policy from enforce to audit.
 // After switching, a previously-blocked pod should be admitted.
 func TestT4_EnforceToAudit(t *testing.T) {
+	stop := startPortForward(t)
+	t.Cleanup(stop)
 	ctx := context.Background()
 	policyName := "run-as-privileged"
 
@@ -77,11 +112,18 @@ func TestT4_EnforceToAudit(t *testing.T) {
 	}
 	t.Logf("T4-1: confirmed enforce mode blocks pod. Output: %s", out)
 
-	original := setDefaultGroupMemberMode(ctx, t, policyName, v1alpha1.ModeAudit)
+	// ---- API layer ----
+	original := setDefaultGroupMemberMode(t, policyName, v1alpha1.ModeAudit)
 	t.Cleanup(func() {
-		setDefaultGroupMemberMode(ctx, t, policyName, original)
+		setDefaultGroupMemberMode(t, policyName, original)
 	})
 
+	// ---- propagation layer ----
+	if err := helpers.WaitForGroupMemberMode(ctx, k8sClient, "default", policyName, v1alpha1.ModeAudit, 30*time.Second); err != nil {
+		t.Fatalf("T4-1: mode change did not propagate to member group: %v", err)
+	}
+
+	// ---- enforcement layer ----
 	deadline := time.Now().Add(30 * time.Second)
 	passed := false
 	for time.Now().Before(deadline) {
@@ -102,17 +144,30 @@ func TestT4_EnforceToAudit(t *testing.T) {
 
 // TestT4_AuditToEnforce: switch back to enforce.
 func TestT4_AuditToEnforce(t *testing.T) {
+	stop := startPortForward(t)
+	t.Cleanup(stop)
 	ctx := context.Background()
 	policyName := "run-as-privileged"
 
-	setDefaultGroupMemberMode(ctx, t, policyName, v1alpha1.ModeEnforce)
+	setDefaultGroupMemberMode(t, policyName, v1alpha1.ModeEnforce)
 
-	time.Sleep(3 * time.Second)
+	if err := helpers.WaitForGroupMemberMode(ctx, k8sClient, "default", policyName, v1alpha1.ModeEnforce, 30*time.Second); err != nil {
+		t.Fatalf("T4-2: mode change did not propagate to member group: %v", err)
+	}
 
 	failPath := "../builtin-rules/security/run-as-privileged-fail.yaml"
-	_, err := helpers.KubectlApply(ctx, failPath)
-	if err == nil {
+	deadline := time.Now().Add(30 * time.Second)
+	blocked := false
+	for time.Now().Before(deadline) {
+		_, err := helpers.KubectlApply(ctx, failPath)
+		if err != nil {
+			blocked = true
+			break
+		}
 		helpers.KubectlDelete(ctx, failPath)
+		time.Sleep(2 * time.Second)
+	}
+	if !blocked {
 		t.Error("T4-2: after switch to enforce, deny fixture was not blocked")
 	} else {
 		t.Log("T4-2 PASS: audit→enforce — pod is blocked again")
@@ -124,13 +179,19 @@ func TestT4_AuditToEnforce(t *testing.T) {
 // the closest equivalent is switching the default group's per-entry mode to audit.
 // After switching, the previously-blocked resource should be admitted.
 func TestT4_DisablePolicy(t *testing.T) {
+	stop := startPortForward(t)
+	t.Cleanup(stop)
 	ctx := context.Background()
 	policyName := "host-ipc-set"
 
-	original := setDefaultGroupMemberMode(ctx, t, policyName, v1alpha1.ModeAudit)
+	original := setDefaultGroupMemberMode(t, policyName, v1alpha1.ModeAudit)
 	t.Cleanup(func() {
-		setDefaultGroupMemberMode(ctx, t, policyName, original)
+		setDefaultGroupMemberMode(t, policyName, original)
 	})
+
+	if err := helpers.WaitForGroupMemberMode(ctx, k8sClient, "default", policyName, v1alpha1.ModeAudit, 30*time.Second); err != nil {
+		t.Fatalf("T4-3: mode change did not propagate to member group: %v", err)
+	}
 
 	failPath := "../builtin-rules/security/host-ipc-fail.yaml"
 	deadline := time.Now().Add(30 * time.Second)
@@ -151,40 +212,71 @@ func TestT4_DisablePolicy(t *testing.T) {
 	}
 }
 
-// TestT4_AddCustomPolicy: apply a new custom Policy CRD and create a PolicyGroup
-// that references it, then verify it blocks matching pods.
-// NOTE: does NOT clean up the policy or group — TestT4_RegoHotUpdate and
-// TestT4_VersionRollback depend on them being present.
+const t4CustomPolicyName = "e2e-forbidden-label"
+
+var t4CustomPolicyMatch = map[string]any{
+	"operations": []string{"CREATE", "UPDATE"},
+	"resources": []map[string]any{
+		{"apiGroups": []string{""}, "apiVersions": []string{"v1"}, "resources": []string{"pods"}},
+	},
+}
+
+const t4InitialRego = `package kubesentry
+deny[msg] {
+  input.request.object.metadata.labels["app"] == "forbidden-app"
+  msg := "pods with app=forbidden-app label are not allowed"
+}`
+
+const t4UpdatedRego = `package kubesentry
+deny[msg] {
+  input.request.object.metadata.labels["app"] == "forbidden-app"
+  msg := "pods with app=forbidden-app label are not allowed"
+}
+deny[msg] {
+  input.request.object.metadata.labels["app"] == "also-forbidden"
+  msg := "pods with app=also-forbidden label are not allowed"
+}`
+
+// TestT4_AddCustomPolicy: create a new custom Policy via console-api and add
+// it to the "default" group (so the gateway actually pushes it to the
+// member cluster — a brand-new PolicyGroup created directly on the member
+// would never be targeted by the seeded "default" PolicyDistribution, since
+// console-api has no distribution CRUD route yet), then verify it blocks
+// matching pods.
+// NOTE: does NOT clean up the policy or group entry — TestT4_RegoHotUpdate
+// and TestT4_VersionRollback depend on them being present; the last test in
+// this sequence (TestT4_VersionRollback) cleans up at the end.
 func TestT4_AddCustomPolicy(t *testing.T) {
+	stop := startPortForward(t)
+	t.Cleanup(stop)
 	ctx := context.Background()
-	policyFile := "fixtures/custom/test-policy.yaml"
 
-	out, err := helpers.KubectlApplyClusterScoped(ctx, policyFile)
-	if err != nil {
-		t.Fatalf("T4-4: apply custom policy: %v\nOutput: %s", err, out)
+	// ---- API layer ----
+	body := map[string]any{
+		"name":            t4CustomPolicyName,
+		"enforcementMode": v1alpha1.ModeEnforce,
+		"description":     "E2E test: denies pods with app=forbidden-app label",
+		"match":           t4CustomPolicyMatch,
+		"rego":            t4InitialRego,
+	}
+	if code, env := consoleDo(t, http.MethodPost, "/api/v1/policies", body); code != http.StatusOK {
+		t.Fatalf("T4-4: create policy via console-api: status %d env=%+v", code, env)
+	}
+	waitCurrentVersion(t, t4CustomPolicyName, 1)
+
+	spec := getGroupSpec(t, "default")
+	spec.Policies.ByName = append(spec.Policies.ByName, v1alpha1.PolicyRef{Name: t4CustomPolicyName})
+	putGroupSpec(t, "default", spec)
+
+	// ---- propagation layer ----
+	if err := helpers.WaitForGroupMemberMode(ctx, k8sClient, "default", t4CustomPolicyName, v1alpha1.ModeEnforce, 30*time.Second); err != nil {
+		t.Fatalf("T4-4: custom policy did not propagate to member group: %v", err)
+	}
+	if err := helpers.WaitForPolicyPhase(ctx, k8sClient, t4CustomPolicyName, v1alpha1.PhaseReady, 30*time.Second); err != nil {
+		t.Fatalf("T4-4: custom policy did not reach Ready on member: %v", err)
 	}
 
-	if err := helpers.WaitForPolicyPhase(ctx, k8sClient, "e2e-forbidden-label", v1alpha1.PhaseReady, 30*time.Second); err != nil {
-		t.Fatalf("T4-4: custom policy did not reach Ready: %v", err)
-	}
-
-	// Policy must belong to at least one enabled PolicyGroup to be evaluated.
-	grp := &v1alpha1.PolicyGroup{
-		ObjectMeta: metav1.ObjectMeta{Name: "e2e-custom-group"},
-		Spec: v1alpha1.PolicyGroupSpec{
-			Enabled: true,
-			Policies: v1alpha1.PolicyGroupPolicies{
-				ByName: []v1alpha1.PolicyRef{{Name: "e2e-forbidden-label"}},
-			},
-		},
-	}
-	if err := k8sClient.Create(ctx, grp); err != nil {
-		t.Fatalf("T4-4: create PolicyGroup: %v", err)
-	}
-	// NOTE: not cleaning up grp — subsequent tests depend on it.
-
-	time.Sleep(5 * time.Second) // let operator sync + webhook cache update
-
+	// ---- enforcement layer ----
 	forbiddenPod := `apiVersion: v1
 kind: Pod
 metadata:
@@ -208,50 +300,70 @@ spec:
 	}
 	defer os.Remove(podFile)
 
-	_, err = helpers.KubectlApply(ctx, podFile)
-	if err == nil {
+	deadline := time.Now().Add(30 * time.Second)
+	blocked := false
+	for time.Now().Before(deadline) {
+		_, err := helpers.KubectlApply(ctx, podFile)
+		if err != nil {
+			blocked = true
+			break
+		}
 		helpers.KubectlDelete(ctx, podFile)
+		time.Sleep(2 * time.Second)
+	}
+	if !blocked {
 		t.Error("T4-4: pod with forbidden label was admitted, expected rejection")
 	} else {
 		t.Log("T4-4 PASS: custom policy active — forbidden pod blocked")
 	}
 }
 
-// TestT4_RegoHotUpdate: update Policy Rego, verify new rule takes effect within 10s.
+// TestT4_RegoHotUpdate: update Policy Rego via console-api, verify new rule
+// takes effect.
 func TestT4_RegoHotUpdate(t *testing.T) {
+	stop := startPortForward(t)
+	t.Cleanup(stop)
 	ctx := context.Background()
 
-	var pol v1alpha1.Policy
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-forbidden-label"}, &pol); err != nil {
+	if code, _ := consoleDo(t, http.MethodGet, "/api/v1/policies/"+t4CustomPolicyName, nil); code != http.StatusOK {
 		t.Skip("T4-5: custom policy e2e-forbidden-label not found (run T4-4 first)")
 	}
 
-	countBefore, err := helpers.CountPolicyVersions(ctx, k8sClient, "e2e-forbidden-label")
+	countBefore, err := helpers.CountPolicyVersions(ctx, k8sClient, t4CustomPolicyName)
 	if err != nil {
 		t.Fatalf("count policy versions before: %v", err)
 	}
 
-	out, err := helpers.KubectlApplyClusterScoped(ctx, "fixtures/custom/test-policy-updated.yaml")
-	if err != nil {
-		t.Fatalf("apply updated policy: %v\nOutput: %s", err, out)
+	// ---- API layer ----
+	body := map[string]any{
+		"name":            t4CustomPolicyName,
+		"enforcementMode": v1alpha1.ModeEnforce,
+		"description":     "E2E test: denies pods with forbidden app labels (updated)",
+		"match":           t4CustomPolicyMatch,
+		"rego":            t4UpdatedRego,
 	}
+	if code, env := consoleDo(t, http.MethodPut, "/api/v1/policies/"+t4CustomPolicyName, body); code != http.StatusOK {
+		t.Fatalf("update policy via console-api: status %d env=%+v", code, env)
+	}
+	waitCurrentVersion(t, t4CustomPolicyName, 2)
 
+	// ---- propagation layer: member's own PolicyReconciler creates a new
+	// PolicyVersion CR whenever it observes the pushed Policy spec change,
+	// regardless of push origin. ----
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
-		count, _ := helpers.CountPolicyVersions(ctx, k8sClient, "e2e-forbidden-label")
+		count, _ := helpers.CountPolicyVersions(ctx, k8sClient, t4CustomPolicyName)
 		if count > countBefore {
 			break
 		}
 		time.Sleep(2 * time.Second)
 	}
-
-	countAfter, _ := helpers.CountPolicyVersions(ctx, k8sClient, "e2e-forbidden-label")
+	countAfter, _ := helpers.CountPolicyVersions(ctx, k8sClient, t4CustomPolicyName)
 	if countAfter <= countBefore {
 		t.Errorf("T4-5: expected PolicyVersion count to increase (was %d, still %d)", countBefore, countAfter)
 	}
 
-	time.Sleep(3 * time.Second) // let webhook cache sync the updated policy
-
+	// ---- enforcement layer ----
 	alsoForbiddenPod := `apiVersion: v1
 kind: Pod
 metadata:
@@ -275,38 +387,82 @@ spec:
 	}
 	defer os.Remove(podFile)
 
-	_, err = helpers.KubectlApply(ctx, podFile)
-	if err == nil {
+	deadline = time.Now().Add(30 * time.Second)
+	blocked := false
+	for time.Now().Before(deadline) {
+		_, err := helpers.KubectlApply(ctx, podFile)
+		if err != nil {
+			blocked = true
+			break
+		}
 		helpers.KubectlDelete(ctx, podFile)
+		time.Sleep(2 * time.Second)
+	}
+	if !blocked {
 		t.Error("T4-5: pod with also-forbidden label was admitted after Rego update, expected rejection")
 	} else {
 		t.Log("T4-5 PASS: Rego hot-update active — new rule blocks updated label")
 	}
 }
 
-// TestT4_VersionRollback: rollback a policy to a previous version, verify old rule is restored.
+// TestT4_VersionRollback: rollback a policy to a previous version via
+// console-api, verify old rule is restored. Also cleans up the T4-4/T4-5
+// test artifacts (policy + default-group byName entry) since this is the
+// last test in the sequence that depends on them.
 func TestT4_VersionRollback(t *testing.T) {
+	stop := startPortForward(t)
+	t.Cleanup(stop)
 	ctx := context.Background()
+	t.Cleanup(func() {
+		spec := getGroupSpec(t, "default")
+		kept := spec.Policies.ByName[:0]
+		for _, ref := range spec.Policies.ByName {
+			if ref.Name != t4CustomPolicyName {
+				kept = append(kept, ref)
+			}
+		}
+		spec.Policies.ByName = kept
+		putGroupSpec(t, "default", spec)
+		consoleDo(t, http.MethodDelete, "/api/v1/policies/"+t4CustomPolicyName+"?force=true", nil)
+	})
 
-	var pol v1alpha1.Policy
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-forbidden-label"}, &pol); err != nil {
+	if code, _ := consoleDo(t, http.MethodGet, "/api/v1/policies/"+t4CustomPolicyName, nil); code != http.StatusOK {
 		t.Skip("T4-6: custom policy not found (run T4-4 first)")
 	}
 
-	currentVersion := pol.Status.CurrentVersion
-	if currentVersion <= 1 {
+	vCode, vEnv := consoleDo(t, http.MethodGet, "/api/v1/policies/"+t4CustomPolicyName+"/versions", nil)
+	if vCode != http.StatusOK {
+		t.Fatalf("list versions: status %d", vCode)
+	}
+	var tl struct {
+		CurrentVersion int64 `json:"currentVersion"`
+	}
+	if err := json.Unmarshal(vEnv.Data, &tl); err != nil {
+		t.Fatal(err)
+	}
+	if tl.CurrentVersion <= 1 {
 		t.Skip("T4-6: policy has only 1 version, cannot roll back")
 	}
-	rollbackTo := currentVersion - 1
 
-	patch := client.MergeFrom(pol.DeepCopy())
-	pol.Spec.RollbackTo = &v1alpha1.RollbackTo{Version: rollbackTo}
-	if err := k8sClient.Patch(ctx, &pol, patch); err != nil {
-		t.Fatalf("patch rollbackTo %d: %v", rollbackTo, err)
+	// ---- API layer ----
+	if code, env := consoleDo(t, http.MethodPost, "/api/v1/policies/"+t4CustomPolicyName+"/rollback",
+		map[string]string{"direction": "prev"}); code != http.StatusOK {
+		t.Fatalf("rollback: status %d env=%+v", code, env)
+	}
+	waitCurrentVersion(t, t4CustomPolicyName, tl.CurrentVersion+1)
+
+	// ---- propagation layer ----
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		var pol v1alpha1.Policy
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: t4CustomPolicyName}, &pol); err == nil &&
+			!strings.Contains(pol.Spec.Rego, "also-forbidden") {
+			break
+		}
+		time.Sleep(2 * time.Second)
 	}
 
-	time.Sleep(5 * time.Second)
-
+	// ---- enforcement layer ----
 	alsoForbiddenPod := `apiVersion: v1
 kind: Pod
 metadata:

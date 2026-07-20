@@ -4,73 +4,67 @@ package e2e
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
 	v1alpha1 "github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/test/e2e/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
-// TestT6_BySelectorDynamicBinding asserts that creating a custom Policy
-// labeled with kubesentry.io/category=security makes it appear in a
-// bySelector-matching group's resolvedPolicies within 10s. Uses its own
-// throwaway PolicyGroup rather than the built-in "default" group: the
-// built-in catalogue's group membership has changed shape multiple times
-// across this plan, so this test brings its own fixture instead of
-// depending on catalogue content.
+// TestT6_BySelectorDynamicBinding asserts that creating a custom Policy via
+// console-api, labeled with a unique marker, makes it appear in the
+// "default" PolicyGroup's resolvedPolicies on the member cluster once a
+// matching bySelector is added — within 10s of the console-api write.
+//
+// Uses the built-in "default" group (temporarily adding a throwaway
+// bySelector, restored on cleanup) rather than a brand-new PolicyGroup: a
+// PolicyGroup created directly on the member cluster would never be
+// targeted by the seeded "default" PolicyDistribution (console-api has no
+// distribution CRUD route yet), so it would never receive a gateway push to
+// prove propagation against. The unique marker label avoids matching any
+// other (builtin or test) policy that might carry a real
+// kubesentry.io/category label.
 func TestT6_BySelectorDynamicBinding(t *testing.T) {
+	stop := startPortForward(t)
+	t.Cleanup(stop)
 	ctx := context.Background()
+	const policyName = "test-byselector-pol"
+	const markerKey = "kubesentry.io/e2e-t6-marker"
 
-	pol := &v1alpha1.Policy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "test-byselector-pol",
-			Labels: map[string]string{"kubesentry.io/category": "security"},
-		},
-		Spec: v1alpha1.PolicySpec{
-			EnforcementMode: v1alpha1.ModeAudit,
-			Match: v1alpha1.PolicyMatch{
-				Operations: []string{"CREATE"},
-				Resources: []v1alpha1.MatchResource{
-					{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}},
-				},
-			},
-			Rego: "package kubesentry\ndeny[m]{false;m:=\"x\"}",
-		},
-	}
-	if err := k8sClient.Create(ctx, pol); err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	t.Cleanup(func() { _ = k8sClient.Delete(ctx, pol) })
-
-	group := &v1alpha1.PolicyGroup{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-byselector-group"},
-		Spec: v1alpha1.PolicyGroupSpec{
-			Enabled: true,
-			Policies: v1alpha1.PolicyGroupPolicies{
-				BySelector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"kubesentry.io/category": "security"},
-				},
+	// ---- API layer: create the policy ----
+	body := map[string]any{
+		"name":            policyName,
+		"enforcementMode": v1alpha1.ModeAudit,
+		"labels":          map[string]string{markerKey: "yes"},
+		"match": map[string]any{
+			"operations": []string{"CREATE"},
+			"resources": []map[string]any{
+				{"apiGroups": []string{""}, "apiVersions": []string{"v1"}, "resources": []string{"pods"}},
 			},
 		},
+		"rego": "package kubesentry\ndeny[m]{false;m:=\"x\"}",
 	}
-	if err := k8sClient.Create(ctx, group); err != nil {
-		t.Fatalf("create group: %v", err)
+	if code, env := consoleDo(t, http.MethodPost, "/api/v1/policies", body); code != http.StatusOK {
+		t.Fatalf("create policy via console-api: status %d env=%+v", code, env)
 	}
-	t.Cleanup(func() { _ = k8sClient.Delete(ctx, group) })
+	t.Cleanup(func() { consoleDo(t, http.MethodDelete, "/api/v1/policies/"+policyName+"?force=true", nil) })
 
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		var pg v1alpha1.PolicyGroup
-		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "test-byselector-group"}, &pg); err == nil {
-			for _, m := range pg.Status.ResolvedPolicies {
-				if m.Name == "test-byselector-pol" {
-					t.Log("T6 PASS: custom policy appeared in test-byselector-group.resolvedPolicies via bySelector")
-					return
-				}
-			}
-		}
-		time.Sleep(200 * time.Millisecond)
+	// ---- API layer: bind it into "default" via a throwaway bySelector ----
+	spec := getGroupSpec(t, "default")
+	origSelector := spec.Policies.BySelector
+	spec.Policies.BySelector = &metav1.LabelSelector{MatchLabels: map[string]string{markerKey: "yes"}}
+	putGroupSpec(t, "default", spec)
+	t.Cleanup(func() {
+		spec := getGroupSpec(t, "default")
+		spec.Policies.BySelector = origSelector
+		putGroupSpec(t, "default", spec)
+	})
+
+	// ---- propagation layer ----
+	if err := helpers.WaitForGroupMemberPresence(ctx, k8sClient, "default", policyName, true, 10*time.Second); err != nil {
+		t.Fatalf("custom policy did not enter default group's resolvedPolicies via bySelector within 10s: %v", err)
 	}
-	t.Fatalf("custom policy did not enter test-byselector-group.resolvedPolicies within 10s")
+	t.Log("T6 PASS: custom policy appeared in default group's resolvedPolicies via bySelector")
 }

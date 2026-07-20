@@ -42,6 +42,22 @@ func waitDistState(t *testing.T, ctx context.Context, name, state string, timeou
 }
 
 func TestT11DistributionPipeline(t *testing.T) {
+	// Quarantined: this test exercises the pre-gateway-database
+	// "self-registration" model, where PolicyDistribution and Cluster were
+	// CRDs applied directly on the same cluster acting as both hub and
+	// member. Task 15 (GWDB) confirmed live against a real cluster that
+	// this no longer applies: the gateway is fully database-backed with
+	// zero CRDs (internal/gateway.Repos.Distributions lives in Postgres),
+	// console-api has no REST route for PolicyDistribution CRUD yet, and
+	// the member chart's CRD set (charts/kubesentry/crds/) never included
+	// PolicyDistribution or Cluster to begin with — kubectl apply of
+	// fixtures/distribution/distribution.yaml (kind: PolicyDistribution)
+	// fails outright with "no matches for kind" on a freshly migrated
+	// cluster. Rewriting this properly requires either a distribution
+	// CRUD path on console-api or a direct-DB assertion harness (like
+	// helpers.OpenGatewayDB) exercising Render()/push status end-to-end —
+	// out of scope for the console-api conversion this task covers.
+	t.Skip("T11: PolicyDistribution/Cluster CRDs no longer exist anywhere post-GWDB-migration; needs a dedicated rewrite, see comment")
 	ctx := context.Background()
 	fx := func(f string) string { return filepath.Join("fixtures", "distribution", f) }
 

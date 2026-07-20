@@ -1,15 +1,31 @@
 // cmd/db — schema migration runner, invoked as a Helm hook Job (spec D17).
+// Also ships a "register-cluster" subcommand: a one-off Job that seeds a
+// Cluster row + one-time registration token directly in the gateway's
+// Postgres, for environments (deploy-local.sh) that have no Go runtime and
+// no console-api REST route for cluster CRUD yet.
 package main
 
 import (
+	"context"
 	"database/sql"
+	"errors"
+	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
+	gormpg "gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
+	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
 )
 
@@ -26,10 +42,25 @@ const (
 
 func main() {
 	logging.Init()
-	if len(os.Args) < 2 || os.Args[1] != "migrate" {
-		slog.Error("usage: db migrate")
-		os.Exit(1)
+	if len(os.Args) < 2 {
+		usage()
 	}
+	switch os.Args[1] {
+	case "migrate":
+		runMigrate()
+	case "register-cluster":
+		runRegisterCluster(os.Args[2:])
+	default:
+		usage()
+	}
+}
+
+func usage() {
+	slog.Error("usage: db migrate | db register-cluster --name=<cluster-name>")
+	os.Exit(1)
+}
+
+func runMigrate() {
 	dsn := os.Getenv("DATABASE_DSN")
 	if dsn == "" {
 		slog.Error("DATABASE_DSN is required")
@@ -49,6 +80,74 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("migration complete")
+}
+
+// runRegisterCluster seeds (or re-issues a token for) a Cluster row and
+// prints the plaintext one-time registration token to stdout — and only
+// the token, nothing else — so callers (deploy-local.sh, via `kubectl
+// logs`) can capture it directly without touching the database themselves.
+func runRegisterCluster(args []string) {
+	fs := flag.NewFlagSet("register-cluster", flag.ExitOnError)
+	name := fs.String("name", "", "cluster name to register")
+	_ = fs.Parse(args)
+	if *name == "" {
+		slog.Error("register-cluster: --name is required")
+		os.Exit(1)
+	}
+	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		slog.Error("DATABASE_DSN is required")
+		os.Exit(1)
+	}
+	if err := waitForConnection(dsn); err != nil {
+		slog.Error("db unreachable", "error", err)
+		os.Exit(1)
+	}
+
+	db, err := gorm.Open(gormpg.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		slog.Error("open database", "error", err)
+		os.Exit(1)
+	}
+	if err := dbmodel.Init(dbmodel.NodeIDFromPodName(os.Getenv("POD_NAME"))); err != nil {
+		slog.Error("init id generator", "error", err)
+		os.Exit(1)
+	}
+
+	token, err := gateway.NewToken()
+	if err != nil {
+		slog.Error("generate token", "error", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	repo := dbrepo.NewClusterRepo(db)
+	existing, err := repo.GetByName(ctx, *name)
+	switch {
+	case err == nil:
+		// Idempotent re-run: reissue a fresh one-time token for the
+		// existing row rather than failing on a unique-name conflict.
+		existing.RegTokenHash = gateway.HashToken(token)
+		if err := repo.Update(ctx, existing); err != nil {
+			slog.Error("update cluster", "error", err)
+			os.Exit(1)
+		}
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		cl := &dbrepo.Cluster{
+			Name:         *name,
+			Phase:        v1alpha1.ClusterPhaseRegistering,
+			RegTokenHash: gateway.HashToken(token),
+		}
+		if err := repo.Create(ctx, cl); err != nil {
+			slog.Error("create cluster", "error", err)
+			os.Exit(1)
+		}
+	default:
+		slog.Error("get cluster", "error", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(token)
 }
 
 // waitForConnection retries a lightweight ping until Postgres accepts

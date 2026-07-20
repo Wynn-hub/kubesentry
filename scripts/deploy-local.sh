@@ -18,6 +18,13 @@ TAG="${LOCAL_TAG:-local}"
 echo "→ Deploying to kube context: $(kubectl config current-context)"
 
 echo "→ installing gateway chart"
+# No --wait: the gateway/console Deployments each carry an initContainer
+# that blocks until the db-migrate post-install hook Job completes, but
+# Helm's --wait blocks on ordinary-resource readiness *before* firing
+# post-install hooks — combined, that deadlocks every install. Hook
+# execution itself is still waited on (bounded by --timeout) regardless of
+# --wait, so this still blocks until migration completes; the explicit
+# `kubectl wait` calls below cover Deployment readiness instead.
 helm upgrade --install kubesentry-gateway charts/kubesentry-gateway \
   --namespace "$NAMESPACE" --create-namespace \
   --set gateway.image.repository="$REGISTRY/kubesentry-gateway" \
@@ -26,28 +33,60 @@ helm upgrade --install kubesentry-gateway charts/kubesentry-gateway \
   --set console.image.repository="$REGISTRY/kubesentry-console" \
   --set console.image.tag="$TAG" \
   --set console.image.pullPolicy=Never \
-  --wait --timeout 5m
+  --set console.webImage.repository="$REGISTRY/kubesentry-console-web" \
+  --set console.webImage.tag="$TAG" \
+  --set console.webImage.pullPolicy=Never \
+  --set db.image.repository="$REGISTRY/kubesentry-db" \
+  --set db.image.tag="$TAG" \
+  --timeout 5m
 
+echo "→ waiting for gateway + console deployments"
+kubectl -n "$NAMESPACE" rollout status deployment/kubesentry-gateway --timeout=3m
+kubectl -n "$NAMESPACE" rollout status deployment/kubesentry-console --timeout=3m
+
+# gateway has zero CRDs (all data lives in Postgres via GORM) and console-api
+# has no REST route for cluster CRUD yet — registration is a one-time DB
+# seed. cmd/db's register-cluster subcommand does that seed and prints the
+# plaintext one-time token to stdout; run it as a throwaway in-cluster Job
+# (same db image the migrate hook already uses) so it reaches Postgres over
+# the cluster-internal Service without needing a port-forward from this
+# script. Mirrors test/e2e's TestMain, which does the same seed in-process
+# via GORM instead (it already links the Go packages).
 echo "→ registering this cluster (\"$CLUSTER_NAME\") with the gateway"
-kubectl get cluster "$CLUSTER_NAME" >/dev/null 2>&1 || kubectl apply -f - <<EOF
-apiVersion: kubesentry.io/v1alpha1
-kind: Cluster
+kubectl delete job kubesentry-register-cluster -n "$NAMESPACE" --ignore-not-found >/dev/null 2>&1
+kubectl apply -n "$NAMESPACE" -f - >/dev/null <<EOF
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: $CLUSTER_NAME
+  name: kubesentry-register-cluster
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: register
+          image: "$REGISTRY/kubesentry-db:$TAG"
+          imagePullPolicy: Never
+          args: ["register-cluster", "--name", "$CLUSTER_NAME"]
+          env:
+            - name: DATABASE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: kubesentry-postgres-credentials
+                  key: dsn
 EOF
-
-echo "→ waiting for the one-time registration token"
-TOKEN_B64=""
-for _ in $(seq 1 30); do
-  TOKEN_B64=$(kubectl get secret "kubesentry-reg-$CLUSTER_NAME" -n "$NAMESPACE" -o jsonpath='{.data.token}' 2>/dev/null || true)
-  [ -n "$TOKEN_B64" ] && break
-  sleep 2
-done
-if [ -z "$TOKEN_B64" ]; then
-  echo "registration token never appeared (kubesentry-reg-$CLUSTER_NAME)" >&2
+if ! kubectl wait --for=condition=complete job/kubesentry-register-cluster -n "$NAMESPACE" --timeout=60s; then
+  echo "cluster registration job did not complete:" >&2
+  kubectl logs job/kubesentry-register-cluster -n "$NAMESPACE" >&2 || true
   exit 1
 fi
-TOKEN=$(echo "$TOKEN_B64" | base64 -d)
+TOKEN=$(kubectl logs job/kubesentry-register-cluster -n "$NAMESPACE" | tail -n1)
+kubectl delete job kubesentry-register-cluster -n "$NAMESPACE" --ignore-not-found >/dev/null 2>&1
+if [ -z "$TOKEN" ]; then
+  echo "registration job produced no token" >&2
+  exit 1
+fi
 CA_B64=$(kubectl get secret kubesentry-gateway-tls -n "$NAMESPACE" -o jsonpath='{.data.ca\.crt}')
 
 # NodePort + node IP rather than the in-cluster svc DNS — the latter only

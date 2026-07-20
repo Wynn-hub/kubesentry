@@ -83,9 +83,17 @@ func TestMain(m *testing.M) {
 		panic("console deployment not ready: " + err.Error())
 	}
 
-	token, caBundleB64, err := helpers.HarvestRegistration(ctx, k8sClient)
+	// Belt-and-suspenders on top of the Deployment readiness check above:
+	// confirms the initContainer chain (Postgres → migrate Job → console)
+	// has completed and console-api is actually answering requests, before
+	// the rest of TestMain starts issuing real console-api/DB writes.
+	if err := helpers.WaitForConsoleHealthy(ctx, 60*time.Second); err != nil {
+		panic("console not healthy: " + err.Error())
+	}
+
+	token, caBundleB64, err := helpers.RegisterLocalCluster(ctx, k8sClient, "local")
 	if err != nil {
-		panic("harvest registration: " + err.Error())
+		panic("register local cluster: " + err.Error())
 	}
 
 	if err := helpers.HelmInstallMemberWithGateway(ctx, chartDir, valuesFile, caBundleB64, token); err != nil {
@@ -99,7 +107,7 @@ func TestMain(m *testing.M) {
 		panic("operator deployment not ready: " + err.Error())
 	}
 
-	if err := helpers.WaitClusterOnline(ctx, k8sClient, "local", 3*time.Minute); err != nil {
+	if err := helpers.WaitClusterOnline(ctx, "local", 3*time.Minute); err != nil {
 		panic("cluster never reached Online: " + err.Error())
 	}
 

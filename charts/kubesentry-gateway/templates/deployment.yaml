@@ -15,7 +15,10 @@ spec:
       serviceAccountName: kubesentry-gateway
       initContainers:
         - name: wait-for-migration
-          image: "bitnami/kubectl:1.31"
+          # bitnami/kubectl no longer publishes versioned tags (only
+          # `latest`, which drifts) — alpine/k8s:1.31.0 is pinned and still
+          # ships kubectl + a shell.
+          image: "alpine/k8s:1.31.0"
           command: ["sh", "-c"]
           args:
             - |

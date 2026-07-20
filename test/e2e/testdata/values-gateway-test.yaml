@@ -11,3 +11,12 @@ console:
     repository: wynnhub/kubesentry-console
     tag: "e2e-test"
     pullPolicy: Never
+  webImage:
+    repository: wynnhub/kubesentry-console-web
+    tag: "e2e-test"
+    pullPolicy: Never
+
+db:
+  image:
+    repository: wynnhub/kubesentry-db
+    tag: "e2e-test"

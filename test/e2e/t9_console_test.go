@@ -120,7 +120,10 @@ func TestT9_ConsolePolicyLifecycle(t *testing.T) {
 	}
 	waitCurrentVersion(t, name, 2)
 
-	// rollback prev → v3（内容 == v1），游标应指向 1
+	// rollback prev → v3 (content == v1). Rollback is roll-forward only in
+	// the GORM-era API (see handlers_policy.go's rollbackPolicy comment) —
+	// there is no logical-cursor concept to assert on anymore, just that a
+	// fresh v3 was appended whose rego matches the original v1 content.
 	if code, env := consoleDo(t, "POST", "/api/v1/policies/"+name+"/rollback",
 		map[string]string{"direction": "prev"}); code != 200 {
 		t.Fatalf("rollback: code=%d env=%+v", code, env)
@@ -132,14 +135,29 @@ func TestT9_ConsolePolicyLifecycle(t *testing.T) {
 		t.Fatalf("versions: code=%d", code)
 	}
 	var tl struct {
-		Cursor      int64 `json:"cursor"`
-		NextEnabled bool  `json:"nextEnabled"`
+		CurrentVersion int64 `json:"currentVersion"`
+		Versions       []struct {
+			Version int    `json:"version"`
+			Rego    string `json:"rego"`
+		} `json:"versions"`
 	}
 	if err := json.Unmarshal(env.Data, &tl); err != nil {
 		t.Fatal(err)
 	}
-	if tl.Cursor != 1 || !tl.NextEnabled {
-		t.Fatalf("timeline = %+v, want cursor=1 nextEnabled=true", tl)
+	if tl.CurrentVersion != 3 {
+		t.Fatalf("timeline = %+v, want currentVersion=3", tl)
+	}
+	var v1Rego, v3Rego string
+	for _, v := range tl.Versions {
+		switch v.Version {
+		case 1:
+			v1Rego = v.Rego
+		case 3:
+			v3Rego = v.Rego
+		}
+	}
+	if v1Rego == "" || v3Rego != v1Rego {
+		t.Fatalf("v3 rego does not match v1 rego (rollback did not restore original content): v1=%q v3=%q", v1Rego, v3Rego)
 	}
 
 	// delete
@@ -148,22 +166,27 @@ func TestT9_ConsolePolicyLifecycle(t *testing.T) {
 	}
 }
 
-// waitCurrentVersion polls the console API until the policy reaches version v.
+// waitCurrentVersion polls the console API until the policy reaches version
+// v. policyDetail (GET /api/v1/policies/{name}) reports Phase as a flat
+// top-level field with no currentVersion; the version count only lives in
+// the /versions timeline response — so this checks both endpoints.
 func waitCurrentVersion(t *testing.T, name string, v int64) {
 	t.Helper()
 	deadline := time.Now().Add(60 * time.Second)
 	for time.Now().Before(deadline) {
-		code, env := consoleDo(t, "GET", "/api/v1/policies/"+name, nil)
-		if code == 200 {
-			var d struct {
-				Status struct {
-					CurrentVersion int64  `json:"currentVersion"`
-					Phase          string `json:"phase"`
-				} `json:"status"`
+		if vCode, vEnv := consoleDo(t, "GET", "/api/v1/policies/"+name+"/versions", nil); vCode == 200 {
+			var tl struct {
+				CurrentVersion int64 `json:"currentVersion"`
 			}
-			if err := json.Unmarshal(env.Data, &d); err == nil &&
-				d.Status.CurrentVersion == v && d.Status.Phase == "Ready" {
-				return
+			if err := json.Unmarshal(vEnv.Data, &tl); err == nil && tl.CurrentVersion == v {
+				if pCode, pEnv := consoleDo(t, "GET", "/api/v1/policies/"+name, nil); pCode == 200 {
+					var pd struct {
+						Phase string `json:"phase"`
+					}
+					if err := json.Unmarshal(pEnv.Data, &pd); err == nil && pd.Phase == "Ready" {
+						return
+					}
+				}
 			}
 		}
 		time.Sleep(time.Second)
