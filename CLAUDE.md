@@ -21,14 +21,14 @@ GOROOT=/opt/homebrew/opt/go/libexec go test ./...
 # Run a single test
 GOROOT=/opt/homebrew/opt/go/libexec go test ./internal/webhook/... -run TestHandlerDeniesPrivilegedPod -v
 
-# Build both binaries
-make build   # outputs bin/webhook, bin/operator and bin/console
+# Build all five binaries
+make build   # outputs bin/webhook, bin/operator, bin/console, bin/gateway and bin/db
 
 # Lint
 make lint    # runs go vet
 
 # Helm lint
-helm lint charts/kubesentry
+helm lint charts/kubesentry-gateway charts/kubesentry
 
 # Frontend dev server (vite proxies /api to :8080; run cmd/console separately)
 cd web && npm run dev
@@ -36,26 +36,44 @@ cd web && npm run dev
 
 ## Architecture
 
-Three independent Go binaries communicate only through Kubernetes CRDs:
+Five independent Go binaries split across two planes that never talk to each other directly:
 
-**`cmd/webhook`** — Data plane. Serves `/validate` (admission), `/healthz`, `/readyz`.
+- **Member-cluster plane** (`cmd/webhook`, `cmd/operator`) — unchanged by the gateway/database migration described below. Components communicate only through Kubernetes CRDs (`Policy`, `PolicyGroup`, `PolicyException`, `PolicyVersion`) installed by `charts/kubesentry`.
+- **Gateway plane** (`cmd/gateway`, `cmd/console`, `cmd/db`) — the "中台"/management layer. Holds **no CRDs of its own**. All business data (clusters, policies, groups, exceptions, distributions) lives in a shared PostgreSQL database, accessed via GORM repositories in `internal/dbrepo`. The member-cluster plane and the gateway plane are bridged only by `internal/operator/hublink` (member side) talking gRPC to `cmd/gateway` (gateway side) — see the `gatewaypb.Hub` service below.
+
+**`cmd/webhook`** — Data plane, runs on every member cluster. Serves `/validate` (admission), `/healthz`, `/readyz`.
 - At startup, builds a controller-runtime informer cache watching `Policy`, `PolicyGroup`, `Namespace`, and `PolicyException` CRDs.
 - On each admission request, `Handler` calls `PolicyCache.MatchingForRequest()` which filters enabled `PolicyGroup`s by their `namespaceSelector`, then gathers the policies from matching groups and computes the strictest effective mode across all groups.
 - `enforce` mode blocks on denial; `audit` mode allows but returns violations as `AdmissionResponse.Warnings`.
 - Violation messages are formatted as `[<policyName> via <group1,group2>] message\n  描述：description` using `formatViolation` in `handler.go`.
 
-**`cmd/operator`** — Management plane. Also handles a `tls-setup` subcommand (run as a Helm pre-install Job).
-- `PolicyGroupReconciler`: watches `PolicyGroup` CRDs and ALL `Policy` CRDs (reverse-enqueue via MapFunc on Policy create/delete/label-change). Resolves group members from `spec.policies.byName` + `spec.policies.bySelector` (byName precedence), then subtracts `spec.policies.exclude` (highest priority — wins over both byName and bySelector). Computes effective enforcementMode per member (per-entry override on byName, group-level `selectorEnforcementMode` on bySelector). Writes `status.resolvedPolicies` + `status.phase` (Ready / Degraded / Disabled). Maintains `Policy.status.referencedBy` by diffing previous-resolved ∪ current-resolved.
-- `PolicyReconciler`: validates Rego on create/update, creates an immutable `PolicyVersion` snapshot, prunes old versions (configurable limit), updates `Policy.Status`. Handles rollback via `spec.rollbackTo`. **No longer aware of "builtin" — every Policy is a first-class user-or-Helm-managed object.**
-- `WebhookConfigReconciler`: lists all `Ready` policies (regardless of group membership), aggregates their `match.resources`, patches `ValidatingWebhookConfiguration.Webhooks[*].Rules`.
-- `ExceptionReconciler`: validates `PolicyException` lifecycle. `policyGroupRefs` is dynamic — exemption follows `PolicyGroup.status.resolvedPolicies` (no schema change).
+**`cmd/operator`** — Management plane, runs on every member cluster. Also handles a `tls-setup` subcommand (run as a Helm pre-install Job).
+- `PolicyGroupReconciler`, `PolicyReconciler`, `WebhookConfigReconciler`, `ExceptionReconciler` — all CRD-based, all unchanged by the gateway/database migration (see the Key Invariants below, which still apply verbatim to this plane).
 - `tls-setup` subcommand: generates an ECDSA P-256 self-signed CA + server cert, writes a TLS Secret, patches the VWC `caBundle`. Skips if the Secret already exists.
+- When `GATEWAY_ADDRESS` is set, the operator additionally starts `internal/operator/hublink` as a manager `Runnable`: this is the member-cluster side of the gateway connection — one-time `Register`, then a long-lived `Sync` stream (heartbeats + status reports up, `DesiredState` snapshots down) with exponential-backoff reconnect. `hublink/apply.go` applies the received `Policy`/`PolicyGroup` `ManagedObject`s as CRs on the member cluster, pruning ones no longer in the snapshot. Single-cluster installs simply never set `GATEWAY_ADDRESS`, so `hublink` never starts — that omission is the entire single-cluster compatibility story.
 
-**`cmd/console`** — Management/UI plane. REST API over the same CRDs (Policy, PolicyGroup, PolicyException, PolicyVersion) plus an embedded Vue SPA, served on one port, accessed via port-forward with no auth.
-- Reuses `webhook.CompileRego` for client-side pre-validation before a Policy is created or updated.
-- Rollback is driven the same way the operator expects it: setting `spec.rollbackTo` plus a logical-cursor annotation (`kubesentry.io/logical-cursor`) that lets the UI track prev/next position across an in-flight rollback without re-deriving it from version history each time.
+**`cmd/gateway`** — Gateway plane, PostgreSQL-backed via GORM (`internal/dbmodel`, `internal/dbrepo`). Implements the `gatewaypb.Hub` gRPC service (`api/proto/gateway/v1/gateway.proto`, generated into `internal/gatewaypb`):
+- `Register`/`Sync` — member-cluster registration and the long-lived bidirectional stream described above. `Sync`'s `pushLoop` (`internal/gateway/server.go`) renders each connected cluster's `DesiredState` snapshot from the DB (`internal/gateway/render.go`) and resends it whenever `Notifier` fires (a real content change) or a 60s resync ticker elapses (drift correction), whichever comes first.
+- `NotifyChange` — fire-and-forget: wakes every connected cluster's `pushLoop` to re-render. Carries an optional `trace_id` (spec D18) that rides the next `DesiredState` push and ends up as the `kubesentry.io/last-trace-id` annotation on the member CR `hublink/apply.go` applies.
+- `Dispatch` — a dumb point-to-point relay: forwards an `Envelope` payload to the named cluster's live `Sync` session and waits up to 10s for a correlated reply. No destination resolution, no offline queueing, and nothing calls it yet — see "Known Follow-ups" below.
+- `Connect` — a separate registration stream for non-cluster components (today: `console-api`), authenticated with a shared static token (`GATEWAY_SHARED_TOKEN`) rather than the cluster `Register` flow. See "Known Follow-ups" — this token is not wired into any Helm values/Secret yet, so `Connect` always fails in every environment.
+- Runs its own `StatusFlusher` (`internal/gateway/heartbeats.go`) which periodically flushes in-memory heartbeat/status state into the `clusters` table and flips clusters to Offline after a missed-heartbeat threshold.
+
+**`cmd/db`** — schema migration runner (`internal/dbmigrate`, golang-migrate under the hood), invoked as a Helm `post-install,pre-upgrade` hook Job (`db migrate`). Also ships a `db register-cluster --name=<name>` one-off subcommand that seeds a `Cluster` row + prints a one-time registration token to stdout, used by `deploy-local.sh` in place of a console-api cluster-CRUD route (which doesn't exist yet).
+
+**`cmd/console`** — split into two containers by the Helm chart (`charts/kubesentry-gateway/templates/console/deployment.yaml`), both from the same Go binary/build:
+- **`api`** — the REST API only (no embedded frontend). Handlers for Policy/PolicyGroup/PolicyException/summary (`internal/console/handlers_*.go`) read/write the same Postgres tables as `cmd/gateway`, via the same `gateway.Repos` GORM bundle. The only remaining live-cluster dependency is a `discovery.DiscoveryInterface` used solely by `handlers_schema.go` for the visual policy builder's OpenAPI field lookups (`ServerResourcesForGroupVersion` + `/openapi/v3`) — every other handler is DB-backed, there is no controller-runtime manager or informer cache in this binary at all.
+  - `RevalidateAllPolicies` runs once at startup: a defense against someone editing the database directly and bypassing the API's synchronous Rego validation.
+  - When `GATEWAY_ADDRESS` is set, `console.RunGatewayLink` maintains a `Connect` stream to the gateway (soft dependency — retries forever, never blocks HTTP readiness) and write handlers call `NotifyChange` best-effort so the gateway's `pushLoop` doesn't have to wait for its 60s resync.
+  - Reuses `webhook.CompileRego` for client-side pre-validation before a Policy is created or updated.
+  - Rollback is driven the same way the operator expects it: setting `spec.rollbackTo` plus a logical-cursor annotation (`kubesentry.io/logical-cursor`) that lets the UI track prev/next position across an in-flight rollback without re-deriving it from version history each time.
+- **`web`** — nginx serving the built Vue SPA (`web/dist`), proxying `/api/*` and `/healthz` to the `api` container over localhost within the same pod (`charts/kubesentry-gateway/console/nginx.conf`). No auth; accessed via NodePort or port-forward.
+
+**Chart deploy ordering** (`charts/kubesentry-gateway`) is initContainer-enforced, not a Helm hook chain: the Postgres `StatefulSet` comes up first, the `kubesentry-db-migrate` Job runs as a `post-install,pre-upgrade` hook, the gateway Deployment's `wait-for-migration` initContainer polls `kubectl wait --for=condition=complete job/kubesentry-db-migrate`, and the console Deployment's `wait-for-gateway` initContainer polls the gateway's gRPC port with `nc -z` before either container starts.
 
 ## Key Invariants
+
+All invariants in this section describe the **member-cluster plane** (`internal/webhook`, `internal/operator`, `charts/kubesentry`) and are untouched by the gateway/database migration — every Policy/PolicyGroup/PolicyException/PolicyVersion CRD, reconciler, and webhook behavior described below still works exactly as written. See "Gateway Plane Invariants" further down for the Postgres-backed side.
 
 **OPA Rego policy contract** — all Rego modules must use package `kubesentry` and expose a `deny` set:
 ```rego
@@ -78,24 +96,48 @@ deny[msg] { ... msg := "reason" }
 
 **PolicyCache is the single source of truth for the webhook** — the operator does not communicate with the webhook directly. The webhook's informer cache reacts to `Policy.Status.Phase` changes: `PhaseInvalid` policies are removed from the cache; `PhaseReady` policies are compiled and cached. `PolicyGroup.status.resolvedPolicies` drives `CompiledGroup.Members` which determines which policies are evaluated per request.
 
+### Gateway Plane Invariants
+
+**Gateway/console hold zero CRDs.** `Policy`, `PolicyGroup`, `PolicyException`, `Cluster`, `PolicyDistribution` are all plain Postgres tables (`internal/dbmigrate/migrations/0001_init_schema.up.sql`) accessed through `internal/dbrepo`. The `internal/api/v1alpha1` Go structs for `Cluster`/`PolicyDistribution` still exist and are still used — but only as JSON payloads inside `gatewaypb.ManagedObject.spec_json`/the render pipeline, never as registered CRDs anywhere in the gateway plane.
+
+**Snowflake IDs, not UUIDs or serials.** `internal/dbmodel.Init(nodeID)` must run once per process before any repo touches the DB (every `cmd/gateway`, `cmd/console`, `cmd/db` `main.go` calls it with `dbmodel.NodeIDFromPodName(os.Getenv("POD_NAME"))`). Forgetting this panics or produces zero-value IDs on insert.
+
+**Auth model is two-tier.** Member clusters use a one-time `RegTokenHash` (issued at `Cluster` row creation, consumed by `Register`) then a long-lived `AuthTokenHash` (issued by `Register`, used by every `Sync` call) — gateway only ever stores SHA-256 hashes, never plaintext, and compares with `crypto/subtle.ConstantTimeCompare`. Non-cluster components (`console-api`) instead present a single shared static token (`GATEWAY_SHARED_TOKEN`) on `Connect` — see "Known Follow-ups", this token is currently unconfigured everywhere.
+
+**`trace_id` only rides a genuine change.** `internal/gateway/server.go`'s `pushLoop` only attaches a `trace_id` to an outgoing `DesiredState` when the wakeup came from a real `Notify()` (not the 60s resync ticker, not the initial connect send) *and* that specific cluster's rendered content hash actually changed — a ticker-forced resend or another cluster's unrelated change must never carry a stale trace_id.
+
 ## Package Layout
 
 ```
-internal/api/v1alpha1/   CRD types + scheme registration + hand-written DeepCopy
-internal/webhook/        cache.go, evaluator.go, handler.go, server.go (PolicyCache holds CompiledPolicy + CompiledGroup)
-internal/operator/       policy_reconciler.go, policygroup_reconciler.go, webhookconfig_reconciler.go, exception_reconciler.go
-internal/tlssetup/       ECDSA cert generation (no k8s dependency)
-internal/console/        REST handlers (policy/group/exception/summary), cursor.go, response.go, server.go
-cmd/webhook/             main: informer setup (Policy + PolicyGroup + Namespace + PolicyException), cache sync, server start
-cmd/operator/            main: manager setup, reconciler registration, tls-setup subcommand
-cmd/console/             main: kubeconfig + cluster.Cluster setup, embeds web/dist, server start
-web/                     Vue 3 + TypeScript SPA (Element Plus, vue-i18n, vue-router), embedded into cmd/console via embed.go
-charts/kubesentry/       Helm chart
+internal/api/v1alpha1/   CRD types (member plane) + Cluster/PolicyDistribution Go structs (gateway-plane JSON payloads only) + hand-written DeepCopy
+internal/webhook/        cache.go, evaluator.go, handler.go, server.go (PolicyCache holds CompiledPolicy + CompiledGroup) — member plane, unchanged
+internal/operator/       policy_reconciler.go, policygroup_reconciler.go, webhookconfig_reconciler.go, exception_reconciler.go — member plane, unchanged
+internal/operator/hublink/  member-side gateway client: Register + Sync loop, apply.go renders received ManagedObjects onto member CRs
+internal/tlssetup/       ECDSA cert generation (no k8s dependency), shared by operator tls-setup and cmd/gateway's default TLS bundle
+internal/dbmodel/        Snowflake ID generator + GORM base model (CreatedAt/UpdatedAt/ID conventions shared by every dbrepo model)
+internal/dbmigrate/      golang-migrate wrapper + migrations/*.sql (schema + seed data)
+internal/dbrepo/         GORM repositories: cluster_repo.go, policy_repo.go, group_repo.go, exception_repo.go, distribution_repo.go
+internal/gatewaypb/      generated from api/proto/gateway/v1/gateway.proto (Register/Sync/Connect/NotifyChange/Dispatch)
+internal/gateway/        gateway.Server (gatewaypb.Hub impl), render.go (DB rows -> DesiredState), notifier.go, registry.go (session/connect registries), heartbeats.go (StatusFlusher)
+internal/groupresolve/   PolicyGroup membership resolution (byName/bySelector/exclude), shared by the gateway render path
+internal/console/        REST handlers (policy/group/exception/summary/schema), gatewaylink.go (Connect client), startup_validate.go, cursor.go, response.go, server.go
+cmd/webhook/             main: informer setup (Policy + PolicyGroup + Namespace + PolicyException), cache sync, server start — member plane
+cmd/operator/            main: manager setup, reconciler registration, tls-setup subcommand, optional hublink Runnable when GATEWAY_ADDRESS is set
+cmd/gateway/             main: GORM DB open, dbmodel.Init, gRPC server on GRPC_ADDR, plain-HTTP health server on :8081, StatusFlusher
+cmd/console/             main: GORM DB open, discovery client (schema handler only), optional Connect link to gateway, HTTP server (api container only, no embedded frontend)
+cmd/db/                  main: `db migrate` (Helm hook Job) and `db register-cluster --name=<name>` (dev/deploy-local seeding)
+web/                     Vue 3 + TypeScript SPA (Element Plus, vue-i18n, vue-router), built to web/dist and served by the console chart's nginx `web` container (no longer embedded into the Go binary)
+charts/kubesentry/       Member-cluster Helm chart (webhook, operator, CRDs, built-in policies) — unchanged by this migration
   ├── crds/              CRD manifests
   ├── builtin-policies/  source-of-truth for built-in Policies + PolicyGroups
   │   ├── policies/      37 standalone Policy CRs (one yaml per policy)
   │   └── groups/        3 PolicyGroup member manifests (intermediate data, not full k8s objects)
   └── templates/         Helm renderers (builtin-policies.yaml + builtin-groups.yaml glob those folders)
+charts/kubesentry-gateway/  Gateway-plane Helm chart (gateway, console web+api, Postgres, migration Job)
+  ├── templates/postgres/     StatefulSet + Service + credentials Secret
+  ├── templates/db-migrate-job.yaml  post-install,pre-upgrade hook Job running `db migrate`
+  ├── templates/deployment.yaml      gateway Deployment (wait-for-migration initContainer)
+  └── templates/console/     console Deployment (web+api containers, wait-for-gateway initContainer) + its own rbac.yaml/service.yaml
 ```
 
 ## Testing Patterns
@@ -107,8 +149,17 @@ charts/kubesentry/       Helm chart
 - `admissionregv1.AddToScheme` must be added to the scheme in `webhookconfig_reconciler_test.go`; the base `buildScheme()` only registers CRD types.
 - `runtime.RawExtension` lives in `k8s.io/apimachinery/pkg/runtime`, not in the admission package.
 - Builtin compile test (`test/builtins/compile_test.go`) runs `helm template` and calls `webhook.CompileRego` on every rendered Policy CR; asserts ≥37 policies. When adding a new built-in policy, ensure its Rego uses v0 syntax and add it to the group's `spec.members`.
-- Console handler tests share `newTestServer`/`doRequest` helpers in `internal/console/handlers_test.go` — fake controller-runtime client with `WithStatusSubresource`, white-box `package console` (not `console_test`).
-- e2e `test/e2e/t9_console_test.go` exercises the console REST API end-to-end through a `kubectl port-forward` to the deployed `kubesentry-console` Service.
+- **Gateway-plane DB tests use testcontainers, not fakes.** `internal/dbrepo`, `internal/dbmigrate`, `internal/gateway`, and `internal/console`'s GORM-backed handler tests each spin up a throwaway `postgres:16-alpine` container via `github.com/testcontainers/testcontainers-go`, run real migrations (`dbmigrate.Migrate`), and exercise the real GORM repos — see `newTestDB` in `internal/dbrepo/testhelper_test.go` (the canonical copy; `internal/gateway/testhelper_test.go` and `internal/console/testhelper_db_test.go` are near-identical unexported copies since Go test helpers can't be shared across package boundaries). This makes `go test ./...` slow and Docker-dependent for these four packages — expect real wall-clock time, not a fake-client instant pass.
+- Console handler tests are split by backing: `newTestServer`/`doRequest` in `internal/console/handlers_test.go` back the schema handler with a fake `schemaFetcher` (no DB needed); `newDBTestServer`/`newDBTestServerWithHandlers` in `internal/console/testhelper_db_test.go` back the policy/group/exception/summary handlers with a real testcontainers Postgres via `gateway.Repos`. Both are white-box `package console` (not `console_test`).
+- e2e (`test/e2e`, build-tagged `e2e`) was rewritten around console-api in this plan: `t9_console_test.go` port-forwards `svc/kubesentry-console` (port 8080, fronted by the `web` nginx container) and exercises the REST API end-to-end. `t11_distribution_test.go`'s `TestT11DistributionPipeline` is currently `t.Skip`'d — see "Known Follow-ups".
+
+## Known Follow-ups
+
+Three gaps were identified during the gateway/database migration and deliberately deferred rather than fixed inline. They are real, tracked work — not implicit TODOs buried in code:
+
+1. **`GATEWAY_SHARED_TOKEN` is never wired into any chart values or Secret.** `cmd/gateway`'s `Connect` RPC (see `internal/gateway/server.go`'s `Connect` method) and `cmd/console`'s `RunGatewayLink` retry loop (`internal/console/gatewaylink.go`) both read `os.Getenv("GATEWAY_SHARED_TOKEN")`, but neither `charts/kubesentry-gateway/values.yaml` nor any template sets it — so it's always empty, and `Server.Connect` explicitly rejects an empty configured token (`s.sharedToken == ""` returns `FailedPrecondition` rather than letting two empty strings "match"). Practically harmless today because nothing yet consumes `Connect`/`Dispatch` traffic in production — `NotifyChange` has no such auth check and works fine without it — but it is a real wiring gap, not an intentional design choice. Fixing it needs a new chart Secret plus values plumbing on both the gateway and console Deployments.
+2. **`PolicyDistribution` has zero e2e coverage.** Task 15's e2e rewrite had to `t.Skip` `TestT11DistributionPipeline` (`test/e2e/t11_distribution_test.go`) because the `PolicyDistribution`/`Cluster` CRDs it exercised no longer exist anywhere (gateway plane moved them to Postgres; member plane never had them), and there is no console-api CRUD route for distributions yet to convert the test to. Restoring coverage needs both a new console-api route and a rewritten e2e test — out of scope for a docs-only task.
+3. **`console/rbac.yaml` no longer needs its `kubesentry.io` CRD rules** — those grants (on `policies`/`policygroups`/`policyexceptions`/`policyversions`) were leftover from before console-api's controller-runtime manager was removed; the gateway cluster never installs the `kubesentry.io` CRDs (they only exist in `charts/kubesentry`, the member chart) so the rules were dead permissions on a nonexistent resource type. This one *was* fixed as part of this task — see the diff in `charts/kubesentry-gateway/templates/console/rbac.yaml`.
 
 ## IDE Diagnostics Note
 

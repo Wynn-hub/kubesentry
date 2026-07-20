@@ -10,12 +10,6 @@ kind: ClusterRole
 metadata:
   name: kubesentry-console
 rules:
-  - apiGroups: [kubesentry.io]
-    resources: [policies, policygroups, policyexceptions]
-    verbs: [get, list, watch, create, update, patch, delete]
-  - apiGroups: [kubesentry.io]
-    resources: [policyversions]
-    verbs: [get, list, watch]
   - apiGroups: [""]
     resources: [namespaces]
     verbs: [get, list, watch]
