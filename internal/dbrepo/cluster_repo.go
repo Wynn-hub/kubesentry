@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -47,6 +48,23 @@ func (r *ClusterRepo) UpdateHeartbeat(ctx context.Context, id int64, phase strin
 		"last_heartbeat_at": lastHeartbeatAt,
 		"operator_version":  operatorVersion,
 	}).Error
+}
+
+// UpdateLabels overwrites only the labels column. Like UpdateHeartbeat
+// above, this must never be a full-row Save() — console-triggered label
+// edits run concurrently with StatusFlusher's heartbeat writes to the same
+// row, and a stale-snapshot Save() would silently revert whichever side
+// wrote last.
+func (r *ClusterRepo) UpdateLabels(ctx context.Context, id int64, labels map[string]string) error {
+	return r.db.WithContext(ctx).Model(&Cluster{}).Where("id = ?", id).
+		Updates(map[string]any{"labels": datatypes.NewJSONType(labels)}).Error
+}
+
+// UpdateRegToken overwrites only reg_token_hash — used when reissuing a
+// lost one-time registration token for a cluster still in Registering.
+func (r *ClusterRepo) UpdateRegToken(ctx context.Context, id int64, hash string) error {
+	return r.db.WithContext(ctx).Model(&Cluster{}).Where("id = ?", id).
+		Updates(map[string]any{"reg_token_hash": hash}).Error
 }
 
 func (r *ClusterRepo) Delete(ctx context.Context, id int64) error {

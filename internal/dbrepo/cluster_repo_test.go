@@ -148,3 +148,60 @@ func TestClusterRepoUpdateHeartbeatDoesNotClobberAuthFields(t *testing.T) {
 		t.Errorf("phase/version/heartbeat = %q/%q/%v, want Online/v1.2.3/non-nil", got.Phase, got.OperatorVersion, got.LastHeartbeatAt)
 	}
 }
+
+// TestClusterRepoUpdateLabelsDoesNotClobberHeartbeat mirrors
+// TestClusterRepoUpdateHeartbeatDoesNotClobberAuthFields above, but from the
+// other direction: a console-triggered UpdateLabels must not stomp a
+// concurrent StatusFlusher heartbeat write. Both methods only ever touch
+// their own columns, so applying them in either order must leave both
+// sets of fields intact.
+func TestClusterRepoUpdateLabelsDoesNotClobberHeartbeat(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewClusterRepo(db)
+	ctx := context.Background()
+
+	c := &dbrepo.Cluster{Name: "labeled", Phase: "Registering"}
+	if err := repo.Create(ctx, c); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	now := time.Now()
+	if err := repo.UpdateHeartbeat(ctx, c.ID, "Online", &now, "v1.2.3"); err != nil {
+		t.Fatalf("update heartbeat: %v", err)
+	}
+	if err := repo.UpdateLabels(ctx, c.ID, map[string]string{"env": "prod"}); err != nil {
+		t.Fatalf("update labels: %v", err)
+	}
+
+	got, err := repo.GetByName(ctx, "labeled")
+	if err != nil {
+		t.Fatalf("get by name: %v", err)
+	}
+	if got.Phase != "Online" || got.OperatorVersion != "v1.2.3" || got.LastHeartbeatAt == nil {
+		t.Errorf("phase/version/heartbeat = %q/%q/%v, want Online/v1.2.3/non-nil (UpdateLabels must not clobber concurrent heartbeat write)", got.Phase, got.OperatorVersion, got.LastHeartbeatAt)
+	}
+	if got.Labels.Data()["env"] != "prod" {
+		t.Errorf("labels[env] = %q, want prod", got.Labels.Data()["env"])
+	}
+}
+
+func TestClusterRepoUpdateRegToken(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewClusterRepo(db)
+	ctx := context.Background()
+
+	c := &dbrepo.Cluster{Name: "reissue-me", Phase: "Registering", RegTokenHash: "old-hash"}
+	if err := repo.Create(ctx, c); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := repo.UpdateRegToken(ctx, c.ID, "new-hash"); err != nil {
+		t.Fatalf("update reg token: %v", err)
+	}
+	got, err := repo.GetByName(ctx, "reissue-me")
+	if err != nil {
+		t.Fatalf("get by name: %v", err)
+	}
+	if got.RegTokenHash != "new-hash" {
+		t.Errorf("RegTokenHash = %q, want new-hash", got.RegTokenHash)
+	}
+}
