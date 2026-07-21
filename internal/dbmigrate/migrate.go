@@ -4,6 +4,7 @@
 package dbmigrate
 
 import (
+	"database/sql"
 	"embed"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 //go:embed migrations/*.sql
@@ -22,6 +24,15 @@ var migrationFS embed.FS
 // versions), matching the pre-upgrade hook's re-run-on-every-upgrade
 // behavior (spec D17).
 func Migrate(dsn string) error {
+	// golang-migrate's own version-tracking table is pinned into the
+	// "kubesentry" schema (see pinMigrationsTableSchema) rather than
+	// "public", so it must exist before ensureVersionTable's
+	// CREATE TABLE IF NOT EXISTS runs — which happens before any migration
+	// file (including 0001's own CREATE SCHEMA) executes.
+	if err := ensureSchema(dsn); err != nil {
+		return err
+	}
+
 	src, err := iofs.New(migrationFS, "migrations")
 	if err != nil {
 		return fmt.Errorf("load embedded migrations: %w", err)
@@ -38,18 +49,29 @@ func Migrate(dsn string) error {
 	return nil
 }
 
+func ensureSchema(dsn string) error {
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return fmt.Errorf("open db: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if _, err := db.Exec(`CREATE SCHEMA IF NOT EXISTS kubesentry`); err != nil {
+		return fmt.Errorf("create kubesentry schema: %w", err)
+	}
+	return nil
+}
+
 // pinMigrationsTableSchema forces golang-migrate's own version-tracking
-// table to live in the "public" schema, regardless of the connecting role's
-// search_path.
+// table to live in the "kubesentry" schema (same database, same schema as
+// every application table — no separate database, no "public" spillover),
+// regardless of the connecting role's search_path.
 //
-// Without this, golang-migrate resolves its default schema via
-// CURRENT_SCHEMA() on every new connection. Postgres's default search_path
-// is `"$user", public` — since our DB role and our application schema are
-// both named "kubesentry", once the 0001 migration creates the "kubesentry"
-// schema, CURRENT_SCHEMA() on any later connection silently resolves to
-// "kubesentry" instead of "public". golang-migrate would then look for
-// schema_migrations in the wrong schema and re-run migration 0001 from
-// scratch, breaking the idempotency the pre-upgrade hook depends on
+// Without an explicit pin, golang-migrate resolves its default schema via
+// CURRENT_SCHEMA() on every new connection, which depends on the role's
+// search_path (default `"$user", public`) and drifts depending on what
+// schemas already exist and connection order. Pinning explicitly avoids that
+// instability, matching the idempotency the pre-upgrade hook depends on
 // (spec D17).
 func pinMigrationsTableSchema(dsn string) string {
 	u, err := url.Parse(dsn)
@@ -58,7 +80,7 @@ func pinMigrationsTableSchema(dsn string) string {
 	}
 	q := u.Query()
 	q.Set("x-migrations-table-quoted", "1")
-	q.Set("x-migrations-table", `"public"."schema_migrations"`)
+	q.Set("x-migrations-table", `"kubesentry"."schema_migrations"`)
 	u.RawQuery = q.Encode()
 	return u.String()
 }

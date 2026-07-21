@@ -1,7 +1,8 @@
 // Command gen-seed-migration converts the existing
 // charts/kubesentry-gateway/builtin-policies/ source yaml into the SQL INSERT
-// statements for migration 0002 (spec D9). Run once, review the output,
-// paste it into 0002_seed_builtin_policies.up.sql — not run at deploy time.
+// statements for the built-in policy seed data (spec D9). Run once, review
+// the output, paste it into the seed block of 0001_init_schema.up.sql — not
+// run at deploy time.
 package main
 
 import (

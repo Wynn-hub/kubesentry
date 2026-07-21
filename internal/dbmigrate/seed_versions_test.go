@@ -14,9 +14,9 @@ import (
 )
 
 // TestSeedBuiltinPoliciesHaveInitialVersion guards against the regression
-// where migration 0002 seeded 37 built-in policies but zero policy_versions
-// rows, silently breaking rollback for any built-in policy edited later
-// (see 0005_seed_builtin_policy_versions.up.sql).
+// where the seed migration created 37 built-in policies but zero
+// policy_versions rows, silently breaking rollback for any built-in policy
+// edited later (see the policy_versions INSERT in 0001_init_schema.up.sql).
 func TestSeedBuiltinPoliciesHaveInitialVersion(t *testing.T) {
 	ctx := context.Background()
 	pgc, err := postgres.Run(ctx, "postgres:16-alpine",
