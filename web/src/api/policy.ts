@@ -17,35 +17,25 @@ export interface PolicyListItem {
   enforcementMode: string
   phase: string
   description: string
-  referencedBy: string[] | null
-  currentVersion: number
   createdAt: string
   updatedAt: string | null
-}
-
-export interface PolicySpec {
-  match: PolicyMatch
-  enforcementMode: string
-  rego: string
-  description?: string
-}
-
-export interface PolicyStatus {
-  phase?: string
-  message?: string
-  currentVersion?: number
-  referencedBy?: string[]
-  lastSyncTime?: string
 }
 
 export interface PolicyDetail {
   name: string
   source: string
+  description: string
   labels: Record<string, string> | null
   annotations: Record<string, string> | null
+  enforcementMode: string
+  match: PolicyMatch
+  rego: string
+  phase: string
+  compileError?: string
+  referencedBy: string[] | null
   resourceVersion: string
-  spec: PolicySpec
-  status: PolicyStatus
+  createdAt: string
+  updatedAt: string | null
 }
 
 export interface PolicyRequest {

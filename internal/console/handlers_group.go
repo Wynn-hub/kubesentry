@@ -9,9 +9,11 @@ import (
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/groupresolve"
 )
 
 // defaultGroupName is the platform baseline PolicyGroup, preloaded by the
@@ -21,15 +23,39 @@ import (
 const defaultGroupName = "default"
 
 type groupListItem struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"displayName"`
-	Enabled     bool   `json:"enabled"`
+	Name          string `json:"name"`
+	Source        string `json:"source"`
+	DisplayName   string `json:"displayName"`
+	Enabled       bool   `json:"enabled"`
+	Phase         string `json:"phase"`
+	ResolvedCount int    `json:"resolvedCount"`
+}
+
+// groupStatus mirrors the CRD-era status subresource, but per spec D7 it is
+// never stored — always computed live from groupresolve.Resolve against the
+// current policy list, same as the summary endpoint.
+type groupStatus struct {
+	Phase            string                     `json:"phase"`
+	ResolvedCount    int                        `json:"resolvedCount"`
+	ResolvedPolicies []v1alpha1.EffectiveMember `json:"resolvedPolicies"`
 }
 
 type groupDetail struct {
 	Name            string                   `json:"name"`
+	Source          string                   `json:"source"`
 	ResourceVersion string                   `json:"resourceVersion"`
 	Spec            v1alpha1.PolicyGroupSpec `json:"spec"`
+	Status          groupStatus              `json:"status"`
+}
+
+// groupPhase reports "Ready" unless resolution produced a condition (a
+// missing byName reference or a malformed selector) — mirrors the CRD-era
+// PolicyGroupReconciler's status.phase computation, now derived at read time.
+func groupPhase(conditions []metav1.Condition) string {
+	if len(conditions) > 0 {
+		return v1alpha1.PhaseInvalid
+	}
+	return v1alpha1.PhaseReady
 }
 
 // groupResourceVersion derives an opaque optimistic-concurrency token from
@@ -40,11 +66,19 @@ func groupResourceVersion(g *dbrepo.PolicyGroup) string {
 	return strconv.FormatInt(g.UpdatedAt.UnixNano(), 10)
 }
 
-func toGroupDetail(g *dbrepo.PolicyGroup) groupDetail {
+func toGroupDetail(g *dbrepo.PolicyGroup, policies []v1alpha1.Policy) groupDetail {
+	spec := g.Spec.Data()
+	members, conditions := groupresolve.Resolve(spec, policies)
 	return groupDetail{
 		Name:            g.Name,
+		Source:          policySource(g.Labels.Data()),
 		ResourceVersion: groupResourceVersion(g),
-		Spec:            g.Spec.Data(),
+		Spec:            spec,
+		Status: groupStatus{
+			Phase:            groupPhase(conditions),
+			ResolvedCount:    len(members),
+			ResolvedPolicies: members,
+		},
 	}
 }
 
@@ -54,14 +88,24 @@ func (h *Handlers) listGroups(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "list groups: "+err.Error())
 		return
 	}
+	policies, err := h.Repos.Policies.List(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "list policies: "+err.Error())
+		return
+	}
+	resolvePolicies := resolvablePolicies(policies)
 	items := make([]groupListItem, 0, len(groups))
 	for i := range groups {
 		g := &groups[i]
 		spec := g.Spec.Data()
+		members, conditions := groupresolve.Resolve(spec, resolvePolicies)
 		items = append(items, groupListItem{
-			Name:        g.Name,
-			DisplayName: spec.DisplayName,
-			Enabled:     spec.Enabled,
+			Name:          g.Name,
+			Source:        policySource(g.Labels.Data()),
+			DisplayName:   spec.DisplayName,
+			Enabled:       spec.Enabled,
+			Phase:         groupPhase(conditions),
+			ResolvedCount: len(members),
 		})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
@@ -73,7 +117,12 @@ func (h *Handlers) getGroup(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeOK(w, toGroupDetail(g))
+	policies, err := h.Repos.Policies.List(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "list policies: "+err.Error())
+		return
+	}
+	writeOK(w, toGroupDetail(g, resolvablePolicies(policies)))
 }
 
 // fetchGroup loads the {name} path policy group, writing 404/500 on failure.

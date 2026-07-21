@@ -3,7 +3,7 @@
     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px">
       <h2 style="margin: 0">{{ d.name }}</h2>
       <el-tag size="small" :type="d.source === 'builtin' ? 'info' : 'primary'">{{ d.source }}</el-tag>
-      <PhaseTag :phase="d.status.phase" />
+      <PhaseTag :phase="d.phase" />
       <div style="flex: 1" />
       <el-button @click="$router.push(`/policies/${d.name}/edit`)">{{ $t('common.edit') }}</el-button>
       <el-button @click="$router.back()">{{ $t('common.back') }}</el-button>
@@ -12,16 +12,15 @@
     <el-tabs v-model="activeTab">
       <el-tab-pane :label="$t('policy.tabOverview')" name="overview">
         <el-descriptions :column="2" border>
-          <el-descriptions-item :label="$t('common.description')">{{ d.spec.description }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('policy.mode')"><ModeTag :mode="d.spec.enforcementMode" /></el-descriptions-item>
-          <el-descriptions-item :label="$t('policy.currentVersion')">v{{ d.status.currentVersion }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('policy.referencedBy')">{{ (d.status.referencedBy ?? []).join(', ') }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('policy.operations')">{{ d.spec.match.operations.join(', ') }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('common.description')">{{ d.description }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('policy.mode')"><ModeTag :mode="d.enforcementMode" /></el-descriptions-item>
+          <el-descriptions-item :label="$t('policy.referencedBy')">{{ (d.referencedBy ?? []).join(', ') }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('policy.operations')">{{ d.match.operations.join(', ') }}</el-descriptions-item>
           <el-descriptions-item :label="$t('policy.resources')">
-            {{ d.spec.match.resources.map((r) => r.resources.join('/')).join('; ') }}
+            {{ d.match.resources.map((r) => r.resources.join('/')).join('; ') }}
           </el-descriptions-item>
         </el-descriptions>
-        <el-alert v-if="d.status.message" :title="d.status.message" type="error" :closable="false" style="margin-top: 12px" />
+        <el-alert v-if="d.compileError" :title="d.compileError" type="error" :closable="false" style="margin-top: 12px" />
       </el-tab-pane>
 
       <el-tab-pane :label="$t('policy.tabRego')" name="rego">
@@ -35,7 +34,7 @@
             padding: 14px;
             white-space: pre-wrap;
           "
-          >{{ d.spec.rego }}</pre
+          >{{ d.rego }}</pre
         >
       </el-tab-pane>
 
@@ -63,7 +62,7 @@ const activeTab = ref(route.query.tab === 'versions' ? 'versions' : 'overview')
 
 async function copyRego() {
   if (!d.value) return
-  await navigator.clipboard.writeText(d.value.spec.rego)
+  await navigator.clipboard.writeText(d.value.rego)
   ElMessage.success(t('policy.copied'))
 }
 

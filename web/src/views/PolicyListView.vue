@@ -59,13 +59,6 @@
     <el-table-column :label="$t('policy.phase')" prop="phase" sortable width="100">
       <template #default="{ row }"><PhaseTag :phase="row.phase" /></template>
     </el-table-column>
-    <el-table-column :label="$t('policy.currentVersion')" prop="currentVersion" sortable width="110">
-      <template #default="{ row }">
-        <el-button link type="primary" @click="$router.push(`/policies/${row.name}?tab=versions`)">
-          v{{ row.currentVersion }}
-        </el-button>
-      </template>
-    </el-table-column>
     <el-table-column :label="$t('policy.createdAt')" prop="createdAt" sortable width="155">
       <template #default="{ row }">
         {{ row.createdAt ? new Date(row.createdAt).toLocaleString() : '-' }}
@@ -75,9 +68,6 @@
       <template #default="{ row }">
         {{ row.updatedAt ? new Date(row.updatedAt).toLocaleString() : '-' }}
       </template>
-    </el-table-column>
-    <el-table-column :label="$t('policy.referencedBy')" min-width="125" show-overflow-tooltip>
-      <template #default="{ row }">{{ (row.referencedBy ?? []).join(', ') }}</template>
     </el-table-column>
     <el-table-column :label="$t('common.actions')" width="130" fixed="right">
       <template #default="{ row }">

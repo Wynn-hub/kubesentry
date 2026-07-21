@@ -153,7 +153,7 @@ func TestGetExceptionDetail(t *testing.T) {
 		t.Fatalf("code = %d", rec.Code)
 	}
 	d := mustUnmarshal[exceptionDetail](t, env.Data)
-	if !d.Spec.AllPolicies || d.Phase != "Active" {
+	if !d.Spec.AllPolicies || d.Status.Phase != "Active" {
 		t.Fatalf("detail = %+v", d)
 	}
 }
@@ -173,8 +173,8 @@ func TestGetExceptionDetailExpired(t *testing.T) {
 		t.Fatalf("code = %d", rec.Code)
 	}
 	d := mustUnmarshal[exceptionDetail](t, env.Data)
-	if d.Phase != "Expired" {
-		t.Fatalf("phase = %q, want Expired", d.Phase)
+	if d.Status.Phase != "Expired" {
+		t.Fatalf("phase = %q, want Expired", d.Status.Phase)
 	}
 }
 

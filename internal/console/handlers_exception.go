@@ -27,12 +27,19 @@ type exceptionListItem struct {
 	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`
 }
 
+// exceptionStatus mirrors the CRD-era status subresource — computed at read
+// time from ExpiresAt/CreatedAt, never stored, same rationale as groupStatus.
+type exceptionStatus struct {
+	Phase       string     `json:"phase"`
+	EffectiveAt time.Time  `json:"effectiveAt"`
+	ExpiresAt   *time.Time `json:"expiresAt,omitempty"`
+}
+
 type exceptionDetail struct {
 	Name            string                       `json:"name"`
-	Phase           string                       `json:"phase"`
 	ResourceVersion string                       `json:"resourceVersion"`
 	Spec            v1alpha1.PolicyExceptionSpec `json:"spec"`
-	ExpiresAt       *time.Time                   `json:"expiresAt,omitempty"`
+	Status          exceptionStatus              `json:"status"`
 }
 
 // exceptionPhase derives Active/Expired from ExpiresAt at read time — the
@@ -52,10 +59,13 @@ func exceptionResourceVersion(e *dbrepo.PolicyException) string {
 func toExceptionDetail(e *dbrepo.PolicyException) exceptionDetail {
 	return exceptionDetail{
 		Name:            e.Name,
-		Phase:           exceptionPhase(e.ExpiresAt),
 		ResourceVersion: exceptionResourceVersion(e),
 		Spec:            e.Spec.Data(),
-		ExpiresAt:       e.ExpiresAt,
+		Status: exceptionStatus{
+			Phase:       exceptionPhase(e.ExpiresAt),
+			EffectiveAt: e.CreatedAt,
+			ExpiresAt:   e.ExpiresAt,
+		},
 	}
 }
 

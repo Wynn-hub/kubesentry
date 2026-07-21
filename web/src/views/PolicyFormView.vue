@@ -275,15 +275,15 @@ onMounted(async () => {
     resourceVersion = d.resourceVersion
     source = d.source
     form.name = d.name
-    form.description = d.spec.description ?? ''
-    form.enforcementMode = d.spec.enforcementMode
-    form.operations = d.spec.match.operations
-    form.resources = d.spec.match.resources.map((r) => ({
+    form.description = d.description ?? ''
+    form.enforcementMode = d.enforcementMode
+    form.operations = d.match.operations
+    form.resources = d.match.resources.map((r) => ({
       apiGroup: r.apiGroups[0] === undefined ? null : r.apiGroups[0] === '' ? CORE_GROUP : r.apiGroups[0],
       apiVersion: r.apiVersions[0] ?? null,
       resource: r.resources[0] ?? null,
     }))
-    form.rego = d.spec.rego
+    form.rego = d.rego
 
     const savedGroups = d.annotations?.[VISUAL_BUILDER_ANNOTATION]
       ? deserializeRuleGroups(d.annotations[VISUAL_BUILDER_ANNOTATION])

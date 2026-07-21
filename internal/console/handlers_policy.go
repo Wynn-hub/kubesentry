@@ -35,10 +35,25 @@ const (
 	// state as JSON. Cleared by sending an empty string for this key — see
 	// applyAnnotations.
 	visualBuilderSpecAnnotation = "kubesentry.io/visual-builder-spec"
+	// builtinLabel marks the policies seeded by migration 0003 (originally
+	// 0002's INSERT rows) as platform-shipped rather than user-created —
+	// there is no dedicated source column, so this label is the only signal
+	// the console has for delete-protection and the "builtin" badge.
+	builtinLabel = "kubesentry.io/builtin"
 )
+
+// policySource derives the "builtin"/"custom" badge from builtinLabel —
+// see the builtinLabel comment for why there's no dedicated column.
+func policySource(labels map[string]string) string {
+	if labels[builtinLabel] == "true" {
+		return "builtin"
+	}
+	return "custom"
+}
 
 type policyListItem struct {
 	Name            string    `json:"name"`
+	Source          string    `json:"source"`
 	EnforcementMode string    `json:"enforcementMode"`
 	Phase           string    `json:"phase"`
 	Description     string    `json:"description"`
@@ -48,6 +63,7 @@ type policyListItem struct {
 
 type policyDetail struct {
 	Name            string               `json:"name"`
+	Source          string               `json:"source"`
 	Description     string               `json:"description"`
 	Labels          map[string]string    `json:"labels"`
 	Annotations     map[string]string    `json:"annotations"`
@@ -56,6 +72,7 @@ type policyDetail struct {
 	Rego            string               `json:"rego"`
 	Phase           string               `json:"phase"`
 	CompileError    string               `json:"compileError,omitempty"`
+	ReferencedBy    []string             `json:"referencedBy"`
 	ResourceVersion string               `json:"resourceVersion"`
 	CreatedAt       time.Time            `json:"createdAt"`
 	UpdatedAt       time.Time            `json:"updatedAt"`
@@ -131,17 +148,20 @@ func policyResourceVersion(p *dbrepo.Policy) string {
 	return strconv.FormatInt(p.UpdatedAt.UnixNano(), 10)
 }
 
-func toPolicyDetail(p *dbrepo.Policy) policyDetail {
+func toPolicyDetail(p *dbrepo.Policy, referencedBy []string) policyDetail {
+	labels := p.Labels.Data()
 	return policyDetail{
 		Name:            p.Name,
+		Source:          policySource(labels),
 		Description:     p.Description,
-		Labels:          p.Labels.Data(),
+		Labels:          labels,
 		Annotations:     p.Annotations.Data(),
 		EnforcementMode: p.EnforcementMode,
 		Match:           p.Match.Data(),
 		Rego:            p.Rego,
 		Phase:           policyPhase(p.CompileOK),
 		CompileError:    p.CompileError,
+		ReferencedBy:    referencedBy,
 		ResourceVersion: policyResourceVersion(p),
 		CreatedAt:       p.CreatedAt,
 		UpdatedAt:       p.UpdatedAt,
@@ -157,6 +177,7 @@ func (h *Handlers) listPolicies(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	phases := multiValue(q.Get("phase"))
 	modes := multiValue(q.Get("mode"))
+	sources := multiValue(q.Get("source"))
 	keyword := strings.ToLower(q.Get("keyword"))
 
 	items := make([]policyListItem, 0, len(policies))
@@ -169,6 +190,9 @@ func (h *Handlers) listPolicies(w http.ResponseWriter, r *http.Request) {
 		if !matchAny(modes, p.EnforcementMode) {
 			continue
 		}
+		if !matchAny(sources, policySource(p.Labels.Data())) {
+			continue
+		}
 		if keyword != "" &&
 			!strings.Contains(strings.ToLower(p.Name), keyword) &&
 			!strings.Contains(strings.ToLower(p.Description), keyword) {
@@ -176,6 +200,7 @@ func (h *Handlers) listPolicies(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, policyListItem{
 			Name:            p.Name,
+			Source:          policySource(p.Labels.Data()),
 			EnforcementMode: p.EnforcementMode,
 			Phase:           phase,
 			Description:     p.Description,
@@ -192,7 +217,12 @@ func (h *Handlers) getPolicy(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeOK(w, toPolicyDetail(p))
+	refs, err := h.referencingGroups(r, p.Name)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "list policy groups: "+err.Error())
+		return
+	}
+	writeOK(w, toPolicyDetail(p, refs))
 }
 
 // fetchPolicy loads the {name} path policy, writing 404/500 on failure.
