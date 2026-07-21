@@ -21,6 +21,7 @@ const router = createRouter({
         { path: 'exceptions/new', name: 'exception-new', component: () => import('../views/ExceptionFormView.vue') },
         { path: 'exceptions/:name/edit', name: 'exception-edit', component: () => import('../views/ExceptionFormView.vue') },
         { path: 'clusters', name: 'clusters', component: () => import('../views/ClusterListView.vue') },
+        { path: 'clusters/:name', name: 'cluster-detail', component: () => import('../views/ClusterDetailView.vue') },
         { path: 'tenants', name: 'tenants', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'tenants' } },
         { path: 'events', name: 'events', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'events' } },
         { path: 'audit', name: 'audit', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'audit' } },
