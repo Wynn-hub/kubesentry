@@ -1,6 +1,6 @@
 export default {
   nav: {
-    overview: 'Overview', policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions',
+    overview: 'Overview', policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions', distributions: 'Distribution',
     clusters: 'Clusters', tenants: 'Tenants',
     events: 'Admission Events', audit: 'K8s Audit', alerts: 'Alert Rules',
     groupPlatform: 'Platform', groupProtection: 'Policy Protection', groupObservability: 'Audit & Alerting',
@@ -75,6 +75,12 @@ export default {
     targetPolicies: 'Policies', targetGroups: 'Policy Groups', targetAll: 'All Policies',
     nsTarget: 'Namespaces', nsAllHint: 'Exempting all namespaces isn\'t supported here — disable the relevant policy group instead',
     resSelector: 'Resource Object Label', resSelectorHint: 'Any resource object carrying this label will be exempted',
+  },
+  distribution: {
+    title: 'Distribution', subtitle: 'Manage which clusters each policy group is pushed to',
+    name: 'Name', policyGroups: 'Policy Groups', clusters: 'Target Clusters',
+    byName: 'Select by Name', clusterSelector: 'Select by Label',
+    deleteDefaultBlocked: 'The default distribution cannot be deleted from here',
   },
   overview: {
     policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions',

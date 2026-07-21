@@ -1,6 +1,6 @@
 export default {
   nav: {
-    overview: '平台概览', policies: '策略', groups: '策略组', exceptions: '豁免',
+    overview: '平台概览', policies: '策略', groups: '策略组', exceptions: '豁免', distributions: '策略下发',
     clusters: '集群管理', tenants: '租户管理',
     events: '准入事件', audit: 'K8s 审计', alerts: '告警规则',
     groupPlatform: '平台', groupProtection: '策略防护', groupObservability: '审计与告警',
@@ -75,6 +75,12 @@ export default {
     targetPolicies: '指定策略', targetGroups: '指定策略组', targetAll: '全部策略',
     nsTarget: '命名空间', nsAllHint: '不支持豁免全部命名空间；如需豁免全部命名空间，请停用对应的策略组',
     resSelector: '资源对象标签', resSelectorHint: '带有该标签的任意资源对象都会被豁免',
+  },
+  distribution: {
+    title: '策略下发', subtitle: '管理策略组下发到哪些集群',
+    name: '名称', policyGroups: '策略组', clusters: '目标集群',
+    byName: '按名称选择', clusterSelector: '按标签选择',
+    deleteDefaultBlocked: '默认下发规则不支持从此处删除',
   },
   overview: {
     policies: '策略', groups: '策略组', exceptions: '豁免',
