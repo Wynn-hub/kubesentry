@@ -6,15 +6,48 @@ import (
 	"testing"
 )
 
-func TestCreateClusterReturnsTokenAndRegisteringPhase(t *testing.T) {
+func validInstallParams() map[string]any {
+	return map[string]any{
+		"namespace": "kubesentry-system",
+		"webhookImage": map[string]any{
+			"repository": "wynnhub/kubesentry-webhook",
+			"tag":        "latest",
+			"pullPolicy": "IfNotPresent",
+		},
+		"operatorImage": map[string]any{
+			"repository": "wynnhub/kubesentry-operator",
+			"tag":        "latest",
+			"pullPolicy": "IfNotPresent",
+		},
+		"gatewayAddress": "10.0.0.1:30443",
+	}
+}
+
+func TestCreateClusterReturnsCommandAndRegisteringPhase(t *testing.T) {
 	h, repos := newDBTestServer(t)
-	rec, env := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "prod-east"})
+	rec, env := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{
+		"name":          "prod-east",
+		"installParams": validInstallParams(),
+	})
 	if rec.Code != 200 {
 		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	created := mustUnmarshal[createClusterResponse](t, env.Data)
-	if created.Name != "prod-east" || created.Token == "" {
+	if created.Name != "prod-east" || created.Command == "" {
 		t.Fatalf("created = %+v", created)
+	}
+	for _, want := range []string{
+		"--set webhook.image.repository=\"wynnhub/kubesentry-webhook\"",
+		"--set operator.image.repository=\"wynnhub/kubesentry-operator\"",
+		"--set gateway.address=\"10.0.0.1:30443\"",
+		"--set gateway.clusterName=\"prod-east\"",
+	} {
+		if !strings.Contains(created.Command, want) {
+			t.Errorf("command missing %q\ngot: %s", want, created.Command)
+		}
+	}
+	if strings.Contains(created.Command, "gateway.caBundle") {
+		t.Error("command should omit gateway.caBundle when not provided")
 	}
 
 	c, err := repos.Clusters.GetByName(context.Background(), "prod-east")
@@ -29,10 +62,30 @@ func TestCreateClusterReturnsTokenAndRegisteringPhase(t *testing.T) {
 	}
 }
 
+func TestCreateClusterRecordsInstallHistory(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{
+		"name":          "prod-east",
+		"installParams": validInstallParams(),
+	})
+
+	records, err := repos.InstallRecords.List(context.Background())
+	if err != nil {
+		t.Fatalf("list install records: %v", err)
+	}
+	if len(records) != 1 || records[0].ClusterName != "prod-east" {
+		t.Fatalf("records = %+v, want one record for prod-east", records)
+	}
+	if records[0].Namespace != "kubesentry-system" {
+		t.Errorf("namespace = %q, want kubesentry-system", records[0].Namespace)
+	}
+}
+
 func TestCreateClusterDuplicateNameConflict(t *testing.T) {
 	h, _ := newDBTestServer(t)
-	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "dup"})
-	rec, env := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "dup"})
+	body := map[string]any{"name": "dup", "installParams": validInstallParams()}
+	doRequest(t, h, "POST", "/api/v1/clusters", body)
+	rec, env := doRequest(t, h, "POST", "/api/v1/clusters", body)
 	if rec.Code != 409 {
 		t.Fatalf("code = %d, want 409, body = %s", rec.Code, rec.Body.String())
 	}
@@ -43,7 +96,40 @@ func TestCreateClusterDuplicateNameConflict(t *testing.T) {
 
 func TestCreateClusterInvalidNameRejected(t *testing.T) {
 	h, _ := newDBTestServer(t)
-	rec, _ := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "Not_A_Valid_Name!"})
+	rec, _ := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{
+		"name":          "Not_A_Valid_Name!",
+		"installParams": validInstallParams(),
+	})
+	if rec.Code != 400 {
+		t.Fatalf("code = %d, want 400", rec.Code)
+	}
+}
+
+func TestCreateClusterDangerousCharacterRejected(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	p := validInstallParams()
+	p["gatewayAddress"] = "10.0.0.1:30443`whoami`"
+	rec, _ := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "danger", "installParams": p})
+	if rec.Code != 400 {
+		t.Fatalf("code = %d, want 400", rec.Code)
+	}
+}
+
+func TestCreateClusterInvalidPullPolicyRejected(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	p := validInstallParams()
+	p["webhookImage"].(map[string]any)["pullPolicy"] = "Sometimes"
+	rec, _ := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "bad-policy", "installParams": p})
+	if rec.Code != 400 {
+		t.Fatalf("code = %d, want 400", rec.Code)
+	}
+}
+
+func TestCreateClusterMissingRequiredFieldRejected(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	p := validInstallParams()
+	p["gatewayAddress"] = ""
+	rec, _ := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "no-address", "installParams": p})
 	if rec.Code != 400 {
 		t.Fatalf("code = %d, want 400", rec.Code)
 	}
@@ -51,8 +137,8 @@ func TestCreateClusterInvalidNameRejected(t *testing.T) {
 
 func TestListClustersSortedByName(t *testing.T) {
 	h, _ := newDBTestServer(t)
-	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "zeta"})
-	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "alpha"})
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "zeta", "installParams": validInstallParams()})
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "alpha", "installParams": validInstallParams()})
 
 	rec, env := doRequest(t, h, "GET", "/api/v1/clusters", nil)
 	if rec.Code != 200 {
@@ -74,7 +160,7 @@ func TestGetClusterNotFound(t *testing.T) {
 
 func TestDeleteClusterOnlineRejected(t *testing.T) {
 	h, repos := newDBTestServer(t)
-	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "live"})
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "live", "installParams": validInstallParams()})
 	c, err := repos.Clusters.GetByName(context.Background(), "live")
 	if err != nil {
 		t.Fatalf("get by name: %v", err)
@@ -91,7 +177,7 @@ func TestDeleteClusterOnlineRejected(t *testing.T) {
 
 func TestDeleteClusterOfflineSucceeds(t *testing.T) {
 	h, repos := newDBTestServer(t)
-	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "gone"})
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "gone", "installParams": validInstallParams()})
 	c, err := repos.Clusters.GetByName(context.Background(), "gone")
 	if err != nil {
 		t.Fatalf("get by name: %v", err)
@@ -111,19 +197,19 @@ func TestDeleteClusterOfflineSucceeds(t *testing.T) {
 
 func TestReissueTokenOnlyWhenRegistering(t *testing.T) {
 	h, repos := newDBTestServer(t)
-	rec1, env1 := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "reissue-me"})
+	rec1, env1 := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "reissue-me", "installParams": validInstallParams()})
 	if rec1.Code != 200 {
 		t.Fatalf("create code = %d", rec1.Code)
 	}
-	firstToken := mustUnmarshal[createClusterResponse](t, env1.Data).Token
+	firstCommand := mustUnmarshal[createClusterResponse](t, env1.Data).Command
 
-	rec2, env2 := doRequest(t, h, "POST", "/api/v1/clusters/reissue-me/reissue-token", nil)
+	rec2, env2 := doRequest(t, h, "POST", "/api/v1/clusters/reissue-me/reissue-token", map[string]any{"installParams": validInstallParams()})
 	if rec2.Code != 200 {
 		t.Fatalf("reissue code = %d, body = %s", rec2.Code, rec2.Body.String())
 	}
 	second := mustUnmarshal[createClusterResponse](t, env2.Data)
-	if second.Token == "" || second.Token == firstToken {
-		t.Fatalf("expected a fresh, different token; first=%q second=%q", firstToken, second.Token)
+	if second.Command == "" || second.Command == firstCommand {
+		t.Fatalf("expected a fresh, different command (new token embedded); first=%q second=%q", firstCommand, second.Command)
 	}
 
 	c, err := repos.Clusters.GetByName(context.Background(), "reissue-me")
@@ -133,15 +219,29 @@ func TestReissueTokenOnlyWhenRegistering(t *testing.T) {
 	if err := repos.Clusters.UpdateHeartbeat(context.Background(), c.ID, "Online", nil, "v1.0.0"); err != nil {
 		t.Fatalf("simulate online: %v", err)
 	}
-	rec3, _ := doRequest(t, h, "POST", "/api/v1/clusters/reissue-me/reissue-token", nil)
+	rec3, _ := doRequest(t, h, "POST", "/api/v1/clusters/reissue-me/reissue-token", map[string]any{"installParams": validInstallParams()})
 	if rec3.Code != 409 {
 		t.Fatalf("code = %d, want 409 once cluster is Online", rec3.Code)
 	}
 }
 
+func TestReissueTokenRecordsInstallHistory(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "reissue-me", "installParams": validInstallParams()})
+	doRequest(t, h, "POST", "/api/v1/clusters/reissue-me/reissue-token", map[string]any{"installParams": validInstallParams()})
+
+	records, err := repos.InstallRecords.List(context.Background())
+	if err != nil {
+		t.Fatalf("list install records: %v", err)
+	}
+	if len(records) != 2 {
+		t.Fatalf("records = %+v, want 2 (one from create, one from reissue)", records)
+	}
+}
+
 func TestUpdateClusterLabels(t *testing.T) {
 	h, repos := newDBTestServer(t)
-	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "labeled"})
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "labeled", "installParams": validInstallParams()})
 
 	rec, _ := doRequest(t, h, "PUT", "/api/v1/clusters/labeled", map[string]any{"labels": map[string]string{"env": "prod"}})
 	if rec.Code != 200 {
@@ -154,5 +254,48 @@ func TestUpdateClusterLabels(t *testing.T) {
 	}
 	if c.Labels.Data()["env"] != "prod" {
 		t.Errorf("labels[env] = %q, want prod", c.Labels.Data()["env"])
+	}
+}
+
+func TestGetLatestInstallParamsNoneExists(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	rec, env := doRequest(t, h, "GET", "/api/v1/clusters/nope/latest-install-params", nil)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d, want 200", rec.Code)
+	}
+	if string(env.Data) != "null" {
+		t.Errorf("data = %s, want null for a cluster with no history", env.Data)
+	}
+}
+
+func TestGetLatestInstallParamsReturnsNewest(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "prod-east", "installParams": validInstallParams()})
+	p2 := validInstallParams()
+	p2["namespace"] = "custom-ns"
+	doRequest(t, h, "POST", "/api/v1/clusters/prod-east/reissue-token", map[string]any{"installParams": p2})
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/clusters/prod-east/latest-install-params", nil)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	got := mustUnmarshal[installParams](t, env.Data)
+	if got.Namespace != "custom-ns" {
+		t.Errorf("namespace = %q, want custom-ns (the most recent)", got.Namespace)
+	}
+}
+
+func TestListInstallRecordsAcrossClusters(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "cluster-a", "installParams": validInstallParams()})
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "cluster-b", "installParams": validInstallParams()})
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/install-records", nil)
+	if rec.Code != 200 {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	items := mustUnmarshal[[]installRecordItem](t, env.Data)
+	if len(items) != 2 {
+		t.Fatalf("items = %+v, want 2 records", items)
 	}
 }
