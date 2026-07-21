@@ -10,7 +10,7 @@ export default {
   common: {
     create: 'Create', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
     confirm: 'Confirm', search: 'Search', actions: 'Actions', name: 'Name', description: 'Description',
-    refresh: 'Refresh', back: 'Back', view: 'View',
+    refresh: 'Refresh', back: 'Back', view: 'View', copy: 'Copy',
     deleteConfirm: 'Delete {name}?',
     conflictRefresh: 'The object has been modified. Refresh and retry.',
     builtinWarning: 'This is a builtin object managed by Helm. Editing it will drift from Helm. Continue?',
@@ -50,6 +50,18 @@ export default {
     excluded: 'Excluded Policies',
     excludedHint: 'Explicitly excluded from this group. To re-include, select it again on the edit page.',
     enableDone: '{name} enabled', disableDone: '{name} disabled',
+  },
+  cluster: {
+    title: 'Clusters', subtitle: 'Manage registered member clusters',
+    name: 'Name', phase: 'Phase', operatorVersion: 'Operator Version',
+    lastHeartbeatAt: 'Last Heartbeat', clusterUid: 'Cluster UID', labels: 'Labels',
+    createdAt: 'Registered At', updatedAt: 'Last Updated',
+    neverHeartbeat: 'Never online',
+    createTitle: 'New Cluster', createHint: 'Name is required, labels are optional',
+    tokenTitle: 'One-Time Registration Token', tokenHint: 'This token cannot be viewed again after closing this dialog — use "Reissue" on the cluster detail page if you need a new one',
+    tokenCopied: 'Copied',
+    deleteOnlineBlocked: 'Online clusters cannot be deleted from here',
+    reissueToken: 'Reissue Token', reissueConfirm: 'Reissue the registration token for {name}? The old token will stop working immediately',
   },
   exception: {
     title: 'Exceptions', subtitle: 'Manage exemption policies for specific namespaces or resource objects', target: 'Target', duration: 'Duration', reason: 'Reason',

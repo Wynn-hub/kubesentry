@@ -10,7 +10,7 @@ export default {
   common: {
     create: '新建', edit: '编辑', delete: '删除', save: '保存', cancel: '取消',
     confirm: '确认', search: '搜索', actions: '操作', name: '名称', description: '描述',
-    refresh: '刷新', back: '返回', view: '查看',
+    refresh: '刷新', back: '返回', view: '查看', copy: '复制',
     deleteConfirm: '确定删除 {name} 吗？',
     conflictRefresh: '数据已变更，请刷新后重试',
     builtinWarning: '这是内置对象，修改后将偏离 Helm 管理，确定继续吗？',
@@ -50,6 +50,18 @@ export default {
     excluded: '已排除的策略',
     excludedHint: '已被明确排除，重新加入请前往编辑页勾选。',
     enableDone: '{name} 已启用', disableDone: '{name} 已停用',
+  },
+  cluster: {
+    title: '集群管理', subtitle: '管理已注册的成员集群',
+    name: '名称', phase: '状态', operatorVersion: 'Operator 版本',
+    lastHeartbeatAt: '最后心跳', clusterUid: '集群 UID', labels: '标签',
+    createdAt: '注册时间', updatedAt: '最后更新',
+    neverHeartbeat: '从未上线',
+    createTitle: '新建集群', createHint: '仅需名称，标签可选',
+    tokenTitle: '一次性注册 Token', tokenHint: '离开此弹窗后将无法再次查看，如需重新获取请在集群详情页使用重发功能',
+    tokenCopied: '已复制',
+    deleteOnlineBlocked: '在线集群暂不支持从此处删除',
+    reissueToken: '重发 Token', reissueConfirm: '确定要为 {name} 重新签发注册 Token 吗？旧 Token 将立即失效',
   },
   exception: {
     title: '豁免', subtitle: '为特定命名空间或资源对象管理豁免策略', target: '豁免对象', duration: '时长', reason: '原因',
