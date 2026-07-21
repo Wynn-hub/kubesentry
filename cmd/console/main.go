@@ -63,6 +63,7 @@ func main() {
 		Groups:         dbrepo.NewGroupRepo(db),
 		Exceptions:     dbrepo.NewExceptionRepo(db),
 		InstallRecords: dbrepo.NewInstallRecordRepo(db),
+		Distributions:  dbrepo.NewDistributionRepo(db),
 	}
 
 	// console-api's k8s footprint is intentionally minimal: only a discovery
