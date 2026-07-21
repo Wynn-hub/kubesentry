@@ -62,6 +62,11 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/clusters/{name}/reissue-token", h.reissueClusterToken)
 	mux.HandleFunc("GET /api/v1/clusters/{name}/latest-install-params", h.getLatestInstallParams)
 	mux.HandleFunc("GET /api/v1/install-records", h.listInstallRecords)
+	mux.HandleFunc("GET /api/v1/distributions", h.listDistributions)
+	mux.HandleFunc("POST /api/v1/distributions", h.createDistribution)
+	mux.HandleFunc("GET /api/v1/distributions/{name}", h.getDistribution)
+	mux.HandleFunc("PUT /api/v1/distributions/{name}", h.updateDistribution)
+	mux.HandleFunc("DELETE /api/v1/distributions/{name}", h.deleteDistribution)
 }
 
 // Server is the console HTTP server (plain HTTP; accessed via port-forward,
