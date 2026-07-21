@@ -54,6 +54,12 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/v1/exceptions/{name}", h.deleteException)
 	mux.HandleFunc("GET /api/v1/summary", h.summary)
 	mux.HandleFunc("GET /api/v1/schema/fields", h.getFieldSchema)
+	mux.HandleFunc("GET /api/v1/clusters", h.listClusters)
+	mux.HandleFunc("POST /api/v1/clusters", h.createCluster)
+	mux.HandleFunc("GET /api/v1/clusters/{name}", h.getCluster)
+	mux.HandleFunc("PUT /api/v1/clusters/{name}", h.updateClusterLabels)
+	mux.HandleFunc("DELETE /api/v1/clusters/{name}", h.deleteCluster)
+	mux.HandleFunc("POST /api/v1/clusters/{name}/reissue-token", h.reissueClusterToken)
 }
 
 // Server is the console HTTP server (plain HTTP; accessed via port-forward,
