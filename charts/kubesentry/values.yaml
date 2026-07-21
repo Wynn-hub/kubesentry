@@ -48,7 +48,13 @@ webhookNamespaceSelector:
 # longer supported; every field below must be set at install time.
 gateway:
   address: ""                  # e.g. "kubesentry-gateway.kubesentry-system.svc:9443"
-  caBundle: ""                 # base64 PEM of the gateway CA (ca.crt from the gateway TLS secret)
+  # base64 PEM of the gateway CA — only needed to override. When left empty,
+  # the operator trusts internal/tlssetup.DefaultCertBundle's baked-in CA at
+  # the code level (no Secret/file involved) — the same fixed cert the
+  # gateway itself falls back to when its own tls.ca/cert/key chart values
+  # are unset. Set this only when the gateway runs in a different namespace
+  # or was given its own tls.ca/cert/key (charts/kubesentry-gateway/values.yaml).
+  caBundle: ""
   tlsServerName: ""            # override when address is an IP/NodePort; defaults to cert DNS
   clusterName: ""              # Cluster CR name registered on the gateway
   registrationToken: ""        # one-time token shown at cluster registration

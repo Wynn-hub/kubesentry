@@ -1,5 +1,11 @@
 package tlssetup
 
+// DefaultServerName is the DNS SAN baked into DefaultCertBundle's server
+// cert. Clients falling back to the default CA (no custom
+// gateway.caBundle/tls.ca configured) must use this as the TLS server name
+// unless the gateway runs in a non-default namespace.
+const DefaultServerName = "kubesentry-gateway.kubesentry-system.svc"
+
 // DefaultCertBundle is a hardcoded 99-year self-signed CA + server cert for
 // kubesentry-gateway.kubesentry-system.svc, baked into this binary so a
 // fresh gateway install works with zero cert handling. Its private key ships

@@ -37,6 +37,10 @@ spec:
               mountPath: /etc/kubesentry/hub-ca
               readOnly: true
       volumes:
+        # optional: true — kubesentry-hub-ca only exists when gateway.caBundle
+        # is set (see hub-connection.yaml). Without it, the operator falls
+        # back in code to internal/tlssetup.DefaultCertBundle's baked-in CA.
         - name: hub-ca
           secret:
             secretName: kubesentry-hub-ca
+            optional: true

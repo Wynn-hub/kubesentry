@@ -1,11 +1,13 @@
+{{- if .Values.gateway.caBundle }}
 apiVersion: v1
 kind: Secret
 metadata:
   name: kubesentry-hub-ca
   namespace: {{ .Values.namespace }}
 data:
-  ca.crt: {{ required "gateway.caBundle is required — standalone deployment is no longer supported" .Values.gateway.caBundle }}
+  ca.crt: {{ .Values.gateway.caBundle }}
 ---
+{{- end }}
 apiVersion: v1
 kind: Secret
 metadata:

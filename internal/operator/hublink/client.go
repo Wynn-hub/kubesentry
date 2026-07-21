@@ -7,8 +7,11 @@ package hublink
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
@@ -25,6 +28,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
+	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
 
 const (
@@ -38,7 +42,7 @@ const (
 
 type Config struct {
 	HubAddress      string // host:port；空 = 不启用（调用方保证）
-	TLSCAFile       string // hub CA 证书路径；空 = 系统根证书
+	TLSCAFile       string // hub CA 证书路径；为空或文件不存在时回退到 tlssetup.DefaultCertBundle
 	TLSServerName   string // 证书 DNS 名覆盖（经 NodePort/LB 直连 IP 时必填）
 	ClusterName     string
 	Namespace       string // operator 自身 namespace（Secret 所在）
@@ -210,11 +214,41 @@ func (l *Link) dial(ctx context.Context) (*grpc.ClientConn, error) {
 	if l.cfg.DialOverride != nil {
 		return l.cfg.DialOverride(ctx)
 	}
-	creds, err := credentials.NewClientTLSFromFile(l.cfg.TLSCAFile, l.cfg.TLSServerName)
+	creds, err := l.transportCredentials()
 	if err != nil {
-		return nil, fmt.Errorf("load hub ca: %w", err)
+		return nil, err
 	}
 	return grpc.NewClient(l.cfg.HubAddress, grpc.WithTransportCredentials(creds))
+}
+
+// transportCredentials trusts a custom CA file when one is mounted
+// (gateway.caBundle was set), otherwise falls back in code to
+// tlssetup.DefaultCertBundle's baked-in CA — the same default the gateway
+// itself uses when its own tls.ca/cert/key chart values are unset. This
+// keeps the common case (no custom cert on either side) working with zero
+// chart-level cert plumbing.
+func (l *Link) transportCredentials() (credentials.TransportCredentials, error) {
+	if l.cfg.TLSCAFile != "" {
+		if _, err := os.Stat(l.cfg.TLSCAFile); err == nil {
+			creds, err := credentials.NewClientTLSFromFile(l.cfg.TLSCAFile, l.cfg.TLSServerName)
+			if err != nil {
+				return nil, fmt.Errorf("load hub ca: %w", err)
+			}
+			return creds, nil
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("stat hub ca file: %w", err)
+		}
+	}
+
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(tlssetup.DefaultCertBundle().CACert) {
+		return nil, fmt.Errorf("parse default hub ca")
+	}
+	serverName := l.cfg.TLSServerName
+	if serverName == "" {
+		serverName = tlssetup.DefaultServerName
+	}
+	return credentials.NewTLS(&tls.Config{RootCAs: pool, ServerName: serverName}), nil
 }
 
 // ensureRegistered returns the long-lived cluster token, registering with
