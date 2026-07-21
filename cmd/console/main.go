@@ -58,10 +58,11 @@ func main() {
 		os.Exit(1)
 	}
 	repos := gateway.Repos{
-		Clusters:   dbrepo.NewClusterRepo(db),
-		Policies:   dbrepo.NewPolicyRepo(db),
-		Groups:     dbrepo.NewGroupRepo(db),
-		Exceptions: dbrepo.NewExceptionRepo(db),
+		Clusters:       dbrepo.NewClusterRepo(db),
+		Policies:       dbrepo.NewPolicyRepo(db),
+		Groups:         dbrepo.NewGroupRepo(db),
+		Exceptions:     dbrepo.NewExceptionRepo(db),
+		InstallRecords: dbrepo.NewInstallRecordRepo(db),
 	}
 
 	// console-api's k8s footprint is intentionally minimal: only a discovery

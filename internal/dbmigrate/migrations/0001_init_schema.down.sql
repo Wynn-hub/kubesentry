@@ -1,4 +1,5 @@
 SET search_path TO kubesentry;
+DROP TABLE IF EXISTS cluster_install_records;
 DROP TABLE IF EXISTS distribution_cluster_status;
 DROP TABLE IF EXISTS policy_distributions;
 DROP TABLE IF EXISTS policy_exceptions;

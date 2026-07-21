@@ -41,11 +41,12 @@ func SetPushResyncForTest(d time.Duration) func() {
 // here so console-api (internal/console) can share this same bundle type
 // (task 9: console-api GORM handlers) instead of defining a second one.
 type Repos struct {
-	Clusters      *dbrepo.ClusterRepo
-	Policies      *dbrepo.PolicyRepo
-	Groups        *dbrepo.GroupRepo
-	Distributions *dbrepo.DistributionRepo
-	Exceptions    *dbrepo.ExceptionRepo
+	Clusters       *dbrepo.ClusterRepo
+	Policies       *dbrepo.PolicyRepo
+	Groups         *dbrepo.GroupRepo
+	Distributions  *dbrepo.DistributionRepo
+	Exceptions     *dbrepo.ExceptionRepo
+	InstallRecords *dbrepo.InstallRecordRepo
 }
 
 // Server implements the gatewaypb.Hub gRPC service.

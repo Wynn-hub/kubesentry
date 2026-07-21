@@ -95,6 +95,25 @@ CREATE TABLE distribution_cluster_status (
 );
 CREATE UNIQUE INDEX distribution_cluster_status_pair_key ON distribution_cluster_status (distribution_id, cluster_id) WHERE deleted_at IS NULL;
 
+CREATE TABLE cluster_install_records (
+    id                       BIGINT PRIMARY KEY,
+    cluster_name             TEXT NOT NULL,
+    namespace                TEXT NOT NULL DEFAULT '',
+    webhook_repository       TEXT NOT NULL DEFAULT '',
+    webhook_tag              TEXT NOT NULL DEFAULT '',
+    webhook_pull_policy      TEXT NOT NULL DEFAULT '',
+    operator_repository      TEXT NOT NULL DEFAULT '',
+    operator_tag             TEXT NOT NULL DEFAULT '',
+    operator_pull_policy     TEXT NOT NULL DEFAULT '',
+    gateway_address          TEXT NOT NULL DEFAULT '',
+    gateway_tls_server_name  TEXT NOT NULL DEFAULT '',
+    gateway_ca_bundle        TEXT NOT NULL DEFAULT '',
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at               TIMESTAMPTZ
+);
+CREATE INDEX cluster_install_records_cluster_name_idx ON cluster_install_records (cluster_name);
+
 -- Seed data below: 37 built-in policies, the "default" PolicyGroup and
 -- PolicyDistribution that reference them, their initial v1 PolicyVersion
 -- snapshots, and the permanent system-namespace exception. All builtin rows

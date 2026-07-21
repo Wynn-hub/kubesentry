@@ -59,10 +59,11 @@ func dbRepos(t *testing.T) gateway.Repos {
 	t.Helper()
 	db := newTestDB(t)
 	return gateway.Repos{
-		Clusters:   dbrepo.NewClusterRepo(db),
-		Policies:   dbrepo.NewPolicyRepo(db),
-		Groups:     dbrepo.NewGroupRepo(db),
-		Exceptions: dbrepo.NewExceptionRepo(db),
+		Clusters:       dbrepo.NewClusterRepo(db),
+		Policies:       dbrepo.NewPolicyRepo(db),
+		Groups:         dbrepo.NewGroupRepo(db),
+		Exceptions:     dbrepo.NewExceptionRepo(db),
+		InstallRecords: dbrepo.NewInstallRecordRepo(db),
 	}
 }
 

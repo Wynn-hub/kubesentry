@@ -90,3 +90,20 @@ type DistributionClusterStatus struct {
 }
 
 func (DistributionClusterStatus) TableName() string { return "kubesentry.distribution_cluster_status" }
+
+type ClusterInstallRecord struct {
+	dbmodel.Base
+	ClusterName          string
+	Namespace            string
+	WebhookRepository    string
+	WebhookTag           string
+	WebhookPullPolicy    string
+	OperatorRepository   string
+	OperatorTag          string
+	OperatorPullPolicy   string
+	GatewayAddress       string
+	GatewayTLSServerName string
+	GatewayCABundle      string
+}
+
+func (ClusterInstallRecord) TableName() string { return "kubesentry.cluster_install_records" }

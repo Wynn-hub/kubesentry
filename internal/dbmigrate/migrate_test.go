@@ -44,6 +44,7 @@ func TestMigrateCreatesAllTables(t *testing.T) {
 	wantTables := []string{
 		"clusters", "policies", "policy_versions", "policy_groups",
 		"policy_exceptions", "policy_distributions", "distribution_cluster_status",
+		"cluster_install_records",
 	}
 	for _, name := range wantTables {
 		var exists bool
