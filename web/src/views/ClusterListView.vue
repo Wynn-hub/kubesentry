@@ -5,22 +5,28 @@
 
   <el-tabs v-model="activeTab">
     <el-tab-pane :label="$t('cluster.title')" name="clusters">
-      <el-table :data="items" v-loading="loading">
-        <el-table-column :label="$t('cluster.name')" prop="name" sortable min-width="160">
+      <el-table
+        :key="`${clustersState.sortBy}:${clustersState.sortOrder}`"
+        :data="items"
+        :default-sort="clustersTableSort"
+        v-loading="clustersLoading"
+        @sort-change="onClustersSortChange"
+      >
+        <el-table-column :label="$t('cluster.name')" prop="name" sortable="custom" :sort-orders="sortOrders" min-width="160">
           <template #default="{ row }">
             <router-link :to="`/clusters/${row.name}`">{{ row.name }}</router-link>
           </template>
         </el-table-column>
-        <el-table-column :label="$t('cluster.phase')" prop="phase" sortable width="120">
+        <el-table-column :label="$t('cluster.phase')" prop="phase" sortable="custom" :sort-orders="sortOrders" width="120">
           <template #default="{ row }"><ClusterPhaseTag :phase="row.phase" /></template>
         </el-table-column>
-        <el-table-column :label="$t('cluster.operatorVersion')" prop="operatorVersion" width="140" />
-        <el-table-column :label="$t('cluster.lastHeartbeatAt')" width="160">
+        <el-table-column :label="$t('cluster.operatorVersion')" prop="operatorVersion" sortable="custom" :sort-orders="sortOrders" width="140" />
+        <el-table-column :label="$t('cluster.lastHeartbeatAt')" prop="lastHeartbeatAt" sortable="custom" :sort-orders="sortOrders" width="160">
           <template #default="{ row }">
             {{ row.lastHeartbeatAt ? relTime(row.lastHeartbeatAt, locale) : $t('cluster.neverHeartbeat') }}
           </template>
         </el-table-column>
-        <el-table-column :label="$t('cluster.createdAt')" width="155">
+        <el-table-column :label="$t('cluster.createdAt')" prop="createdAt" sortable="custom" :sort-orders="sortOrders" width="155">
           <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
         </el-table-column>
         <el-table-column :label="$t('common.actions')" width="130" fixed="right">
@@ -33,11 +39,24 @@
           </template>
         </el-table-column>
       </el-table>
+      <PaginationBar
+        :total="clustersTotal"
+        :page="clustersState.page"
+        :page-size="clustersState.pageSize"
+        @update:page="(page) => clustersRouteList.replace({ page })"
+        @update:page-size="(pageSize) => clustersRouteList.replace({ pageSize })"
+      />
     </el-tab-pane>
     <el-tab-pane :label="$t('cluster.installRecords')" name="records" lazy>
-      <el-table :data="installRecords" v-loading="recordsLoading">
-        <el-table-column :label="$t('cluster.name')" prop="clusterName" min-width="140" />
-        <el-table-column :label="$t('cluster.namespace')" prop="namespace" width="160" />
+      <el-table
+        :key="`${recordsState.sortBy}:${recordsState.sortOrder}`"
+        :data="installRecords"
+        :default-sort="recordsTableSort"
+        v-loading="recordsLoading"
+        @sort-change="onRecordsSortChange"
+      >
+        <el-table-column :label="$t('cluster.name')" prop="clusterName" sortable="custom" :sort-orders="sortOrders" min-width="140" />
+        <el-table-column :label="$t('cluster.namespace')" prop="namespace" sortable="custom" :sort-orders="sortOrders" width="160" />
         <el-table-column :label="$t('cluster.webhookImage')" width="220">
           <template #default="{ row }">{{ row.webhookRepository }}:{{ row.webhookTag }}</template>
         </el-table-column>
@@ -45,10 +64,17 @@
           <template #default="{ row }">{{ row.operatorRepository }}:{{ row.operatorTag }}</template>
         </el-table-column>
         <el-table-column :label="$t('cluster.gatewayAddress')" prop="gatewayAddress" width="160" />
-        <el-table-column :label="$t('cluster.createdAt')" width="155">
+        <el-table-column :label="$t('cluster.createdAt')" prop="createdAt" sortable="custom" :sort-orders="sortOrders" width="155">
           <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
         </el-table-column>
       </el-table>
+      <PaginationBar
+        :total="recordsTotal"
+        :page="recordsState.page"
+        :page-size="recordsState.pageSize"
+        @update:page="(page) => recordsRouteList.replace({ page })"
+        @update:page-size="(pageSize) => recordsRouteList.replace({ pageSize })"
+      />
     </el-tab-pane>
   </el-tabs>
 
@@ -90,7 +116,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
@@ -102,49 +129,128 @@ import PageHeader from '../components/PageHeader.vue'
 import ClusterPhaseTag from '../components/ClusterPhaseTag.vue'
 import ClusterLabelsEditor from '../components/ClusterLabelsEditor.vue'
 import InstallParamsForm from '../components/InstallParamsForm.vue'
+import PaginationBar from '../components/PaginationBar.vue'
+import { listStateParams, useRouteListState, type SortOrder } from '../composables/useRouteListState'
+import { useLatestRequest } from '../composables/useLatestRequest'
+
+const sortOrders = ['ascending', 'descending'] as const
 
 const { t, locale } = useI18n()
-const activeTab = ref('clusters')
-const items = ref<ClusterListItem[]>([])
-const loading = ref(false)
+const route = useRoute()
+const router = useRouter()
+const activeTab = computed<'clusters' | 'records'>({
+  get: () => route.query.tab === 'records' ? 'records' : 'clusters',
+  set: (tab) => {
+    void router.replace({ query: { ...route.query, tab } })
+  },
+})
 
-async function load() {
-  loading.value = true
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (tab !== 'clusters' && tab !== 'records') {
+      void router.replace({ query: { ...route.query, tab: 'clusters' } })
+    }
+  },
+  { immediate: true },
+)
+
+const items = ref<ClusterListItem[]>([])
+const clustersTotal = ref(0)
+const { loading: clustersLoading, run: runLatestClusters } = useLatestRequest()
+const clustersRouteList = useRouteListState({
+  prefix: 'clusters',
+  defaultSortBy: 'name',
+  defaultSortOrder: 'asc',
+  allowedSort: ['name', 'phase', 'operatorVersion', 'lastHeartbeatAt', 'createdAt'],
+})
+const clustersState = clustersRouteList.state
+const clustersParams = computed(() => listStateParams(clustersState.value))
+const clustersTableSort = computed(() => ({
+  prop: clustersState.value.sortBy,
+  order: clustersState.value.sortOrder === 'asc' ? 'ascending' : 'descending',
+}))
+
+async function loadClusters() {
   try {
-    items.value = (await listClusters()).items
+    await runLatestClusters(
+      () => listClusters(clustersParams.value),
+      (result) => {
+        items.value = result.items
+        clustersTotal.value = result.total
+        const lastPage = Math.max(1, Math.ceil(result.total / clustersState.value.pageSize))
+        if (clustersState.value.page > lastPage) void clustersRouteList.replace({ page: lastPage })
+      },
+    )
   } catch (e) {
     ElMessage.error((e as Error).message)
-  } finally {
-    loading.value = false
   }
 }
-onMounted(load)
+watch(clustersParams, loadClusters, { immediate: true })
+
+function onClustersSortChange({ prop, order }: { prop: string; order: 'ascending' | 'descending' }) {
+  if (!prop || !order) return
+  void clustersRouteList.replace({
+    sortBy: prop,
+    sortOrder: (order === 'ascending' ? 'asc' : 'desc') as SortOrder,
+  })
+}
 
 const installRecords = ref<InstallRecordItem[]>([])
-const recordsLoading = ref(false)
+const recordsTotal = ref(0)
+const recordsLoaded = ref(false)
+const { loading: recordsLoading, run: runLatestRecords } = useLatestRequest()
+const recordsRouteList = useRouteListState({
+  prefix: 'records',
+  defaultSortBy: 'createdAt',
+  defaultSortOrder: 'desc',
+  allowedSort: ['clusterName', 'namespace', 'createdAt'],
+})
+const recordsState = recordsRouteList.state
+const recordsParams = computed(() => listStateParams(recordsState.value))
+const recordsTableSort = computed(() => ({
+  prop: recordsState.value.sortBy,
+  order: recordsState.value.sortOrder === 'asc' ? 'ascending' : 'descending',
+}))
+
 async function loadInstallRecords() {
-  recordsLoading.value = true
   try {
-    installRecords.value = (await listInstallRecords()).items
+    await runLatestRecords(
+      () => listInstallRecords(recordsParams.value),
+      (result) => {
+        installRecords.value = result.items
+        recordsTotal.value = result.total
+        recordsLoaded.value = true
+        const lastPage = Math.max(1, Math.ceil(result.total / recordsState.value.pageSize))
+        if (recordsState.value.page > lastPage) void recordsRouteList.replace({ page: lastPage })
+      },
+    )
   } catch (e) {
     ElMessage.error((e as Error).message)
-  } finally {
-    recordsLoading.value = false
   }
 }
-// The "records" pane is `lazy`, so it never mounts (and never loads data)
-// until the user actually clicks that tab — fire the load the first time
-// that happens instead of on component mount.
-watch(activeTab, (tab) => {
-  if (tab === 'records' && installRecords.value.length === 0) loadInstallRecords()
+
+watch(recordsParams, () => {
+  if (activeTab.value === 'records' || recordsLoaded.value) void loadInstallRecords()
 })
+watch(activeTab, (tab) => {
+  if (tab === 'records' && !recordsLoaded.value) void loadInstallRecords()
+}, { immediate: true })
+
+function onRecordsSortChange({ prop, order }: { prop: string; order: 'ascending' | 'descending' }) {
+  if (!prop || !order) return
+  void recordsRouteList.replace({
+    sortBy: prop,
+    sortOrder: (order === 'ascending' ? 'asc' : 'desc') as SortOrder,
+  })
+}
 
 async function onDelete(row: ClusterListItem) {
   try {
     await ElMessageBox.confirm(t('common.deleteConfirm', { name: row.name }))
     await deleteCluster(row.name)
     ElMessage.success(t('common.deleted'))
-    await load()
+    await loadClusters()
   } catch (e) {
     if (e === 'cancel') return
     ElMessage.error((e as Error).message)
@@ -176,10 +282,10 @@ async function onCreate() {
     const res = await createCluster({ name: createForm.name, labels: createForm.labels, installParams })
     generatedCommand.value = res.command
     createStep.value = 'command'
-    await load()
+    await loadClusters()
     // The records tab, if the user has already opened it once, should reflect
     // the new history row without requiring a manual switch away and back.
-    if (activeTab.value === 'records') await loadInstallRecords()
+    if (recordsLoaded.value || activeTab.value === 'records') await loadInstallRecords()
   } catch (e) {
     ElMessage.error((e as Error).message)
   } finally {

@@ -43,6 +43,18 @@ describe('route list state', () => {
     expect(query.page).toBe('7')
   })
 
+  it('updates one prefixed collection without resetting another', () => {
+    const clusters = { ...spec, prefix: 'clusters' }
+    const query = {
+      clustersPage: '2', clustersPageSize: '20', clustersSortBy: 'name', clustersSortOrder: 'asc',
+      recordsPage: '4', recordsPageSize: '50', recordsSortBy: 'phase', recordsSortOrder: 'desc',
+    }
+    expect(buildListStateQuery(query, clusters, { sortBy: 'phase' })).toMatchObject({
+      clustersPage: '1', clustersSortBy: 'phase',
+      recordsPage: '4', recordsPageSize: '50', recordsSortBy: 'phase', recordsSortOrder: 'desc',
+    })
+  })
+
   it('resets page for page-size, sort, and explicit filter changes', () => {
     const query = { page: '4', pageSize: '20', sortBy: 'name', sortOrder: 'asc', keyword: 'old' }
     expect(buildListStateQuery(query, spec, { pageSize: 50 }).page).toBe('1')
