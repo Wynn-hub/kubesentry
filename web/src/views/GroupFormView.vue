@@ -26,7 +26,7 @@
             :titles="[$t('policy.title'), $t('group.members')]"
             filterable
           />
-          <el-table v-if="selectedNames.length" :data="selectedNames" size="small" style="width: 480px; margin-top: 12px">
+          <el-table v-if="selectedNames.length" :data="selectedPage.items" size="small" style="width: 480px; margin-top: 12px">
             <el-table-column :label="$t('common.name')">
               <template #default="{ row }">{{ row }}</template>
             </el-table-column>
@@ -39,6 +39,14 @@
               </template>
             </el-table-column>
           </el-table>
+          <PaginationBar
+            v-if="selectedNames.length"
+            :total="selectedPage.total"
+            :page="selectedState.page"
+            :page-size="selectedState.pageSize"
+            @update:page="(page) => selectedRouteList.replace({ page })"
+            @update:page-size="(pageSize) => selectedRouteList.replace({ pageSize })"
+          />
         </el-tab-pane>
         <el-tab-pane :label="$t('group.bySelector')" name="bySelector">
           <LabelEditor v-model="bySelector" />
@@ -80,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -92,7 +100,10 @@ import LabelEditor from '../components/LabelEditor.vue'
 import HintMark from '../components/HintMark.vue'
 import TagInput from '../components/TagInput.vue'
 import PageHeader from '../components/PageHeader.vue'
+import PaginationBar from '../components/PaginationBar.vue'
 import { useBackNavigation } from '../composables/useBackNavigation'
+import { useClientPagination } from '../composables/useClientPagination'
+import { useRouteListState } from '../composables/useRouteListState'
 import { computeMembership } from '../components/groupMembership'
 
 const NS_NAME_KEY = 'kubernetes.io/metadata.name'
@@ -124,6 +135,25 @@ const form = reactive({
 })
 const allPolicies = ref<{ key: string; label: string }[]>([])
 const selectedNames = ref<string[]>([])
+const selectedRouteList = useRouteListState({
+  prefix: 'selected',
+  defaultSortBy: 'name',
+  defaultSortOrder: 'asc',
+  allowedSort: ['name'],
+})
+const selectedState = selectedRouteList.state
+const selectedPage = useClientPagination(
+  selectedNames,
+  selectedState,
+  (a, b) => a.localeCompare(b),
+)
+watch(
+  () => selectedNames.value.length,
+  (total) => {
+    const lastPage = Math.max(1, Math.ceil(total / selectedState.value.pageSize))
+    if (selectedState.value.page > lastPage) void selectedRouteList.replace({ page: lastPage })
+  },
+)
 const modeOverrides = reactive<Record<string, string>>({})
 const bySelector = ref<LabelSelector | null>(null)
 const policyTab = ref<'byName' | 'bySelector'>('byName')
