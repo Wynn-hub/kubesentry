@@ -1,5 +1,9 @@
 <!-- web/src/views/PolicyFormView.vue -->
 <template>
+  <PageHeader
+    show-back
+    :title="$t(isEdit ? 'common.editObject' : 'common.createObject', { name: $t('policy.title') })"
+  />
   <el-form :model="form" label-width="140px" style="max-width: 900px">
     <el-form-item :label="$t('common.name')" required>
       <el-input v-model="form.name" :disabled="isEdit" />
@@ -76,7 +80,7 @@
     <el-form-item>
       <el-button @click="onValidate">{{ $t('policy.validate') }}</el-button>
       <el-button type="primary" :loading="saving" @click="onSave">{{ $t('common.save') }}</el-button>
-      <el-button @click="$router.back()">{{ $t('common.cancel') }}</el-button>
+      <el-button @click="goBack">{{ $t('common.cancel') }}</el-button>
     </el-form-item>
   </el-form>
 </template>
@@ -93,6 +97,8 @@ import {
 } from '../api/policy'
 import RuleGroupEditor from '../components/RuleGroupEditor.vue'
 import HintMark from '../components/HintMark.vue'
+import PageHeader from '../components/PageHeader.vue'
+import { useBackNavigation } from '../composables/useBackNavigation'
 import {
   deserializeRuleGroups, ruleGroupsToRego, serializeRuleGroups, VISUAL_BUILDER_ANNOTATION,
   type RuleGroup,
@@ -101,6 +107,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { goBack } = useBackNavigation()
 
 const isEdit = route.name === 'policy-edit'
 const editName = String(route.params.name ?? '')

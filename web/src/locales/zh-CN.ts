@@ -5,7 +5,7 @@ export default {
     events: '准入事件', audit: 'K8s 审计', alerts: '告警规则',
     groupPlatform: '平台', groupProtection: '策略防护', groupObservability: '审计与告警',
     clusterTip: '当前为单集群模式；多集群管理在路线图阶段 1 建设',
-    soon: '规划中',
+    soon: '规划中', home: '返回 KubeSentry 首页',
   },
   common: {
     create: '新建', edit: '编辑', delete: '删除', save: '保存', cancel: '取消',
@@ -15,6 +15,7 @@ export default {
     conflictRefresh: '数据已变更，请刷新后重试',
     builtinWarning: '这是内置对象，修改后将偏离 Helm 管理，确定继续吗？',
     saved: '已保存', deleted: '已删除', paginationTotal: '共 {total} 条',
+    createObject: '新建{name}', editObject: '编辑{name}',
     labelEditorAndHint: '同一行内多个值是或（OR）关系，满足其中任意一个即可；不同行（不同 key）之间是且（AND）关系，需同时满足',
     labelValuePlaceholder: '输入值回车添加，可添加多个',
     multiValueOrHint: '多个值之间是或（OR）关系，满足其中任意一个即算匹配',

@@ -1,10 +1,10 @@
 <template>
   <el-container class="shell">
     <el-aside width="212px" class="shell-aside">
-      <div class="brand">
+      <router-link to="/" class="brand" :aria-label="$t('nav.home')" @keydown.space.prevent="$router.push('/')">
         <Logo :size="24" />
         <span>KubeSentry</span>
-      </div>
+      </router-link>
       <el-tooltip :content="$t('nav.clusterTip')" placement="right">
         <div class="cluster-switcher">
           <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -137,6 +137,16 @@ const onLocale = (l: 'zh-CN' | 'en-US') => setLocale(l)
   letter-spacing: -0.01em;
   color: var(--paper-050);
   border-bottom: 1px solid var(--ink-700);
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.brand:hover {
+  background: var(--ink-800);
+  color: var(--accent-scan);
+}
+.brand:focus-visible {
+  outline: 2px solid var(--accent-scan);
+  outline-offset: -3px;
 }
 
 .cluster-switcher {

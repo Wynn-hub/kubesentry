@@ -1,4 +1,8 @@
 <template>
+  <PageHeader
+    show-back
+    :title="$t(isEdit ? 'common.editObject' : 'common.createObject', { name: $t('exception.title') })"
+  />
   <el-form label-width="180px" style="max-width: 900px">
     <el-form-item :label="$t('common.name')" required>
       <el-input v-model="form.name" :disabled="isEdit" />
@@ -59,7 +63,7 @@
 
     <el-form-item>
       <el-button type="primary" :loading="saving" @click="onSave">{{ $t('common.save') }}</el-button>
-      <el-button @click="$router.back()">{{ $t('common.cancel') }}</el-button>
+      <el-button @click="goBack">{{ $t('common.cancel') }}</el-button>
     </el-form-item>
   </el-form>
 </template>
@@ -79,10 +83,13 @@ import { listGroups, type LabelSelector } from '../api/group'
 import LabelEditor from '../components/LabelEditor.vue'
 import TagInput from '../components/TagInput.vue'
 import HintMark from '../components/HintMark.vue'
+import PageHeader from '../components/PageHeader.vue'
+import { useBackNavigation } from '../composables/useBackNavigation'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { goBack } = useBackNavigation()
 
 const isEdit = route.name === 'exception-edit'
 const editName = String(route.params.name ?? '')

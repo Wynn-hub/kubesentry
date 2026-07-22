@@ -1,17 +1,14 @@
 <!-- web/src/views/ClusterDetailView.vue -->
 <template>
   <div v-if="d">
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px">
-      <h2 style="margin: 0">{{ d.name }}</h2>
+    <PageHeader show-back :title="d.name">
       <ClusterPhaseTag :phase="d.phase" />
-      <div style="flex: 1" />
       <el-button v-if="d.phase === 'Registering'" @click="onReissue">{{ $t('cluster.reissueToken') }}</el-button>
       <el-tooltip v-if="d.phase === 'Online'" :content="$t('cluster.deleteOnlineBlocked')">
         <el-button type="danger" plain disabled>{{ $t('common.delete') }}</el-button>
       </el-tooltip>
       <el-button v-else type="danger" plain @click="onDelete">{{ $t('common.delete') }}</el-button>
-      <el-button @click="$router.back()">{{ $t('common.back') }}</el-button>
-    </div>
+    </PageHeader>
 
     <el-descriptions :column="2" border style="margin-bottom: 16px">
       <el-descriptions-item :label="$t('cluster.clusterUid')">{{ d.clusterUid || '-' }}</el-descriptions-item>
@@ -62,6 +59,7 @@ import { relTime } from '../lib/relTime'
 import ClusterPhaseTag from '../components/ClusterPhaseTag.vue'
 import ClusterLabelsEditor from '../components/ClusterLabelsEditor.vue'
 import InstallParamsForm from '../components/InstallParamsForm.vue'
+import PageHeader from '../components/PageHeader.vue'
 
 const route = useRoute()
 const router = useRouter()

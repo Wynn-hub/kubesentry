@@ -1,13 +1,10 @@
 <template>
   <div v-if="d">
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px">
-      <h2 style="margin: 0">{{ d.spec.displayName || d.name }}</h2>
+    <PageHeader show-back :title="d.spec.displayName || d.name">
       <el-tag size="small" :type="d.source === 'builtin' ? 'info' : 'primary'">{{ d.source }}</el-tag>
       <PhaseTag :phase="d.status.phase" />
-      <div style="flex: 1" />
       <el-button @click="$router.push(`/policygroups/${d.name}/edit`)">{{ $t('common.edit') }}</el-button>
-      <el-button @click="$router.back()">{{ $t('common.back') }}</el-button>
-    </div>
+    </PageHeader>
 
     <el-descriptions :column="2" border style="margin-bottom: 16px">
       <el-descriptions-item :label="$t('common.name')">{{ d.name }}</el-descriptions-item>
@@ -54,6 +51,7 @@ import { ElMessage } from 'element-plus'
 import { getGroup, type GroupDetail } from '../api/group'
 import ModeTag from '../components/ModeTag.vue'
 import PhaseTag from '../components/PhaseTag.vue'
+import PageHeader from '../components/PageHeader.vue'
 
 const route = useRoute()
 const d = ref<GroupDetail>()

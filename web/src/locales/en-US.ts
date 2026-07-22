@@ -5,7 +5,7 @@ export default {
     events: 'Admission Events', audit: 'K8s Audit', alerts: 'Alert Rules',
     groupPlatform: 'Platform', groupProtection: 'Policy Protection', groupObservability: 'Audit & Alerting',
     clusterTip: 'Single-cluster mode; multi-cluster arrives in roadmap Phase 1',
-    soon: 'Planned',
+    soon: 'Planned', home: 'Go to the KubeSentry home page',
   },
   common: {
     create: 'Create', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
@@ -15,6 +15,7 @@ export default {
     conflictRefresh: 'The object has been modified. Refresh and retry.',
     builtinWarning: 'This is a builtin object managed by Helm. Editing it will drift from Helm. Continue?',
     saved: 'Saved', deleted: 'Deleted', paginationTotal: '{total} items',
+    createObject: 'Create {name}', editObject: 'Edit {name}',
     labelEditorAndHint: 'Values within the same row are OR\'d — matching any one is enough; different rows (keys) are AND\'d — all must match',
     labelValuePlaceholder: 'Type a value and press Enter, multiple allowed',
     multiValueOrHint: 'Multiple values are combined with OR — matching any one is enough',

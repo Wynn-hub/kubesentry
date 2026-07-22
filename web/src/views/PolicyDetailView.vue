@@ -1,13 +1,10 @@
 <template>
   <div v-if="d">
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px">
-      <h2 style="margin: 0">{{ d.name }}</h2>
+    <PageHeader show-back :title="d.name">
       <el-tag size="small" :type="d.source === 'builtin' ? 'info' : 'primary'">{{ d.source }}</el-tag>
       <PhaseTag :phase="d.phase" />
-      <div style="flex: 1" />
       <el-button @click="$router.push(`/policies/${d.name}/edit`)">{{ $t('common.edit') }}</el-button>
-      <el-button @click="$router.back()">{{ $t('common.back') }}</el-button>
-    </div>
+    </PageHeader>
 
     <el-tabs v-model="activeTab">
       <el-tab-pane :label="$t('policy.tabOverview')" name="overview">
@@ -54,6 +51,7 @@ import { getPolicy, type PolicyDetail } from '../api/policy'
 import ModeTag from '../components/ModeTag.vue'
 import PhaseTag from '../components/PhaseTag.vue'
 import VersionTimeline from '../components/VersionTimeline.vue'
+import PageHeader from '../components/PageHeader.vue'
 
 const route = useRoute()
 const { t } = useI18n()
