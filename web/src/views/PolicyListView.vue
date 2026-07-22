@@ -8,7 +8,7 @@
 
   <div class="list-toolbar">
     <el-select
-      v-model="filters.source"
+      v-model="sourceFilter"
       multiple
       collapse-tags
       clearable
@@ -19,7 +19,7 @@
       <el-option :label="$t('policy.custom')" value="custom" />
     </el-select>
     <el-select
-      v-model="filters.phase"
+      v-model="phaseFilter"
       multiple
       collapse-tags
       clearable
@@ -29,7 +29,7 @@
       <el-option v-for="p in ['Ready', 'Invalid', 'Syncing']" :key="p" :label="p" :value="p" />
     </el-select>
     <el-select
-      v-model="filters.mode"
+      v-model="modeFilter"
       multiple
       collapse-tags
       clearable
@@ -39,32 +39,38 @@
       <el-option :label="$t('policy.enforce')" value="enforce" />
       <el-option :label="$t('policy.audit')" value="audit" />
     </el-select>
-    <el-input v-model="filters.keyword" :placeholder="$t('common.search')" style="width: 200px" clearable />
+    <el-input v-model="keywordInput" :placeholder="$t('common.search')" style="width: 200px" clearable />
   </div>
 
-  <el-table :data="items" v-loading="loading">
-    <el-table-column :label="$t('common.name')" prop="name" sortable min-width="180" show-overflow-tooltip>
+  <el-table
+    :key="`${listState.sortBy}:${listState.sortOrder}`"
+    :data="items"
+    :default-sort="tableSort"
+    v-loading="loading"
+    @sort-change="onSortChange"
+  >
+    <el-table-column :label="$t('common.name')" prop="name" sortable="custom" :sort-orders="sortOrders" min-width="180" show-overflow-tooltip>
       <template #default="{ row }">
         <router-link :to="`/policies/${row.name}`">{{ row.name }}</router-link>
       </template>
     </el-table-column>
-    <el-table-column :label="$t('policy.source')" prop="source" sortable width="100">
+    <el-table-column :label="$t('policy.source')" prop="source" sortable="custom" :sort-orders="sortOrders" width="100">
       <template #default="{ row }">
         <el-tag size="small" :type="row.source === 'builtin' ? 'info' : 'primary'">{{ row.source }}</el-tag>
       </template>
     </el-table-column>
-    <el-table-column :label="$t('policy.mode')" prop="enforcementMode" sortable width="115">
+    <el-table-column :label="$t('policy.mode')" prop="enforcementMode" sortable="custom" :sort-orders="sortOrders" width="115">
       <template #default="{ row }"><ModeTag :mode="row.enforcementMode" /></template>
     </el-table-column>
-    <el-table-column :label="$t('policy.phase')" prop="phase" sortable width="100">
+    <el-table-column :label="$t('policy.phase')" prop="phase" sortable="custom" :sort-orders="sortOrders" width="100">
       <template #default="{ row }"><PhaseTag :phase="row.phase" /></template>
     </el-table-column>
-    <el-table-column :label="$t('policy.createdAt')" prop="createdAt" sortable width="155">
+    <el-table-column :label="$t('policy.createdAt')" prop="createdAt" sortable="custom" :sort-orders="sortOrders" width="155">
       <template #default="{ row }">
         {{ row.createdAt ? new Date(row.createdAt).toLocaleString() : '-' }}
       </template>
     </el-table-column>
-    <el-table-column :label="$t('policy.updatedAt')" prop="updatedAt" sortable width="155">
+    <el-table-column :label="$t('policy.updatedAt')" prop="updatedAt" sortable="custom" :sort-orders="sortOrders" width="155">
       <template #default="{ row }">
         {{ row.updatedAt ? new Date(row.updatedAt).toLocaleString() : '-' }}
       </template>
@@ -78,10 +84,18 @@
       </template>
     </el-table-column>
   </el-table>
+  <PaginationBar
+    :total="total"
+    :page="listState.page"
+    :page-size="listState.pageSize"
+    @update:page="onPageChange"
+    @update:page-size="onPageSizeChange"
+  />
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ApiError } from '../api/http'
@@ -89,45 +103,110 @@ import { deletePolicy, listPolicies, type PolicyListItem } from '../api/policy'
 import PageHeader from '../components/PageHeader.vue'
 import ModeTag from '../components/ModeTag.vue'
 import PhaseTag from '../components/PhaseTag.vue'
+import PaginationBar from '../components/PaginationBar.vue'
+import { listStateParams, useRouteListState, type SortOrder } from '../composables/useRouteListState'
+import { useLatestRequest } from '../composables/useLatestRequest'
 
 const KEYWORD_DEBOUNCE_MS = 300
+const sortOrders = ['ascending', 'descending'] as const
 
 const { t } = useI18n()
+const route = useRoute()
 const items = ref<PolicyListItem[]>([])
-const loading = ref(false)
-const filters = reactive({
-  source: [] as string[],
-  phase: [] as string[],
-  mode: [] as string[],
-  keyword: '',
+const total = ref(0)
+const { loading, run: runLatest } = useLatestRequest()
+const routeList = useRouteListState({
+  defaultSortBy: 'name',
+  defaultSortOrder: 'asc',
+  allowedSort: ['name', 'source', 'enforcementMode', 'phase', 'createdAt', 'updatedAt'],
+})
+const listState = routeList.state
+
+function queryText(value: unknown): string {
+  if (Array.isArray(value)) return queryText(value[0])
+  return typeof value === 'string' ? value : ''
+}
+
+function queryValues(value: unknown): string[] {
+  return queryText(value).split(',').map((part) => part.trim()).filter(Boolean)
+}
+
+function filterModel(key: 'source' | 'phase' | 'mode') {
+  return computed<string[]>({
+    get: () => queryValues(route.query[key]),
+    set: (values) => {
+      void routeList.replace({}, { resetPage: true, extra: { [key]: values.length ? values.join(',') : undefined } })
+    },
+  })
+}
+
+const sourceFilter = filterModel('source')
+const phaseFilter = filterModel('phase')
+const modeFilter = filterModel('mode')
+const keywordInput = ref(queryText(route.query.keyword))
+
+watch(
+  () => queryText(route.query.keyword),
+  (keyword) => {
+    if (keywordInput.value !== keyword) keywordInput.value = keyword
+  },
+)
+
+let keywordTimer: ReturnType<typeof setTimeout> | undefined
+watch(keywordInput, (keyword) => {
+  if (keyword === queryText(route.query.keyword)) return
+  clearTimeout(keywordTimer)
+  keywordTimer = setTimeout(() => {
+    void routeList.replace({}, { resetPage: true, extra: { keyword: keyword || undefined } })
+  }, KEYWORD_DEBOUNCE_MS)
+})
+onBeforeUnmount(() => clearTimeout(keywordTimer))
+
+const requestParams = computed(() => {
+  const params = listStateParams(listState.value)
+  if (sourceFilter.value.length) params.source = sourceFilter.value.join(',')
+  if (phaseFilter.value.length) params.phase = phaseFilter.value.join(',')
+  if (modeFilter.value.length) params.mode = modeFilter.value.join(',')
+  const keyword = queryText(route.query.keyword)
+  if (keyword) params.keyword = keyword
+  return params
 })
 
+const tableSort = computed(() => ({
+  prop: listState.value.sortBy,
+  order: listState.value.sortOrder === 'asc' ? 'ascending' : 'descending',
+}))
+
 async function load() {
-  loading.value = true
   try {
-    const params: Record<string, string> = {}
-    if (filters.source.length) params.source = filters.source.join(',')
-    if (filters.phase.length) params.phase = filters.phase.join(',')
-    if (filters.mode.length) params.mode = filters.mode.join(',')
-    if (filters.keyword) params.keyword = filters.keyword
-    items.value = (await listPolicies(params)).items
+    await runLatest(
+      () => listPolicies(requestParams.value),
+      (result) => {
+        items.value = result.items
+        total.value = result.total
+        const lastPage = Math.max(1, Math.ceil(result.total / listState.value.pageSize))
+        if (listState.value.page > lastPage) void routeList.replace({ page: lastPage })
+      },
+    )
   } catch (e) {
     ElMessage.error((e as Error).message)
-  } finally {
-    loading.value = false
   }
 }
 
-watch(() => [filters.source, filters.phase, filters.mode], load, { deep: true })
+watch(requestParams, load, { immediate: true })
 
-let keywordTimer: ReturnType<typeof setTimeout> | undefined
-watch(
-  () => filters.keyword,
-  () => {
-    clearTimeout(keywordTimer)
-    keywordTimer = setTimeout(load, KEYWORD_DEBOUNCE_MS)
-  },
-)
+function onSortChange({ prop, order }: { prop: string; order: 'ascending' | 'descending' }) {
+  if (!prop || !order) return
+  void routeList.replace({ sortBy: prop, sortOrder: (order === 'ascending' ? 'asc' : 'desc') as SortOrder })
+}
+
+function onPageChange(page: number) {
+  void routeList.replace({ page })
+}
+
+function onPageSizeChange(pageSize: number) {
+  void routeList.replace({ pageSize })
+}
 
 async function onDelete(row: PolicyListItem) {
   try {
@@ -161,7 +240,6 @@ async function doDelete(name: string, force: boolean) {
   }
 }
 
-onMounted(load)
 </script>
 
 <style scoped>

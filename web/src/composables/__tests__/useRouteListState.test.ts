@@ -53,4 +53,16 @@ describe('route list state', () => {
     })
     expect(buildListStateQuery(query, spec, { page: 2 }).page).toBe('2')
   })
+
+  it('preserves filters when restoring a paged list URL', () => {
+    expect(
+      buildListStateQuery(
+        { page: '3', pageSize: '50', sortBy: 'phase', sortOrder: 'desc', source: 'builtin', keyword: 'pod' },
+        spec,
+        { page: 2 },
+      ),
+    ).toEqual({
+      page: '2', pageSize: '50', sortBy: 'phase', sortOrder: 'desc', source: 'builtin', keyword: 'pod',
+    })
+  })
 })
