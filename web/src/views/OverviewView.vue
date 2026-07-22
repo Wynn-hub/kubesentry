@@ -4,9 +4,27 @@
 
   <div v-if="data">
     <div class="stat-grid">
-      <div class="stat-card" style="--accent: var(--steel-300)">
+      <div
+        class="stat-card"
+        style="--accent: var(--steel-300)"
+        role="button"
+        tabindex="0"
+        @click="$router.push('/clusters')"
+        @keydown.enter="$router.push('/clusters')"
+      >
         <span class="stat-label">{{ $t('overview.cluster') }}</span>
-        <span class="stat-value mono-num">1</span>
+        <span class="stat-value mono-num">{{ data.totals.clusters }}</span>
+        <span class="cluster-phase-summary">
+          <span v-if="data.clusterPhases.online">
+            {{ $t('overview.clusterOnline', { n: data.clusterPhases.online }) }}
+          </span>
+          <span v-if="data.clusterPhases.offline">
+            {{ $t('overview.clusterOffline', { n: data.clusterPhases.offline }) }}
+          </span>
+          <span v-if="data.clusterPhases.registering">
+            {{ $t('overview.clusterRegistering', { n: data.clusterPhases.registering }) }}
+          </span>
+        </span>
       </div>
       <div
         class="stat-card"
@@ -123,6 +141,18 @@ onMounted(async () => {
 .group-name {
   min-width: 110px;
   font-weight: 600;
+}
+.cluster-phase-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 17px;
+  color: var(--steel-300);
+  font-size: 11.5px;
+}
+.cluster-phase-summary span + span::before {
+  content: '·';
+  margin-right: 5px;
 }
 .group-meta {
   font-size: 11.5px;

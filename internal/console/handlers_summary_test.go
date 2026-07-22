@@ -97,6 +97,9 @@ func TestSummaryTotals(t *testing.T) {
 	if after.Totals["exceptions"] != before.Totals["exceptions"]+1 {
 		t.Fatalf("exceptions total = %d, want %d", after.Totals["exceptions"], before.Totals["exceptions"]+1)
 	}
+	if after.Totals["clusters"] != before.Totals["clusters"] {
+		t.Fatalf("clusters total = %d, want %d", after.Totals["clusters"], before.Totals["clusters"])
+	}
 
 	g, ok := findSummaryGroup(after.Groups, group.Name)
 	if !ok {
@@ -107,6 +110,31 @@ func TestSummaryTotals(t *testing.T) {
 	}
 	if g.ResolvedCount != 2 || g.EnforceCount != 1 || g.AuditCount != 1 {
 		t.Fatalf("group resolved stats = %+v", g)
+	}
+}
+
+func TestSummaryClusterPhaseCounts(t *testing.T) {
+	handler, repos := newDBTestServer(t)
+	before := getSummary(t, handler)
+
+	for _, cluster := range []*dbrepo.Cluster{
+		{Name: "summary-online", Phase: "Online"},
+		{Name: "summary-offline", Phase: "Offline"},
+		{Name: "summary-registering", Phase: "Registering"},
+	} {
+		if err := repos.Clusters.Create(t.Context(), cluster); err != nil {
+			t.Fatalf("create cluster %s: %v", cluster.Name, err)
+		}
+	}
+
+	after := getSummary(t, handler)
+	if after.Totals["clusters"] != before.Totals["clusters"]+3 {
+		t.Fatalf("clusters total = %d, want %d", after.Totals["clusters"], before.Totals["clusters"]+3)
+	}
+	if after.ClusterPhases.Online != before.ClusterPhases.Online+1 ||
+		after.ClusterPhases.Offline != before.ClusterPhases.Offline+1 ||
+		after.ClusterPhases.Registering != before.ClusterPhases.Registering+1 {
+		t.Fatalf("cluster phases = %+v, before = %+v", after.ClusterPhases, before.ClusterPhases)
 	}
 }
 

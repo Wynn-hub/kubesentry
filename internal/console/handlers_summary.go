@@ -20,8 +20,15 @@ type groupSummary struct {
 }
 
 type summaryData struct {
-	Totals map[string]int `json:"totals"`
-	Groups []groupSummary `json:"groups"`
+	Totals        map[string]int      `json:"totals"`
+	ClusterPhases clusterPhaseSummary `json:"clusterPhases"`
+	Groups        []groupSummary      `json:"groups"`
+}
+
+type clusterPhaseSummary struct {
+	Online      int `json:"online"`
+	Offline     int `json:"offline"`
+	Registering int `json:"registering"`
 }
 
 // resolvablePolicies adapts dbrepo.Policy rows into the plain v1alpha1.Policy
@@ -61,9 +68,20 @@ func (h *Handlers) summary(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "list exceptions: "+err.Error())
 		return
 	}
+	clusterCounts, err := h.Repos.Clusters.CountByPhase(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "count clusters: "+err.Error())
+		return
+	}
 
 	s := summaryData{
-		Totals: map[string]int{"policies": len(policies), "policygroups": len(groups), "exceptions": len(exceptions)},
+		Totals: map[string]int{
+			"clusters": int(clusterCounts.Total), "policies": len(policies),
+			"policygroups": len(groups), "exceptions": len(exceptions),
+		},
+		ClusterPhases: clusterPhaseSummary{
+			Online: int(clusterCounts.Online), Offline: int(clusterCounts.Offline), Registering: int(clusterCounts.Registering),
+		},
 		Groups: []groupSummary{},
 	}
 	resolvePolicies := resolvablePolicies(policies)
