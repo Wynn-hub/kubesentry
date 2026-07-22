@@ -38,6 +38,7 @@ import {
 } from '../api/distribution'
 import { listGroups } from '../api/group'
 import { listClusters } from '../api/cluster'
+import { collectAllPages } from '../api/pagination'
 import type { LabelSelector } from '../api/group'
 import LabelEditor from '../components/LabelEditor.vue'
 
@@ -94,8 +95,8 @@ async function onSave() {
 
 onMounted(async () => {
   try {
-    allGroups.value = (await listGroups()).map((g) => g.name)
-    allClusters.value = (await listClusters()).map((c) => c.name)
+    allGroups.value = (await collectAllPages(listGroups)).map((g) => g.name)
+    allClusters.value = (await collectAllPages(listClusters)).map((c) => c.name)
     if (!isEdit) return
     const d = await getDistribution(editName)
     resourceVersion = d.resourceVersion

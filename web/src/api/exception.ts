@@ -1,4 +1,5 @@
 import { request } from './http'
+import type { ListQuery, PageResult } from './pagination'
 import type { LabelSelector } from './group'
 
 export interface ExceptionMatch {
@@ -45,7 +46,8 @@ export interface ExceptionRequest extends ExceptionSpec {
   resourceVersion?: string
 }
 
-export const listExceptions = () => request<ExceptionListItem[]>('GET', '/exceptions')
+export const listExceptions = (params: ListQuery = {}) =>
+  request<PageResult<ExceptionListItem>>('GET', '/exceptions', undefined, params)
 export const getException = (name: string) => request<ExceptionDetail>('GET', `/exceptions/${name}`)
 export const createException = (req: ExceptionRequest) =>
   request<{ name: string }>('POST', '/exceptions', req)

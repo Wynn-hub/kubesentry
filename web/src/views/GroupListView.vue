@@ -66,7 +66,7 @@ async function onToggleEnabled(row: GroupListItem) {
 async function load() {
   loading.value = true
   try {
-    items.value = await listGroups()
+    items.value = (await listGroups()).items
   } catch (e) {
     ElMessage.error((e as Error).message)
   } finally {

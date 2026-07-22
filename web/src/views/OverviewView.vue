@@ -110,6 +110,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getSummary, type SummaryData } from '../api/summary'
 import { listPolicies, type PolicyListItem } from '../api/policy'
+import { collectAllPages } from '../api/pagination'
 import PageHeader from '../components/PageHeader.vue'
 import PhaseTag from '../components/PhaseTag.vue'
 
@@ -119,7 +120,7 @@ const invalidPolicies = ref<PolicyListItem[]>([])
 onMounted(async () => {
   try {
     data.value = await getSummary()
-    invalidPolicies.value = await listPolicies({ phase: 'Invalid' })
+    invalidPolicies.value = await collectAllPages((params) => listPolicies({ ...params, phase: 'Invalid' }))
   } catch (e) {
     ElMessage.error((e as Error).message)
   }

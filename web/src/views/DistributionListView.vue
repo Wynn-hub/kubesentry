@@ -38,7 +38,7 @@ const loading = ref(false)
 async function load() {
   loading.value = true
   try {
-    items.value = await listDistributions()
+    items.value = (await listDistributions()).items
   } catch (e) {
     ElMessage.error((e as Error).message)
   } finally {

@@ -1,4 +1,5 @@
 import { request } from './http'
+import type { ListQuery, PageResult } from './pagination'
 
 export interface ClusterListItem {
   name: string
@@ -63,7 +64,8 @@ export interface CreateClusterResponse {
   command: string
 }
 
-export const listClusters = () => request<ClusterListItem[]>('GET', '/clusters')
+export const listClusters = (params: ListQuery = {}) =>
+  request<PageResult<ClusterListItem>>('GET', '/clusters', undefined, params)
 export const getCluster = (name: string) => request<ClusterDetail>('GET', `/clusters/${name}`)
 export const createCluster = (req: CreateClusterRequest) =>
   request<CreateClusterResponse>('POST', '/clusters', req)
@@ -74,4 +76,5 @@ export const reissueToken = (name: string, installParams: InstallParams) =>
   request<CreateClusterResponse>('POST', `/clusters/${name}/reissue-token`, { installParams })
 export const getLatestInstallParams = (name: string) =>
   request<InstallParams | null>('GET', `/clusters/${name}/latest-install-params`)
-export const listInstallRecords = () => request<InstallRecordItem[]>('GET', '/install-records')
+export const listInstallRecords = (params: ListQuery = {}) =>
+  request<PageResult<InstallRecordItem>>('GET', '/install-records', undefined, params)

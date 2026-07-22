@@ -1,4 +1,5 @@
 import { request } from './http'
+import type { ListQuery, PageResult } from './pagination'
 
 export interface LabelSelectorRequirement {
   key: string
@@ -71,7 +72,8 @@ export interface GroupRequest {
   resourceVersion?: string
 }
 
-export const listGroups = () => request<GroupListItem[]>('GET', '/policygroups')
+export const listGroups = (params: ListQuery = {}) =>
+  request<PageResult<GroupListItem>>('GET', '/policygroups', undefined, params)
 export const getGroup = (name: string) => request<GroupDetail>('GET', `/policygroups/${name}`)
 export const createGroup = (req: GroupRequest) => request<{ name: string }>('POST', '/policygroups', req)
 export const updateGroup = (name: string, req: GroupRequest) =>

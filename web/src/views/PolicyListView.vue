@@ -110,7 +110,7 @@ async function load() {
     if (filters.phase.length) params.phase = filters.phase.join(',')
     if (filters.mode.length) params.mode = filters.mode.join(',')
     if (filters.keyword) params.keyword = filters.keyword
-    items.value = await listPolicies(params)
+    items.value = (await listPolicies(params)).items
   } catch (e) {
     ElMessage.error((e as Error).message)
   } finally {

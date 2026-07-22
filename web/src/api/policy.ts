@@ -1,4 +1,5 @@
 import { request } from './http'
+import type { ListQuery, PageResult } from './pagination'
 
 export interface MatchResource {
   apiGroups: string[]
@@ -69,8 +70,8 @@ export interface VersionTimeline {
   versions: VersionEntry[]
 }
 
-export const listPolicies = (params: Record<string, string> = {}) =>
-  request<PolicyListItem[]>('GET', '/policies', undefined, params)
+export const listPolicies = (params: ListQuery = {}) =>
+  request<PageResult<PolicyListItem>>('GET', '/policies', undefined, params)
 export const getPolicy = (name: string) => request<PolicyDetail>('GET', `/policies/${name}`)
 export const createPolicy = (req: PolicyRequest) => request<{ name: string }>('POST', '/policies', req)
 export const updatePolicy = (name: string, req: PolicyRequest) =>

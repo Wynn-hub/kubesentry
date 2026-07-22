@@ -81,6 +81,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ApiError } from '../api/http'
+import { collectAllPages } from '../api/pagination'
 import { createGroup, getGroup, updateGroup, type GroupRequest, type LabelSelector } from '../api/group'
 import { listPolicies } from '../api/policy'
 import LabelEditor from '../components/LabelEditor.vue'
@@ -192,7 +193,7 @@ async function onSave() {
 
 onMounted(async () => {
   try {
-    allPolicies.value = (await listPolicies()).map((p) => ({ key: p.name, label: p.name }))
+    allPolicies.value = (await collectAllPages(listPolicies)).map((p) => ({ key: p.name, label: p.name }))
     if (!isEdit) return
     const d = await getGroup(editName)
     resourceVersion = d.resourceVersion

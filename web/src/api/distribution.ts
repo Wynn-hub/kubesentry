@@ -1,4 +1,5 @@
 import { request } from './http'
+import type { ListQuery, PageResult } from './pagination'
 import type { LabelSelector } from './group'
 
 export interface DistributionClusters {
@@ -34,7 +35,8 @@ export interface DistributionRequest {
   resourceVersion?: string
 }
 
-export const listDistributions = () => request<DistributionListItem[]>('GET', '/distributions')
+export const listDistributions = (params: ListQuery = {}) =>
+  request<PageResult<DistributionListItem>>('GET', '/distributions', undefined, params)
 export const getDistribution = (name: string) => request<DistributionDetail>('GET', `/distributions/${name}`)
 export const createDistribution = (req: DistributionRequest) =>
   request<{ name: string }>('POST', '/distributions', req)

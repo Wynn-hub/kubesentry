@@ -70,6 +70,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ApiError } from '../api/http'
+import { collectAllPages } from '../api/pagination'
 import {
   createException, getException, updateException, type ExceptionRequest,
 } from '../api/exception'
@@ -150,8 +151,8 @@ async function onSave() {
 
 onMounted(async () => {
   try {
-    policyNames.value = (await listPolicies()).map((p) => p.name)
-    groupNames.value = (await listGroups()).map((g) => g.name)
+    policyNames.value = (await collectAllPages(listPolicies)).map((p) => p.name)
+    groupNames.value = (await collectAllPages(listGroups)).map((g) => g.name)
     if (!isEdit) return
     const d = await getException(editName)
     resourceVersion = d.resourceVersion

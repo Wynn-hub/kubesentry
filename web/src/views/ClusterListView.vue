@@ -111,7 +111,7 @@ const loading = ref(false)
 async function load() {
   loading.value = true
   try {
-    items.value = await listClusters()
+    items.value = (await listClusters()).items
   } catch (e) {
     ElMessage.error((e as Error).message)
   } finally {
@@ -125,7 +125,7 @@ const recordsLoading = ref(false)
 async function loadInstallRecords() {
   recordsLoading.value = true
   try {
-    installRecords.value = await listInstallRecords()
+    installRecords.value = (await listInstallRecords()).items
   } catch (e) {
     ElMessage.error((e as Error).message)
   } finally {

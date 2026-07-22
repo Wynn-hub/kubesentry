@@ -42,7 +42,7 @@ const loading = ref(false)
 async function load() {
   loading.value = true
   try {
-    items.value = await listExceptions()
+    items.value = (await listExceptions()).items
   } catch (e) {
     ElMessage.error((e as Error).message)
   } finally {
