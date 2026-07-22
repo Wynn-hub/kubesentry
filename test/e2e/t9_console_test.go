@@ -75,16 +75,24 @@ func TestT9_ConsoleListsBuiltinPolicies(t *testing.T) {
 	stop := startPortForward(t)
 	defer stop()
 
-	code, env := consoleDo(t, "GET", "/api/v1/policies", nil)
+	code, env := consoleDo(t, "GET", "/api/v1/policies?pageSize=100", nil)
 	if code != 200 || !env.Success {
 		t.Fatalf("code=%d env=%+v", code, env)
 	}
-	var items []map[string]any
-	if err := json.Unmarshal(env.Data, &items); err != nil {
+	var page struct {
+		Items    []map[string]any `json:"items"`
+		Total    int              `json:"total"`
+		Page     int              `json:"page"`
+		PageSize int              `json:"pageSize"`
+	}
+	if err := json.Unmarshal(env.Data, &page); err != nil {
 		t.Fatal(err)
 	}
-	if len(items) < 37 {
-		t.Fatalf("policies = %d, want >= 37", len(items))
+	if page.Page != 1 || page.PageSize != 100 {
+		t.Fatalf("pagination = page %d size %d, want page 1 size 100", page.Page, page.PageSize)
+	}
+	if page.Total < 37 || len(page.Items) < 37 {
+		t.Fatalf("policies = total %d items %d, want >= 37", page.Total, len(page.Items))
 	}
 }
 
