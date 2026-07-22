@@ -4,6 +4,8 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,84 +17,108 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-func distState(ctx context.Context, name string) (v1alpha1.DistributionClusterStatus, bool) {
-	var d v1alpha1.PolicyDistribution
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: name}, &d); err != nil {
-		return v1alpha1.DistributionClusterStatus{}, false
-	}
-	for _, e := range d.Status.Clusters {
-		if e.Name == "local" {
-			return e, true
-		}
-	}
-	return v1alpha1.DistributionClusterStatus{}, false
-}
-
-func waitDistState(t *testing.T, ctx context.Context, name, state string, timeout time.Duration) v1alpha1.DistributionClusterStatus {
+func waitForManagedDistributionObjects(t *testing.T, ctx context.Context) {
 	t.Helper()
-	var last v1alpha1.DistributionClusterStatus
-	if err := wait.PollUntilContextTimeout(ctx, 3*time.Second, timeout, false, func(ctx context.Context) (bool, error) {
-		e, ok := distState(ctx, name)
-		last = e
-		return ok && e.State == state, nil
+	if err := wait.PollUntilContextTimeout(ctx, 3*time.Second, 3*time.Minute, false, func(ctx context.Context) (bool, error) {
+		var policy v1alpha1.Policy
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-dist-policy"}, &policy); err != nil {
+			return false, nil
+		}
+		if policy.Labels[v1alpha1.ManagedByLabel] != v1alpha1.ManagedByPlatform {
+			return false, nil
+		}
+
+		var group v1alpha1.PolicyGroup
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-dist-group"}, &group); err != nil {
+			return false, nil
+		}
+		return group.Labels[v1alpha1.ManagedByLabel] == v1alpha1.ManagedByPlatform, nil
 	}); err != nil {
-		t.Fatalf("distribution %s never reached %s (last: %+v): %v", name, state, last, err)
+		t.Fatalf("distribution objects were not materialized on the member cluster: %v", err)
 	}
-	return last
 }
 
+func waitForDistributionObjectsPruned(t *testing.T, ctx context.Context) {
+	t.Helper()
+	if err := wait.PollUntilContextTimeout(ctx, 3*time.Second, 2*time.Minute, false, func(ctx context.Context) (bool, error) {
+		var policy v1alpha1.Policy
+		policyErr := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-dist-policy"}, &policy)
+		var group v1alpha1.PolicyGroup
+		groupErr := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-dist-group"}, &group)
+		return apierrors.IsNotFound(policyErr) && apierrors.IsNotFound(groupErr), nil
+	}); err != nil {
+		t.Fatalf("distribution objects were not pruned from the member cluster: %v", err)
+	}
+}
+
+// TestT11DistributionPipeline exercises the database-backed distribution
+// pipeline end to end. Gateway-side library objects are created through the
+// console API; only the rendered Policy and PolicyGroup are materialized as
+// managed CRs on the member cluster.
 func TestT11DistributionPipeline(t *testing.T) {
-	// Quarantined: this test exercises the pre-gateway-database
-	// "self-registration" model, where PolicyDistribution and Cluster were
-	// CRDs applied directly on the same cluster acting as both hub and
-	// member. Task 15 (GWDB) confirmed live against a real cluster that
-	// this no longer applies: the gateway is fully database-backed with
-	// zero CRDs (internal/gateway.Repos.Distributions lives in Postgres),
-	// console-api has no REST route for PolicyDistribution CRUD yet, and
-	// the member chart's CRD set (charts/kubesentry/crds/) never included
-	// PolicyDistribution or Cluster to begin with — kubectl apply of
-	// fixtures/distribution/distribution.yaml (kind: PolicyDistribution)
-	// fails outright with "no matches for kind" on a freshly migrated
-	// cluster. Rewriting this properly requires either a distribution
-	// CRUD path on console-api or a direct-DB assertion harness (like
-	// helpers.OpenGatewayDB) exercising Render()/push status end-to-end —
-	// out of scope for the console-api conversion this task covers.
-	t.Skip("T11: PolicyDistribution/Cluster CRDs no longer exist anywhere post-GWDB-migration; needs a dedicated rewrite, see comment")
+	stop := startPortForward(t)
+	t.Cleanup(stop)
 	ctx := context.Background()
 	fx := func(f string) string { return filepath.Join("fixtures", "distribution", f) }
 
-	// Orphaned managed object pre-exists the distribution → the first
-	// snapshot must prune it.
+	// Simulate a stale object from an earlier desired-state snapshot. The
+	// next snapshot must prune it because it carries the platform-managed
+	// label but is absent from the rendered object set.
 	if _, err := helpers.KubectlApplyClusterScoped(ctx, fx("orphan.yaml")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := helpers.KubectlApplyClusterScoped(ctx, fx("policy.yaml")); err != nil {
-		t.Fatal(err)
+	t.Cleanup(func() { helpers.KubectlDeleteClusterScoped(ctx, fx("orphan.yaml")) })
+
+	policyBody := map[string]any{
+		"name":            "e2e-dist-policy",
+		"enforcementMode": v1alpha1.ModeAudit,
+		"description":     "E2E distribution pipeline test policy",
+		"match": map[string]any{
+			"operations": []string{"CREATE"},
+			"resources": []map[string]any{
+				{"apiGroups": []string{""}, "apiVersions": []string{"v1"}, "resources": []string{"pods"}},
+			},
+		},
+		"rego": "package kubesentry\ndeny[msg] {\n  input.request.object.metadata.labels[\"e2e-dist-deny\"] == \"true\"\n  msg := \"e2e distribution test denial\"\n}",
 	}
-	if _, err := helpers.KubectlApplyClusterScoped(ctx, fx("group.yaml")); err != nil {
-		t.Fatal(err)
+	if code, env := consoleDo(t, http.MethodPost, "/api/v1/policies", policyBody); code != http.StatusOK {
+		t.Fatalf("create policy via console-api: status %d env=%+v", code, env)
 	}
+	t.Cleanup(func() { consoleDo(t, http.MethodDelete, "/api/v1/policies/e2e-dist-policy?force=true", nil) })
+
+	groupBody := map[string]any{
+		"name":    "e2e-dist-group",
+		"enabled": true,
+		"policies": map[string]any{
+			"byName": []map[string]any{{"name": "e2e-dist-policy", "enforcementMode": "audit"}},
+		},
+	}
+	if code, env := consoleDo(t, http.MethodPost, "/api/v1/policygroups", groupBody); code != http.StatusOK {
+		t.Fatalf("create group via console-api: status %d env=%+v", code, env)
+	}
+	t.Cleanup(func() { consoleDo(t, http.MethodDelete, "/api/v1/policygroups/e2e-dist-group", nil) })
+
+	distBody := map[string]any{
+		"name": "e2e-dist",
+		"spec": map[string]any{
+			"clusters":     map[string]any{"byName": []string{"local"}},
+			"policyGroups": []string{"e2e-dist-group"},
+		},
+	}
+	if code, env := consoleDo(t, http.MethodPost, "/api/v1/distributions", distBody); code != http.StatusOK {
+		t.Fatalf("create distribution via console-api: status %d env=%+v", code, env)
+	}
+	distDeleted := false
 	t.Cleanup(func() {
-		helpers.KubectlDeleteClusterScoped(ctx, fx("distribution.yaml"))
-		helpers.KubectlDeleteClusterScoped(ctx, fx("group.yaml"))
-		helpers.KubectlDeleteClusterScoped(ctx, fx("policy.yaml"))
-		helpers.KubectlDeleteClusterScoped(ctx, fx("orphan.yaml"))
+		if !distDeleted {
+			consoleDo(t, http.MethodDelete, "/api/v1/distributions/e2e-dist", nil)
+		}
 	})
-	if err := helpers.WaitForPolicyPhase(ctx, k8sClient, "e2e-dist-policy", v1alpha1.PhaseReady, time.Minute); err != nil {
-		t.Fatal(err)
-	}
 
-	if _, err := helpers.KubectlApplyClusterScoped(ctx, fx("distribution.yaml")); err != nil {
-		t.Fatal(err)
-	}
+	// The gateway renders the DB rows and hublink materializes managed CRs.
+	waitForManagedDistributionObjects(t, ctx)
 
-	// 1) Synced + appliedVersion flows back.
-	entry := waitDistState(t, ctx, "e2e-dist", v1alpha1.DistributionSynced, 3*time.Minute)
-	if entry.AppliedVersion == "" || entry.LastSyncTime == nil {
-		t.Fatalf("synced entry incomplete: %+v", entry)
-	}
-
-	// 2) Orphan gets cascade-pruned.
+	// The same desired-state apply prunes stale managed objects.
 	if err := wait.PollUntilContextTimeout(ctx, 3*time.Second, 2*time.Minute, false, func(ctx context.Context) (bool, error) {
 		var p v1alpha1.Policy
 		err := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-orphan-managed"}, &p)
@@ -101,49 +127,39 @@ func TestT11DistributionPipeline(t *testing.T) {
 		t.Fatal("orphan managed policy was not pruned")
 	}
 
-	// 3) Library object is not labeled managed (identical-twin never takes ownership).
-	var lib v1alpha1.Policy
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-dist-policy"}, &lib); err != nil {
-		t.Fatal(err)
-	}
-	if _, labeled := lib.Labels[v1alpha1.ManagedByLabel]; labeled {
-		t.Fatal("library policy must stay unmanaged in self-registration")
+	// The gateway-side library policy remains available through console-api.
+	if code, env := consoleDo(t, http.MethodGet, "/api/v1/policies/e2e-dist-policy", nil); code != http.StatusOK {
+		t.Fatalf("get library policy via console-api: status %d env=%+v", code, env)
 	}
 
-	// 4) Cluster.status.policySummary flows back.
-	if err := wait.PollUntilContextTimeout(ctx, 5*time.Second, 2*time.Minute, false, func(ctx context.Context) (bool, error) {
-		var cl v1alpha1.Cluster
-		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "local"}, &cl); err != nil {
-			return false, nil
+	// Confirm the target cluster is live and has heartbeated.
+	if code, env := consoleDo(t, http.MethodGet, "/api/v1/clusters/local", nil); code != http.StatusOK {
+		t.Fatalf("get cluster via console-api: status %d env=%+v", code, env)
+	} else {
+		var cluster struct {
+			Phase           string  `json:"phase"`
+			LastHeartbeatAt *string `json:"lastHeartbeatAt"`
 		}
-		return cl.Status.PolicySummary != nil && cl.Status.PolicySummary.Ready > 0, nil
-	}); err != nil {
-		t.Fatal("policySummary never flowed back to Cluster.status")
+		if err := json.Unmarshal(env.Data, &cluster); err != nil {
+			t.Fatalf("decode cluster: %v", err)
+		}
+		if cluster.Phase != "Online" || cluster.LastHeartbeatAt == nil {
+			t.Fatalf("cluster is not live: %+v", cluster)
+		}
 	}
 
-	// 5) Override makes the rendered group diverge from the library group →
-	// unmanaged conflict → Error flows back.
-	if _, err := helpers.RunKubectl(ctx, "patch", "policydistribution", "e2e-dist", "--type", "merge",
-		"-p", `{"spec":{"overrides":[{"cluster":"local","enforcementMode":"enforce"}]}}`); err != nil {
-		t.Fatal(err)
+	// Removing the only distribution reference prunes its member-side
+	// materializations, while the gateway library rows remain intact.
+	if code, env := consoleDo(t, http.MethodDelete, "/api/v1/distributions/e2e-dist", nil); code != http.StatusOK {
+		t.Fatalf("delete distribution via console-api: status %d env=%+v", code, env)
 	}
-	errEntry := waitDistState(t, ctx, "e2e-dist", v1alpha1.DistributionError, 3*time.Minute)
-	if errEntry.Message == "" {
-		t.Fatalf("error entry has no message: %+v", errEntry)
+	distDeleted = true
+	waitForDistributionObjectsPruned(t, ctx)
+	if code, env := consoleDo(t, http.MethodGet, "/api/v1/policies/e2e-dist-policy", nil); code != http.StatusOK {
+		t.Fatalf("library policy did not survive distribution deletion: status %d env=%+v", code, env)
 	}
 
-	// 6) Removing the override restores Synced.
-	if _, err := helpers.RunKubectl(ctx, "patch", "policydistribution", "e2e-dist", "--type", "merge",
-		"-p", `{"spec":{"overrides":null}}`); err != nil {
-		t.Fatal(err)
-	}
-	waitDistState(t, ctx, "e2e-dist", v1alpha1.DistributionSynced, 3*time.Minute)
-
-	// 7) Deleting the distribution leaves the library object untouched.
-	helpers.KubectlDeleteClusterScoped(ctx, fx("distribution.yaml"))
-	time.Sleep(10 * time.Second) // give push/cleanup a cycle
-	var still v1alpha1.Policy
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-dist-policy"}, &still); err != nil {
-		t.Fatal("library policy must survive distribution deletion")
+	if code, _ := consoleDo(t, http.MethodDelete, "/api/v1/distributions/default", nil); code != http.StatusForbidden {
+		t.Fatalf("delete default distribution: status %d, want 403", code)
 	}
 }
