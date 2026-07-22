@@ -14,7 +14,7 @@ export default {
     deleteConfirm: 'Delete {name}?',
     conflictRefresh: 'The object has been modified. Refresh and retry.',
     builtinWarning: 'This is a builtin object managed by Helm. Editing it will drift from Helm. Continue?',
-    saved: 'Saved', deleted: 'Deleted',
+    saved: 'Saved', deleted: 'Deleted', paginationTotal: '{total} items',
     labelEditorAndHint: 'Values within the same row are OR\'d — matching any one is enough; different rows (keys) are AND\'d — all must match',
     labelValuePlaceholder: 'Type a value and press Enter, multiple allowed',
     multiValueOrHint: 'Multiple values are combined with OR — matching any one is enough',
