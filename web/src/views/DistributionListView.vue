@@ -5,8 +5,14 @@
     </el-button>
   </PageHeader>
 
-  <el-table :data="items" v-loading="loading">
-    <el-table-column :label="$t('common.name')" prop="name" sortable min-width="160" />
+  <el-table
+    :key="`${listState.sortBy}:${listState.sortOrder}`"
+    :data="items"
+    :default-sort="tableSort"
+    v-loading="loading"
+    @sort-change="onSortChange"
+  >
+    <el-table-column :label="$t('common.name')" prop="name" sortable="custom" :sort-orders="sortOrders" min-width="160" />
     <el-table-column :label="$t('distribution.policyGroups')" min-width="240">
       <template #default="{ row }">{{ row.policyGroups.join(', ') }}</template>
     </el-table-column>
@@ -22,30 +28,65 @@
       </template>
     </el-table-column>
   </el-table>
+  <PaginationBar
+    :total="total"
+    :page="listState.page"
+    :page-size="listState.pageSize"
+    @update:page="(page) => routeList.replace({ page })"
+    @update:page-size="(pageSize) => routeList.replace({ pageSize })"
+  />
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { deleteDistribution, listDistributions, type DistributionListItem } from '../api/distribution'
 import PageHeader from '../components/PageHeader.vue'
+import PaginationBar from '../components/PaginationBar.vue'
+import { listStateParams, useRouteListState, type SortOrder } from '../composables/useRouteListState'
+import { useLatestRequest } from '../composables/useLatestRequest'
+
+const sortOrders = ['ascending', 'descending'] as const
 
 const { t } = useI18n()
 const items = ref<DistributionListItem[]>([])
-const loading = ref(false)
+const total = ref(0)
+const { loading, run: runLatest } = useLatestRequest()
+const routeList = useRouteListState({
+  defaultSortBy: 'name',
+  defaultSortOrder: 'asc',
+  allowedSort: ['name'],
+})
+const listState = routeList.state
+const tableSort = computed(() => ({
+  prop: listState.value.sortBy,
+  order: listState.value.sortOrder === 'asc' ? 'ascending' : 'descending',
+}))
+const requestParams = computed(() => listStateParams(listState.value))
 
 async function load() {
-  loading.value = true
   try {
-    items.value = (await listDistributions()).items
+    await runLatest(
+      () => listDistributions(requestParams.value),
+      (result) => {
+        items.value = result.items
+        total.value = result.total
+        const lastPage = Math.max(1, Math.ceil(result.total / listState.value.pageSize))
+        if (listState.value.page > lastPage) void routeList.replace({ page: lastPage })
+      },
+    )
   } catch (e) {
     ElMessage.error((e as Error).message)
-  } finally {
-    loading.value = false
   }
 }
-onMounted(load)
+
+watch(requestParams, load, { immediate: true })
+
+function onSortChange({ prop, order }: { prop: string; order: 'ascending' | 'descending' }) {
+  if (!prop || !order) return
+  void routeList.replace({ sortBy: prop, sortOrder: (order === 'ascending' ? 'asc' : 'desc') as SortOrder })
+}
 
 async function onDelete(row: DistributionListItem) {
   try {
