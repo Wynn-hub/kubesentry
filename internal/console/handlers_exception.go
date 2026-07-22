@@ -2,11 +2,11 @@
 package console
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -89,6 +89,15 @@ func joinMax(items []string, max int) string {
 }
 
 func (h *Handlers) listExceptions(w http.ResponseWriter, r *http.Request) {
+	query, err := parsePageQuery(r.URL.Query(), pageSpec{
+		DefaultSortBy:    "name",
+		DefaultSortOrder: "asc",
+		AllowedSort:      stringSet("name", "phase", "targetSummary", "duration", "expiresAt"),
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	exceptions, err := h.Repos.Exceptions.List(r.Context())
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list exceptions: "+err.Error())
@@ -107,8 +116,41 @@ func (h *Handlers) listExceptions(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt:     e.ExpiresAt,
 		})
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
-	writeOK(w, items)
+	sortPageItems(items, query, func(a, b exceptionListItem) int {
+		switch query.SortBy {
+		case "phase":
+			return cmp.Compare(a.Phase, b.Phase)
+		case "targetSummary":
+			return cmp.Compare(a.TargetSummary, b.TargetSummary)
+		case "duration":
+			aDuration, aErr := time.ParseDuration(a.Duration)
+			bDuration, bErr := time.ParseDuration(b.Duration)
+			if aErr == nil && bErr == nil {
+				return cmp.Compare(aDuration, bDuration)
+			}
+			return cmp.Compare(a.Duration, b.Duration)
+		case "expiresAt":
+			return compareOptionalTime(a.ExpiresAt, b.ExpiresAt)
+		default:
+			return cmp.Compare(a.Name, b.Name)
+		}
+	}, func(a, b exceptionListItem) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	writeOK(w, paginate(items, query))
+}
+
+func compareOptionalTime(a, b *time.Time) int {
+	switch {
+	case a == nil && b == nil:
+		return 0
+	case a == nil:
+		return -1
+	case b == nil:
+		return 1
+	default:
+		return a.Compare(*b)
+	}
 }
 
 func (h *Handlers) getException(w http.ResponseWriter, r *http.Request) {

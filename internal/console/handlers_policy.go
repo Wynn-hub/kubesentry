@@ -115,19 +115,6 @@ func multiValue(raw string) []string {
 	return vals
 }
 
-// matchAny reports whether v matches the filter: an empty filter matches everything.
-func matchAny(filter []string, v string) bool {
-	if len(filter) == 0 {
-		return true
-	}
-	for _, f := range filter {
-		if f == v {
-			return true
-		}
-	}
-	return false
-}
-
 // policyPhase derives Ready/Invalid from CompileOK at read time. There is no
 // async controller re-validating rows anymore (validatePolicyRequest already
 // runs webhook.CompileRego synchronously before any write reaches the DB —
@@ -169,35 +156,39 @@ func toPolicyDetail(p *dbrepo.Policy, referencedBy []string) policyDetail {
 }
 
 func (h *Handlers) listPolicies(w http.ResponseWriter, r *http.Request) {
-	policies, err := h.Repos.Policies.List(r.Context())
+	query, err := parsePageQuery(r.URL.Query(), pageSpec{
+		DefaultSortBy:    "name",
+		DefaultSortOrder: "asc",
+		AllowedSort: stringSet(
+			"name", "source", "enforcementMode", "phase", "createdAt", "updatedAt",
+		),
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	values := r.URL.Query()
+	policies, total, err := h.Repos.Policies.ListPage(r.Context(), dbrepo.PolicyPageOptions{
+		PageOptions: dbrepo.PageOptions{
+			Limit:  query.PageSize,
+			Offset: query.offset(),
+			SortBy: query.SortBy,
+			Desc:   query.SortOrder == "desc",
+		},
+		Phases:  multiValue(values.Get("phase")),
+		Modes:   multiValue(values.Get("mode")),
+		Sources: multiValue(values.Get("source")),
+		Keyword: values.Get("keyword"),
+	})
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list policies: "+err.Error())
 		return
 	}
-	q := r.URL.Query()
-	phases := multiValue(q.Get("phase"))
-	modes := multiValue(q.Get("mode"))
-	sources := multiValue(q.Get("source"))
-	keyword := strings.ToLower(q.Get("keyword"))
 
 	items := make([]policyListItem, 0, len(policies))
 	for i := range policies {
 		p := &policies[i]
 		phase := policyPhase(p.CompileOK)
-		if !matchAny(phases, phase) {
-			continue
-		}
-		if !matchAny(modes, p.EnforcementMode) {
-			continue
-		}
-		if !matchAny(sources, policySource(p.Labels.Data())) {
-			continue
-		}
-		if keyword != "" &&
-			!strings.Contains(strings.ToLower(p.Name), keyword) &&
-			!strings.Contains(strings.ToLower(p.Description), keyword) {
-			continue
-		}
 		items = append(items, policyListItem{
 			Name:            p.Name,
 			Source:          policySource(p.Labels.Data()),
@@ -208,8 +199,9 @@ func (h *Handlers) listPolicies(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt:       p.UpdatedAt,
 		})
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
-	writeOK(w, items)
+	writeOK(w, pageResult[policyListItem]{
+		Items: items, Total: int(total), Page: query.Page, PageSize: query.PageSize,
+	})
 }
 
 func (h *Handlers) getPolicy(w http.ResponseWriter, r *http.Request) {

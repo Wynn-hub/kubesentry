@@ -46,7 +46,11 @@ func TestListDistributions(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	items := mustUnmarshal[[]distributionListItem](t, env.Data)
+	page := mustUnmarshal[pageResult[distributionListItem]](t, env.Data)
+	items := page.Items
+	if page.Total < 1 || page.Page != 1 || page.PageSize != 20 {
+		t.Fatalf("page metadata = %+v", page)
+	}
 	var found bool
 	for _, it := range items {
 		if it.Name == "d1" {

@@ -78,7 +78,11 @@ func TestExceptionCRUD(t *testing.T) {
 	// The DB is seeded with a permanent "default-system-namespaces"
 	// exception (migration 0004), so assert containment rather than an
 	// exact count of 1.
-	items := mustUnmarshal[[]exceptionListItem](t, env.Data)
+	page := mustUnmarshal[pageResult[exceptionListItem]](t, env.Data)
+	items := page.Items
+	if page.Total < 1 || page.Page != 1 || page.PageSize != 20 {
+		t.Fatalf("page metadata = %+v", page)
+	}
 	found := false
 	for _, item := range items {
 		found = found || item.Name == "my-exception"

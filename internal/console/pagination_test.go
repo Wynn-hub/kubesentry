@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -51,6 +52,7 @@ func TestParsePageQueryRejectsInvalidValues(t *testing.T) {
 		{name: "page text", values: url.Values{"page": {"nope"}}},
 		{name: "page zero", values: url.Values{"page": {"0"}}},
 		{name: "page negative", values: url.Values{"page": {"-1"}}},
+		{name: "page offset overflow", values: url.Values{"page": {strconv.Itoa(int(^uint(0) >> 1))}, "pageSize": {"100"}}},
 		{name: "page size text", values: url.Values{"pageSize": {"nope"}}},
 		{name: "page size zero", values: url.Values{"pageSize": {"0"}}},
 		{name: "page size unsupported", values: url.Values{"pageSize": {"30"}}},

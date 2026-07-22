@@ -1,10 +1,10 @@
 package console
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"sort"
 	"strconv"
 
 	"gorm.io/datatypes"
@@ -83,6 +83,15 @@ func toGroupDetail(g *dbrepo.PolicyGroup, policies []v1alpha1.Policy) groupDetai
 }
 
 func (h *Handlers) listGroups(w http.ResponseWriter, r *http.Request) {
+	query, err := parsePageQuery(r.URL.Query(), pageSpec{
+		DefaultSortBy:    "name",
+		DefaultSortOrder: "asc",
+		AllowedSort:      stringSet("name", "displayName", "enabled", "phase", "resolvedCount"),
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	groups, err := h.Repos.Groups.List(r.Context())
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list groups: "+err.Error())
@@ -108,8 +117,29 @@ func (h *Handlers) listGroups(w http.ResponseWriter, r *http.Request) {
 			ResolvedCount: len(members),
 		})
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
-	writeOK(w, items)
+	sortPageItems(items, query, func(a, b groupListItem) int {
+		switch query.SortBy {
+		case "displayName":
+			return cmp.Compare(a.DisplayName, b.DisplayName)
+		case "enabled":
+			if a.Enabled == b.Enabled {
+				return 0
+			}
+			if !a.Enabled {
+				return -1
+			}
+			return 1
+		case "phase":
+			return cmp.Compare(a.Phase, b.Phase)
+		case "resolvedCount":
+			return cmp.Compare(a.ResolvedCount, b.ResolvedCount)
+		default:
+			return cmp.Compare(a.Name, b.Name)
+		}
+	}, func(a, b groupListItem) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	writeOK(w, paginate(items, query))
 }
 
 func (h *Handlers) getGroup(w http.ResponseWriter, r *http.Request) {

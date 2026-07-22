@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -62,7 +61,18 @@ func toDistributionDetail(d *dbrepo.PolicyDistribution) distributionDetail {
 }
 
 func (h *Handlers) listDistributions(w http.ResponseWriter, r *http.Request) {
-	dists, err := h.Repos.Distributions.List(r.Context())
+	query, err := parsePageQuery(r.URL.Query(), pageSpec{
+		DefaultSortBy:    "name",
+		DefaultSortOrder: "asc",
+		AllowedSort:      stringSet("name"),
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	dists, total, err := h.Repos.Distributions.ListPage(r.Context(), dbrepo.PageOptions{
+		Limit: query.PageSize, Offset: query.offset(), SortBy: query.SortBy, Desc: query.SortOrder == "desc",
+	})
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list policy distributions: "+err.Error())
 		return
@@ -71,8 +81,9 @@ func (h *Handlers) listDistributions(w http.ResponseWriter, r *http.Request) {
 	for i := range dists {
 		items = append(items, toDistributionListItem(&dists[i]))
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
-	writeOK(w, items)
+	writeOK(w, pageResult[distributionListItem]{
+		Items: items, Total: int(total), Page: query.Page, PageSize: query.PageSize,
+	})
 }
 
 func (h *Handlers) getDistribution(w http.ResponseWriter, r *http.Request) {

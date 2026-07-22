@@ -144,7 +144,11 @@ func TestListClustersSortedByName(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	items := mustUnmarshal[[]clusterListItem](t, env.Data)
+	page := mustUnmarshal[pageResult[clusterListItem]](t, env.Data)
+	items := page.Items
+	if page.Total != 2 || page.Page != 1 || page.PageSize != 20 {
+		t.Fatalf("page metadata = %+v", page)
+	}
 	if len(items) != 2 || items[0].Name != "alpha" || items[1].Name != "zeta" {
 		t.Fatalf("items = %+v, want [alpha, zeta]", items)
 	}
@@ -294,7 +298,11 @@ func TestListInstallRecordsAcrossClusters(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	items := mustUnmarshal[[]installRecordItem](t, env.Data)
+	page := mustUnmarshal[pageResult[installRecordItem]](t, env.Data)
+	items := page.Items
+	if page.Total != 2 || page.Page != 1 || page.PageSize != 20 {
+		t.Fatalf("page metadata = %+v", page)
+	}
 	if len(items) != 2 {
 		t.Fatalf("items = %+v, want 2 records", items)
 	}

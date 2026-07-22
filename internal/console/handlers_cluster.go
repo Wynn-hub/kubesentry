@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -183,7 +182,18 @@ func toClusterDetail(c *dbrepo.Cluster) clusterDetail {
 }
 
 func (h *Handlers) listClusters(w http.ResponseWriter, r *http.Request) {
-	clusters, err := h.Repos.Clusters.List(r.Context())
+	query, err := parsePageQuery(r.URL.Query(), pageSpec{
+		DefaultSortBy:    "name",
+		DefaultSortOrder: "asc",
+		AllowedSort:      stringSet("name", "phase", "operatorVersion", "lastHeartbeatAt", "createdAt"),
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	clusters, total, err := h.Repos.Clusters.ListPage(r.Context(), dbrepo.PageOptions{
+		Limit: query.PageSize, Offset: query.offset(), SortBy: query.SortBy, Desc: query.SortOrder == "desc",
+	})
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list clusters: "+err.Error())
 		return
@@ -192,8 +202,9 @@ func (h *Handlers) listClusters(w http.ResponseWriter, r *http.Request) {
 	for i := range clusters {
 		items = append(items, toClusterListItem(&clusters[i]))
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
-	writeOK(w, items)
+	writeOK(w, pageResult[clusterListItem]{
+		Items: items, Total: int(total), Page: query.Page, PageSize: query.PageSize,
+	})
 }
 
 func (h *Handlers) getCluster(w http.ResponseWriter, r *http.Request) {
@@ -367,7 +378,18 @@ func (h *Handlers) getLatestInstallParams(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handlers) listInstallRecords(w http.ResponseWriter, r *http.Request) {
-	records, err := h.Repos.InstallRecords.List(r.Context())
+	query, err := parsePageQuery(r.URL.Query(), pageSpec{
+		DefaultSortBy:    "createdAt",
+		DefaultSortOrder: "desc",
+		AllowedSort:      stringSet("clusterName", "namespace", "createdAt"),
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	records, total, err := h.Repos.InstallRecords.ListPage(r.Context(), dbrepo.PageOptions{
+		Limit: query.PageSize, Offset: query.offset(), SortBy: query.SortBy, Desc: query.SortOrder == "desc",
+	})
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list install records: "+err.Error())
 		return
@@ -386,5 +408,7 @@ func (h *Handlers) listInstallRecords(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:          rec.CreatedAt,
 		})
 	}
-	writeOK(w, items)
+	writeOK(w, pageResult[installRecordItem]{
+		Items: items, Total: int(total), Page: query.Page, PageSize: query.PageSize,
+	})
 }

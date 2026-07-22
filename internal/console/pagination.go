@@ -3,6 +3,7 @@ package console
 import (
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 )
 
@@ -58,6 +59,9 @@ func parsePageQuery(values url.Values, spec pageSpec) (pageQuery, error) {
 	if _, ok := allowedPageSizes[pageSize]; !ok {
 		return pageQuery{}, fmt.Errorf("invalid pageSize: must be one of 10, 20, 50, 100")
 	}
+	if page-1 > int(^uint(0)>>1)/pageSize {
+		return pageQuery{}, fmt.Errorf("invalid page: value is too large")
+	}
 
 	sortBy := values.Get("sortBy")
 	if sortBy == "" {
@@ -76,6 +80,26 @@ func parsePageQuery(values url.Values, spec pageSpec) (pageQuery, error) {
 	}
 
 	return pageQuery{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}, nil
+}
+
+func (q pageQuery) offset() int {
+	return (q.Page - 1) * q.PageSize
+}
+
+// sortPageItems applies the selected direction only to the requested field.
+// Equal primary values always use the stable comparator in ascending order so
+// page boundaries stay deterministic between requests.
+func sortPageItems[T any](items []T, query pageQuery, primary, stable func(a, b T) int) {
+	sort.SliceStable(items, func(i, j int) bool {
+		comparison := primary(items[i], items[j])
+		if comparison == 0 {
+			return stable(items[i], items[j]) < 0
+		}
+		if query.SortOrder == "desc" {
+			return comparison > 0
+		}
+		return comparison < 0
+	})
 }
 
 func positiveInt(raw string, fallback int) (int, error) {

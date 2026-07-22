@@ -63,7 +63,11 @@ func TestListGroups(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	items := mustUnmarshal[[]groupListItem](t, env.Data)
+	page := mustUnmarshal[pageResult[groupListItem]](t, env.Data)
+	items := page.Items
+	if page.Total < 2 || page.Page != 1 || page.PageSize != 20 {
+		t.Fatalf("page metadata = %+v", page)
+	}
 	g1, ok := findGroup(items, "g1")
 	if !ok || !g1.Enabled {
 		t.Fatalf("g1 = %+v, ok=%v, items = %+v", g1, ok, items)
