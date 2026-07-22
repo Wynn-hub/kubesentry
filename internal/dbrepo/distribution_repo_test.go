@@ -66,3 +66,32 @@ func TestDistributionRepoUpdateCASFailsOnStaleRead(t *testing.T) {
 		t.Fatal("expected ErrConflict on a stale updated_at, got nil")
 	}
 }
+
+func TestDistributionRepoListPage(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewDistributionRepo(db)
+	ctx := context.Background()
+
+	for _, name := range []string{"zz-page-dist-a", "zz-page-dist-b"} {
+		if err := repo.Create(ctx, &dbrepo.PolicyDistribution{
+			Name: name,
+			Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{PolicyGroups: []string{"default"}}),
+		}); err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+	}
+
+	items, total, err := repo.ListPage(ctx, dbrepo.PageOptions{
+		Limit: 1, SortBy: "name", Desc: true,
+	})
+	if err != nil {
+		t.Fatalf("list page: %v", err)
+	}
+	if total < 2 || len(items) != 1 || items[0].Name != "zz-page-dist-b" {
+		t.Fatalf("page = %+v total=%d, want zz-page-dist-b", items, total)
+	}
+
+	if _, _, err := repo.ListPage(ctx, dbrepo.PageOptions{Limit: 10, SortBy: "unsafe"}); err == nil {
+		t.Fatal("expected invalid sort field to fail")
+	}
+}

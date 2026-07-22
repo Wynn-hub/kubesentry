@@ -68,6 +68,32 @@ func TestInstallRecordRepoListNewestFirst(t *testing.T) {
 	}
 }
 
+func TestInstallRecordRepoListPage(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewInstallRecordRepo(db)
+	ctx := context.Background()
+
+	for _, name := range []string{"page-a", "page-b", "page-c"} {
+		if err := repo.Create(ctx, newTestRecord(name)); err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+	}
+
+	items, total, err := repo.ListPage(ctx, dbrepo.PageOptions{
+		Limit: 1, Offset: 1, SortBy: "clusterName",
+	})
+	if err != nil {
+		t.Fatalf("list page: %v", err)
+	}
+	if total != 3 || len(items) != 1 || items[0].ClusterName != "page-b" {
+		t.Fatalf("page = %+v total=%d, want page-b total=3", items, total)
+	}
+
+	if _, _, err := repo.ListPage(ctx, dbrepo.PageOptions{Limit: 10, SortBy: "unsafe"}); err == nil {
+		t.Fatal("expected invalid sort field to fail")
+	}
+}
+
 func TestInstallRecordRepoLatestForClusterNoneExists(t *testing.T) {
 	db := newTestDB(t)
 	repo := dbrepo.NewInstallRecordRepo(db)

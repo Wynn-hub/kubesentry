@@ -11,6 +11,13 @@ import (
 
 type ClusterRepo struct{ db *gorm.DB }
 
+type ClusterPhaseCounts struct {
+	Total       int64
+	Online      int64
+	Offline     int64
+	Registering int64
+}
+
 func NewClusterRepo(db *gorm.DB) *ClusterRepo { return &ClusterRepo{db: db} }
 
 func (r *ClusterRepo) Create(ctx context.Context, c *Cluster) error {
@@ -31,6 +38,52 @@ func (r *ClusterRepo) List(ctx context.Context) ([]Cluster, error) {
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
 	return out, nil
+}
+
+func (r *ClusterRepo) ListPage(ctx context.Context, options PageOptions) ([]Cluster, int64, error) {
+	items, total, err := queryPage[Cluster](
+		r.db.WithContext(ctx).Model(&Cluster{}),
+		options,
+		map[string]string{
+			"name":            "name",
+			"phase":           "phase",
+			"operatorVersion": "operator_version",
+			"lastHeartbeatAt": "last_heartbeat_at",
+			"createdAt":       "created_at",
+		},
+		"name ASC",
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list cluster page: %w", err)
+	}
+	return items, total, nil
+}
+
+func (r *ClusterRepo) CountByPhase(ctx context.Context) (ClusterPhaseCounts, error) {
+	base := r.db.WithContext(ctx).Model(&Cluster{})
+	var counts ClusterPhaseCounts
+	if err := base.Count(&counts.Total).Error; err != nil {
+		return ClusterPhaseCounts{}, fmt.Errorf("count clusters: %w", err)
+	}
+
+	var rows []struct {
+		Phase string
+		Count int64
+	}
+	if err := base.Select("phase, COUNT(*) AS count").Group("phase").Scan(&rows).Error; err != nil {
+		return ClusterPhaseCounts{}, fmt.Errorf("count clusters by phase: %w", err)
+	}
+	for _, row := range rows {
+		switch row.Phase {
+		case "Online":
+			counts.Online = row.Count
+		case "Offline":
+			counts.Offline = row.Count
+		case "Registering":
+			counts.Registering = row.Count
+		}
+	}
+	return counts, nil
 }
 
 func (r *ClusterRepo) Update(ctx context.Context, c *Cluster) error {

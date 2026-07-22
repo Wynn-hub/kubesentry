@@ -33,6 +33,19 @@ func (r *DistributionRepo) List(ctx context.Context) ([]PolicyDistribution, erro
 	return out, nil
 }
 
+func (r *DistributionRepo) ListPage(ctx context.Context, options PageOptions) ([]PolicyDistribution, int64, error) {
+	items, total, err := queryPage[PolicyDistribution](
+		r.db.WithContext(ctx).Model(&PolicyDistribution{}),
+		options,
+		map[string]string{"name": "name"},
+		"name ASC",
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list policy distribution page: %w", err)
+	}
+	return items, total, nil
+}
+
 func (r *DistributionRepo) Update(ctx context.Context, d *PolicyDistribution) error {
 	return r.db.WithContext(ctx).Save(d).Error
 }

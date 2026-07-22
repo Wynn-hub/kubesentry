@@ -79,6 +79,51 @@ func TestClusterRepoRecreateAfterSoftDeleteSameName(t *testing.T) {
 	}
 }
 
+func TestClusterRepoListPageAndCountByPhase(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewClusterRepo(db)
+	ctx := context.Background()
+
+	for _, cluster := range []*dbrepo.Cluster{
+		{Name: "page-cluster-a", Phase: "Online"},
+		{Name: "page-cluster-b", Phase: "Offline"},
+		{Name: "page-cluster-c", Phase: "Registering"},
+	} {
+		if err := repo.Create(ctx, cluster); err != nil {
+			t.Fatalf("create %s: %v", cluster.Name, err)
+		}
+	}
+
+	items, total, err := repo.ListPage(ctx, dbrepo.PageOptions{
+		Limit: 1, Offset: 1, SortBy: "name",
+	})
+	if err != nil {
+		t.Fatalf("list page: %v", err)
+	}
+	if total != 3 || len(items) != 1 || items[0].Name != "page-cluster-b" {
+		t.Fatalf("page = %+v total=%d, want page-cluster-b total=3", items, total)
+	}
+
+	empty, total, err := repo.ListPage(ctx, dbrepo.PageOptions{
+		Limit: 10, Offset: 100, SortBy: "name",
+	})
+	if err != nil || total != 3 || len(empty) != 0 {
+		t.Fatalf("empty page = %+v total=%d err=%v", empty, total, err)
+	}
+
+	counts, err := repo.CountByPhase(ctx)
+	if err != nil {
+		t.Fatalf("count by phase: %v", err)
+	}
+	if counts.Total != 3 || counts.Online != 1 || counts.Offline != 1 || counts.Registering != 1 {
+		t.Fatalf("counts = %+v", counts)
+	}
+
+	if _, _, err := repo.ListPage(ctx, dbrepo.PageOptions{Limit: 10, SortBy: "unsafe"}); err == nil {
+		t.Fatal("expected invalid sort field to fail")
+	}
+}
+
 // TestClusterRepoUpdateHeartbeatDoesNotClobberAuthFields reproduces the
 // StatusFlusher/Register race at a logic level: StatusFlusher.flushOnce
 // lists clusters, then (in the old buggy code) does a full-struct Save()

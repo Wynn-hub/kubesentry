@@ -3,12 +3,21 @@ package dbrepo
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type PolicyRepo struct{ db *gorm.DB }
+
+type PolicyPageOptions struct {
+	PageOptions
+	Sources []string
+	Phases  []string
+	Modes   []string
+	Keyword string
+}
 
 func NewPolicyRepo(db *gorm.DB) *PolicyRepo { return &PolicyRepo{db: db} }
 
@@ -39,6 +48,88 @@ func (r *PolicyRepo) List(ctx context.Context) ([]Policy, error) {
 		return nil, fmt.Errorf("list policies: %w", err)
 	}
 	return out, nil
+}
+
+func (r *PolicyRepo) ListPage(ctx context.Context, options PolicyPageOptions) ([]Policy, int64, error) {
+	query := r.db.WithContext(ctx).Model(&Policy{})
+	query = applyPolicySourceFilter(query, options.Sources)
+	query = applyPolicyPhaseFilter(query, options.Phases)
+	if len(options.Modes) > 0 {
+		query = query.Where("enforcement_mode IN ?", options.Modes)
+	}
+	if options.Keyword != "" {
+		pattern := "%" + escapeLike(strings.ToLower(options.Keyword)) + "%"
+		query = query.Where(
+			"(LOWER(name) LIKE ? ESCAPE '\\' OR LOWER(description) LIKE ? ESCAPE '\\')",
+			pattern, pattern,
+		)
+	}
+
+	items, total, err := queryPage[Policy](
+		query,
+		options.PageOptions,
+		map[string]string{
+			"name":            "name",
+			"source":          "(CASE WHEN labels ->> 'kubesentry.io/builtin' = 'true' THEN 'builtin' ELSE 'custom' END)",
+			"enforcementMode": "enforcement_mode",
+			"phase":           "(CASE WHEN compile_ok THEN 'Ready' ELSE 'Invalid' END)",
+			"createdAt":       "created_at",
+			"updatedAt":       "updated_at",
+		},
+		"name ASC",
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list policy page: %w", err)
+	}
+	return items, total, nil
+}
+
+func applyPolicySourceFilter(query *gorm.DB, sources []string) *gorm.DB {
+	if len(sources) == 0 {
+		return query
+	}
+	builtin, custom := contains(sources, "builtin"), contains(sources, "custom")
+	switch {
+	case builtin && custom:
+		return query
+	case builtin:
+		return query.Where("labels ->> 'kubesentry.io/builtin' = 'true'")
+	case custom:
+		return query.Where("COALESCE(labels ->> 'kubesentry.io/builtin', '') <> 'true'")
+	default:
+		return query.Where("1 = 0")
+	}
+}
+
+func applyPolicyPhaseFilter(query *gorm.DB, phases []string) *gorm.DB {
+	if len(phases) == 0 {
+		return query
+	}
+	ready, invalid := contains(phases, "Ready"), contains(phases, "Invalid")
+	switch {
+	case ready && invalid:
+		return query
+	case ready:
+		return query.Where("compile_ok = ?", true)
+	case invalid:
+		return query.Where("compile_ok = ?", false)
+	default:
+		return query.Where("1 = 0")
+	}
+}
+
+func contains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func escapeLike(value string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return replacer.Replace(value)
 }
 
 func (r *PolicyRepo) Update(ctx context.Context, p *Policy) error {

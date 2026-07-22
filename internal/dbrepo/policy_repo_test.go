@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"gorm.io/datatypes"
 )
 
 const validRego = "package kubesentry\ndeny[msg]{false; msg:=\"x\"}"
@@ -37,6 +38,57 @@ func TestPolicyRepoVersionLifecycle(t *testing.T) {
 	}
 	if versions[0].Version != 5 {
 		t.Errorf("expected newest-first order, got version %d first", versions[0].Version)
+	}
+}
+
+func TestPolicyRepoListPageFiltersAndSorts(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewPolicyRepo(db)
+	ctx := context.Background()
+
+	policies := []*dbrepo.Policy{
+		{Name: "zz-page-policy-a", Description: "needle alpha", EnforcementMode: "enforce", CompileOK: true, Rego: validRego},
+		{
+			Name: "zz-page-policy-b", Description: "needle beta", EnforcementMode: "audit", CompileOK: false, Rego: validRego,
+			Labels: datatypes.NewJSONType(map[string]string{"kubesentry.io/builtin": "true"}),
+		},
+		{Name: "zz-page-policy-c", Description: "needle gamma", EnforcementMode: "audit", CompileOK: true, Rego: validRego},
+	}
+	for _, policy := range policies {
+		if err := repo.Create(ctx, policy); err != nil {
+			t.Fatalf("create %s: %v", policy.Name, err)
+		}
+	}
+
+	items, total, err := repo.ListPage(ctx, dbrepo.PolicyPageOptions{
+		PageOptions: dbrepo.PageOptions{Limit: 1, Offset: 1, SortBy: "name"},
+		Keyword:     "zz-page-policy-",
+	})
+	if err != nil {
+		t.Fatalf("list page: %v", err)
+	}
+	if total != 3 || len(items) != 1 || items[0].Name != "zz-page-policy-b" {
+		t.Fatalf("page = %+v total=%d, want zz-page-policy-b total=3", items, total)
+	}
+
+	filtered, total, err := repo.ListPage(ctx, dbrepo.PolicyPageOptions{
+		PageOptions: dbrepo.PageOptions{Limit: 10, SortBy: "phase"},
+		Sources:     []string{"custom"},
+		Phases:      []string{"Ready"},
+		Modes:       []string{"enforce"},
+		Keyword:     "needle",
+	})
+	if err != nil {
+		t.Fatalf("filtered page: %v", err)
+	}
+	if total != 1 || len(filtered) != 1 || filtered[0].Name != "zz-page-policy-a" {
+		t.Fatalf("filtered = %+v total=%d", filtered, total)
+	}
+
+	if _, _, err := repo.ListPage(ctx, dbrepo.PolicyPageOptions{
+		PageOptions: dbrepo.PageOptions{Limit: 10, SortBy: "unsafe"},
+	}); err == nil {
+		t.Fatal("expected invalid sort field to fail")
 	}
 }
 

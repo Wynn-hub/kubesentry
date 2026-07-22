@@ -25,6 +25,27 @@ func (r *InstallRecordRepo) List(ctx context.Context) ([]ClusterInstallRecord, e
 	return out, nil
 }
 
+func (r *InstallRecordRepo) ListPage(ctx context.Context, options PageOptions) ([]ClusterInstallRecord, int64, error) {
+	stableOrder := "id ASC"
+	if options.Desc {
+		stableOrder = "id DESC"
+	}
+	items, total, err := queryPage[ClusterInstallRecord](
+		r.db.WithContext(ctx).Model(&ClusterInstallRecord{}),
+		options,
+		map[string]string{
+			"clusterName": "cluster_name",
+			"namespace":   "namespace",
+			"createdAt":   "created_at",
+		},
+		stableOrder,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list install record page: %w", err)
+	}
+	return items, total, nil
+}
+
 // LatestForCluster returns the most recent record for a cluster name, or nil
 // if none exists — a missing history is a normal state (a cluster that has
 // never had a command generated for it), not an error.
