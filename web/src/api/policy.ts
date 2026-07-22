@@ -79,7 +79,10 @@ export const updatePolicy = (name: string, req: PolicyRequest) =>
 export const deletePolicy = (name: string, force = false) =>
   request<null>('DELETE', `/policies/${name}`, undefined, force ? { force: 'true' } : {})
 export const validateRego = (rego: string) => request<null>('POST', '/policies/validate', { rego })
-export const getTimeline = (name: string) => request<VersionTimeline>('GET', `/policies/${name}/versions`)
+export const getTimeline = async (name: string) => {
+  const timeline = await request<VersionTimeline>('GET', `/policies/${name}/versions`)
+  return { ...timeline, versions: [...timeline.versions].sort((a, b) => b.version - a.version) }
+}
 export const rollback = (name: string, direction: 'prev' | 'next') =>
   request<{ targetVersion: number }>('POST', `/policies/${name}/rollback`, { direction })
 

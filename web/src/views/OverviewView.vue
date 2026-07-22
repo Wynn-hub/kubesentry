@@ -64,7 +64,7 @@
     <div class="overview-grid">
       <el-card>
         <template #header>{{ $t('overview.groupHealth') }}</template>
-        <div v-for="g in data.groups" :key="g.name" class="group-row">
+        <div v-for="g in groupsPage.items" :key="g.name" class="group-row">
           <router-link :to="`/policygroups/${g.name}`" class="group-name">
             {{ g.displayName || g.name }}
           </router-link>
@@ -75,12 +75,19 @@
             {{ $t('overview.auditN', { n: g.auditCount }) }}
           </span>
         </div>
+        <PaginationBar
+          :total="groupsPage.total"
+          :page="groupsState.page"
+          :page-size="groupsState.pageSize"
+          @update:page="(page) => groupsRouteList.replace({ page })"
+          @update:page-size="(pageSize) => groupsRouteList.replace({ pageSize })"
+        />
       </el-card>
 
       <el-card>
         <template #header>{{ $t('overview.attention') }}</template>
-        <template v-if="invalidPolicies.length">
-          <p v-for="p in invalidPolicies" :key="p.name" class="attention-row">
+        <template v-if="attentionPage.total">
+          <p v-for="p in attentionPage.items" :key="p.name" class="attention-row">
             <router-link :to="`/policies/${p.name}`">{{ p.name }}</router-link>
             <PhaseTag :phase="p.phase" />
           </p>
@@ -88,6 +95,14 @@
         <p v-else class="all-clear">
           <span class="status-pill is-success"><span class="status-dot" />{{ $t('overview.noIssues') }}</span>
         </p>
+        <PaginationBar
+          v-if="attentionPage.total"
+          :total="attentionPage.total"
+          :page="attentionState.page"
+          :page-size="attentionState.pageSize"
+          @update:page="(page) => attentionRouteList.replace({ page })"
+          @update:page-size="(pageSize) => attentionRouteList.replace({ pageSize })"
+        />
       </el-card>
 
       <el-card class="events-soon">
@@ -113,14 +128,52 @@ import { listPolicies, type PolicyListItem } from '../api/policy'
 import { collectAllPages } from '../api/pagination'
 import PageHeader from '../components/PageHeader.vue'
 import PhaseTag from '../components/PhaseTag.vue'
+import PaginationBar from '../components/PaginationBar.vue'
+import { useClientPagination } from '../composables/useClientPagination'
+import { useRouteListState } from '../composables/useRouteListState'
 
 const data = ref<SummaryData>()
 const invalidPolicies = ref<PolicyListItem[]>([])
+const groupsRouteList = useRouteListState({
+  prefix: 'overviewGroups',
+  defaultSortBy: 'name',
+  defaultSortOrder: 'asc',
+  allowedSort: ['name'],
+})
+const groupsState = groupsRouteList.state
+const groupsPage = useClientPagination(
+  () => data.value?.groups ?? [],
+  groupsState,
+  (a, b) => a.name.localeCompare(b.name),
+)
+const attentionRouteList = useRouteListState({
+  prefix: 'overviewAttention',
+  defaultSortBy: 'name',
+  defaultSortOrder: 'asc',
+  allowedSort: ['name'],
+})
+const attentionState = attentionRouteList.state
+const attentionPage = useClientPagination(
+  invalidPolicies,
+  attentionState,
+  (a, b) => a.name.localeCompare(b.name),
+)
+
+function correctPage(total: number, page: number, pageSize: number, replace: (patch: { page: number }) => Promise<unknown>) {
+  const lastPage = Math.max(1, Math.ceil(total / pageSize))
+  if (page > lastPage) void replace({ page: lastPage })
+}
 
 onMounted(async () => {
   try {
-    data.value = await getSummary()
-    invalidPolicies.value = await collectAllPages((params) => listPolicies({ ...params, phase: 'Invalid' }))
+    const [summary, invalid] = await Promise.all([
+      getSummary(),
+      collectAllPages((params) => listPolicies({ ...params, phase: 'Invalid' })),
+    ])
+    data.value = summary
+    invalidPolicies.value = invalid
+    correctPage(summary.groups.length, groupsState.value.page, groupsState.value.pageSize, groupsRouteList.replace)
+    correctPage(invalid.length, attentionState.value.page, attentionState.value.pageSize, attentionRouteList.replace)
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
