@@ -77,7 +77,7 @@ type Server struct {
 }
 
 // NewServer wires the REST API only; the SPA is served by a separate nginx
-// container (see charts/kubesentry-gateway/console/{Dockerfile.web,nginx.conf}).
+// container (see Dockerfile.console-web and the gateway chart's nginx ConfigMap).
 // ready reports whether console-api's dependencies (currently: the database)
 // are reachable; nil always reports ready.
 func NewServer(h *Handlers, ready func() bool) *Server {
@@ -97,7 +97,7 @@ func NewServer(h *Handlers, ready func() bool) *Server {
 	h.Register(mux)
 
 	// The nginx `web` container only proxies /healthz and /api/* here (see
-	// charts/kubesentry-gateway/console/nginx.conf); anything else served by
+	// charts/kubesentry-gateway/templates/console/nginx-configmap.yaml); anything else served by
 	// this process directly (e.g. port-forward during dev) is an unmatched
 	// API route, so keep the same JSON error envelope other handlers use
 	// rather than falling back to ServeMux's plain-text 404.

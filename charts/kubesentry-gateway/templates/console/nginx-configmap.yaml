@@ -1,0 +1,29 @@
+{{- if .Values.console.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubesentry-console-nginx
+  namespace: {{ .Values.namespace }}
+  annotations:
+    kubesentry.io/config-purpose: "console nginx runtime configuration"
+data:
+  default.conf: |
+    server {
+        listen {{ .Values.console.ports.web }};
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location /api/ {
+            proxy_pass http://127.0.0.1:{{ .Values.console.ports.api }}/api/;
+            proxy_set_header X-Request-Id $request_id;
+        }
+
+        location /healthz {
+            proxy_pass http://127.0.0.1:{{ .Values.console.ports.api }}/healthz;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+{{- end }}

@@ -67,7 +67,7 @@ Five independent Go binaries split across two planes that never talk to each oth
   - When `GATEWAY_ADDRESS` is set, `console.RunGatewayLink` maintains a `Connect` stream to the gateway (soft dependency — retries forever, never blocks HTTP readiness) and write handlers call `NotifyChange` best-effort so the gateway's `pushLoop` doesn't have to wait for its 60s resync.
   - Reuses `webhook.CompileRego` for client-side pre-validation before a Policy is created or updated.
   - Rollback is driven the same way the operator expects it: setting `spec.rollbackTo` plus a logical-cursor annotation (`kubesentry.io/logical-cursor`) that lets the UI track prev/next position across an in-flight rollback without re-deriving it from version history each time.
-- **`web`** — nginx serving the built Vue SPA (`web/dist`), proxying `/api/*` and `/healthz` to the `api` container over localhost within the same pod (`charts/kubesentry-gateway/console/nginx.conf`). No auth; accessed via NodePort or port-forward.
+- **`web`** — nginx serving the built Vue SPA (`web/dist`), proxying `/api/*` and `/healthz` to the `api` container over localhost within the same pod. `Dockerfile.console-web` contains only the SPA + nginx runtime; the gateway chart supplies nginx's runtime configuration through `templates/console/nginx-configmap.yaml`. No auth; accessed via NodePort or port-forward.
 
 **Chart deploy ordering** (`charts/kubesentry-gateway`) is initContainer-enforced, not a Helm hook chain: the Postgres `StatefulSet` comes up first, the `kubesentry-db-migrate` Job runs as a `post-install,pre-upgrade` hook, the gateway Deployment's `wait-for-migration` initContainer polls `kubectl wait --for=condition=complete job/kubesentry-db-migrate`, and the console Deployment's `wait-for-gateway` initContainer polls the gateway's gRPC port with `nc -z` before either container starts.
 
@@ -127,6 +127,7 @@ cmd/gateway/             main: GORM DB open, dbmodel.Init, gRPC server on GRPC_A
 cmd/console/             main: GORM DB open, discovery client (schema handler only), optional Connect link to gateway, HTTP server (api container only, no embedded frontend)
 cmd/db/                  main: `db migrate` (Helm hook Job) and `db register-cluster --name=<name>` (dev/deploy-local seeding)
 web/                     Vue 3 + TypeScript SPA (Element Plus, vue-i18n, vue-router), built to web/dist and served by the console chart's nginx `web` container (no longer embedded into the Go binary)
+Dockerfile.console-web    Multi-stage SPA build + nginx runtime image; nginx server configuration is injected by the gateway chart
 charts/kubesentry/       Member-cluster Helm chart (webhook, operator, CRDs, built-in policies) — unchanged by this migration
   ├── crds/              CRD manifests
   ├── builtin-policies/  source-of-truth for built-in Policies + PolicyGroups
@@ -137,7 +138,7 @@ charts/kubesentry-gateway/  Gateway-plane Helm chart (gateway, console web+api, 
   ├── templates/postgres/     StatefulSet + Service + credentials Secret
   ├── templates/db-migrate-job.yaml  post-install,pre-upgrade hook Job running `db migrate`
   ├── templates/deployment.yaml      gateway Deployment (wait-for-migration initContainer)
-  └── templates/console/     console Deployment (web+api containers, wait-for-gateway initContainer) + its own rbac.yaml/service.yaml
+  └── templates/console/     console nginx ConfigMap + Deployment (web+api containers, wait-for-gateway initContainer) + its own rbac.yaml/service.yaml
 ```
 
 ## Testing Patterns

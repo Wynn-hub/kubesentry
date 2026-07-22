@@ -39,6 +39,11 @@ console:
     repository: wynnhub/kubesentry-console-web
     tag: "latest"
     pullPolicy: IfNotPresent
+  # Runtime ports used by the nginx ConfigMap and both sidecar containers.
+  # Override them through Helm values without rebuilding the web image.
+  ports:
+    web: 8080
+    api: 8081
   service:
     type: NodePort
     port: 8080

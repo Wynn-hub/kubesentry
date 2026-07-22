@@ -11,7 +11,7 @@ spec:
   ports:
     - name: http
       port: {{ .Values.console.service.port }}
-      targetPort: 8080
+      targetPort: http
       {{- if and (eq .Values.console.service.type "NodePort") .Values.console.service.nodePort }}
       nodePort: {{ .Values.console.service.nodePort }}
       {{- end }}

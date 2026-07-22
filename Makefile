@@ -118,7 +118,7 @@ build-image-e2e: build-linux
 	docker build -f Dockerfile.console -t wynnhub/kubesentry-console:e2e-test .
 	docker build -f Dockerfile.gateway -t wynnhub/kubesentry-gateway:e2e-test .
 	docker build -f Dockerfile.db -t wynnhub/kubesentry-db:e2e-test .
-	docker build -f charts/kubesentry-gateway/console/Dockerfile.web -t wynnhub/kubesentry-console-web:e2e-test .
+	docker build -f Dockerfile.console-web -t wynnhub/kubesentry-console-web:e2e-test .
 
 # E2E traffic must bypass any local HTTP(S) proxy (e.g. clash): kubectl and
 # client-go honor https_proxy, and a proxied connection to the local API
@@ -192,7 +192,7 @@ build-image-local: build-linux
 	docker build -f Dockerfile.console  -t $(LOCAL_CONSOLE_IMAGE)  .
 	docker build -f Dockerfile.gateway  -t $(LOCAL_GATEWAY_IMAGE)  .
 	docker build -f Dockerfile.db       -t $(LOCAL_DB_IMAGE)       .
-	docker build -f charts/kubesentry-gateway/console/Dockerfile.web -t $(LOCAL_CONSOLE_WEB_IMAGE) .
+	docker build -f Dockerfile.console-web -t $(LOCAL_CONSOLE_WEB_IMAGE) .
 
 # Build images + helm install/upgrade in one shot.
 # Two chart installs into the same namespace: kubesentry-gateway (gateway +
@@ -275,7 +275,7 @@ image: .builder build-linux
 	docker buildx build \
 	  --builder $(BUILDER) \
 	  --platform $(PLATFORMS) \
-	  --file charts/kubesentry-gateway/console/Dockerfile.web \
+	  --file Dockerfile.console-web \
 	  --tag $(CONSOLE_WEB_IMAGE) \
 	  --load \
 	  .
@@ -326,7 +326,7 @@ image-push: .builder build-linux
 	docker buildx build \
 	  --builder $(BUILDER) \
 	  --platform $(PLATFORMS) \
-	  --file charts/kubesentry-gateway/console/Dockerfile.web \
+	  --file Dockerfile.console-web \
 	  --tag $(CONSOLE_WEB_IMAGE) \
 	  --tag $(REGISTRY)/kubesentry-console-web:latest \
 	  --push \
