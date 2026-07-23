@@ -563,3 +563,34 @@ WHERE name IN (
 -- "876000h" duration literal to express the same ~100-year effectively-forever
 -- window.
 INSERT INTO policy_exceptions (id, name, spec, expires_at, labels) VALUES (2078506982033063936, 'default-system-namespaces', '{"allPolicies":true,"match":{"namespaces":["kube-system","kube-public","kube-node-lease","kubesentry-system"]},"reason":"System namespaces are excluded from policy enforcement by default"}'::jsonb, now() + interval '100 years', '{"kubesentry.io/builtin": "true"}');
+
+ALTER TABLE policy_distributions
+    ADD COLUMN managed BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN owner_type TEXT NOT NULL DEFAULT '',
+    ADD COLUMN owner_name TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX policy_distributions_managed_owner_key
+    ON policy_distributions (owner_type, owner_name)
+    WHERE managed AND deleted_at IS NULL;
+UPDATE policy_distributions
+SET managed = true, owner_type = 'PolicyGroup', owner_name = 'default'
+WHERE name = 'default' AND deleted_at IS NULL;
+
+CREATE TABLE cluster_uninstall_tasks (
+    id           BIGINT PRIMARY KEY,
+    cluster_id   BIGINT NOT NULL REFERENCES clusters (id),
+    status       TEXT NOT NULL DEFAULT 'Pending',
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    received_at  TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    error        TEXT NOT NULL DEFAULT '',
+    attempts     INT NOT NULL DEFAULT 1,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at   TIMESTAMPTZ
+);
+CREATE INDEX cluster_uninstall_tasks_cluster_created_idx
+    ON cluster_uninstall_tasks (cluster_id, created_at DESC)
+    WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX cluster_uninstall_tasks_active_cluster_key
+    ON cluster_uninstall_tasks (cluster_id)
+    WHERE deleted_at IS NULL AND status IN ('Pending', 'Received', 'Running');
