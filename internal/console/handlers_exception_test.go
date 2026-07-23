@@ -14,11 +14,12 @@ import (
 
 func validExceptionReq() *exceptionRequest {
 	return &exceptionRequest{
-		Name:       "my-exception",
-		PolicyRefs: []string{"run-as-privileged"},
-		Match:      v1alpha1.PolicyExceptionMatch{Namespaces: []string{"dev"}},
-		Duration:   "24h",
-		Reason:     "temporary migration",
+		AllClusters: true,
+		Name:        "my-exception",
+		PolicyRefs:  []string{"run-as-privileged"},
+		Match:       v1alpha1.PolicyExceptionMatch{Namespaces: []string{"dev"}},
+		Duration:    "24h",
+		Reason:      "temporary migration",
 	}
 }
 

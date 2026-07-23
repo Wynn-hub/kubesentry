@@ -64,6 +64,8 @@ export interface CreateClusterResponse {
   command: string
 }
 
+export interface UninstallTask { id: number; status: string; error?: string; requestedAt: string; completedAt?: string }
+
 export const listClusters = (params: ListQuery = {}) =>
   request<PageResult<ClusterListItem>>('GET', '/clusters', undefined, params)
 export const getCluster = (name: string) => request<ClusterDetail>('GET', `/clusters/${name}`)
@@ -76,5 +78,9 @@ export const reissueToken = (name: string, installParams: InstallParams) =>
   request<CreateClusterResponse>('POST', `/clusters/${name}/reissue-token`, { installParams })
 export const getLatestInstallParams = (name: string) =>
   request<InstallParams | null>('GET', `/clusters/${name}/latest-install-params`)
+export const uninstallCluster = (name: string) => request<UninstallTask>('POST', `/clusters/${name}/uninstall`)
+export const listUninstallTasks = (name: string) => request<UninstallTask[]>('GET', `/clusters/${name}/uninstall-tasks`)
+export const retryUninstallTask = (name: string, taskID: number) =>
+  request<{ id: number }>('POST', `/clusters/${name}/uninstall-tasks/${taskID}/retry`)
 export const listInstallRecords = (params: ListQuery = {}) =>
   request<PageResult<InstallRecordItem>>('GET', '/install-records', undefined, params)

@@ -16,6 +16,12 @@
     <el-form-item :label="$t('group.enabled')">
       <el-switch v-model="form.enabled" />
     </el-form-item>
+    <el-form-item :label="$t('group.targetClusters')" required>
+      <el-switch v-model="allClusters" :active-text="$t('group.allClusters')" :inactive-text="$t('group.selectedClusters')" />
+      <el-select v-if="!allClusters" v-model="clusterNames" multiple filterable style="width: 100%; margin-top: 8px" :placeholder="$t('group.selectClusters')">
+        <el-option v-for="name in availableClusters" :key="name" :label="name" :value="name" />
+      </el-select>
+    </el-form-item>
 
     <el-form-item :label="$t('group.policyMembers')">
       <el-tabs v-model="policyTab" style="width: 100%">
@@ -96,6 +102,7 @@ import { ApiError } from '../api/http'
 import { collectAllPages } from '../api/pagination'
 import { createGroup, getGroup, updateGroup, type GroupRequest, type LabelSelector } from '../api/group'
 import { listPolicies } from '../api/policy'
+import { listClusters } from '../api/cluster'
 import LabelEditor from '../components/LabelEditor.vue'
 import HintMark from '../components/HintMark.vue'
 import TagInput from '../components/TagInput.vue'
@@ -165,6 +172,9 @@ const nsScope = ref<'all' | 'specific'>('all')
 const nsMode = ref<'label' | 'name'>('label')
 const nsSelector = ref<LabelSelector | null>(null)
 const nsNameList = ref<string[]>([])
+const allClusters = ref(true)
+const clusterNames = ref<string[]>([])
+const availableClusters = ref<string[]>([])
 
 function toRequest(): GroupRequest {
   const { byName, exclude } = computeMembership({
@@ -197,10 +207,13 @@ function toRequest(): GroupRequest {
     },
     selectorEnforcementMode: form.selectorEnforcementMode || undefined,
     resourceVersion: isEdit ? resourceVersion : undefined,
+    allClusters: allClusters.value,
+    clusterNames: allClusters.value ? undefined : clusterNames.value,
   }
 }
 
 async function onSave() {
+  if (!allClusters.value && clusterNames.value.length === 0) { ElMessage.error(t('group.selectClusters')); return }
   if (source === 'builtin') {
     try {
       await ElMessageBox.confirm(t('common.builtinWarning'))
@@ -231,8 +244,12 @@ async function onSave() {
 onMounted(async () => {
   try {
     allPolicies.value = (await collectAllPages(listPolicies)).map((p) => ({ key: p.name, label: p.name }))
+    availableClusters.value = (await collectAllPages(listClusters)).filter((c) => c.phase !== 'Uninstalled').map((c) => c.name)
     if (!isEdit) return
     const d = await getGroup(editName)
+
+    allClusters.value = d.scope.allClusters
+    clusterNames.value = d.scope.clusterNames ?? []
     resourceVersion = d.resourceVersion
     source = d.source
     form.name = d.name

@@ -42,6 +42,7 @@ message MemberMessage {
     Heartbeat heartbeat = 1;
     StatusReport status_report = 2;
     Envelope envelope = 3; // reply path for Dispatch's request/reply correlation
+    UninstallTaskReport uninstall_task_report = 4;
   }
 }
 
@@ -72,6 +73,27 @@ message DesiredState {
   string version_hash = 1;
   repeated ManagedObject objects = 2;
   string trace_id = 3; // spec D18 correlation id; set only on a NotifyChange-triggered push, empty on ticker resync
+  repeated UninstallTask uninstall_tasks = 4;
+}
+
+// UninstallTask is a durable, target-cluster-only command. The gateway keeps
+// sending it until the member reports a terminal state, so reconnects cannot
+// silently drop an administrator-approved teardown request.
+message UninstallTask {
+  int64 task_id = 1;
+  int32 attempt = 2;
+}
+
+message UninstallTaskReport {
+  int64 task_id = 1;
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    RECEIVED = 1;
+    SUCCEEDED = 2;
+    FAILED = 3;
+  }
+  State state = 2;
+  string error = 3;
 }
 
 message ManagedObject {

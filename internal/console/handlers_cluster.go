@@ -158,6 +158,93 @@ type installRecordItem struct {
 	CreatedAt          time.Time `json:"createdAt"`
 }
 
+type uninstallTaskItem struct {
+	ID          int64      `json:"id"`
+	Status      string     `json:"status"`
+	Error       string     `json:"error,omitempty"`
+	RequestedAt time.Time  `json:"requestedAt"`
+	CompletedAt *time.Time `json:"completedAt,omitempty"`
+}
+
+func (h *Handlers) createUninstallTask(w http.ResponseWriter, r *http.Request) {
+	c, ok := h.fetchCluster(w, r)
+	if !ok {
+		return
+	}
+	if c.Phase != v1alpha1.ClusterPhaseOnline {
+		writeErr(w, http.StatusConflict, "only an online cluster can be uninstalled")
+		return
+	}
+	active, err := h.Repos.UninstallTasks.HasActive(r.Context(), c.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if active {
+		writeErr(w, http.StatusConflict, "cluster already has an active uninstall task")
+		return
+	}
+	task := &dbrepo.UninstallTask{ClusterID: c.ID}
+	if err := h.Repos.UninstallTasks.Create(r.Context(), task); err != nil {
+		writeErr(w, http.StatusInternalServerError, "create uninstall task: "+err.Error())
+		return
+	}
+	if err := h.Repos.Clusters.UpdatePhase(r.Context(), c.ID, v1alpha1.ClusterPhaseUninstalling); err != nil {
+		writeErr(w, http.StatusInternalServerError, "mark cluster uninstalling: "+err.Error())
+		return
+	}
+	h.notifyChange(r, "cluster-uninstall")
+	writeOK(w, uninstallTaskItem{ID: task.ID, Status: task.Status, RequestedAt: task.RequestedAt})
+}
+
+func (h *Handlers) listUninstallTasks(w http.ResponseWriter, r *http.Request) {
+	c, ok := h.fetchCluster(w, r)
+	if !ok {
+		return
+	}
+	tasks, err := h.Repos.UninstallTasks.ListByClusterID(r.Context(), c.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "list uninstall tasks: "+err.Error())
+		return
+	}
+	out := make([]uninstallTaskItem, 0, len(tasks))
+	for _, task := range tasks {
+		out = append(out, uninstallTaskItem{ID: task.ID, Status: task.Status, Error: task.Error, RequestedAt: task.RequestedAt, CompletedAt: task.CompletedAt})
+	}
+	writeOK(w, out)
+}
+
+func (h *Handlers) retryUninstallTask(w http.ResponseWriter, r *http.Request) {
+	c, ok := h.fetchCluster(w, r)
+	if !ok {
+		return
+	}
+	var taskID int64
+	if _, err := fmt.Sscan(r.PathValue("taskID"), &taskID); err != nil || taskID <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid uninstall task ID")
+		return
+	}
+	task, err := h.Repos.UninstallTasks.GetByID(r.Context(), taskID)
+	if err != nil || task.ClusterID != c.ID {
+		writeErr(w, http.StatusNotFound, "uninstall task not found")
+		return
+	}
+	if err := h.Repos.UninstallTasks.Retry(r.Context(), taskID, time.Now().UTC()); err != nil {
+		if errors.Is(err, dbrepo.ErrConflict) {
+			writeErr(w, http.StatusConflict, "only a failed uninstall task can be retried")
+		} else {
+			writeErr(w, http.StatusInternalServerError, "retry uninstall task: "+err.Error())
+		}
+		return
+	}
+	if err := h.Repos.Clusters.UpdatePhase(r.Context(), c.ID, v1alpha1.ClusterPhaseUninstalling); err != nil {
+		writeErr(w, http.StatusInternalServerError, "mark cluster uninstalling: "+err.Error())
+		return
+	}
+	h.notifyChange(r, "cluster-uninstall-retry")
+	writeOK(w, map[string]int64{"id": taskID})
+}
+
 func toClusterListItem(c *dbrepo.Cluster) clusterListItem {
 	return clusterListItem{
 		Name:            c.Name,
@@ -311,8 +398,8 @@ func (h *Handlers) deleteCluster(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if c.Phase == v1alpha1.ClusterPhaseOnline {
-		writeErr(w, http.StatusConflict, "online cluster cannot be deleted from here")
+	if c.Phase == v1alpha1.ClusterPhaseOnline || c.Phase == v1alpha1.ClusterPhaseUninstalling {
+		writeErr(w, http.StatusConflict, "online or uninstalling cluster cannot be deleted from here")
 		return
 	}
 	if err := h.Repos.Clusters.Delete(r.Context(), c.ID); err != nil {

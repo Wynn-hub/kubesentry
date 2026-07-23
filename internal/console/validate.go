@@ -53,6 +53,8 @@ type groupRequest struct {
 	Policies                v1alpha1.PolicyGroupPolicies `json:"policies"`
 	SelectorEnforcementMode string                       `json:"selectorEnforcementMode,omitempty"`
 	ResourceVersion         string                       `json:"resourceVersion,omitempty"`
+	AllClusters             bool                         `json:"allClusters,omitempty"`
+	ClusterNames            []string                     `json:"clusterNames,omitempty"`
 }
 
 func validMode(m string) bool {
@@ -76,6 +78,9 @@ func validateGroupRequest(req *groupRequest, isCreate bool) error {
 	if !validMode(req.SelectorEnforcementMode) {
 		return fmt.Errorf("invalid selectorEnforcementMode %q", req.SelectorEnforcementMode)
 	}
+	if err := validateScope(req.AllClusters, req.ClusterNames); err != nil {
+		return err
+	}
 	for _, name := range req.Policies.Exclude {
 		if name == "" {
 			return fmt.Errorf("policies.exclude entries must not be empty")
@@ -94,6 +99,20 @@ type exceptionRequest struct {
 	RetainAfterExpiry string                        `json:"retainAfterExpiry,omitempty"`
 	Reason            string                        `json:"reason"`
 	ResourceVersion   string                        `json:"resourceVersion,omitempty"`
+	AllClusters       bool                          `json:"allClusters,omitempty"`
+	ClusterNames      []string                      `json:"clusterNames,omitempty"`
+}
+
+func validateScope(all bool, names []string) error {
+	if all == (len(names) > 0) {
+		return fmt.Errorf("exactly one of allClusters or clusterNames must be set")
+	}
+	for _, name := range names {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("clusterNames entries must not be empty")
+		}
+	}
+	return nil
 }
 
 func validateExceptionRequest(req *exceptionRequest, isCreate bool) error {
@@ -127,6 +146,9 @@ func validateExceptionRequest(req *exceptionRequest, isCreate bool) error {
 	}
 	if strings.TrimSpace(req.Reason) == "" {
 		return fmt.Errorf("reason is required")
+	}
+	if err := validateScope(req.AllClusters, req.ClusterNames); err != nil {
+		return err
 	}
 	return nil
 }

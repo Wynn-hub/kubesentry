@@ -7,6 +7,12 @@
     <el-form-item :label="$t('common.name')" required>
       <el-input v-model="form.name" :disabled="isEdit" />
     </el-form-item>
+    <el-form-item :label="$t('exception.targetClusters')" required>
+      <el-switch v-model="allClusters" :active-text="$t('exception.allClusters')" :inactive-text="$t('exception.selectedClusters')" />
+      <el-select v-if="!allClusters" v-model="clusterNames" multiple filterable style="width: 100%; margin-top: 8px" :placeholder="$t('exception.selectClusters')">
+        <el-option v-for="name in availableClusters" :key="name" :label="name" :value="name" />
+      </el-select>
+    </el-form-item>
 
     <el-form-item :label="$t('exception.target')" required>
       <el-radio-group v-model="targetKind">
@@ -80,6 +86,7 @@ import {
 } from '../api/exception'
 import { listPolicies } from '../api/policy'
 import { listGroups, type LabelSelector } from '../api/group'
+import { listClusters } from '../api/cluster'
 import LabelEditor from '../components/LabelEditor.vue'
 import TagInput from '../components/TagInput.vue'
 import HintMark from '../components/HintMark.vue'
@@ -107,6 +114,9 @@ const nsMode = ref<'name' | 'label'>('name')
 const namespaceNames = ref<string[]>([])
 const nsSelector = ref<LabelSelector | null>(null)
 const resourceSelector = ref<LabelSelector | null>(null)
+const allClusters = ref(true)
+const clusterNames = ref<string[]>([])
+const availableClusters = ref<string[]>([])
 
 const form = reactive({
   name: '',
@@ -132,10 +142,13 @@ function toRequest(): ExceptionRequest {
     retainAfterExpiry: form.retainAfterExpiry || undefined,
     reason: form.reason,
     resourceVersion: isEdit ? resourceVersion : undefined,
+    allClusters: allClusters.value,
+    clusterNames: allClusters.value ? undefined : clusterNames.value,
   }
 }
 
 async function onSave() {
+  if (!allClusters.value && clusterNames.value.length === 0) { ElMessage.error(t('exception.selectClusters')); return }
   saving.value = true
   try {
     if (isEdit) {
@@ -160,8 +173,12 @@ onMounted(async () => {
   try {
     policyNames.value = (await collectAllPages(listPolicies)).map((p) => p.name)
     groupNames.value = (await collectAllPages(listGroups)).map((g) => g.name)
+    availableClusters.value = (await collectAllPages(listClusters)).filter((c) => c.phase !== 'Uninstalled').map((c) => c.name)
     if (!isEdit) return
     const d = await getException(editName)
+
+    allClusters.value = d.scope.allClusters
+    clusterNames.value = d.scope.clusterNames ?? []
     resourceVersion = d.resourceVersion
     form.name = d.name
     form.duration = d.spec.duration

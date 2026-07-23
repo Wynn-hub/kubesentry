@@ -14,7 +14,20 @@ rules:
     verbs: [get, update, patch]
   - apiGroups: [admissionregistration.k8s.io]
     resources: [validatingwebhookconfigurations]
-    verbs: [get, list, watch, patch]
+    resourceNames: [kubesentry]
+    verbs: [get, list, watch, patch, delete]
+  - apiGroups: [admissionregistration.k8s.io]
+    resources: [validatingadmissionpolicies, validatingadmissionpolicybindings]
+    resourceNames: [kubesentry-policyexception-immutability, kubesentry-policyexception-immutability-binding]
+    verbs: [delete]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    resourceNames: [policies.kubesentry.io, policygroups.kubesentry.io, policyexceptions.kubesentry.io, policyversions.kubesentry.io]
+    verbs: [delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [clusterroles, clusterrolebindings]
+    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup]
+    verbs: [delete]
   - apiGroups: [""]
     resources: [events]
     verbs: [create, patch]
@@ -41,14 +54,18 @@ rules:
     verbs: [get]
   - apiGroups: [""]
     resources: [secrets]
-    resourceNames: [kubesentry-hub-auth]
-    verbs: [get, update]
+    resourceNames: [kubesentry-hub-auth, kubesentry-hub-register, kubesentry-hub-ca, kubesentry-webhook-tls]
+    verbs: [get, update, delete]
   # create cannot be scoped by resourceNames (Kubernetes RBAC has no
   # resource name to check against a POST to the collection endpoint);
   # namespace scoping via this Role is the tightest grant available.
   - apiGroups: [""]
     resources: [secrets]
     verbs: [create]
+  - apiGroups: ["", "apps", "batch", "rbac.authorization.k8s.io"]
+    resources: [services, serviceaccounts, deployments, jobs, roles, rolebindings]
+    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup]
+    verbs: [delete]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

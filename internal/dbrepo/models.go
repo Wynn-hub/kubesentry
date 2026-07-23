@@ -74,8 +74,11 @@ func (PolicyException) TableName() string { return "kubesentry.policy_exceptions
 
 type PolicyDistribution struct {
 	dbmodel.Base
-	Name string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
-	Spec datatypes.JSONType[v1alpha1.PolicyDistributionSpec]
+	Name      string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
+	Spec      datatypes.JSONType[v1alpha1.PolicyDistributionSpec]
+	Managed   bool
+	OwnerType string
+	OwnerName string
 }
 
 func (PolicyDistribution) TableName() string { return "kubesentry.policy_distributions" }
@@ -107,3 +110,19 @@ type ClusterInstallRecord struct {
 }
 
 func (ClusterInstallRecord) TableName() string { return "kubesentry.cluster_install_records" }
+
+// UninstallTask is a durable request for one connected member cluster to
+// remove the KubeSentry release resources it owns. The member's acknowledgement
+// and result are stored before the platform changes the cluster lifecycle.
+type UninstallTask struct {
+	dbmodel.Base
+	ClusterID   int64
+	Status      string
+	RequestedAt time.Time
+	ReceivedAt  *time.Time
+	CompletedAt *time.Time
+	Error       string
+	Attempts    int
+}
+
+func (UninstallTask) TableName() string { return "kubesentry.cluster_uninstall_tasks" }

@@ -12,6 +12,10 @@ type ExceptionRepo struct{ db *gorm.DB }
 
 func NewExceptionRepo(db *gorm.DB) *ExceptionRepo { return &ExceptionRepo{db: db} }
 
+func (r *ExceptionRepo) WithTx(ctx context.Context, fn func(*ExceptionRepo, *DistributionRepo) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error { return fn(&ExceptionRepo{db: tx}, &DistributionRepo{db: tx}) })
+}
+
 func (r *ExceptionRepo) Create(ctx context.Context, e *PolicyException) error {
 	return r.db.WithContext(ctx).Create(e).Error
 }

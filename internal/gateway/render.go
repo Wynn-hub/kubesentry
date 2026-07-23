@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/groupresolve"
 )
@@ -28,16 +29,35 @@ type ManagedObject struct {
 
 // RenderResult is a self-contained snapshot for one cluster.
 type RenderResult struct {
-	Hash    string            // sha256 over the sorted object list; never empty
-	Objects []ManagedObject   // policies first, then groups, each name-sorted
-	Matched []string          // distributions targeting the cluster (sorted)
-	Errors  map[string]string // distribution name -> render failure
+	Hash           string            // sha256 over the sorted object list; never empty
+	Objects        []ManagedObject   // policies first, then groups, each name-sorted
+	Matched        []string          // distributions targeting the cluster (sorted)
+	Errors         map[string]string // distribution name -> render failure
+	UninstallTasks []*gatewaypb.UninstallTask
+}
+
+func hashWithUninstallTasks(base string, tasks []*gatewaypb.UninstallTask) string {
+	if len(tasks) == 0 {
+		return base
+	}
+	parts := []string{base}
+	for _, task := range tasks {
+		parts = append(parts, fmt.Sprintf("%d:%d", task.TaskId, task.Attempt))
+	}
+	h := sha256.Sum256([]byte(strings.Join(parts, ",")))
+	return hex.EncodeToString(h[:])
 }
 
 // Render computes the snapshot from in-memory lists only — a pure function.
 // A distribution with a bad group reference contributes an Errors entry but
 // never blocks other distributions.
 func Render(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, groups []v1alpha1.PolicyGroup, policies []v1alpha1.Policy) RenderResult {
+	return RenderWithExceptions(cluster, dists, groups, policies, nil)
+}
+
+// RenderWithExceptions extends the existing snapshot renderer with scoped
+// PolicyException objects while preserving Render's test-facing signature.
+func RenderWithExceptions(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, groups []v1alpha1.PolicyGroup, policies []v1alpha1.Policy, exceptions []v1alpha1.PolicyException) RenderResult {
 	res := RenderResult{Errors: map[string]string{}}
 
 	groupByName := make(map[string]*v1alpha1.PolicyGroup, len(groups))
@@ -48,6 +68,10 @@ func Render(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, grou
 	for i := range policies {
 		policyByName[policies[i].Name] = &policies[i]
 	}
+	exceptionByName := make(map[string]*v1alpha1.PolicyException, len(exceptions))
+	for i := range exceptions {
+		exceptionByName[exceptions[i].Name] = &exceptions[i]
+	}
 
 	type renderedGroup struct {
 		src   *v1alpha1.PolicyGroup
@@ -55,6 +79,7 @@ func Render(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, grou
 	}
 	rendered := map[string]*renderedGroup{}
 	needed := map[string]*v1alpha1.Policy{}
+	neededExceptions := map[string]*v1alpha1.PolicyException{}
 
 	for i := range dists {
 		d := &dists[i]
@@ -113,6 +138,14 @@ func Render(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, grou
 				}
 			}
 		}
+		for _, name := range d.Spec.PolicyExceptions {
+			e, ok := exceptionByName[name]
+			if !ok {
+				errs = append(errs, fmt.Sprintf("policyexception %q not found", name))
+				continue
+			}
+			neededExceptions[name] = e
+		}
 		if len(errs) > 0 {
 			res.Errors[d.Name] = strings.Join(errs, "; ")
 		}
@@ -143,6 +176,11 @@ func Render(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, grou
 		res.Objects = append(res.Objects, ManagedObject{
 			Kind: "PolicyGroup", Name: gname, Labels: withManaged(rg.src.Labels), Spec: raw,
 		})
+	}
+	for _, name := range sortedKeys(neededExceptions) {
+		e := neededExceptions[name]
+		spec, _ := json.Marshal(e.Spec)
+		res.Objects = append(res.Objects, ManagedObject{Kind: "PolicyException", Name: name, Labels: withManaged(e.Labels), Spec: spec})
 	}
 
 	sum, _ := json.Marshal(res.Objects)
@@ -204,6 +242,14 @@ func ToProto(objs []ManagedObject) []*gatewaypb.ManagedObject {
 		out = append(out, &gatewaypb.ManagedObject{
 			Kind: o.Kind, Name: o.Name, Labels: o.Labels, SpecJson: o.Spec,
 		})
+	}
+	return out
+}
+
+func ToProtoUninstallTasks(tasks []dbrepo.UninstallTask) []*gatewaypb.UninstallTask {
+	out := make([]*gatewaypb.UninstallTask, 0, len(tasks))
+	for _, task := range tasks {
+		out = append(out, &gatewaypb.UninstallTask{TaskId: task.ID, Attempt: int32(task.Attempts)})
 	}
 	return out
 }

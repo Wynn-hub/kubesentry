@@ -51,6 +51,7 @@ export default {
     excluded: 'Excluded Policies',
     excludedHint: 'Explicitly excluded from this group. To re-include, select it again on the edit page.',
     enableDone: '{name} enabled', disableDone: '{name} disabled',
+    targetClusters: 'Target Clusters', allClusters: 'All clusters', selectedClusters: 'Selected clusters', selectClusters: 'Select at least one cluster',
   },
   cluster: {
     title: 'Clusters', subtitle: 'Manage registered member clusters',
@@ -69,6 +70,9 @@ export default {
     deleteOnlineBlocked: 'Online clusters cannot be deleted from here',
     reissueToken: 'Regenerate Install Command', reissueConfirm: 'Regenerate the install command for {name}? The old token will stop working immediately',
     installRecords: 'Install Records',
+    uninstall: 'Uninstall Cluster Components', uninstallConfirm: 'Type {name} to confirm uninstalling the KubeSentry components from this cluster.',
+    uninstallNameMismatch: 'Cluster name does not match', uninstallStarted: 'Uninstall task created. The status refreshes automatically.',
+    uninstallTasks: 'Uninstall Tasks', retryUninstall: 'Retry', uninstallingBlocked: 'Uninstalling clusters cannot be deleted from here',
   },
   exception: {
     title: 'Exceptions', subtitle: 'Manage exemption policies for specific namespaces or resource objects', target: 'Target', duration: 'Duration', reason: 'Reason',
@@ -76,6 +80,7 @@ export default {
     targetPolicies: 'Policies', targetGroups: 'Policy Groups', targetAll: 'All Policies',
     nsTarget: 'Namespaces', nsAllHint: 'Exempting all namespaces isn\'t supported here — disable the relevant policy group instead',
     resSelector: 'Resource Object Label', resSelectorHint: 'Any resource object carrying this label will be exempted',
+    targetClusters: 'Target Clusters', allClusters: 'All clusters', selectedClusters: 'Selected clusters', selectClusters: 'Select at least one cluster',
   },
   distribution: {
     title: 'Distribution', subtitle: 'Manage which clusters each policy group is pushed to',

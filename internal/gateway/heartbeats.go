@@ -97,6 +97,14 @@ func (f *StatusFlusher) flushOnce(ctx context.Context) error {
 	now := time.Now()
 	for i := range all {
 		cl := &all[i]
+		// An uninstall task owns these terminal lifecycle states. A delayed
+		// heartbeat must never resurrect a cluster after it has started (or
+		// completed) its self-removal.
+		if cl.Phase == v1alpha1.ClusterPhaseUninstalling ||
+			cl.Phase == v1alpha1.ClusterPhaseUninstalled ||
+			cl.Phase == v1alpha1.ClusterPhaseUninstallFailed {
+			continue
+		}
 		info, ok := snap[cl.Name]
 		switch {
 		case ok && now.Sub(info.LastSeen) <= f.offlineAfter:

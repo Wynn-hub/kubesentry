@@ -47,6 +47,7 @@ type Repos struct {
 	Distributions  *dbrepo.DistributionRepo
 	Exceptions     *dbrepo.ExceptionRepo
 	InstallRecords *dbrepo.InstallRecordRepo
+	UninstallTasks *dbrepo.UninstallTaskRepo
 }
 
 // Server implements the gatewaypb.Hub gRPC service.
@@ -84,6 +85,9 @@ func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (
 			return nil, status.Error(codes.NotFound, "cluster not registered on gateway")
 		}
 		return nil, status.Errorf(codes.Internal, "get cluster: %v", err)
+	}
+	if cl.Phase == v1alpha1.ClusterPhaseUninstalling || cl.Phase == v1alpha1.ClusterPhaseUninstalled {
+		return nil, status.Error(codes.FailedPrecondition, "cluster is being uninstalled or has been uninstalled")
 	}
 
 	// 校验一次性注册 token：gateway 只存哈希。
@@ -255,7 +259,24 @@ func (s *Server) renderFor(ctx context.Context, cluster string) (RenderResult, e
 	if err != nil {
 		return RenderResult{}, err
 	}
-	return Render(toV1alpha1Cluster(cl), toV1alpha1Dists(dists), toV1alpha1Groups(groups), toV1alpha1Policies(policies)), nil
+	var exceptions []dbrepo.PolicyException
+	if s.repos.Exceptions != nil {
+		exceptions, err = s.repos.Exceptions.List(ctx)
+		if err != nil {
+			return RenderResult{}, err
+		}
+	}
+	res := RenderWithExceptions(toV1alpha1Cluster(cl), toV1alpha1Dists(dists), toV1alpha1Groups(groups), toV1alpha1Policies(policies), toV1alpha1Exceptions(exceptions))
+	if s.repos.UninstallTasks == nil || cl.ID == 0 {
+		return res, nil
+	}
+	tasks, err := s.repos.UninstallTasks.ListActiveByClusterID(ctx, cl.ID)
+	if err != nil {
+		return RenderResult{}, err
+	}
+	res.UninstallTasks = ToProtoUninstallTasks(tasks)
+	res.Hash = hashWithUninstallTasks(res.Hash, res.UninstallTasks)
+	return res, nil
 }
 
 // pushLoop renders and pushes a DesiredState snapshot immediately, then again
@@ -303,7 +324,7 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 					sendTraceID = traceID
 				}
 				if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_DesiredState{
-					DesiredState: &gatewaypb.DesiredState{VersionHash: res.Hash, Objects: ToProto(res.Objects), TraceId: sendTraceID},
+					DesiredState: &gatewaypb.DesiredState{VersionHash: res.Hash, Objects: ToProto(res.Objects), TraceId: sendTraceID, UninstallTasks: res.UninstallTasks},
 				}}); err != nil {
 					return // stream already broken; recv loop will wind down too
 				}
@@ -371,6 +392,8 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 		case *gatewaypb.MemberMessage_Envelope:
 			// Dispatch reply path: route to the pending correlation id, if any.
 			sess.deliverReply(m.Envelope)
+		case *gatewaypb.MemberMessage_UninstallTaskReport:
+			s.handleUninstallTaskReport(stream.Context(), cluster, m.UninstallTaskReport)
 		}
 		if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Ack{Ack: &gatewaypb.Ack{}}}); err != nil {
 			return err
@@ -383,6 +406,50 @@ func firstMD(md metadata.MD, key string) string {
 		return vs[0]
 	}
 	return ""
+}
+
+func (s *Server) handleUninstallTaskReport(ctx context.Context, clusterName string, report *gatewaypb.UninstallTaskReport) {
+	if s.repos.UninstallTasks == nil || report == nil || report.TaskId == 0 {
+		return
+	}
+	cluster, err := s.repos.Clusters.GetByName(ctx, clusterName)
+	if err != nil {
+		slog.Warn("ignore uninstall task report for unknown cluster", "cluster", clusterName, "error", err)
+		return
+	}
+	task, err := s.repos.UninstallTasks.GetByID(ctx, report.TaskId)
+	if err != nil || task.ClusterID != cluster.ID {
+		slog.Warn("ignore uninstall task report with invalid task", "cluster", clusterName, "task_id", report.TaskId, "error", err)
+		return
+	}
+	now := time.Now().UTC()
+	var expected, next string
+	switch report.State {
+	case gatewaypb.UninstallTaskReport_RECEIVED:
+		expected, next = dbrepo.UninstallTaskPending, dbrepo.UninstallTaskReceived
+	case gatewaypb.UninstallTaskReport_SUCCEEDED:
+		expected, next = dbrepo.UninstallTaskReceived, dbrepo.UninstallTaskSucceeded
+	case gatewaypb.UninstallTaskReport_FAILED:
+		expected, next = dbrepo.UninstallTaskReceived, dbrepo.UninstallTaskFailed
+	default:
+		return
+	}
+	if err := s.repos.UninstallTasks.Transition(ctx, task.ID, expected, next, report.Error, now); err != nil {
+		if !errors.Is(err, dbrepo.ErrConflict) {
+			slog.Warn("record uninstall task report", "task_id", task.ID, "error", err)
+		}
+		return
+	}
+	switch next {
+	case dbrepo.UninstallTaskSucceeded:
+		err = s.repos.Clusters.UpdatePhase(ctx, cluster.ID, v1alpha1.ClusterPhaseUninstalled)
+	case dbrepo.UninstallTaskFailed:
+		err = s.repos.Clusters.UpdatePhase(ctx, cluster.ID, v1alpha1.ClusterPhaseUninstallFailed)
+	}
+	if err != nil {
+		slog.Warn("update cluster phase after uninstall report", "cluster", clusterName, "task_id", task.ID, "error", err)
+	}
+	s.changes.Notify()
 }
 
 // NotifyChange fires the shared change notifier, waking every Sync

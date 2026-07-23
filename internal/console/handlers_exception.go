@@ -40,6 +40,7 @@ type exceptionDetail struct {
 	ResourceVersion string                       `json:"resourceVersion"`
 	Spec            v1alpha1.PolicyExceptionSpec `json:"spec"`
 	Status          exceptionStatus              `json:"status"`
+	Scope           clusterScope                 `json:"scope"`
 }
 
 // exceptionPhase derives Active/Expired from ExpiresAt at read time — the
@@ -158,7 +159,14 @@ func (h *Handlers) getException(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeOK(w, toExceptionDetail(e))
+	detail := toExceptionDetail(e)
+	scope, err := h.getScopeBinding(r.Context(), scopeOwnerException, e.Name)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "get exception scope: "+err.Error())
+		return
+	}
+	detail.Scope = scope
+	writeOK(w, detail)
 }
 
 // fetchException loads the {name} path exception, writing 404/500 on failure.
@@ -222,7 +230,16 @@ func (h *Handlers) createException(w http.ResponseWriter, r *http.Request) {
 		Spec:      datatypes.NewJSONType(exceptionSpecFrom(&req)),
 		ExpiresAt: &expiresAt,
 	}
-	if err := h.Repos.Exceptions.Create(r.Context(), e); err != nil {
+	if err := h.validateScopeTargets(r.Context(), req.AllClusters, req.ClusterNames); err != nil {
+		writeErr(w, http.StatusBadRequest, "set exception scope: "+err.Error())
+		return
+	}
+	if err := h.Repos.Exceptions.WithTx(r.Context(), func(exceptions *dbrepo.ExceptionRepo, distributions *dbrepo.DistributionRepo) error {
+		if err := exceptions.Create(r.Context(), e); err != nil {
+			return err
+		}
+		return syncScopeBinding(r.Context(), distributions, scopeOwnerException, e.Name, req.AllClusters, req.ClusterNames)
+	}); err != nil {
 		if isUniqueViolation(err) {
 			writeErr(w, http.StatusConflict, "exception "+req.Name+" already exists")
 		} else {
@@ -252,6 +269,10 @@ func (h *Handlers) updateException(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, "exception has been modified, refresh and retry")
 		return
 	}
+	if err := h.validateScopeTargets(r.Context(), req.AllClusters, req.ClusterNames); err != nil {
+		writeErr(w, http.StatusBadRequest, "set exception scope: "+err.Error())
+		return
+	}
 	expiresAt, err := exceptionExpiresAt(req.Duration)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
@@ -266,7 +287,12 @@ func (h *Handlers) updateException(w http.ResponseWriter, r *http.Request) {
 		"spec":       e.Spec,
 		"expires_at": e.ExpiresAt,
 	}
-	if err := h.Repos.Exceptions.UpdateCAS(r.Context(), e.ID, expectedUpdatedAt, fields); err != nil {
+	if err := h.Repos.Exceptions.WithTx(r.Context(), func(exceptions *dbrepo.ExceptionRepo, distributions *dbrepo.DistributionRepo) error {
+		if err := exceptions.UpdateCAS(r.Context(), e.ID, expectedUpdatedAt, fields); err != nil {
+			return err
+		}
+		return syncScopeBinding(r.Context(), distributions, scopeOwnerException, e.Name, req.AllClusters, req.ClusterNames)
+	}); err != nil {
 		if errors.Is(err, dbrepo.ErrConflict) {
 			writeErr(w, http.StatusConflict, "exception has been modified, refresh and retry")
 			return
@@ -283,7 +309,12 @@ func (h *Handlers) deleteException(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := h.Repos.Exceptions.Delete(r.Context(), e.ID); err != nil {
+	if err := h.Repos.Exceptions.WithTx(r.Context(), func(exceptions *dbrepo.ExceptionRepo, distributions *dbrepo.DistributionRepo) error {
+		if err := exceptions.Delete(r.Context(), e.ID); err != nil {
+			return err
+		}
+		return deleteScopeBinding(r.Context(), distributions, scopeOwnerException, e.Name)
+	}); err != nil {
 		writeErr(w, http.StatusInternalServerError, "delete exception: "+err.Error())
 		return
 	}

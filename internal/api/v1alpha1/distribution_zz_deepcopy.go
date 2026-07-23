@@ -22,6 +22,10 @@ func (in *PolicyDistributionSpec) DeepCopyInto(out *PolicyDistributionSpec) {
 		out.PolicyGroups = make([]string, len(in.PolicyGroups))
 		copy(out.PolicyGroups, in.PolicyGroups)
 	}
+	if in.PolicyExceptions != nil {
+		out.PolicyExceptions = make([]string, len(in.PolicyExceptions))
+		copy(out.PolicyExceptions, in.PolicyExceptions)
+	}
 	if in.Overrides != nil {
 		out.Overrides = make([]DistributionOverride, len(in.Overrides))
 		copy(out.Overrides, in.Overrides)

@@ -26,7 +26,7 @@ import (
 // aggregated so one bad object doesn't block the rest.
 func applyDesiredState(ctx context.Context, c client.Client, ds *gatewaypb.DesiredState) error {
 	var errs []string
-	inSnapshot := map[string]map[string]bool{"Policy": {}, "PolicyGroup": {}}
+	inSnapshot := map[string]map[string]bool{"Policy": {}, "PolicyGroup": {}, "PolicyException": {}}
 
 	var valid []*gatewaypb.ManagedObject
 	for _, obj := range ds.Objects {
@@ -37,7 +37,7 @@ func applyDesiredState(ctx context.Context, c client.Client, ds *gatewaypb.Desir
 		valid = append(valid, obj)
 	}
 
-	for _, kind := range []string{"Policy", "PolicyGroup"} {
+	for _, kind := range []string{"Policy", "PolicyGroup", "PolicyException"} {
 		for _, obj := range valid {
 			if obj.Kind != kind {
 				continue
@@ -158,6 +158,27 @@ func upsertObject(ctx context.Context, c client.Client, obj *gatewaypb.ManagedOb
 		existing.Labels = obj.Labels
 		existing.Annotations = newAnnotations
 		return c.Update(ctx, &existing)
+	case "PolicyException":
+		var spec v1alpha1.PolicyExceptionSpec
+		if err := json.Unmarshal(obj.SpecJson, &spec); err != nil {
+			return fmt.Errorf("decode spec: %w", err)
+		}
+		var existing v1alpha1.PolicyException
+		err := c.Get(ctx, types.NamespacedName{Name: obj.Name}, &existing)
+		if apierrors.IsNotFound(err) {
+			return c.Create(ctx, &v1alpha1.PolicyException{ObjectMeta: metav1.ObjectMeta{Name: obj.Name, Labels: obj.Labels, Annotations: mergeTraceAnnotation(nil, traceID)}, Spec: spec})
+		}
+		if err != nil {
+			return err
+		}
+		if existing.Labels[v1alpha1.ManagedByLabel] == "" {
+			if reflect.DeepEqual(existing.Spec, spec) {
+				return nil
+			}
+			return errors.New("conflicts with existing unmanaged object")
+		}
+		existing.Spec, existing.Labels, existing.Annotations = spec, obj.Labels, mergeTraceAnnotation(existing.Annotations, traceID)
+		return c.Update(ctx, &existing)
 	default:
 		return fmt.Errorf("unknown kind %q", obj.Kind)
 	}
@@ -194,6 +215,18 @@ func pruneManaged(ctx context.Context, c client.Client, inSnapshot map[string]ma
 		}
 		if err := c.Delete(ctx, p); err != nil && !apierrors.IsNotFound(err) {
 			errs = append(errs, fmt.Sprintf("prune Policy %s: %v", p.Name, err))
+		}
+	}
+	var exceptions v1alpha1.PolicyExceptionList
+	if err := c.List(ctx, &exceptions, sel); err != nil {
+		return fmt.Errorf("list managed exceptions: %w", err)
+	}
+	for i := range exceptions.Items {
+		e := &exceptions.Items[i]
+		if !inSnapshot["PolicyException"][e.Name] {
+			if err := c.Delete(ctx, e); err != nil && !apierrors.IsNotFound(err) {
+				errs = append(errs, fmt.Sprintf("prune PolicyException %s: %v", e.Name, err))
+			}
 		}
 	}
 	if len(errs) > 0 {

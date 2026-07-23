@@ -61,15 +61,6 @@
           </svg>
           {{ $t('nav.exceptions') }}
         </el-menu-item>
-        <el-menu-item index="/distributions">
-          <svg aria-hidden="true" class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="5" cy="12" r="2.5" />
-            <path d="M7.5 12h4M11.5 12l5-5M11.5 12l5 5" stroke-linecap="round" />
-            <circle cx="18" cy="6" r="2" /><circle cx="18" cy="18" r="2" />
-          </svg>
-          {{ $t('nav.distributions') }}
-        </el-menu-item>
-
         <div class="nav-group-title">{{ $t('nav.groupObservability') }}</div>
         <el-menu-item index="/events" class="nav-soon">
           <svg aria-hidden="true" class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

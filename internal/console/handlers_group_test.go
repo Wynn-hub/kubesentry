@@ -33,6 +33,7 @@ func seedGroup(t *testing.T, repos gateway.Repos, name string, enabled bool) *db
 
 func validGroupReq() *groupRequest {
 	return &groupRequest{
+		AllClusters: true,
 		Name:        "my-group",
 		DisplayName: "My Group",
 		Enabled:     true,
@@ -225,6 +226,16 @@ func TestDeleteGroupRejectsDefaultName(t *testing.T) {
 	}
 	if _, err := repos.Groups.GetByName(t.Context(), "default"); err != nil {
 		t.Fatalf("default group must survive the rejected delete: %v", err)
+	}
+}
+
+func TestUpdateGroupRejectsDefaultManagedScope(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	req := validGroupReq()
+	req.Name = ""
+	rec, _ := doRequest(t, h, "PUT", "/api/v1/policygroups/default", req)
+	if rec.Code != 403 {
+		t.Fatalf("code = %d, want 403", rec.Code)
 	}
 }
 

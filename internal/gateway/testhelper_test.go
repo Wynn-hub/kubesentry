@@ -25,10 +25,11 @@ func newTestRepos(t *testing.T) Repos {
 	t.Helper()
 	db := newTestDB(t)
 	return Repos{
-		Clusters:      dbrepo.NewClusterRepo(db),
-		Policies:      dbrepo.NewPolicyRepo(db),
-		Groups:        dbrepo.NewGroupRepo(db),
-		Distributions: dbrepo.NewDistributionRepo(db),
+		Clusters:       dbrepo.NewClusterRepo(db),
+		Policies:       dbrepo.NewPolicyRepo(db),
+		Groups:         dbrepo.NewGroupRepo(db),
+		Distributions:  dbrepo.NewDistributionRepo(db),
+		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
 	}
 }
 

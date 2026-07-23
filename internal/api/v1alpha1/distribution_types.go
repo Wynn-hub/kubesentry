@@ -36,9 +36,10 @@ type DistributionOverride struct {
 }
 
 type PolicyDistributionSpec struct {
-	Clusters     DistributionClusters   `json:"clusters,omitempty"`
-	PolicyGroups []string               `json:"policyGroups"`
-	Overrides    []DistributionOverride `json:"overrides,omitempty"`
+	Clusters         DistributionClusters   `json:"clusters,omitempty"`
+	PolicyGroups     []string               `json:"policyGroups"`
+	PolicyExceptions []string               `json:"policyExceptions,omitempty"`
+	Overrides        []DistributionOverride `json:"overrides,omitempty"`
 }
 
 type DistributionClusterStatus struct {

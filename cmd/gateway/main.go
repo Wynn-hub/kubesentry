@@ -54,10 +54,12 @@ func main() {
 		os.Exit(1)
 	}
 	repos := gateway.Repos{
-		Clusters:      dbrepo.NewClusterRepo(db),
-		Policies:      dbrepo.NewPolicyRepo(db),
-		Groups:        dbrepo.NewGroupRepo(db),
-		Distributions: dbrepo.NewDistributionRepo(db),
+		Clusters:       dbrepo.NewClusterRepo(db),
+		Policies:       dbrepo.NewPolicyRepo(db),
+		Groups:         dbrepo.NewGroupRepo(db),
+		Exceptions:     dbrepo.NewExceptionRepo(db),
+		Distributions:  dbrepo.NewDistributionRepo(db),
+		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
 	}
 
 	tracker := gateway.NewHeartbeatTracker()

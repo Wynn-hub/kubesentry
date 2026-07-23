@@ -12,6 +12,10 @@ type GroupRepo struct{ db *gorm.DB }
 
 func NewGroupRepo(db *gorm.DB) *GroupRepo { return &GroupRepo{db: db} }
 
+func (r *GroupRepo) WithTx(ctx context.Context, fn func(*GroupRepo, *DistributionRepo) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error { return fn(&GroupRepo{db: tx}, &DistributionRepo{db: tx}) })
+}
+
 func (r *GroupRepo) Create(ctx context.Context, g *PolicyGroup) error {
 	return r.db.WithContext(ctx).Create(g).Error
 }

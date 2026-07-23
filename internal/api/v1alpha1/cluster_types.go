@@ -4,9 +4,12 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // Cluster lifecycle phases (gateway-side view of a member cluster).
 const (
-	ClusterPhaseRegistering = "Registering"
-	ClusterPhaseOnline      = "Online"
-	ClusterPhaseOffline     = "Offline"
+	ClusterPhaseRegistering     = "Registering"
+	ClusterPhaseOnline          = "Online"
+	ClusterPhaseOffline         = "Offline"
+	ClusterPhaseUninstalling    = "Uninstalling"
+	ClusterPhaseUninstalled     = "Uninstalled"
+	ClusterPhaseUninstallFailed = "UninstallFailed"
 )
 
 // ClusterSpec defines a member cluster registered on the gateway.

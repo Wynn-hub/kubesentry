@@ -59,7 +59,10 @@ export interface GroupDetail {
   resourceVersion: string
   spec: GroupSpec
   status: GroupStatus
+  scope: ClusterScope
 }
+
+export interface ClusterScope { allClusters: boolean; clusterNames?: string[] }
 
 export interface GroupRequest {
   name?: string
@@ -70,6 +73,8 @@ export interface GroupRequest {
   policies: GroupPolicies
   selectorEnforcementMode?: string
   resourceVersion?: string
+  allClusters: boolean
+  clusterNames?: string[]
 }
 
 export const listGroups = (params: ListQuery = {}) =>

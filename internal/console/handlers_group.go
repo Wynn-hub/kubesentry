@@ -46,6 +46,7 @@ type groupDetail struct {
 	ResourceVersion string                   `json:"resourceVersion"`
 	Spec            v1alpha1.PolicyGroupSpec `json:"spec"`
 	Status          groupStatus              `json:"status"`
+	Scope           clusterScope             `json:"scope"`
 }
 
 // groupPhase reports "Ready" unless resolution produced a condition (a
@@ -152,7 +153,14 @@ func (h *Handlers) getGroup(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "list policies: "+err.Error())
 		return
 	}
-	writeOK(w, toGroupDetail(g, resolvablePolicies(policies)))
+	detail := toGroupDetail(g, resolvablePolicies(policies))
+	scope, err := h.getScopeBinding(r.Context(), scopeOwnerGroup, g.Name)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "get policy group scope: "+err.Error())
+		return
+	}
+	detail.Scope = scope
+	writeOK(w, detail)
 }
 
 // fetchGroup loads the {name} path policy group, writing 404/500 on failure.
@@ -192,7 +200,16 @@ func (h *Handlers) createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	g := &dbrepo.PolicyGroup{Name: req.Name, Spec: datatypes.NewJSONType(groupSpecFrom(&req))}
-	if err := h.Repos.Groups.Create(r.Context(), g); err != nil {
+	if err := h.validateScopeTargets(r.Context(), req.AllClusters, req.ClusterNames); err != nil {
+		writeErr(w, http.StatusBadRequest, "set policy group scope: "+err.Error())
+		return
+	}
+	if err := h.Repos.Groups.WithTx(r.Context(), func(groups *dbrepo.GroupRepo, distributions *dbrepo.DistributionRepo) error {
+		if err := groups.Create(r.Context(), g); err != nil {
+			return err
+		}
+		return syncScopeBinding(r.Context(), distributions, scopeOwnerGroup, g.Name, req.AllClusters, req.ClusterNames)
+	}); err != nil {
 		if isUniqueViolation(err) {
 			writeErr(w, http.StatusConflict, "policygroup "+req.Name+" already exists")
 		} else {
@@ -218,15 +235,28 @@ func (h *Handlers) updateGroup(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if g.Name == defaultGroupName {
+		writeErr(w, http.StatusForbidden, "default policy group scope is managed; use the enabled endpoint to disable it")
+		return
+	}
 	if req.ResourceVersion != "" && req.ResourceVersion != groupResourceVersion(g) {
 		writeErr(w, http.StatusConflict, "policygroup has been modified, refresh and retry")
+		return
+	}
+	if err := h.validateScopeTargets(r.Context(), req.AllClusters, req.ClusterNames); err != nil {
+		writeErr(w, http.StatusBadRequest, "set policy group scope: "+err.Error())
 		return
 	}
 	// expectedUpdatedAt anchors the compare-and-swap to the exact row state
 	// fetchGroup just read, closing the check-then-act race.
 	expectedUpdatedAt := g.UpdatedAt
 	g.Spec = datatypes.NewJSONType(groupSpecFrom(&req))
-	err := h.Repos.Groups.UpdateCAS(r.Context(), g.ID, expectedUpdatedAt, map[string]any{"spec": g.Spec})
+	err := h.Repos.Groups.WithTx(r.Context(), func(groups *dbrepo.GroupRepo, distributions *dbrepo.DistributionRepo) error {
+		if err := groups.UpdateCAS(r.Context(), g.ID, expectedUpdatedAt, map[string]any{"spec": g.Spec}); err != nil {
+			return err
+		}
+		return syncScopeBinding(r.Context(), distributions, scopeOwnerGroup, g.Name, req.AllClusters, req.ClusterNames)
+	})
 	if err != nil {
 		if errors.Is(err, dbrepo.ErrConflict) {
 			writeErr(w, http.StatusConflict, "policygroup has been modified, refresh and retry")
@@ -286,7 +316,12 @@ func (h *Handlers) deleteGroup(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusForbidden, "default policy group cannot be deleted")
 		return
 	}
-	if err := h.Repos.Groups.Delete(r.Context(), g.ID); err != nil {
+	if err := h.Repos.Groups.WithTx(r.Context(), func(groups *dbrepo.GroupRepo, distributions *dbrepo.DistributionRepo) error {
+		if err := groups.Delete(r.Context(), g.ID); err != nil {
+			return err
+		}
+		return deleteScopeBinding(r.Context(), distributions, scopeOwnerGroup, g.Name)
+	}); err != nil {
 		writeErr(w, http.StatusInternalServerError, "delete policygroup: "+err.Error())
 		return
 	}

@@ -2,6 +2,7 @@ package console
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -176,6 +177,46 @@ func TestDeleteClusterOnlineRejected(t *testing.T) {
 	rec, _ := doRequest(t, h, "DELETE", "/api/v1/clusters/live", nil)
 	if rec.Code != 409 {
 		t.Fatalf("code = %d, want 409", rec.Code)
+	}
+}
+
+func TestUninstallClusterCreatesTaskAndRetryFailedTask(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "live", "installParams": validInstallParams()})
+	c, err := repos.Clusters.GetByName(context.Background(), "live")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Clusters.UpdateHeartbeat(context.Background(), c.ID, "Online", nil, "v1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+
+	rec, env := doRequest(t, h, "POST", "/api/v1/clusters/live/uninstall", nil)
+	if rec.Code != 200 {
+		t.Fatalf("create uninstall = %d: %s", rec.Code, rec.Body.String())
+	}
+	task := mustUnmarshal[uninstallTaskItem](t, env.Data)
+	if task.Status != "Pending" || task.ID == 0 {
+		t.Fatalf("task = %+v", task)
+	}
+	c, err = repos.Clusters.GetByName(context.Background(), "live")
+	if err != nil || c.Phase != "Uninstalling" {
+		t.Fatalf("cluster after request = %+v, err=%v", c, err)
+	}
+	if err := repos.UninstallTasks.Transition(context.Background(), task.ID, "Pending", "Received", "", task.RequestedAt); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.UninstallTasks.Transition(context.Background(), task.ID, "Received", "Failed", "connection lost", task.RequestedAt); err != nil {
+		t.Fatal(err)
+	}
+
+	rec, _ = doRequest(t, h, "POST", "/api/v1/clusters/live/uninstall-tasks/"+fmt.Sprint(task.ID)+"/retry", nil)
+	if rec.Code != 200 {
+		t.Fatalf("retry = %d: %s", rec.Code, rec.Body.String())
+	}
+	retried, err := repos.UninstallTasks.GetByID(context.Background(), task.ID)
+	if err != nil || retried.Status != "Pending" || retried.Attempts != 2 || retried.Error != "" {
+		t.Fatalf("retried task = %+v, err=%v", retried, err)
 	}
 }
 

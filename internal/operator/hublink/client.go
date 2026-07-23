@@ -28,6 +28,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
+	"github.com/Wynn-hub/kubesentry/internal/operator/uninstall"
 	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
 
@@ -188,6 +189,28 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 			// heartbeat/status-report acknowledged; nothing to do
 		case *gatewaypb.HubMessage_DesiredState:
 			ds := m.DesiredState
+			if len(ds.UninstallTasks) > 0 {
+				for _, task := range ds.UninstallTasks {
+					if err := sendUninstallReport(send, task.TaskId, gatewaypb.UninstallTaskReport_RECEIVED, ""); err != nil {
+						return true, fmt.Errorf("report uninstall task received: %w", err)
+					}
+					runner := uninstall.Runner{Client: l.cfg.Client, Namespace: l.cfg.Namespace}
+					err := runner.Run(ctx)
+					state, detail := gatewaypb.UninstallTaskReport_SUCCEEDED, ""
+					if err != nil {
+						state, detail = gatewaypb.UninstallTaskReport_FAILED, err.Error()
+					}
+					if err := sendUninstallReport(send, task.TaskId, state, detail); err != nil {
+						return true, fmt.Errorf("report uninstall task completion: %w", err)
+					}
+					if state == gatewaypb.UninstallTaskReport_SUCCEEDED {
+						if err := runner.Finalize(ctx); err != nil {
+							slog.Warn("finalize member uninstall after hub acknowledgement", "error", err)
+						}
+						return true, nil
+					}
+				}
+			}
 			// No same-hash skip here: applyDesiredState's own upsertObject
 			// already compares each object's spec+labels and skips writes
 			// that are already correct, so resending the same hash is cheap
@@ -208,6 +231,10 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 			}
 		}
 	}
+}
+
+func sendUninstallReport(send func(*gatewaypb.MemberMessage) error, taskID int64, state gatewaypb.UninstallTaskReport_State, detail string) error {
+	return send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_UninstallTaskReport{UninstallTaskReport: &gatewaypb.UninstallTaskReport{TaskId: taskID, State: state, Error: detail}}})
 }
 
 func (l *Link) dial(ctx context.Context) (*grpc.ClientConn, error) {

@@ -4,6 +4,7 @@
     <PageHeader show-back :title="d.name">
       <ClusterPhaseTag :phase="d.phase" />
       <el-button v-if="d.phase === 'Registering'" @click="onReissue">{{ $t('cluster.reissueToken') }}</el-button>
+      <el-button v-if="d.phase === 'Online'" type="warning" plain @click="uninstallDialogOpen = true">{{ $t('cluster.uninstall') }}</el-button>
       <el-tooltip v-if="d.phase === 'Online'" :content="$t('cluster.deleteOnlineBlocked')">
         <el-button type="danger" plain disabled>{{ $t('common.delete') }}</el-button>
       </el-tooltip>
@@ -22,6 +23,29 @@
 
     <h3>{{ $t('cluster.labels') }}</h3>
     <ClusterLabelsEditor v-model="labelsDraft" @update:model-value="onLabelsChange" />
+
+    <section v-if="uninstallTasks.length" style="margin-top: 24px">
+      <h3>{{ $t('cluster.uninstallTasks') }}</h3>
+      <el-table :data="uninstallTasks" size="small">
+        <el-table-column prop="id" label="ID" width="90" />
+        <el-table-column prop="status" :label="$t('cluster.phase')" width="130" />
+        <el-table-column prop="error" label="Error" />
+        <el-table-column :label="$t('common.actions')" width="110">
+          <template #default="{ row }">
+            <el-button v-if="row.status === 'Failed'" link type="warning" @click="onRetryUninstall(row.id)">{{ $t('cluster.retryUninstall') }}</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </section>
+
+    <el-dialog v-model="uninstallDialogOpen" :title="$t('cluster.uninstall')" width="520px">
+      <p>{{ $t('cluster.uninstallConfirm', { name: d.name }) }}</p>
+      <el-input v-model="uninstallConfirmation" :placeholder="d.name" />
+      <template #footer>
+        <el-button @click="uninstallDialogOpen = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="warning" :loading="uninstalling" @click="onUninstall">{{ $t('cluster.uninstall') }}</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="reissueDialogOpen" :title="$t('cluster.reissueToken')" width="560px">
       <template v-if="!generatedCommand">
@@ -47,13 +71,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
-  deleteCluster, getCluster, getLatestInstallParams, reissueToken, updateClusterLabels,
-  DEFAULT_INSTALL_PARAMS, type ClusterDetail, type InstallParams,
+  deleteCluster, getCluster, getLatestInstallParams, listUninstallTasks, reissueToken, retryUninstallTask, uninstallCluster, updateClusterLabels,
+  DEFAULT_INSTALL_PARAMS, type ClusterDetail, type InstallParams, type UninstallTask,
 } from '../api/cluster'
 import { relTime } from '../lib/relTime'
 import ClusterPhaseTag from '../components/ClusterPhaseTag.vue'
@@ -67,16 +91,57 @@ const { t, locale } = useI18n()
 
 const d = ref<ClusterDetail>()
 const labelsDraft = ref<Record<string, string>>({})
+const uninstallTasks = ref<UninstallTask[]>([])
+const uninstallDialogOpen = ref(false)
+const uninstallConfirmation = ref('')
+const uninstalling = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | undefined
 
 async function load() {
   try {
     d.value = await getCluster(String(route.params.name))
     labelsDraft.value = d.value.labels ?? {}
+    uninstallTasks.value = await listUninstallTasks(d.value.name)
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
 }
-onMounted(load)
+onMounted(async () => {
+  await load()
+  refreshTimer = setInterval(() => { void load() }, 5000)
+})
+onBeforeUnmount(() => { if (refreshTimer) clearInterval(refreshTimer) })
+
+async function onUninstall() {
+  if (!d.value) return
+  if (uninstallConfirmation.value !== d.value.name) {
+    ElMessage.error(t('cluster.uninstallNameMismatch'))
+    return
+  }
+  uninstalling.value = true
+  try {
+    await uninstallCluster(d.value.name)
+    uninstallDialogOpen.value = false
+    uninstallConfirmation.value = ''
+    ElMessage.success(t('cluster.uninstallStarted'))
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    uninstalling.value = false
+  }
+}
+
+async function onRetryUninstall(taskID: number) {
+  if (!d.value) return
+  try {
+    await retryUninstallTask(d.value.name, taskID)
+    ElMessage.success(t('cluster.uninstallStarted'))
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
 
 async function onLabelsChange(labels: Record<string, string>) {
   if (!d.value) return

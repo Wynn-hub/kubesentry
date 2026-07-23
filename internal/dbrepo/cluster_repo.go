@@ -120,6 +120,13 @@ func (r *ClusterRepo) UpdateRegToken(ctx context.Context, id int64, hash string)
 		Updates(map[string]any{"reg_token_hash": hash}).Error
 }
 
+// UpdatePhase changes only lifecycle state so task reports cannot clobber
+// auth credentials, labels, or heartbeat fields written by other actors.
+func (r *ClusterRepo) UpdatePhase(ctx context.Context, id int64, phase string) error {
+	return r.db.WithContext(ctx).Model(&Cluster{}).Where("id = ?", id).
+		Updates(map[string]any{"phase": phase}).Error
+}
+
 func (r *ClusterRepo) Delete(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).Delete(&Cluster{}, id).Error
 }

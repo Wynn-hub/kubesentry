@@ -1,6 +1,7 @@
 import { request } from './http'
 import type { ListQuery, PageResult } from './pagination'
 import type { LabelSelector } from './group'
+import type { ClusterScope } from './group'
 
 export interface ExceptionMatch {
   namespaces?: string[]
@@ -39,11 +40,14 @@ export interface ExceptionDetail {
   resourceVersion: string
   spec: ExceptionSpec
   status: ExceptionStatus
+  scope: ClusterScope
 }
 
 export interface ExceptionRequest extends ExceptionSpec {
   name?: string
   resourceVersion?: string
+  allClusters: boolean
+  clusterNames?: string[]
 }
 
 export const listExceptions = (params: ListQuery = {}) =>

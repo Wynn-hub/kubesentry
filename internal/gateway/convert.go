@@ -51,3 +51,11 @@ func toV1alpha1Dists(in []dbrepo.PolicyDistribution) []v1alpha1.PolicyDistributi
 	}
 	return out
 }
+
+func toV1alpha1Exceptions(in []dbrepo.PolicyException) []v1alpha1.PolicyException {
+	out := make([]v1alpha1.PolicyException, 0, len(in))
+	for _, e := range in {
+		out = append(out, v1alpha1.PolicyException{ObjectMeta: metav1.ObjectMeta{Name: e.Name, Labels: e.Labels.Data(), Annotations: e.Annotations.Data()}, Spec: e.Spec.Data()})
+	}
+	return out
+}
