@@ -72,7 +72,7 @@ export default {
     installRecords: 'Install Records',
     uninstall: 'Uninstall Cluster Components', uninstallConfirm: 'Type {name} to confirm uninstalling the KubeSentry components from this cluster.',
     uninstallNameMismatch: 'Cluster name does not match', uninstallStarted: 'Uninstall task created. The status refreshes automatically.',
-    uninstallTasks: 'Uninstall Tasks', retryUninstall: 'Retry', uninstallingBlocked: 'Uninstalling clusters cannot be deleted from here',
+    uninstallTasks: 'Uninstall Tasks', uninstallFailureReason: 'Failure Reason', retryUninstall: 'Retry', uninstallingBlocked: 'Uninstalling clusters cannot be deleted from here',
   },
   exception: {
     title: 'Exceptions', subtitle: 'Manage exemption policies for specific namespaces or resource objects', target: 'Target', duration: 'Duration', reason: 'Reason',

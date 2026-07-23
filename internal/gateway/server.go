@@ -444,7 +444,11 @@ func (s *Server) handleUninstallTaskReport(ctx context.Context, clusterName stri
 	case dbrepo.UninstallTaskSucceeded:
 		err = s.repos.Clusters.UpdatePhase(ctx, cluster.ID, v1alpha1.ClusterPhaseUninstalled)
 	case dbrepo.UninstallTaskFailed:
-		err = s.repos.Clusters.UpdatePhase(ctx, cluster.ID, v1alpha1.ClusterPhaseUninstallFailed)
+		// A failed self-uninstall leaves the member operator running and still
+		// connected. Keep its operational phase truthful so the console keeps
+		// offering an uninstall action; the durable task retains the failure
+		// reason and retry history.
+		err = s.repos.Clusters.UpdatePhase(ctx, cluster.ID, v1alpha1.ClusterPhaseOnline)
 	}
 	if err != nil {
 		slog.Warn("update cluster phase after uninstall report", "cluster", clusterName, "task_id", task.ID, "error", err)

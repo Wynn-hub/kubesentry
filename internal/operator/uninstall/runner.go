@@ -10,6 +10,7 @@ import (
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -24,8 +25,9 @@ import (
 // a delete target, preventing a control-plane installation in the same
 // namespace from being removed by a member-cluster uninstall request.
 type Runner struct {
-	Client    client.Client
-	Namespace string
+	Client        client.Client
+	Namespace     string
+	TLSSecretName string
 }
 
 func objectMeta(name string) metav1.ObjectMeta { return metav1.ObjectMeta{Name: name} }
@@ -43,7 +45,7 @@ func (r Runner) Run(ctx context.Context) error {
 	var errs []string
 	delete := func(obj client.Object) {
 		if err := r.Client.Delete(ctx, obj); err != nil && !apierrors.IsNotFound(err) {
-			errs = append(errs, err.Error())
+			errs = append(errs, fmt.Sprintf("delete %T %q: %v", obj, obj.GetName(), err))
 		}
 	}
 
@@ -62,8 +64,13 @@ func (r Runner) Run(ctx context.Context) error {
 		delete(&appsv1.Deployment{ObjectMeta: namespacedMeta(name, r.Namespace)})
 	}
 	delete(&batchv1.Job{ObjectMeta: namespacedMeta("kubesentry-tls-setup", r.Namespace)})
+	delete(&coordinationv1.Lease{ObjectMeta: namespacedMeta("kubesentry-operator-leader", r.Namespace)})
 	delete(&corev1.Service{ObjectMeta: namespacedMeta("kubesentry-webhook", r.Namespace)})
-	for _, name := range []string{"kubesentry-webhook-tls", "kubesentry-hub-register", "kubesentry-hub-ca"} {
+	tlsSecretName := r.TLSSecretName
+	if tlsSecretName == "" {
+		tlsSecretName = "kubesentry-tls"
+	}
+	for _, name := range []string{"kubesentry-webhook-tls", tlsSecretName, "kubesentry-hub-register", "kubesentry-hub-ca"} {
 		delete(&corev1.Secret{ObjectMeta: namespacedMeta(name, r.Namespace)})
 	}
 	for _, name := range []string{"kubesentry-webhook", "kubesentry-tls-setup"} {
@@ -95,7 +102,7 @@ func (r Runner) Finalize(ctx context.Context) error {
 	var errs []string
 	delete := func(obj client.Object) {
 		if err := r.Client.Delete(ctx, obj); err != nil && !apierrors.IsNotFound(err) {
-			errs = append(errs, err.Error())
+			errs = append(errs, fmt.Sprintf("delete %T %q: %v", obj, obj.GetName(), err))
 		}
 	}
 	delete(&corev1.Secret{ObjectMeta: namespacedMeta("kubesentry-hub-auth", r.Namespace)})
@@ -114,7 +121,7 @@ func (r Runner) Finalize(ctx context.Context) error {
 func (r Runner) deleteCRs(ctx context.Context, errs *[]string) {
 	deleteAll := func(list client.ObjectList) {
 		if err := r.Client.List(ctx, list); err != nil {
-			*errs = append(*errs, err.Error())
+			*errs = append(*errs, fmt.Sprintf("list %T: %v", list, err))
 			return
 		}
 		// Each custom kind belongs exclusively to KubeSentry. We deliberately do
@@ -123,25 +130,25 @@ func (r Runner) deleteCRs(ctx context.Context, errs *[]string) {
 		case *v1alpha1.PolicyList:
 			for i := range v.Items {
 				if err := r.Client.Delete(ctx, &v.Items[i]); err != nil && !apierrors.IsNotFound(err) {
-					*errs = append(*errs, err.Error())
+					*errs = append(*errs, fmt.Sprintf("delete Policy %q: %v", v.Items[i].Name, err))
 				}
 			}
 		case *v1alpha1.PolicyGroupList:
 			for i := range v.Items {
 				if err := r.Client.Delete(ctx, &v.Items[i]); err != nil && !apierrors.IsNotFound(err) {
-					*errs = append(*errs, err.Error())
+					*errs = append(*errs, fmt.Sprintf("delete PolicyGroup %q: %v", v.Items[i].Name, err))
 				}
 			}
 		case *v1alpha1.PolicyExceptionList:
 			for i := range v.Items {
 				if err := r.Client.Delete(ctx, &v.Items[i]); err != nil && !apierrors.IsNotFound(err) {
-					*errs = append(*errs, err.Error())
+					*errs = append(*errs, fmt.Sprintf("delete PolicyException %q: %v", v.Items[i].Name, err))
 				}
 			}
 		case *v1alpha1.PolicyVersionList:
 			for i := range v.Items {
 				if err := r.Client.Delete(ctx, &v.Items[i]); err != nil && !apierrors.IsNotFound(err) {
-					*errs = append(*errs, err.Error())
+					*errs = append(*errs, fmt.Sprintf("delete PolicyVersion %q: %v", v.Items[i].Name, err))
 				}
 			}
 		}

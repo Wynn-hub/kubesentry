@@ -8,7 +8,12 @@ import (
 	"time"
 
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,6 +28,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/logging"
 	"github.com/Wynn-hub/kubesentry/internal/operator"
 	"github.com/Wynn-hub/kubesentry/internal/operator/hublink"
+	"github.com/Wynn-hub/kubesentry/internal/operator/uninstall"
 	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
 
@@ -30,6 +36,10 @@ func main() {
 	logging.Init()
 	if len(os.Args) > 1 && os.Args[1] == "tls-setup" {
 		runTLSSetup()
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "uninstall" {
+		runUninstall()
 		return
 	}
 	runOperator()
@@ -81,6 +91,7 @@ func runOperator() {
 			TLSServerName:   os.Getenv("GATEWAY_TLS_SERVER_NAME"),
 			ClusterName:     envOrDefault("CLUSTER_NAME", "local"),
 			Namespace:       envOrDefault("NAMESPACE", "kubesentry-system"),
+			TLSSecretName:   envOrDefault("SECRET_NAME", "kubesentry-tls"),
 			OperatorVersion: envOrDefault("OPERATOR_VERSION", "dev"),
 			Reader:          mgr.GetAPIReader(),
 			Client:          mgr.GetClient(),
@@ -170,6 +181,37 @@ func runTLSSetup() {
 	slog.Info("VWC caBundle patched")
 }
 
+// runUninstall is used by the chart's post-delete hook. It removes every
+// KubeSentry-owned component (including CR instances and CRDs) while keeping
+// the namespace intact, so a colocated gateway/control-plane is not removed.
+func runUninstall() {
+	cfg, err := buildConfig()
+	if err != nil {
+		slog.Error("build config", "error", err)
+		os.Exit(1)
+	}
+	c, err := client.New(cfg, client.Options{Scheme: buildScheme()})
+	if err != nil {
+		slog.Error("build uninstall client", "error", err)
+		os.Exit(1)
+	}
+	runner := uninstall.Runner{
+		Client:        c,
+		Namespace:     envOrDefault("NAMESPACE", "kubesentry-system"),
+		TLSSecretName: envOrDefault("SECRET_NAME", "kubesentry-tls"),
+	}
+	ctx := context.Background()
+	if err := runner.Run(ctx); err != nil {
+		slog.Error("uninstall KubeSentry resources", "error", err)
+		os.Exit(1)
+	}
+	if err := runner.Finalize(ctx); err != nil {
+		slog.Error("finalize KubeSentry uninstall", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("KubeSentry resources uninstalled")
+}
+
 func buildConfig() (*rest.Config, error) {
 	if kc := os.Getenv("KUBECONFIG"); kc != "" {
 		return clientcmd.BuildConfigFromFlags("", kc)
@@ -181,7 +223,12 @@ func buildScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	_ = v1alpha1.AddToScheme(s)
 	_ = admissionregv1.AddToScheme(s)
+	_ = appsv1.AddToScheme(s)
+	_ = batchv1.AddToScheme(s)
+	_ = coordinationv1.AddToScheme(s)
 	_ = corev1.AddToScheme(s)
+	_ = rbacv1.AddToScheme(s)
+	_ = apiextensionsv1.AddToScheme(s)
 	return s
 }
 

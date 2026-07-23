@@ -1,0 +1,131 @@
+{{- /*
+Helm intentionally retains CRDs placed in crds/. This post-delete hook gives
+KubeSentry a deliberate full-uninstall contract: remove its CRs and CRDs while
+leaving the namespace untouched. Every hook resource is transient and is
+removed after the Job completes.
+*/ -}}
+{{- $hookAnnotations := dict "helm.sh/hook" "post-delete" "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubesentry-uninstall
+  namespace: {{ .Values.namespace }}
+  annotations:
+    {{- toYaml $hookAnnotations | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubesentry-uninstall
+  annotations:
+    {{- toYaml $hookAnnotations | nindent 4 }}
+rules:
+  - apiGroups: [kubesentry.io]
+    resources: [policies, policygroups, policyexceptions, policyversions]
+    verbs: [get, list, delete]
+  - apiGroups: [admissionregistration.k8s.io]
+    resources: [validatingwebhookconfigurations]
+    resourceNames: [kubesentry]
+    verbs: [delete]
+  - apiGroups: [admissionregistration.k8s.io]
+    resources: [validatingadmissionpolicies]
+    resourceNames: [kubesentry-policyexception-immutability]
+    verbs: [delete]
+  - apiGroups: [admissionregistration.k8s.io]
+    resources: [validatingadmissionpolicybindings]
+    resourceNames: [kubesentry-policyexception-immutability-binding]
+    verbs: [delete]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    resourceNames: [policies.kubesentry.io, policygroups.kubesentry.io, policyexceptions.kubesentry.io, policyversions.kubesentry.io]
+    verbs: [delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [clusterroles, clusterrolebindings]
+    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-uninstall]
+    verbs: [delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubesentry-uninstall
+  namespace: {{ .Values.namespace }}
+  annotations:
+    {{- toYaml $hookAnnotations | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets, services, serviceaccounts]
+    resourceNames: [kubesentry-hub-auth, kubesentry-hub-register, kubesentry-hub-ca, kubesentry-webhook-tls, kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-uninstall]
+    verbs: [delete]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [kubesentry-webhook, kubesentry-operator]
+    verbs: [delete]
+  - apiGroups: [batch]
+    resources: [jobs]
+    resourceNames: [kubesentry-tls-setup]
+    verbs: [delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [roles, rolebindings]
+    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-uninstall]
+    verbs: [delete]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    resourceNames: [kubesentry-operator-leader]
+    verbs: [delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubesentry-uninstall
+  annotations:
+    {{- toYaml $hookAnnotations | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubesentry-uninstall
+subjects:
+  - kind: ServiceAccount
+    name: kubesentry-uninstall
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesentry-uninstall
+  namespace: {{ .Values.namespace }}
+  annotations:
+    {{- toYaml $hookAnnotations | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubesentry-uninstall
+subjects:
+  - kind: ServiceAccount
+    name: kubesentry-uninstall
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubesentry-uninstall
+  namespace: {{ .Values.namespace }}
+  annotations:
+    {{- toYaml $hookAnnotations | nindent 4 }}
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: kubesentry-uninstall
+      containers:
+        - name: uninstall
+          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+          command: ["/operator", "uninstall"]
+          env:
+            - name: NAMESPACE
+              value: {{ .Values.namespace | quote }}
+            - name: SECRET_NAME
+              value: {{ .Values.tls.secretName | quote }}
+          resources:
+            {{- toYaml .Values.operator.resources | nindent 12 }}

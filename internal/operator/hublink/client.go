@@ -47,6 +47,7 @@ type Config struct {
 	TLSServerName   string // 证书 DNS 名覆盖（经 NodePort/LB 直连 IP 时必填）
 	ClusterName     string
 	Namespace       string // operator 自身 namespace（Secret 所在）
+	TLSSecretName   string // webhook TLS Secret；卸载时需要删除
 	OperatorVersion string
 	Reader          client.Reader // 非缓存读（kube-system UID、Secret）
 	Client          client.Client // 写成员侧 auth Secret
@@ -194,7 +195,7 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 					if err := sendUninstallReport(send, task.TaskId, gatewaypb.UninstallTaskReport_RECEIVED, ""); err != nil {
 						return true, fmt.Errorf("report uninstall task received: %w", err)
 					}
-					runner := uninstall.Runner{Client: l.cfg.Client, Namespace: l.cfg.Namespace}
+					runner := uninstall.Runner{Client: l.cfg.Client, Namespace: l.cfg.Namespace, TLSSecretName: l.cfg.TLSSecretName}
 					err := runner.Run(ctx)
 					state, detail := gatewaypb.UninstallTaskReport_SUCCEEDED, ""
 					if err != nil {

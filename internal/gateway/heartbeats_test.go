@@ -88,3 +88,21 @@ func TestRecordStatusPreservesVersionAndFlushesSummary(t *testing.T) {
 		t.Fatalf("flushed cluster = %+v", got)
 	}
 }
+
+func TestFlusherRestoresLegacyUninstallFailureToOnline(t *testing.T) {
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "retryable", Phase: v1alpha1.ClusterPhaseUninstallFailed})
+
+	tr := NewHeartbeatTracker()
+	tr.MarkAlive("retryable", "v2")
+	if err := NewStatusFlusher(repos.Clusters, tr, time.Hour, time.Minute).flushOnce(context.Background()); err != nil {
+		t.Fatalf("flushOnce: %v", err)
+	}
+	got, err := repos.Clusters.GetByName(context.Background(), "retryable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Phase != v1alpha1.ClusterPhaseOnline {
+		t.Fatalf("phase = %q, want Online", got.Phase)
+	}
+}

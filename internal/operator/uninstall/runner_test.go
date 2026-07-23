@@ -7,6 +7,7 @@ import (
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -33,6 +34,9 @@ func TestRunnerDeletesAllowlistedResourcesAndKeepsNamespace(t *testing.T) {
 	if err := batchv1.AddToScheme(scheme); err != nil {
 		t.Fatal(err)
 	}
+	if err := coordinationv1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
 	if err := rbacv1.AddToScheme(scheme); err != nil {
 		t.Fatal(err)
 	}
@@ -46,16 +50,18 @@ func TestRunnerDeletesAllowlistedResourcesAndKeepsNamespace(t *testing.T) {
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry-system"}},
 		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry-operator", Namespace: "kubesentry-system"}},
 		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry-webhook", Namespace: "kubesentry-system"}},
+		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "custom-tls", Namespace: "kubesentry-system"}},
 		&admissionv1.ValidatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry"}},
 		&v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "managed-policy"}},
 	).Build()
-	if err := (Runner{Client: c, Namespace: "kubesentry-system"}).Run(context.Background()); err != nil {
+	if err := (Runner{Client: c, Namespace: "kubesentry-system", TLSSecretName: "custom-tls"}).Run(context.Background()); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	for _, obj := range []clientObject{
 		{&corev1.Service{}, types.NamespacedName{Name: "kubesentry-webhook", Namespace: "kubesentry-system"}},
 		{&admissionv1.ValidatingWebhookConfiguration{}, types.NamespacedName{Name: "kubesentry"}},
 		{&v1alpha1.Policy{}, types.NamespacedName{Name: "managed-policy"}},
+		{&corev1.Secret{}, types.NamespacedName{Name: "custom-tls", Namespace: "kubesentry-system"}},
 	} {
 		if err := c.Get(context.Background(), obj.key, obj.obj); err == nil {
 			t.Fatalf("%T %s still exists", obj.obj, obj.key)

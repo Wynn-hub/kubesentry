@@ -211,8 +211,9 @@ undeploy-local:
 	helm uninstall kubesentry --namespace $(LOCAL_NAMESPACE) || true
 	helm uninstall kubesentry-gateway --namespace $(LOCAL_NAMESPACE) || true
 	kubectl delete namespace $(LOCAL_NAMESPACE) --ignore-not-found
-	@# CRDs live in crds/ and are never touched by helm uninstall (by design,
-	@# so uninstall cannot wipe Policy data); a full dev teardown removes them.
+	@# The chart's post-delete hook removes these CRDs in current releases. Keep
+	@# this idempotent fallback for interrupted hooks and installations created
+	@# by older chart versions.
 	@# clusters.kubesentry.io / policydistributions.kubesentry.io no longer
 	@# exist — the gateway is fully database-backed now (zero CRDs); these
 	@# four remain the member chart's own CRDs, unrelated to that migration.

@@ -28,7 +28,9 @@
       <el-table :data="uninstallTasks" size="small">
         <el-table-column prop="id" label="ID" width="90" />
         <el-table-column prop="status" :label="$t('cluster.phase')" width="130" />
-        <el-table-column prop="error" label="Error" />
+        <el-table-column prop="error" :label="$t('cluster.uninstallFailureReason')" min-width="360" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.error || '-' }}</template>
+        </el-table-column>
         <el-table-column :label="$t('common.actions')" width="110">
           <template #default="{ row }">
             <el-button v-if="row.status === 'Failed'" link type="warning" @click="onRetryUninstall(row.id)">{{ $t('cluster.retryUninstall') }}</el-button>

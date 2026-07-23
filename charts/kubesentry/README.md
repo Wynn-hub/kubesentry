@@ -44,10 +44,13 @@ helm upgrade kubesentry \
 
 ```bash
 helm uninstall kubesentry -n kubesentry-system
-kubectl delete namespace kubesentry-system
-# CRDs are not removed automatically
-kubectl delete crd policies.kubesentry.io policyversions.kubesentry.io
 ```
+
+The chart's post-delete hook removes KubeSentry CR instances and CRDs, plus
+the webhook, operator, RBAC, and Secrets. It deliberately preserves the
+namespace so a colocated control plane is not removed. For a release installed
+with an older chart version that did not include this hook, use
+`make undeploy-local` to perform the same CRD cleanup.
 
 ## Values
 

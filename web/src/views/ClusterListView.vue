@@ -17,7 +17,7 @@
             <router-link :to="`/clusters/${row.name}`">{{ row.name }}</router-link>
           </template>
         </el-table-column>
-        <el-table-column :label="$t('cluster.phase')" prop="phase" sortable="custom" :sort-orders="sortOrders" width="118">
+        <el-table-column :label="$t('cluster.phase')" prop="phase" sortable="custom" :sort-orders="sortOrders" width="160">
           <template #default="{ row }"><ClusterPhaseTag :phase="row.phase" /></template>
         </el-table-column>
         <el-table-column :label="$t('cluster.operatorVersion')" prop="operatorVersion" sortable="custom" :sort-orders="sortOrders" width="170" show-overflow-tooltip />

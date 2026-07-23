@@ -21,6 +21,8 @@ spec:
           env:
             - name: VWC_NAME
               value: kubesentry
+            - name: SECRET_NAME
+              value: {{ .Values.tls.secretName | quote }}
             # —— gateway connection (required — standalone deployment removed) ——
             - name: GATEWAY_ADDRESS
               value: {{ required "gateway.address is required — standalone deployment is no longer supported" .Values.gateway.address | quote }}
