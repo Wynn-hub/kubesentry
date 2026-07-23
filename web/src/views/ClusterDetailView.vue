@@ -4,7 +4,6 @@
     <PageHeader show-back :title="d.name">
       <ClusterPhaseTag :phase="d.phase" />
       <el-button v-if="d.phase === 'Registering'" @click="onReissue">{{ $t('cluster.reissueToken') }}</el-button>
-      <el-button v-if="d.phase === 'Online'" type="warning" plain @click="uninstallDialogOpen = true">{{ $t('cluster.uninstall') }}</el-button>
       <el-tooltip v-if="d.phase === 'Online'" :content="$t('cluster.deleteOnlineBlocked')">
         <el-button type="danger" plain disabled>{{ $t('common.delete') }}</el-button>
       </el-tooltip>
@@ -38,15 +37,6 @@
       </el-table>
     </section>
 
-    <el-dialog v-model="uninstallDialogOpen" :title="$t('cluster.uninstall')" width="520px">
-      <p>{{ $t('cluster.uninstallConfirm', { name: d.name }) }}</p>
-      <el-input v-model="uninstallConfirmation" :placeholder="d.name" />
-      <template #footer>
-        <el-button @click="uninstallDialogOpen = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="warning" :loading="uninstalling" @click="onUninstall">{{ $t('cluster.uninstall') }}</el-button>
-      </template>
-    </el-dialog>
-
     <el-dialog v-model="reissueDialogOpen" :title="$t('cluster.reissueToken')" width="560px">
       <template v-if="!generatedCommand">
         <InstallParamsForm v-model="installParams" />
@@ -76,7 +66,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
-  deleteCluster, getCluster, getLatestInstallParams, listUninstallTasks, reissueToken, retryUninstallTask, uninstallCluster, updateClusterLabels,
+  deleteCluster, getCluster, getLatestInstallParams, listUninstallTasks, reissueToken, retryUninstallTask, updateClusterLabels,
   DEFAULT_INSTALL_PARAMS, type ClusterDetail, type InstallParams, type UninstallTask,
 } from '../api/cluster'
 import { relTime } from '../lib/relTime'
@@ -92,9 +82,6 @@ const { t, locale } = useI18n()
 const d = ref<ClusterDetail>()
 const labelsDraft = ref<Record<string, string>>({})
 const uninstallTasks = ref<UninstallTask[]>([])
-const uninstallDialogOpen = ref(false)
-const uninstallConfirmation = ref('')
-const uninstalling = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | undefined
 
 async function load() {
@@ -111,26 +98,6 @@ onMounted(async () => {
   refreshTimer = setInterval(() => { void load() }, 5000)
 })
 onBeforeUnmount(() => { if (refreshTimer) clearInterval(refreshTimer) })
-
-async function onUninstall() {
-  if (!d.value) return
-  if (uninstallConfirmation.value !== d.value.name) {
-    ElMessage.error(t('cluster.uninstallNameMismatch'))
-    return
-  }
-  uninstalling.value = true
-  try {
-    await uninstallCluster(d.value.name)
-    uninstallDialogOpen.value = false
-    uninstallConfirmation.value = ''
-    ElMessage.success(t('cluster.uninstallStarted'))
-    await load()
-  } catch (e) {
-    ElMessage.error((e as Error).message)
-  } finally {
-    uninstalling.value = false
-  }
-}
 
 async function onRetryUninstall(taskID: number) {
   if (!d.value) return

@@ -69,6 +69,9 @@ export default {
     deleteOnlineBlocked: '在线集群暂不支持从此处删除',
     reissueToken: '重新生成安装命令', reissueConfirm: '确定要为 {name} 重新生成安装命令吗？旧 Token 将立即失效',
     installRecords: '安装记录',
+    uninstall: '卸载集群', uninstallConfirm: '请输入 {name} 以确认卸载该集群中的 KubeSentry 组件。',
+    uninstallNameMismatch: '输入的集群名称不匹配', uninstallStarted: '已创建卸载任务，状态将自动刷新。',
+    uninstallTasks: '卸载任务', retryUninstall: '重试卸载', uninstallingBlocked: '卸载中的集群暂不支持删除',
   },
   exception: {
     title: '豁免', subtitle: '为特定命名空间或资源对象管理豁免策略', target: '豁免对象', duration: '时长', reason: '原因',

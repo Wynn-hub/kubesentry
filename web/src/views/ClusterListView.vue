@@ -12,30 +12,44 @@
         v-loading="clustersLoading"
         @sort-change="onClustersSortChange"
       >
-        <el-table-column :label="$t('cluster.name')" prop="name" sortable="custom" :sort-orders="sortOrders" min-width="160">
+        <el-table-column :label="$t('cluster.name')" prop="name" sortable="custom" :sort-orders="sortOrders" min-width="220" show-overflow-tooltip>
           <template #default="{ row }">
             <router-link :to="`/clusters/${row.name}`">{{ row.name }}</router-link>
           </template>
         </el-table-column>
-        <el-table-column :label="$t('cluster.phase')" prop="phase" sortable="custom" :sort-orders="sortOrders" width="120">
+        <el-table-column :label="$t('cluster.phase')" prop="phase" sortable="custom" :sort-orders="sortOrders" width="118">
           <template #default="{ row }"><ClusterPhaseTag :phase="row.phase" /></template>
         </el-table-column>
-        <el-table-column :label="$t('cluster.operatorVersion')" prop="operatorVersion" sortable="custom" :sort-orders="sortOrders" width="140" />
-        <el-table-column :label="$t('cluster.lastHeartbeatAt')" prop="lastHeartbeatAt" sortable="custom" :sort-orders="sortOrders" width="160">
+        <el-table-column :label="$t('cluster.operatorVersion')" prop="operatorVersion" sortable="custom" :sort-orders="sortOrders" width="170" show-overflow-tooltip />
+        <el-table-column :label="$t('cluster.lastHeartbeatAt')" prop="lastHeartbeatAt" sortable="custom" :sort-orders="sortOrders" width="175">
           <template #default="{ row }">
             {{ row.lastHeartbeatAt ? relTime(row.lastHeartbeatAt, locale) : $t('cluster.neverHeartbeat') }}
           </template>
         </el-table-column>
-        <el-table-column :label="$t('cluster.createdAt')" prop="createdAt" sortable="custom" :sort-orders="sortOrders" width="155">
+        <el-table-column :label="$t('cluster.createdAt')" prop="createdAt" sortable="custom" :sort-orders="sortOrders" width="185">
           <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
         </el-table-column>
-        <el-table-column :label="$t('common.actions')" width="130" fixed="right">
+        <el-table-column :label="$t('common.actions')" width="126" fixed="right" align="right" class-name="cluster-actions">
           <template #default="{ row }">
             <el-button link type="primary" @click="$router.push(`/clusters/${row.name}`)">{{ $t('common.view') }}</el-button>
-            <el-tooltip v-if="row.phase === 'Online'" :content="$t('cluster.deleteOnlineBlocked')">
-              <el-button link type="danger" disabled>{{ $t('common.delete') }}</el-button>
-            </el-tooltip>
-            <el-button v-else link type="danger" @click="onDelete(row)">{{ $t('common.delete') }}</el-button>
+            <el-dropdown trigger="click" @command="(command: string) => onClusterAction(command, row)">
+              <el-button link class="more-actions" :aria-label="$t('common.actions')">
+                <el-icon><MoreFilled /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="row.phase === 'Online'" command="uninstall" class="warning-action">
+                    {{ $t('cluster.uninstall') }}
+                  </el-dropdown-item>
+                  <el-tooltip v-if="row.phase === 'Online'" :content="$t('cluster.deleteOnlineBlocked')" placement="left">
+                    <span class="disabled-menu-item">{{ $t('common.delete') }}</span>
+                  </el-tooltip>
+                  <el-dropdown-item v-else command="delete" divided class="danger-action">
+                    {{ $t('common.delete') }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -116,12 +130,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { MoreFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import {
-  createCluster, deleteCluster, listClusters, listInstallRecords,
+  createCluster, deleteCluster, listClusters, listInstallRecords, uninstallCluster,
   DEFAULT_INSTALL_PARAMS, type ClusterListItem, type InstallParams, type InstallRecordItem,
 } from '../api/cluster'
 import { relTime } from '../lib/relTime'
@@ -187,6 +202,17 @@ async function loadClusters() {
   }
 }
 watch(clustersParams, loadClusters, { immediate: true })
+
+// Keep the member-cluster lifecycle visible without a browser reload. This
+// only refreshes the cluster list request and is cleaned up when navigating
+// away from the cluster management view.
+let clusterRefreshTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  clusterRefreshTimer = setInterval(() => { void loadClusters() }, 5000)
+})
+onBeforeUnmount(() => {
+  if (clusterRefreshTimer) clearInterval(clusterRefreshTimer)
+})
 
 function onClustersSortChange({ prop, order }: { prop: string; order: 'ascending' | 'descending' }) {
   if (!prop || !order) return
@@ -257,6 +283,28 @@ async function onDelete(row: ClusterListItem) {
   }
 }
 
+async function onUninstall(row: ClusterListItem) {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      t('cluster.uninstallConfirm', { name: row.name }),
+      t('cluster.uninstall'),
+      { inputPlaceholder: row.name, inputValidator: (input) => input === row.name || t('cluster.uninstallNameMismatch') },
+    )
+    if (value !== row.name) return
+    await uninstallCluster(row.name)
+    ElMessage.success(t('cluster.uninstallStarted'))
+    await loadClusters()
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error((e as Error).message)
+  }
+}
+
+function onClusterAction(command: string, row: ClusterListItem) {
+  if (command === 'uninstall') void onUninstall(row)
+  if (command === 'delete' && row.phase !== 'Online') void onDelete(row)
+}
+
 const createDialogOpen = ref(false)
 const creating = ref(false)
 const createStep = ref<'basic' | 'install' | 'command'>('basic')
@@ -298,3 +346,26 @@ async function copyCommand() {
   ElMessage.success(t('cluster.tokenCopied'))
 }
 </script>
+
+<style scoped>
+.more-actions {
+  margin-left: 8px;
+  min-width: 26px;
+  padding: 4px;
+}
+
+:deep(.cluster-actions .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+:deep(.warning-action) { color: var(--el-color-warning); }
+:deep(.danger-action) { color: var(--el-color-danger); }
+.disabled-menu-item {
+  display: block;
+  padding: 5px 16px;
+  color: var(--el-text-color-disabled);
+  cursor: not-allowed;
+}
+</style>
