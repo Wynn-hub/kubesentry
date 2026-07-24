@@ -30,6 +30,8 @@ type Runner struct {
 	TLSSecretName string
 }
 
+const policyGroupCleanupFinalizer = "kubesentry.io/policygroup-cleanup"
+
 func objectMeta(name string) metav1.ObjectMeta { return metav1.ObjectMeta{Name: name} }
 func namespacedMeta(name, namespace string) metav1.ObjectMeta {
 	return metav1.ObjectMeta{Name: name, Namespace: namespace}
@@ -73,14 +75,15 @@ func (r Runner) Run(ctx context.Context) error {
 	for _, name := range []string{"kubesentry-webhook-tls", tlsSecretName, "kubesentry-hub-register", "kubesentry-hub-ca"} {
 		delete(&corev1.Secret{ObjectMeta: namespacedMeta(name, r.Namespace)})
 	}
-	for _, name := range []string{"kubesentry-webhook", "kubesentry-tls-setup"} {
+	for _, name := range []string{"kubesentry-webhook", "kubesentry-tls-setup", "kubesentry-crd-installer"} {
 		delete(&corev1.ServiceAccount{ObjectMeta: namespacedMeta(name, r.Namespace)})
 	}
-	for _, name := range []string{"kubesentry-tls-setup"} {
+	delete(&corev1.ConfigMap{ObjectMeta: namespacedMeta("kubesentry-crd-installer", r.Namespace)})
+	for _, name := range []string{"kubesentry-tls-setup", "kubesentry-crd-installer"} {
 		delete(&rbacv1.Role{ObjectMeta: namespacedMeta(name, r.Namespace)})
 		delete(&rbacv1.RoleBinding{ObjectMeta: namespacedMeta(name, r.Namespace)})
 	}
-	for _, name := range []string{"kubesentry-webhook", "kubesentry-tls-setup"} {
+	for _, name := range []string{"kubesentry-webhook", "kubesentry-tls-setup", "kubesentry-crd-installer"} {
 		delete(&rbacv1.ClusterRole{ObjectMeta: objectMeta(name)})
 		delete(&rbacv1.ClusterRoleBinding{ObjectMeta: objectMeta(name)})
 	}
@@ -135,6 +138,14 @@ func (r Runner) deleteCRs(ctx context.Context, errs *[]string) {
 			}
 		case *v1alpha1.PolicyGroupList:
 			for i := range v.Items {
+				// Helm has already stopped the operator before the post-delete
+				// hook runs, so the normal PolicyGroup reconciler cannot clear its
+				// cleanup finalizer. Remove only KubeSentry's own finalizer before
+				// deleting the object; otherwise the CRD remains terminating forever.
+				if err := r.clearPolicyGroupCleanupFinalizer(ctx, &v.Items[i]); err != nil {
+					*errs = append(*errs, fmt.Sprintf("clear PolicyGroup %q finalizer: %v", v.Items[i].Name, err))
+					continue
+				}
 				if err := r.Client.Delete(ctx, &v.Items[i]); err != nil && !apierrors.IsNotFound(err) {
 					*errs = append(*errs, fmt.Sprintf("delete PolicyGroup %q: %v", v.Items[i].Name, err))
 				}
@@ -157,4 +168,16 @@ func (r Runner) deleteCRs(ctx context.Context, errs *[]string) {
 	deleteAll(&v1alpha1.PolicyGroupList{})
 	deleteAll(&v1alpha1.PolicyExceptionList{})
 	deleteAll(&v1alpha1.PolicyVersionList{})
+}
+
+func (r Runner) clearPolicyGroupCleanupFinalizer(ctx context.Context, group *v1alpha1.PolicyGroup) error {
+	for i, finalizer := range group.Finalizers {
+		if finalizer != policyGroupCleanupFinalizer {
+			continue
+		}
+		patch := client.MergeFrom(group.DeepCopy())
+		group.Finalizers = append(group.Finalizers[:i:i], group.Finalizers[i+1:]...)
+		return r.Client.Patch(ctx, group, patch)
+	}
+	return nil
 }

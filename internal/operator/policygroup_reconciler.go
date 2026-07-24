@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -77,7 +78,7 @@ func (r *PolicyGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		pg.Status.ResolvedPolicies = nil
 		pg.Status.Conditions = nil
 		pg.Status.ObservedGeneration = pg.Generation
-		if err := r.client.Status().Update(ctx, &pg); err != nil {
+		if err := r.updateGroupStatus(ctx, pg.Name, pg.Status); err != nil {
 			return ctrl.Result{}, fmt.Errorf("update group status: %w", err)
 		}
 		return ctrl.Result{}, r.refreshReferencedBy(ctx, prev, map[string]struct{}{})
@@ -100,7 +101,7 @@ func (r *PolicyGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	pg.Status.ResolvedPolicies = members
 	pg.Status.Conditions = conditions
 
-	if err := r.client.Status().Update(ctx, &pg); err != nil {
+	if err := r.updateGroupStatus(ctx, pg.Name, pg.Status); err != nil {
 		return ctrl.Result{}, fmt.Errorf("update group status: %w", err)
 	}
 	logger.V(1).Info("reconciled", "members", len(members), "phase", phase)
@@ -111,6 +112,21 @@ func (r *PolicyGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		current[m.Name] = struct{}{}
 	}
 	return ctrl.Result{}, r.refreshReferencedBy(ctx, prev, current)
+}
+
+// updateGroupStatus applies a computed status to a freshly-read PolicyGroup.
+// The gateway sync loop and the policygroup reconciler can update an object at
+// the same time during startup, so a direct Status().Update on the originally
+// cached object can legitimately conflict.
+func (r *PolicyGroupReconciler) updateGroupStatus(ctx context.Context, name string, desired v1alpha1.PolicyGroupStatus) error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var latest v1alpha1.PolicyGroup
+		if err := r.client.Get(ctx, types.NamespacedName{Name: name}, &latest); err != nil {
+			return err
+		}
+		latest.Status = desired
+		return r.client.Status().Update(ctx, &latest)
+	})
 }
 
 func snapshotResolved(in []v1alpha1.EffectiveMember) map[string]struct{} {
@@ -157,18 +173,24 @@ func (r *PolicyGroupReconciler) refreshReferencedBy(ctx context.Context, prev, c
 		}
 		sort.Strings(refs)
 
-		var pol v1alpha1.Policy
-		if err := r.client.Get(ctx, types.NamespacedName{Name: name}, &pol); err != nil {
+		// Multiple PolicyGroups can resolve the same Policy concurrently. Read
+		// a fresh object for every optimistic-concurrency retry so a status
+		// update from another group does not turn into a noisy reconcile error.
+		err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			var pol v1alpha1.Policy
+			if err := r.client.Get(ctx, types.NamespacedName{Name: name}, &pol); err != nil {
+				return err
+			}
+			if stringSlicesEqual(pol.Status.ReferencedBy, refs) {
+				return nil
+			}
+			pol.Status.ReferencedBy = refs
+			return r.client.Status().Update(ctx, &pol)
+		})
+		if err != nil {
 			if apierrors.IsNotFound(err) {
 				continue
 			}
-			return fmt.Errorf("get Policy %q for referencedBy update: %w", name, err)
-		}
-		if stringSlicesEqual(pol.Status.ReferencedBy, refs) {
-			continue // no diff, skip write
-		}
-		pol.Status.ReferencedBy = refs
-		if err := r.client.Status().Update(ctx, &pol); err != nil {
 			return fmt.Errorf("update Policy %q referencedBy: %w", name, err)
 		}
 	}

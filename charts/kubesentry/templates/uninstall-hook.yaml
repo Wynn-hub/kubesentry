@@ -23,6 +23,9 @@ rules:
   - apiGroups: [kubesentry.io]
     resources: [policies, policygroups, policyexceptions, policyversions]
     verbs: [get, list, delete]
+  - apiGroups: [kubesentry.io]
+    resources: [policygroups]
+    verbs: [patch]
   - apiGroups: [admissionregistration.k8s.io]
     resources: [validatingwebhookconfigurations]
     resourceNames: [kubesentry]
@@ -41,7 +44,7 @@ rules:
     verbs: [delete]
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [clusterroles, clusterrolebindings]
-    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-uninstall]
+    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-crd-installer, kubesentry-uninstall]
     verbs: [delete]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -53,8 +56,8 @@ metadata:
     {{- toYaml $hookAnnotations | nindent 4 }}
 rules:
   - apiGroups: [""]
-    resources: [secrets, services, serviceaccounts]
-    resourceNames: [kubesentry-hub-auth, kubesentry-hub-register, kubesentry-hub-ca, kubesentry-webhook-tls, kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-uninstall]
+    resources: [secrets, services, serviceaccounts, configmaps]
+    resourceNames: [{{ .Values.tls.secretName }}, kubesentry-hub-auth, kubesentry-hub-register, kubesentry-hub-ca, kubesentry-webhook-tls, kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-crd-installer, kubesentry-uninstall]
     verbs: [delete]
   - apiGroups: [apps]
     resources: [deployments]
@@ -62,11 +65,11 @@ rules:
     verbs: [delete]
   - apiGroups: [batch]
     resources: [jobs]
-    resourceNames: [kubesentry-tls-setup]
+    resourceNames: [kubesentry-tls-setup, kubesentry-crd-installer]
     verbs: [delete]
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [roles, rolebindings]
-    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-uninstall]
+    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-crd-installer, kubesentry-uninstall]
     verbs: [delete]
   - apiGroups: [coordination.k8s.io]
     resources: [leases]

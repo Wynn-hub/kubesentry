@@ -12,6 +12,12 @@ rules:
   - apiGroups: [kubesentry.io]
     resources: [policyexceptions/status]
     verbs: [get, update, patch]
+  # The uninstall runner clears only its own PolicyGroup finalizer after Helm
+  # stops the controller, preventing a terminating PolicyGroup from retaining
+  # the CRD indefinitely.
+  - apiGroups: [kubesentry.io]
+    resources: [policygroups]
+    verbs: [patch]
   - apiGroups: [admissionregistration.k8s.io]
     resources: [validatingwebhookconfigurations]
     resourceNames: [kubesentry]
@@ -32,7 +38,7 @@ rules:
     verbs: [delete]
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [clusterroles, clusterrolebindings]
-    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup]
+    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-crd-installer]
     verbs: [delete]
   - apiGroups: [""]
     resources: [events]
@@ -60,7 +66,7 @@ rules:
     verbs: [get]
   - apiGroups: [""]
     resources: [secrets]
-    resourceNames: [kubesentry-hub-auth, kubesentry-hub-register, kubesentry-hub-ca, kubesentry-webhook-tls]
+    resourceNames: [{{ .Values.tls.secretName }}, kubesentry-hub-auth, kubesentry-hub-register, kubesentry-hub-ca, kubesentry-webhook-tls]
     verbs: [get, update, delete]
   # create cannot be scoped by resourceNames (Kubernetes RBAC has no
   # resource name to check against a POST to the collection endpoint);
@@ -69,8 +75,8 @@ rules:
     resources: [secrets]
     verbs: [create]
   - apiGroups: ["", "apps", "batch", "rbac.authorization.k8s.io"]
-    resources: [services, serviceaccounts, deployments, jobs, roles, rolebindings]
-    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup]
+    resources: [services, serviceaccounts, configmaps, deployments, jobs, roles, rolebindings]
+    resourceNames: [kubesentry-webhook, kubesentry-operator, kubesentry-tls-setup, kubesentry-crd-installer]
     verbs: [delete]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

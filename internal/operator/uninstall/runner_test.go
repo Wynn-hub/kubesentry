@@ -51,8 +51,13 @@ func TestRunnerDeletesAllowlistedResourcesAndKeepsNamespace(t *testing.T) {
 		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry-operator", Namespace: "kubesentry-system"}},
 		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry-webhook", Namespace: "kubesentry-system"}},
 		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "custom-tls", Namespace: "kubesentry-system"}},
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry-crd-installer", Namespace: "kubesentry-system"}},
+		&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry-crd-installer", Namespace: "kubesentry-system"}},
+		&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry-crd-installer"}},
+		&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry-crd-installer"}},
 		&admissionv1.ValidatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "kubesentry"}},
 		&v1alpha1.Policy{ObjectMeta: metav1.ObjectMeta{Name: "managed-policy"}},
+		&v1alpha1.PolicyGroup{ObjectMeta: metav1.ObjectMeta{Name: "default", Finalizers: []string{"kubesentry.io/policygroup-cleanup"}}},
 	).Build()
 	if err := (Runner{Client: c, Namespace: "kubesentry-system", TLSSecretName: "custom-tls"}).Run(context.Background()); err != nil {
 		t.Fatalf("run: %v", err)
@@ -61,7 +66,12 @@ func TestRunnerDeletesAllowlistedResourcesAndKeepsNamespace(t *testing.T) {
 		{&corev1.Service{}, types.NamespacedName{Name: "kubesentry-webhook", Namespace: "kubesentry-system"}},
 		{&admissionv1.ValidatingWebhookConfiguration{}, types.NamespacedName{Name: "kubesentry"}},
 		{&v1alpha1.Policy{}, types.NamespacedName{Name: "managed-policy"}},
+		{&v1alpha1.PolicyGroup{}, types.NamespacedName{Name: "default"}},
 		{&corev1.Secret{}, types.NamespacedName{Name: "custom-tls", Namespace: "kubesentry-system"}},
+		{&corev1.ConfigMap{}, types.NamespacedName{Name: "kubesentry-crd-installer", Namespace: "kubesentry-system"}},
+		{&corev1.ServiceAccount{}, types.NamespacedName{Name: "kubesentry-crd-installer", Namespace: "kubesentry-system"}},
+		{&rbacv1.ClusterRole{}, types.NamespacedName{Name: "kubesentry-crd-installer"}},
+		{&rbacv1.ClusterRoleBinding{}, types.NamespacedName{Name: "kubesentry-crd-installer"}},
 	} {
 		if err := c.Get(context.Background(), obj.key, obj.obj); err == nil {
 			t.Fatalf("%T %s still exists", obj.obj, obj.key)

@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -118,7 +119,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	policy.Status.LastSyncTime = &now
 	policy.Status.VersionHistory = r.buildHistory(policy.Status.VersionHistory, nextVersion, v1alpha1.PhaseReady)
 
-	if err := r.client.Status().Update(ctx, &policy); err != nil {
+	if err := r.updatePolicyStatus(ctx, policy.Name, policy.Status); err != nil {
 		return ctrl.Result{}, fmt.Errorf("update status: %w", err)
 	}
 	return ctrl.Result{}, nil
@@ -150,7 +151,27 @@ func (r *PolicyReconciler) handleRollback(ctx context.Context, policy *v1alpha1.
 func (r *PolicyReconciler) setInvalid(ctx context.Context, policy *v1alpha1.Policy, msg string) error {
 	policy.Status.Phase = v1alpha1.PhaseInvalid
 	policy.Status.Message = msg
-	return r.client.Status().Update(ctx, policy)
+	return r.updatePolicyStatus(ctx, policy.Name, policy.Status)
+}
+
+// updatePolicyStatus writes the reconciliation-owned fields using a freshly
+// read object for every optimistic-concurrency retry. PolicyGroup reconciliation
+// concurrently owns status.referencedBy, so retain that field from the latest
+// object instead of overwriting it with a stale Policy snapshot.
+func (r *PolicyReconciler) updatePolicyStatus(ctx context.Context, name string, desired v1alpha1.PolicyStatus) error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var latest v1alpha1.Policy
+		if err := r.client.Get(ctx, types.NamespacedName{Name: name}, &latest); err != nil {
+			return err
+		}
+		latest.Status.Phase = desired.Phase
+		latest.Status.Message = desired.Message
+		latest.Status.ObservedGeneration = desired.ObservedGeneration
+		latest.Status.CurrentVersion = desired.CurrentVersion
+		latest.Status.LastSyncTime = desired.LastSyncTime.DeepCopy()
+		latest.Status.VersionHistory = append([]v1alpha1.PolicyVersionSummary(nil), desired.VersionHistory...)
+		return r.client.Status().Update(ctx, &latest)
+	})
 }
 
 // policyVersionMatchesSpec reports whether an existing PolicyVersion snapshot

@@ -46,6 +46,7 @@ func newPolicy(name, rego string) *v1alpha1.Policy {
 
 func TestReconcileValidPolicy(t *testing.T) {
 	policy := newPolicy("allow-all", validRego)
+	policy.Status.ReferencedBy = []string{"baseline"}
 	scheme := buildScheme()
 	c := fake.NewClientBuilder().
 		WithScheme(scheme).
@@ -72,6 +73,9 @@ func TestReconcileValidPolicy(t *testing.T) {
 	}
 	if updated.Status.CurrentVersion != 1 {
 		t.Errorf("expected currentVersion=1, got %d", updated.Status.CurrentVersion)
+	}
+	if len(updated.Status.ReferencedBy) != 1 || updated.Status.ReferencedBy[0] != "baseline" {
+		t.Errorf("referencedBy = %v, want [baseline]", updated.Status.ReferencedBy)
 	}
 
 	var pvList v1alpha1.PolicyVersionList

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
@@ -18,11 +19,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/yaml"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
@@ -40,6 +43,10 @@ func main() {
 	}
 	if len(os.Args) > 1 && os.Args[1] == "uninstall" {
 		runUninstall()
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "apply-crds" {
+		runApplyCRDs()
 		return
 	}
 	runOperator()
@@ -210,6 +217,77 @@ func runUninstall() {
 		os.Exit(1)
 	}
 	slog.Info("KubeSentry resources uninstalled")
+}
+
+// runApplyCRDs makes an interrupted uninstall recoverable on the next Helm
+// install or upgrade. Helm intentionally skips crds/ during upgrades.
+func runApplyCRDs() {
+	cfg, err := buildConfig()
+	if err != nil {
+		slog.Error("build config", "error", err)
+		os.Exit(1)
+	}
+	c, err := client.New(cfg, client.Options{Scheme: buildScheme()})
+	if err != nil {
+		slog.Error("build CRD client", "error", err)
+		os.Exit(1)
+	}
+	paths, err := filepath.Glob(filepath.Join(envOrDefault("CRD_MANIFEST_DIR", "/crds"), "*.yaml"))
+	if err != nil || len(paths) == 0 {
+		slog.Error("find CRD manifests", "error", err)
+		os.Exit(1)
+	}
+	ctx := context.Background()
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			slog.Error("read CRD manifest", "path", path, "error", err)
+			os.Exit(1)
+		}
+		var desired apiextensionsv1.CustomResourceDefinition
+		if err := yaml.Unmarshal(data, &desired); err != nil || desired.Name == "" {
+			slog.Error("decode CRD manifest", "path", path, "error", err)
+			os.Exit(1)
+		}
+		if err := applyCRD(ctx, c, &desired); err != nil {
+			slog.Error("apply CRD", "name", desired.Name, "error", err)
+			os.Exit(1)
+		}
+		if err := waitForCRDEstablished(ctx, c, desired.Name); err != nil {
+			slog.Error("wait for CRD establishment", "name", desired.Name, "error", err)
+			os.Exit(1)
+		}
+	}
+	slog.Info("KubeSentry CRDs applied", "count", len(paths))
+}
+
+func applyCRD(ctx context.Context, c client.Client, desired *apiextensionsv1.CustomResourceDefinition) error {
+	var existing apiextensionsv1.CustomResourceDefinition
+	err := c.Get(ctx, types.NamespacedName{Name: desired.Name}, &existing)
+	switch {
+	case apierrors.IsNotFound(err):
+		return c.Create(ctx, desired)
+	case err != nil:
+		return err
+	default:
+		desired.ResourceVersion = existing.ResourceVersion
+		return c.Update(ctx, desired)
+	}
+}
+
+func waitForCRDEstablished(ctx context.Context, c client.Client, name string) error {
+	return wait.PollUntilContextTimeout(ctx, 200*time.Millisecond, 30*time.Second, true, func(ctx context.Context) (bool, error) {
+		var crd apiextensionsv1.CustomResourceDefinition
+		if err := c.Get(ctx, types.NamespacedName{Name: name}, &crd); err != nil {
+			return false, err
+		}
+		for _, condition := range crd.Status.Conditions {
+			if condition.Type == apiextensionsv1.Established && condition.Status == apiextensionsv1.ConditionTrue {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
 }
 
 func buildConfig() (*rest.Config, error) {
