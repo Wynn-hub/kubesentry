@@ -5,6 +5,12 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   type: {{ .Values.gateway.grpc.serviceType }}
+  # The Gateway is active/standby: only the elected leader passes readiness
+  # and therefore appears in this Service's EndpointSlices. Cluster routing
+  # lets every NodePort node forward to that leader, even when it is remote.
+  {{- if ne .Values.gateway.grpc.serviceType "ClusterIP" }}
+  externalTrafficPolicy: Cluster
+  {{- end }}
   selector: { app: kubesentry-gateway }
   ports:
     - name: grpc

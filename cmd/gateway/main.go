@@ -20,6 +20,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -66,34 +69,93 @@ func main() {
 	notifier := gateway.NewNotifier()
 	sharedToken := os.Getenv("GATEWAY_SHARED_TOKEN")
 
-	cert, err := ensureTLS(namespace, tlsSecret, tlsDNS)
-	if err != nil {
-		slog.Error("ensure tls", "error", err)
-		os.Exit(1)
-	}
-	grpcRun := &grpcRunnable{
-		addr:   grpcAddr,
-		cert:   cert,
-		server: gateway.NewServer(repos, namespace, tracker, notifier, sharedToken),
-	}
-
 	ctx := ctrl.SetupSignalHandler()
-	go startHealthServer(ctx, &grpcRun.ready)
-
+	var ready atomic.Bool
+	go startHealthServer(ctx, &ready)
 	flushInterval := envDurationOrDefault("HEARTBEAT_FLUSH_INTERVAL", 15*time.Second)
 	offlineAfter := envDurationOrDefault("HEARTBEAT_OFFLINE_AFTER", 90*time.Second)
-	flusher := gateway.NewStatusFlusher(repos.Clusters, tracker, flushInterval, offlineAfter)
-	go func() {
-		if err := flusher.Start(ctx); err != nil {
-			slog.Error("status flusher error", "error", err)
-		}
-	}()
 
-	slog.Info("starting gateway", "grpc", grpcAddr, "namespace", namespace)
-	if err := grpcRun.Start(ctx); err != nil {
-		slog.Error("grpc server error", "error", err)
+	config := ctrl.GetConfigOrDie()
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		slog.Error("create kubernetes client", "error", err)
 		os.Exit(1)
 	}
+	identity := envOrDefault("POD_NAME", hostname())
+	lock, err := resourcelock.New(
+		resourcelock.LeasesResourceLock,
+		namespace,
+		"kubesentry-gateway-leader",
+		clientset.CoreV1(),
+		clientset.CoordinationV1(),
+		resourcelock.ResourceLockConfig{Identity: identity},
+	)
+	if err != nil {
+		slog.Error("create gateway leader-election lock", "error", err)
+		os.Exit(1)
+	}
+
+	leaderElector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
+		Lock:            lock,
+		LeaseDuration:   15 * time.Second,
+		RenewDeadline:   10 * time.Second,
+		RetryPeriod:     2 * time.Second,
+		ReleaseOnCancel: true,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(leaderCtx context.Context) {
+				cert, err := ensureTLS(namespace, tlsSecret, tlsDNS)
+				if err != nil {
+					slog.Error("ensure tls as gateway leader", "error", err)
+					// A leader that cannot start gRPC must relinquish the Lease;
+					// otherwise every standby remains blocked behind a permanently
+					// NotReady leader. Match the former startup-failure behavior and
+					// let Kubernetes restart this Pod.
+					os.Exit(1)
+				}
+				grpcRun := &grpcRunnable{
+					addr:   grpcAddr,
+					cert:   cert,
+					server: gateway.NewServer(repos, namespace, tracker, notifier, sharedToken),
+					ready:  &ready,
+				}
+				flusher := gateway.NewStatusFlusher(repos.Clusters, tracker, flushInterval, offlineAfter)
+				go func() {
+					if err := flusher.Start(leaderCtx); err != nil {
+						slog.Error("status flusher error", "error", err)
+					}
+				}()
+
+				slog.Info("gateway became leader; starting gRPC service", "grpc", grpcAddr, "namespace", namespace)
+				if err := grpcRun.Start(leaderCtx); err != nil && leaderCtx.Err() == nil {
+					slog.Error("grpc server error", "error", err)
+					os.Exit(1)
+				}
+			},
+			OnStoppedLeading: func() {
+				// Exclude a former leader from EndpointSlices before its gRPC
+				// server finishes draining existing long-lived streams.
+				ready.Store(false)
+				slog.Info("gateway leadership lost; gRPC service is unavailable")
+			},
+			OnNewLeader: func(newIdentity string) {
+				slog.Info("gateway leader changed", "leader", newIdentity)
+			},
+		},
+	})
+	if err != nil {
+		slog.Error("create gateway leader elector", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("starting gateway leader election", "identity", identity, "namespace", namespace)
+	leaderElector.Run(ctx)
+}
+
+func hostname() string {
+	host, err := os.Hostname()
+	if err != nil {
+		return "gateway-unknown"
+	}
+	return host
 }
 
 // healthAddr matches the hardcoded containerPort 8081 (name: probe) in
@@ -103,9 +165,21 @@ const healthAddr = ":8081"
 
 // startHealthServer serves the plain-HTTP probes the chart expects (the gRPC
 // listener is TLS-only, so Kubernetes' native grpc probe type can't reach
-// it). /healthz reports the process is up; /readyz reflects grpcRunnable's
-// ready flag. Shuts down on ctx.Done(), same pattern as grpcRunnable.Start.
+// it). /healthz reports the process is up; /readyz reflects the leader-owned
+// gRPC server's ready flag. Shuts down on ctx.Done(), same pattern as
+// grpcRunnable.Start.
 func startHealthServer(ctx context.Context, ready *atomic.Bool) {
+	srv := &http.Server{Addr: healthAddr, Handler: healthHandler(ready)}
+	go func() {
+		<-ctx.Done()
+		_ = srv.Shutdown(context.Background())
+	}()
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("health server error", "error", err)
+	}
+}
+
+func healthHandler(ready *atomic.Bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -117,19 +191,12 @@ func startHealthServer(ctx context.Context, ready *atomic.Bool) {
 		}
 		w.WriteHeader(http.StatusServiceUnavailable)
 	})
-	srv := &http.Server{Addr: healthAddr, Handler: mux}
-	go func() {
-		<-ctx.Done()
-		_ = srv.Shutdown(context.Background())
-	}()
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		slog.Error("health server error", "error", err)
-	}
+	return mux
 }
 
-// grpcRunnable serves gRPC. It must run on every replica — like a
-// webhook/health server, member clusters need an answer from whichever pod
-// they reach.
+// grpcRunnable serves gRPC only while this pod owns the gateway Lease. Its
+// readiness flag is shared with the health endpoint, ensuring the Service's
+// EndpointSlice contains exactly the current leader.
 //
 // Liveness/readiness are checked over plain HTTP (not the grpc_health_v1
 // protocol — Kubernetes' native `grpc` probe type only ever dials in
@@ -139,7 +206,7 @@ type grpcRunnable struct {
 	addr   string
 	cert   tls.Certificate
 	server *gateway.Server
-	ready  atomic.Bool
+	ready  *atomic.Bool
 }
 
 func (g *grpcRunnable) Start(ctx context.Context) error {

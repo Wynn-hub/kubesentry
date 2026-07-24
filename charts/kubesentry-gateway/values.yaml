@@ -13,6 +13,8 @@ gateway:
   grpc:
     port: 9443
     # 对成员集群暴露方式：ClusterIP（同集群自注册）/ NodePort / LoadBalancer
+    # NodePort/LoadBalancer use externalTrafficPolicy: Cluster so every node
+    # can forward traffic to the single Ready Gateway leader.
     serviceType: NodePort
     nodePort: 30443
   resources:

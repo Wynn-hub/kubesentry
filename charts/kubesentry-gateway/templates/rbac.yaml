@@ -15,7 +15,8 @@ rules:
     verbs: [get, list, watch, create, update, delete]
   - apiGroups: [coordination.k8s.io]
     resources: [leases]
-    verbs: [get, list, watch, create, update, patch, delete]
+    # Leader election needs to create and renew its Lease, but never delete it.
+    verbs: [get, list, watch, create, update, patch]
   - apiGroups: [""]
     resources: [events]
     verbs: [create, patch]
