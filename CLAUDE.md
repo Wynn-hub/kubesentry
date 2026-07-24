@@ -156,11 +156,13 @@ charts/kubesentry-gateway/  Gateway-plane Helm chart (gateway, console web+api, 
 
 ## Known Follow-ups
 
-Two unresolved gaps from the gateway/database migration remain tracked here, plus one completed cleanup retained for historical context:
-
-1. **`GATEWAY_SHARED_TOKEN` is never wired into any chart values or Secret.** `cmd/gateway`'s `Connect` RPC (see `internal/gateway/server.go`'s `Connect` method) and `cmd/console`'s `RunGatewayLink` retry loop (`internal/console/gatewaylink.go`) both read `os.Getenv("GATEWAY_SHARED_TOKEN")`, but neither `charts/kubesentry-gateway/values.yaml` nor any template sets it — so it's always empty, and `Server.Connect` explicitly rejects an empty configured token (`s.sharedToken == ""` returns `FailedPrecondition` rather than letting two empty strings "match"). Practically harmless today because nothing yet consumes `Connect`/`Dispatch` traffic in production — `NotifyChange` has no such auth check and works fine without it — but it is a real wiring gap, not an intentional design choice. Fixing it needs a new chart Secret plus values plumbing on both the gateway and console Deployments.
-2. **`console/rbac.yaml` no longer needs its `kubesentry.io` CRD rules** — those grants (on `policies`/`policygroups`/`policyexceptions`/`policyversions`) were leftover from before console-api's controller-runtime manager was removed; the gateway cluster never installs the `kubesentry.io` CRDs (they only exist in `charts/kubesentry`, the member chart) so the rules were dead permissions on a nonexistent resource type. This one *was* fixed as part of this task — see the diff in `charts/kubesentry-gateway/templates/console/rbac.yaml`.
-3. **The release pipeline never packages or pushes `charts/kubesentry-gateway`.** `Makefile`'s `helm-package`/`helm-push`/`release` targets only operate on `$(CHART_DIR)` (`charts/kubesentry`, the member chart) — `GATEWAY_CHART_DIR` is declared (`Makefile:12`) but never referenced anywhere. A real `make release` today builds and pushes all 6 Docker images correctly (`image`/`image-push` do cover `gateway`/`db`/`console-web`) but produces and publishes only the member chart's `.tgz`/OCI artifact — the gateway chart is left out of every release entirely, even though the member chart cannot even install without a gateway to register against. Separately, `image`/`image-push` hardcode `$(REGISTRY)/kubesentry-gateway:$(TAG)` inline instead of using a `GATEWAY_IMAGE` variable like every other image (cosmetic, not a functional gap). No task in the gateway/database migration plan was scoped to touch the release pipeline, so this was never caught until it was checked explicitly after the plan's final review. Fixing needs `helm-package`/`helm-push`/`release` extended to loop over both chart directories (or a second package/push target), plus the `GATEWAY_IMAGE` variable for consistency.
+**`Dispatch` is not yet connected to a product-facing workflow.** The gateway
+implements a point-to-point relay for a named online cluster, but no console or
+operator feature invokes it. It deliberately has no destination resolution or
+offline queue. Policy synchronization and cluster uninstallation use their own
+desired-state/task paths and do not depend on `Dispatch`; a future imperative
+cluster-command feature should define routing, durability, retries, and UI/API
+semantics before using it.
 
 ## IDE Diagnostics Note
 

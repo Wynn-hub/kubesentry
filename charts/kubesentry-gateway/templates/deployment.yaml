@@ -50,6 +50,11 @@ spec:
                 secretKeyRef:
                   name: kubesentry-postgres-credentials
                   key: dsn
+            - name: GATEWAY_SHARED_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.gateway.sharedToken.existingSecret | default "kubesentry-gateway-shared-token" }}
+                  key: {{ .Values.gateway.sharedToken.key }}
           # Plain HTTP, not the grpc probe type: the gRPC listener is
           # TLS-only, and Kubernetes' native `grpc` probe always dials in
           # plaintext, so it can never complete a handshake against it.

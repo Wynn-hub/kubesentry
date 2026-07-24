@@ -444,7 +444,7 @@ Both images are public and support `linux/amd64` and `linux/arm64`.
 make test          # run all tests
 make build         # compile for local arch → bin/webhook, bin/operator
 make lint          # go vet
-make helm-package  # lint + package chart → dist/kubesentry-<version>.tgz
+make helm-package  # lint + package both charts → dist/*.tgz
 ```
 
 ### Release pipeline
@@ -466,8 +466,17 @@ make release VERSION=v1.0.1
 | 1. Test | `go test ./...` | — |
 | 2. Cross-compile | `docker run golang:1.26-alpine go build` | `bin/linux-amd64/`, `bin/linux-arm64/` |
 | 3. Push images | `docker buildx ... --push` | `wynnhub/kubesentry-webhook:v1.0.1` + `:latest` |
-| 4. Package chart | `helm package` | `dist/kubesentry-1.0.1.tgz` |
-| 5. Push chart | `helm push ... oci://` | `oci://registry-1.docker.io/wynnhub/kubesentry:1.0.1` |
+| 4. Package charts | `helm package` | `dist/kubesentry-1.0.1.tgz` + `dist/kubesentry-gateway-1.0.1.tgz` |
+| 5. Push charts | `helm push ... oci://` | `oci://registry-1.docker.io/wynnhub/kubesentry:1.0.1` + `oci://registry-1.docker.io/wynnhub/kubesentry-gateway:1.0.1` |
+
+### Gateway shared token
+
+The gateway chart creates `kubesentry-gateway-shared-token` automatically and
+injects its `token` key into both Gateway and Console API as
+`GATEWAY_SHARED_TOKEN`. The value is retained across Helm upgrades. To source
+it from an external secret manager instead, set
+`gateway.sharedToken.existingSecret=<secret-name>`; the referenced Secret must
+contain the key configured by `gateway.sharedToken.key` (default: `token`).
 
 ### Multi-platform images
 

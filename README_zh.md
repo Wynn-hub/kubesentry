@@ -431,7 +431,7 @@ helm install kubesentry charts/kubesentry \
 make test          # 运行全量测试
 make build         # 本地编译 → bin/webhook, bin/operator
 make lint          # go vet 静态检查
-make helm-package  # lint + 打包 chart → dist/kubesentry-<version>.tgz
+make helm-package  # lint + 打包两个 Chart → dist/*.tgz
 ```
 
 ### 发布流程
@@ -453,8 +453,16 @@ make release VERSION=v0.1.0
 | 1. 测试 | `go test ./...` | — |
 | 2. 交叉编译 | 容器内 `go build` | `bin/linux-amd64/`、`bin/linux-arm64/` |
 | 3. 推送镜像 | `docker buildx ... --push` | `wynnhub/kubesentry-webhook:v0.1.0` + `:latest` |
-| 4. 打包 Chart | `helm package` | `dist/kubesentry-0.1.0.tgz` |
-| 5. 推送 Chart | `helm push ... oci://` | `oci://registry-1.docker.io/wynnhub/kubesentry:0.1.0` |
+| 4. 打包 Chart | `helm package` | `dist/kubesentry-0.1.0.tgz` + `dist/kubesentry-gateway-0.1.0.tgz` |
+| 5. 推送 Chart | `helm push ... oci://` | `oci://registry-1.docker.io/wynnhub/kubesentry:0.1.0` + `oci://registry-1.docker.io/wynnhub/kubesentry-gateway:0.1.0` |
+
+### Gateway 共享 Token
+
+Gateway Chart 会自动创建 `kubesentry-gateway-shared-token`，并将其中的
+`token` 注入 Gateway 和 Console API 的 `GATEWAY_SHARED_TOKEN` 环境变量。该
+值会在 Helm 升级时保留。若使用外部密钥管理系统，可设置
+`gateway.sharedToken.existingSecret=<secret-name>`；引用的 Secret 必须包含
+`gateway.sharedToken.key` 指定的键名（默认 `token`）。
 
 ### 多平台镜像说明
 

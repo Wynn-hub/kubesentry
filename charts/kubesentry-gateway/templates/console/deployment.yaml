@@ -75,6 +75,11 @@ spec:
                 secretKeyRef:
                   name: kubesentry-postgres-credentials
                   key: dsn
+            - name: GATEWAY_SHARED_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.gateway.sharedToken.existingSecret | default "kubesentry-gateway-shared-token" }}
+                  key: {{ .Values.gateway.sharedToken.key }}
           volumeMounts:
             - name: gateway-ca
               mountPath: /etc/kubesentry/gateway-ca

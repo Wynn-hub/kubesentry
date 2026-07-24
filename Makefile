@@ -35,6 +35,7 @@ CHART_VERSION = $(shell \
 WEBHOOK_IMAGE     = $(REGISTRY)/kubesentry-webhook:$(TAG)
 OPERATOR_IMAGE    = $(REGISTRY)/kubesentry-operator:$(TAG)
 CONSOLE_IMAGE     = $(REGISTRY)/kubesentry-console:$(TAG)
+GATEWAY_IMAGE     = $(REGISTRY)/kubesentry-gateway:$(TAG)
 DB_IMAGE          = $(REGISTRY)/kubesentry-db:$(TAG)
 CONSOLE_WEB_IMAGE = $(REGISTRY)/kubesentry-console-web:$(TAG)
 
@@ -263,7 +264,7 @@ image: .builder build-linux
 	  --builder $(BUILDER) \
 	  --platform $(PLATFORMS) \
 	  --file Dockerfile.gateway \
-	  --tag $(REGISTRY)/kubesentry-gateway:$(TAG) \
+	  --tag $(GATEWAY_IMAGE) \
 	  --load \
 	  .
 	docker buildx build \
@@ -312,7 +313,7 @@ image-push: .builder build-linux
 	  --builder $(BUILDER) \
 	  --platform $(PLATFORMS) \
 	  --file Dockerfile.gateway \
-	  --tag $(REGISTRY)/kubesentry-gateway:$(TAG) \
+	  --tag $(GATEWAY_IMAGE) \
 	  --tag $(REGISTRY)/kubesentry-gateway:latest \
 	  --push \
 	  .
@@ -337,24 +338,35 @@ image-push: .builder build-linux
 helm-package:
 	@mkdir -p $(DIST_DIR)
 	helm lint $(CHART_DIR)
+	helm lint $(GATEWAY_CHART_DIR)
 	@# Package from a staged copy with image tags pinned to the release
 	@# version, so `helm install --version x.y.z` pulls the matching images.
 	@# The working tree keeps tag: "latest" per branch policy.
-	rm -rf $(DIST_DIR)/chart-src
+	rm -rf $(DIST_DIR)/chart-src $(DIST_DIR)/gateway-chart-src
 	cp -R $(CHART_DIR) $(DIST_DIR)/chart-src
+	cp -R $(GATEWAY_CHART_DIR) $(DIST_DIR)/gateway-chart-src
 	sed 's/tag: "latest"/tag: "$(TAG)"/' $(CHART_DIR)/values.yaml > $(DIST_DIR)/chart-src/values.yaml
+	sed 's/tag: "latest"/tag: "$(TAG)"/' $(GATEWAY_CHART_DIR)/values.yaml > $(DIST_DIR)/gateway-chart-src/values.yaml
 	helm package $(DIST_DIR)/chart-src \
 	  --version $(CHART_VERSION) \
 	  --app-version $(TAG) \
 	  --destination $(DIST_DIR)
+	helm package $(DIST_DIR)/gateway-chart-src \
+	  --version $(CHART_VERSION) \
+	  --app-version $(TAG) \
+	  --destination $(DIST_DIR)
 	@echo "Chart: $(DIST_DIR)/kubesentry-$(CHART_VERSION).tgz"
+	@echo "Chart: $(DIST_DIR)/kubesentry-gateway-$(CHART_VERSION).tgz"
 
 # Push the packaged chart to Docker Hub as an OCI artifact.
 # Requires prior login: helm registry login registry-1.docker.io -u $(REGISTRY)
 helm-push: helm-package
 	helm push $(DIST_DIR)/kubesentry-$(CHART_VERSION).tgz \
 	  oci://registry-1.docker.io/$(REGISTRY)
+	helm push $(DIST_DIR)/kubesentry-gateway-$(CHART_VERSION).tgz \
+	  oci://registry-1.docker.io/$(REGISTRY)
 	@echo "Chart pushed: oci://registry-1.docker.io/$(REGISTRY)/kubesentry:$(CHART_VERSION)"
+	@echo "Chart pushed: oci://registry-1.docker.io/$(REGISTRY)/kubesentry-gateway:$(CHART_VERSION)"
 
 # ── Full release pipeline ─────────────────────────────────────────────────────
 release: test-all image-push helm-push
@@ -362,7 +374,11 @@ release: test-all image-push helm-push
 	@echo "Release complete:"
 	@echo "  webhook:  $(WEBHOOK_IMAGE)"
 	@echo "  operator: $(OPERATOR_IMAGE)"
+	@echo "  console:  $(CONSOLE_IMAGE)"
+	@echo "  gateway:  $(GATEWAY_IMAGE)"
+	@echo "  db:       $(DB_IMAGE)"
 	@echo "  chart:    oci://registry-1.docker.io/$(REGISTRY)/kubesentry:$(CHART_VERSION)"
+	@echo "  chart:    oci://registry-1.docker.io/$(REGISTRY)/kubesentry-gateway:$(CHART_VERSION)"
 
 # ── Login ─────────────────────────────────────────────────────────────────────
 # Login to Docker Hub for both image push and helm chart push.
@@ -408,8 +424,8 @@ help:
 	@printf "  %-22s %s\n" "build-linux"  "Cross-compile in Docker → bin/linux-amd64/, bin/linux-arm64/"
 	@printf "  %-22s %s\n" "image"        "Build multi-platform images and load into local daemon"
 	@printf "  %-22s %s\n" "image-push"   "Build and push multi-platform images to registry"
-	@printf "  %-22s %s\n" "helm-package" "Lint and package Helm chart → dist/kubesentry-<version>.tgz"
-	@printf "  %-22s %s\n" "helm-push"    "Push Helm chart to oci://registry-1.docker.io/\$$REGISTRY"
+	@printf "  %-22s %s\n" "helm-package" "Lint and package both Helm charts → dist/*.tgz"
+	@printf "  %-22s %s\n" "helm-push"    "Push both Helm charts to oci://registry-1.docker.io/\$$REGISTRY"
 	@printf "  %-22s %s\n" "release"      "Full pipeline: test-all → image-push → helm-push"
 	@echo ""
 	@echo "Maintenance:"

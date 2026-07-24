@@ -26,6 +26,13 @@ gateway:
     requests:
       cpu: 50m
       memory: 64Mi
+  # Authenticates non-cluster Gateway clients such as console-api. By default
+  # the chart creates a random value and preserves it across upgrades. Set
+  # existingSecret to use a Secret managed by an external secret system; it
+  # must contain the configured key.
+  sharedToken:
+    existingSecret: ""
+    key: token
 
 # Console is a platform component (D1: 中台 = console + gateway), packaged
 # here rather than in the member chart. Note this means single-cluster
