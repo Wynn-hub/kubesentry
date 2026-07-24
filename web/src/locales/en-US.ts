@@ -10,7 +10,7 @@ export default {
   common: {
     create: 'Create', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
     confirm: 'Confirm', search: 'Search', actions: 'Actions', name: 'Name', description: 'Description',
-    refresh: 'Refresh', back: 'Back', view: 'View', copy: 'Copy',
+    refresh: 'Refresh', back: 'Back', view: 'View', copy: 'Copy', enabled: 'Enabled', disabled: 'Disabled',
     deleteConfirm: 'Delete {name}?',
     conflictRefresh: 'The object has been modified. Refresh and retry.',
     builtinWarning: 'This is a builtin object managed by Helm. Editing it will drift from Helm. Continue?',
@@ -62,6 +62,7 @@ export default {
     createTitle: 'New Cluster', createHint: 'Name is required, labels are optional',
     stepBasic: 'Basic Info', stepInstall: 'Install Parameters', next: 'Next', prev: 'Back',
     namespace: 'Namespace', webhookImage: 'Webhook Image', operatorImage: 'Operator Image',
+    highAvailability: 'High Availability', highAvailabilityHint: 'Run two webhook and operator replicas',
     repository: 'Repository', tag: 'Tag', gatewayAddress: 'Gateway Address',
     advancedOptions: 'Advanced Options', gatewayTlsServerName: 'TLS Server Name (optional)',
     gatewayCaBundle: 'CA Bundle (optional, base64 PEM)',

@@ -30,6 +30,7 @@ export interface InstallParams {
   namespace: string
   webhookImage: ImageParams
   operatorImage: ImageParams
+  highAvailability: boolean
   gatewayAddress: string
   gatewayTlsServerName?: string
   gatewayCaBundle?: string
@@ -39,6 +40,7 @@ export const DEFAULT_INSTALL_PARAMS: InstallParams = {
   namespace: 'kubesentry-system',
   webhookImage: { repository: 'wynnhub/kubesentry-webhook', tag: 'latest', pullPolicy: 'IfNotPresent' },
   operatorImage: { repository: 'wynnhub/kubesentry-operator', tag: 'latest', pullPolicy: 'IfNotPresent' },
+  highAvailability: false,
   gatewayAddress: '',
 }
 

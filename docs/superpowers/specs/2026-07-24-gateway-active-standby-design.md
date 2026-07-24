@@ -88,4 +88,4 @@ Gateway ServiceAccount 对 Lease 仅授予 `get/list/watch/create/update/patch`�
 
 ## 安装部署
 
-通过 `gateway.replicas` 设置副本数。NodePort 场景访问任意节点 IP 加 NodePort；集群内组件继续使用 Service DNS。不得为该 Service 设置 `externalTrafficPolicy: Local`。
+通过 `gateway.highAvailability.enabled=true` 启用主备 Gateway，默认副本数为 2；可通过 `gateway.highAvailability.replicas` 调整。未启用时继续使用兼容字段 `gateway.replicas`。NodePort 场景访问任意节点 IP 加 NodePort；集群内组件继续使用 Service DNS。不得为该 Service 设置 `externalTrafficPolicy: Local`。

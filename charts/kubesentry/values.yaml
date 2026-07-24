@@ -1,6 +1,11 @@
 namespace: kubesentry-system
 
 webhook:
+  # Keep legacy replicas when disabled. Enabling HA explicitly deploys two
+  # webhook replicas, which can be selected from the console install flow.
+  highAvailability:
+    enabled: false
+    replicas: 2
   replicas: 2
   image:
     repository: wynnhub/kubesentry-webhook
@@ -15,6 +20,11 @@ webhook:
       memory: 256Mi
 
 operator:
+  # The operator uses leader election; two replicas provide active/standby
+  # failover while only the elected leader reconciles and links to Gateway.
+  highAvailability:
+    enabled: false
+    replicas: 2
   replicas: 1
   image:
     repository: wynnhub/kubesentry-operator

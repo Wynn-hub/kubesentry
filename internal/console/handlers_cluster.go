@@ -48,6 +48,7 @@ type installParams struct {
 	Namespace            string      `json:"namespace"`
 	WebhookImage         imageParams `json:"webhookImage"`
 	OperatorImage        imageParams `json:"operatorImage"`
+	HighAvailability     bool        `json:"highAvailability"`
 	GatewayAddress       string      `json:"gatewayAddress"`
 	GatewayTLSServerName string      `json:"gatewayTlsServerName,omitempty"`
 	GatewayCABundle      string      `json:"gatewayCaBundle,omitempty"`
@@ -111,6 +112,10 @@ func buildInstallCommand(clusterName, token string, p *installParams) string {
 	fmt.Fprintf(&b, "  --set operator.image.repository=%q \\\n", p.OperatorImage.Repository)
 	fmt.Fprintf(&b, "  --set operator.image.tag=%q \\\n", p.OperatorImage.Tag)
 	fmt.Fprintf(&b, "  --set operator.image.pullPolicy=%s \\\n", p.OperatorImage.PullPolicy)
+	if p.HighAvailability {
+		fmt.Fprint(&b, "  --set webhook.highAvailability.enabled=true \\\n")
+		fmt.Fprint(&b, "  --set operator.highAvailability.enabled=true \\\n")
+	}
 	fmt.Fprintf(&b, "  --set gateway.address=%q \\\n", p.GatewayAddress)
 	if p.GatewayTLSServerName != "" {
 		fmt.Fprintf(&b, "  --set gateway.tlsServerName=%q \\\n", p.GatewayTLSServerName)
@@ -154,6 +159,7 @@ type installRecordItem struct {
 	WebhookTag         string    `json:"webhookTag"`
 	OperatorRepository string    `json:"operatorRepository"`
 	OperatorTag        string    `json:"operatorTag"`
+	HighAvailability   bool      `json:"highAvailability"`
 	GatewayAddress     string    `json:"gatewayAddress"`
 	CreatedAt          time.Time `json:"createdAt"`
 }
@@ -368,6 +374,7 @@ func (h *Handlers) recordInstall(ctx context.Context, clusterName string, p *ins
 		OperatorRepository:   p.OperatorImage.Repository,
 		OperatorTag:          p.OperatorImage.Tag,
 		OperatorPullPolicy:   p.OperatorImage.PullPolicy,
+		HighAvailability:     p.HighAvailability,
 		GatewayAddress:       p.GatewayAddress,
 		GatewayTLSServerName: p.GatewayTLSServerName,
 		GatewayCABundle:      p.GatewayCABundle,
@@ -458,6 +465,7 @@ func (h *Handlers) getLatestInstallParams(w http.ResponseWriter, r *http.Request
 		Namespace:            rec.Namespace,
 		WebhookImage:         imageParams{Repository: rec.WebhookRepository, Tag: rec.WebhookTag, PullPolicy: rec.WebhookPullPolicy},
 		OperatorImage:        imageParams{Repository: rec.OperatorRepository, Tag: rec.OperatorTag, PullPolicy: rec.OperatorPullPolicy},
+		HighAvailability:     rec.HighAvailability,
 		GatewayAddress:       rec.GatewayAddress,
 		GatewayTLSServerName: rec.GatewayTLSServerName,
 		GatewayCABundle:      rec.GatewayCABundle,
@@ -491,6 +499,7 @@ func (h *Handlers) listInstallRecords(w http.ResponseWriter, r *http.Request) {
 			WebhookTag:         rec.WebhookTag,
 			OperatorRepository: rec.OperatorRepository,
 			OperatorTag:        rec.OperatorTag,
+			HighAvailability:   rec.HighAvailability,
 			GatewayAddress:     rec.GatewayAddress,
 			CreatedAt:          rec.CreatedAt,
 		})

@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -50,6 +51,9 @@ func TestCreateClusterReturnsCommandAndRegisteringPhase(t *testing.T) {
 	if strings.Contains(created.Command, "gateway.caBundle") {
 		t.Error("command should omit gateway.caBundle when not provided")
 	}
+	if strings.Contains(created.Command, "highAvailability.enabled") {
+		t.Error("default command should not enable high availability")
+	}
 
 	c, err := repos.Clusters.GetByName(context.Background(), "prod-east")
 	if err != nil {
@@ -79,6 +83,35 @@ func TestCreateClusterRecordsInstallHistory(t *testing.T) {
 	}
 	if records[0].Namespace != "kubesentry-system" {
 		t.Errorf("namespace = %q, want kubesentry-system", records[0].Namespace)
+	}
+}
+
+func TestCreateClusterHighAvailabilityAddsReplicaOverridesAndPersistsChoice(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	p := validInstallParams()
+	p["highAvailability"] = true
+	rec, env := doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{
+		"name":          "ha-member",
+		"installParams": p,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	created := mustUnmarshal[createClusterResponse](t, env.Data)
+	for _, want := range []string{
+		"--set webhook.highAvailability.enabled=true",
+		"--set operator.highAvailability.enabled=true",
+	} {
+		if !strings.Contains(created.Command, want) {
+			t.Errorf("command missing %q\ngot: %s", want, created.Command)
+		}
+	}
+	records, err := repos.InstallRecords.List(context.Background())
+	if err != nil {
+		t.Fatalf("list install records: %v", err)
+	}
+	if len(records) != 1 || !records[0].HighAvailability {
+		t.Fatalf("records = %+v, want highAvailability=true", records)
 	}
 }
 
@@ -318,6 +351,7 @@ func TestGetLatestInstallParamsReturnsNewest(t *testing.T) {
 	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "prod-east", "installParams": validInstallParams()})
 	p2 := validInstallParams()
 	p2["namespace"] = "custom-ns"
+	p2["highAvailability"] = true
 	doRequest(t, h, "POST", "/api/v1/clusters/prod-east/reissue-token", map[string]any{"installParams": p2})
 
 	rec, env := doRequest(t, h, "GET", "/api/v1/clusters/prod-east/latest-install-params", nil)
@@ -327,6 +361,9 @@ func TestGetLatestInstallParamsReturnsNewest(t *testing.T) {
 	got := mustUnmarshal[installParams](t, env.Data)
 	if got.Namespace != "custom-ns" {
 		t.Errorf("namespace = %q, want custom-ns (the most recent)", got.Namespace)
+	}
+	if !got.HighAvailability {
+		t.Error("highAvailability = false, want the most recent value true")
 	}
 }
 

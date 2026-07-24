@@ -77,6 +77,13 @@
         <el-table-column :label="$t('cluster.operatorImage')" width="220">
           <template #default="{ row }">{{ row.operatorRepository }}:{{ row.operatorTag }}</template>
         </el-table-column>
+        <el-table-column :label="$t('cluster.highAvailability')" width="130">
+          <template #default="{ row }">
+            <el-tag :type="row.highAvailability ? 'success' : 'info'" effect="plain">
+              {{ row.highAvailability ? $t('common.enabled') : $t('common.disabled') }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column :label="$t('cluster.gatewayAddress')" prop="gatewayAddress" width="160" />
         <el-table-column :label="$t('cluster.createdAt')" prop="createdAt" sortable="custom" :sort-orders="sortOrders" width="155">
           <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>

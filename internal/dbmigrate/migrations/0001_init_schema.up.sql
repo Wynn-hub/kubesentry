@@ -105,6 +105,7 @@ CREATE TABLE cluster_install_records (
     operator_repository      TEXT NOT NULL DEFAULT '',
     operator_tag             TEXT NOT NULL DEFAULT '',
     operator_pull_policy     TEXT NOT NULL DEFAULT '',
+    high_availability        BOOLEAN NOT NULL DEFAULT FALSE,
     gateway_address          TEXT NOT NULL DEFAULT '',
     gateway_tls_server_name  TEXT NOT NULL DEFAULT '',
     gateway_ca_bundle        TEXT NOT NULL DEFAULT '',

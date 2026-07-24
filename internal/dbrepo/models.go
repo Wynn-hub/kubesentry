@@ -104,6 +104,7 @@ type ClusterInstallRecord struct {
 	OperatorRepository   string
 	OperatorTag          string
 	OperatorPullPolicy   string
+	HighAvailability     bool
 	GatewayAddress       string
 	GatewayTLSServerName string
 	GatewayCABundle      string

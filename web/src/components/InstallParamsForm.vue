@@ -12,6 +12,10 @@
       <el-input v-model="modelValue.operatorImage.repository" :placeholder="$t('cluster.repository')" style="width: 45%; margin-right: 8px" />
       <el-input v-model="modelValue.operatorImage.tag" :placeholder="$t('cluster.tag')" style="width: 45%" />
     </el-form-item>
+    <el-form-item :label="$t('cluster.highAvailability')">
+      <el-switch v-model="modelValue.highAvailability" />
+      <span class="ha-hint">{{ $t('cluster.highAvailabilityHint') }}</span>
+    </el-form-item>
     <el-form-item :label="$t('cluster.gatewayAddress')" required>
       <el-input v-model="modelValue.gatewayAddress" placeholder="<节点IP>:30443" />
     </el-form-item>
@@ -33,3 +37,11 @@ import type { InstallParams } from '../api/cluster'
 
 defineProps<{ modelValue: InstallParams }>()
 </script>
+
+<style scoped>
+.ha-hint {
+  margin-left: 10px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+</style>

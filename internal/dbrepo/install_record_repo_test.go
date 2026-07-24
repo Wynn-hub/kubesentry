@@ -17,6 +17,7 @@ func newTestRecord(clusterName string) *dbrepo.ClusterInstallRecord {
 		OperatorRepository:   "wynnhub/kubesentry-operator",
 		OperatorTag:          "latest",
 		OperatorPullPolicy:   "IfNotPresent",
+		HighAvailability:     true,
 		GatewayAddress:       "10.0.0.1:30443",
 		GatewayTLSServerName: "",
 		GatewayCABundle:      "",
@@ -42,6 +43,9 @@ func TestInstallRecordRepoCreateAndList(t *testing.T) {
 	}
 	if len(list) != 1 || list[0].ClusterName != "prod-east" {
 		t.Fatalf("list = %+v, want one record for prod-east", list)
+	}
+	if !list[0].HighAvailability {
+		t.Fatal("highAvailability was not persisted")
 	}
 }
 

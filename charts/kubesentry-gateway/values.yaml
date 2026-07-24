@@ -5,6 +5,11 @@
 namespace: kubesentry-system
 
 gateway:
+  # Set enabled=true to run two active/standby Gateway Pods. The elected
+  # leader is the only Ready Service endpoint; standby takes over on failure.
+  highAvailability:
+    enabled: false
+    replicas: 2
   replicas: 1
   image:
     repository: wynnhub/kubesentry-gateway

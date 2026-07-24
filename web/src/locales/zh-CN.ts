@@ -10,7 +10,7 @@ export default {
   common: {
     create: '新建', edit: '编辑', delete: '删除', save: '保存', cancel: '取消',
     confirm: '确认', search: '搜索', actions: '操作', name: '名称', description: '描述',
-    refresh: '刷新', back: '返回', view: '查看', copy: '复制',
+    refresh: '刷新', back: '返回', view: '查看', copy: '复制', enabled: '已启用', disabled: '未启用',
     deleteConfirm: '确定删除 {name} 吗？',
     conflictRefresh: '数据已变更，请刷新后重试',
     builtinWarning: '这是内置对象，修改后将偏离 Helm 管理，确定继续吗？',
@@ -61,6 +61,7 @@ export default {
     createTitle: '新建集群', createHint: '仅需名称，标签可选',
     stepBasic: '基本信息', stepInstall: '安装参数', next: '下一步', prev: '上一步',
     namespace: '命名空间', webhookImage: 'Webhook 镜像', operatorImage: 'Operator 镜像',
+    highAvailability: '高可用部署', highAvailabilityHint: 'Webhook 和 Operator 均部署为 2 个副本',
     repository: '镜像仓库', tag: 'Tag', gatewayAddress: '中台地址',
     advancedOptions: '高级选项', gatewayTlsServerName: 'TLS Server Name（可选）',
     gatewayCaBundle: 'CA 证书（可选，base64 PEM）',

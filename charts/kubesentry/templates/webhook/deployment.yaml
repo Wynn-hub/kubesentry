@@ -4,7 +4,7 @@ metadata:
   name: kubesentry-webhook
   namespace: {{ .Values.namespace }}
 spec:
-  replicas: {{ .Values.webhook.replicas }}
+  replicas: {{ ternary .Values.webhook.highAvailability.replicas .Values.webhook.replicas .Values.webhook.highAvailability.enabled }}
   selector:
     matchLabels:
       app: kubesentry-webhook

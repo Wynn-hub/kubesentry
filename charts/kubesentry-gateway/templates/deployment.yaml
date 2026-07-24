@@ -5,7 +5,7 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels: { app: kubesentry-gateway }
 spec:
-  replicas: {{ .Values.gateway.replicas }}
+  replicas: {{ ternary .Values.gateway.highAvailability.replicas .Values.gateway.replicas .Values.gateway.highAvailability.enabled }}
   selector:
     matchLabels: { app: kubesentry-gateway }
   template:
