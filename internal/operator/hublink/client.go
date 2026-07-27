@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc"
@@ -20,6 +21,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,19 +58,76 @@ type Config struct {
 	DialOverride func(ctx context.Context) (*grpc.ClientConn, error)
 }
 
-type Link struct{ cfg Config }
+type Link struct {
+	cfg         Config
+	leader      atomic.Bool
+	eventsMu    sync.Mutex
+	events      map[string]*gatewaypb.AdmissionEvent
+	eventsWake  chan struct{}
+	prefix      string
+	configMu    sync.RWMutex
+	eventConfig *gatewaypb.AdmissionEventConfig
+}
 
 func New(cfg Config) *Link {
 	if cfg.HeartbeatEvery == 0 {
 		cfg.HeartbeatEvery = 15 * time.Second
 	}
-	return &Link{cfg: cfg}
+	return &Link{cfg: cfg, events: map[string]*gatewaypb.AdmissionEvent{}, eventsWake: make(chan struct{}, 1)}
 }
 
 // NeedLeaderElection: only the elected operator holds the hub link.
 func (l *Link) NeedLeaderElection() bool { return true }
 
+// IsLeader is the final correctness gate for the local event HTTP endpoint.
+// Service endpoint labels only optimize routing and can be stale during a
+// lease handover; a non-leader must never acknowledge a batch.
+func (l *Link) IsLeader() bool { return l.leader.Load() }
+
+func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*gatewaypb.AdmissionEventBatchAck_Result, bool) {
+	if !l.IsLeader() || batch == nil || len(batch.Events) == 0 {
+		return nil, false
+	}
+	results := make([]*gatewaypb.AdmissionEventBatchAck_Result, 0, len(batch.Events))
+	l.eventsMu.Lock()
+	defer l.eventsMu.Unlock()
+	for _, event := range batch.Events {
+		if event == nil || event.EventId == "" {
+			continue
+		}
+		if l.shouldDiscardAdmissionEvent(event) {
+			results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_DISCARDED, Reason: "storage_policy_no_retain"})
+			continue
+		}
+		if len(l.events) >= 1024 {
+			return results, false
+		}
+		stored := proto.Clone(event).(*gatewaypb.AdmissionEvent)
+		l.configMu.RLock()
+		if l.eventConfig != nil {
+			stored.StoragePolicyVersion = l.eventConfig.Version
+		}
+		l.configMu.RUnlock()
+		if l.prefix != "" {
+			stored.EventId = l.prefix + "-" + event.EventId
+		}
+		l.events[stored.EventId] = stored
+		results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED})
+	}
+	select {
+	case l.eventsWake <- struct{}{}:
+	default:
+	}
+	return results, true
+}
+
 func (l *Link) Start(ctx context.Context) error {
+	l.leader.Store(true)
+	if uid, err := l.clusterUID(ctx); err == nil && len(uid) >= 8 {
+		l.prefix = uid[:8]
+	}
+	_ = l.setEventLeaderLabel(ctx, true)
+	defer func() { l.leader.Store(false); _ = l.setEventLeaderLabel(context.Background(), false) }()
 	backoff := time.Second
 	for {
 		connected, err := l.runOnce(ctx)
@@ -90,6 +149,58 @@ func (l *Link) Start(ctx context.Context) error {
 			backoff = maxBackoff
 		}
 	}
+}
+
+func (l *Link) shouldDiscardAdmissionEvent(event *gatewaypb.AdmissionEvent) bool {
+	l.configMu.RLock()
+	config := l.eventConfig
+	l.configMu.RUnlock()
+	if config == nil {
+		return false
+	}
+	gvr := event.ApiGroup + "/" + event.Resource
+	for _, policy := range config.StoragePolicies {
+		if policy == nil {
+			continue
+		}
+		if matchesAdmissionField(policy.Verdicts, event.Verdict) && matchesAdmissionField(policy.Clusters, l.cfg.ClusterName) && matchesAdmissionField(policy.Gvks, gvr) && matchesAdmissionField(policy.Namespaces, event.Namespace) {
+			return policy.Action == "discard"
+		}
+	}
+	return false
+}
+
+func matchesAdmissionField(values []string, value string) bool {
+	if len(values) == 0 {
+		return true
+	}
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
+}
+
+func (l *Link) setEventLeaderLabel(ctx context.Context, enabled bool) error {
+	podName := os.Getenv("POD_NAME")
+	if podName == "" || l.cfg.Client == nil {
+		return nil
+	}
+	var pod corev1.Pod
+	if err := l.cfg.Client.Get(ctx, types.NamespacedName{Namespace: l.cfg.Namespace, Name: podName}, &pod); err != nil {
+		return err
+	}
+	patch := client.MergeFrom(pod.DeepCopy())
+	if pod.Labels == nil {
+		pod.Labels = map[string]string{}
+	}
+	if enabled {
+		pod.Labels["kubesentry.io/event-leader"] = "true"
+	} else {
+		delete(pod.Labels, "kubesentry.io/event-leader")
+	}
+	return l.cfg.Client.Patch(ctx, &pod, patch)
 }
 
 // runOnce dials, registers, and runs the heartbeat loop until it fails.
@@ -125,6 +236,9 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		defer sendMu.Unlock()
 		return stream.Send(m)
 	}
+	sessionCtx, cancelSession := context.WithCancel(ctx)
+	defer cancelSession()
+	go l.sendAdmissionEvents(sessionCtx, send)
 
 	var appliedMu sync.Mutex
 	lastApplied := ""
@@ -188,8 +302,13 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		switch m := msg.Msg.(type) {
 		case *gatewaypb.HubMessage_Ack:
 			// heartbeat/status-report acknowledged; nothing to do
+		case *gatewaypb.HubMessage_AdmissionEventBatchAck:
+			l.ackAdmissionEvents(m.AdmissionEventBatchAck)
 		case *gatewaypb.HubMessage_DesiredState:
 			ds := m.DesiredState
+			l.configMu.Lock()
+			l.eventConfig = ds.AdmissionEventConfig
+			l.configMu.Unlock()
 			if len(ds.UninstallTasks) > 0 {
 				for _, task := range ds.UninstallTasks {
 					if err := sendUninstallReport(send, task.TaskId, gatewaypb.UninstallTaskReport_RECEIVED, ""); err != nil {
@@ -236,6 +355,43 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 
 func sendUninstallReport(send func(*gatewaypb.MemberMessage) error, taskID int64, state gatewaypb.UninstallTaskReport_State, detail string) error {
 	return send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_UninstallTaskReport{UninstallTaskReport: &gatewaypb.UninstallTaskReport{TaskId: taskID, State: state, Error: detail}}})
+}
+
+func (l *Link) sendAdmissionEvents(ctx context.Context, send func(*gatewaypb.MemberMessage) error) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for {
+		l.eventsMu.Lock()
+		events := make([]*gatewaypb.AdmissionEvent, 0, len(l.events))
+		for _, event := range l.events {
+			events = append(events, event)
+		}
+		l.eventsMu.Unlock()
+		if len(events) > 0 {
+			if err := send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_AdmissionEventBatch{AdmissionEventBatch: &gatewaypb.AdmissionEventBatch{Events: events}}}); err != nil {
+				return
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-l.eventsWake:
+		case <-ticker.C:
+		}
+	}
+}
+
+func (l *Link) ackAdmissionEvents(ack *gatewaypb.AdmissionEventBatchAck) {
+	if ack == nil {
+		return
+	}
+	l.eventsMu.Lock()
+	defer l.eventsMu.Unlock()
+	for _, result := range ack.Results {
+		if result != nil && result.Status != gatewaypb.AdmissionEventBatchAck_Result_STATUS_UNSPECIFIED {
+			delete(l.events, result.EventId)
+		}
+	}
 }
 
 func (l *Link) dial(ctx context.Context) (*grpc.ClientConn, error) {

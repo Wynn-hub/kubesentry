@@ -115,6 +115,61 @@ CREATE TABLE cluster_install_records (
 );
 CREATE INDEX cluster_install_records_cluster_name_idx ON cluster_install_records (cluster_name);
 
+CREATE TABLE admission_event_settings (
+    id                     BIGINT PRIMARY KEY,
+    default_retention_days INT NOT NULL CHECK (default_retention_days BETWEEN 1 AND 365),
+    storage_policy_version BIGINT NOT NULL DEFAULT 1,
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO admission_event_settings (id, default_retention_days, storage_policy_version)
+VALUES (1, 14, 1);
+
+CREATE TABLE admission_storage_policies (
+    id             BIGINT PRIMARY KEY,
+    priority       INT NOT NULL,
+    verdicts       TEXT[] NOT NULL DEFAULT '{}',
+    clusters       TEXT[] NOT NULL DEFAULT '{}',
+    gvks           TEXT[] NOT NULL DEFAULT '{}',
+    namespaces     TEXT[] NOT NULL DEFAULT '{}',
+    action         TEXT NOT NULL CHECK (action IN ('retain', 'discard')),
+    retention_days INT CHECK (retention_days BETWEEN 1 AND 365),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at     TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX admission_storage_policies_priority_key ON admission_storage_policies (priority) WHERE deleted_at IS NULL;
+
+CREATE TABLE admission_events (
+    id                     BIGINT PRIMARY KEY,
+    event_id               TEXT NOT NULL,
+    request_uid            TEXT NOT NULL DEFAULT '',
+    cluster_id             BIGINT NOT NULL REFERENCES clusters (id),
+    cluster_name           TEXT NOT NULL,
+    occurred_at            TIMESTAMPTZ NOT NULL,
+    verdict                TEXT NOT NULL CHECK (verdict IN ('audit', 'deny')),
+    api_group              TEXT NOT NULL DEFAULT '',
+    api_version            TEXT NOT NULL DEFAULT '',
+    resource               TEXT NOT NULL DEFAULT '',
+    operation              TEXT NOT NULL DEFAULT '',
+    namespace              TEXT NOT NULL DEFAULT '',
+    resource_name          TEXT NOT NULL DEFAULT '',
+    username               TEXT NOT NULL DEFAULT '',
+    user_groups            TEXT[] NOT NULL DEFAULT '{}',
+    policy_names           TEXT[] NOT NULL DEFAULT '{}',
+    policy_group_names     TEXT[] NOT NULL DEFAULT '{}',
+    violations             JSONB NOT NULL DEFAULT '[]',
+    metadata_snapshot      JSONB NOT NULL DEFAULT '{}',
+    spec_snapshot          JSONB NOT NULL DEFAULT '{}',
+    storage_policy_version TEXT NOT NULL DEFAULT '',
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at             TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX admission_events_event_id_key ON admission_events (event_id);
+CREATE INDEX admission_events_created_at_idx ON admission_events (created_at);
+CREATE INDEX admission_events_cluster_occurred_at_idx ON admission_events (cluster_id, occurred_at DESC);
+
 -- Seed data below: 37 built-in policies, the "default" PolicyGroup and
 -- PolicyDistribution that reference them, their initial v1 PolicyVersion
 -- snapshots, and the permanent system-namespace exception. All builtin rows

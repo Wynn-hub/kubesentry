@@ -68,3 +68,7 @@ gateway:
   tlsServerName: ""            # override when address is an IP/NodePort; defaults to cert DNS
   clusterName: ""              # Cluster CR name registered on the gateway
   registrationToken: ""        # one-time token shown at cluster registration
+
+admissionEvents:
+  enabled: true
+  servicePort: 8082

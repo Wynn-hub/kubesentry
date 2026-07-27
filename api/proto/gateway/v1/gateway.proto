@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package kubesentry.gateway.v1;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/Wynn-hub/kubesentry/internal/gatewaypb";
 
 // Hub is the control-plane service member clusters dial into.
@@ -43,6 +45,7 @@ message MemberMessage {
     StatusReport status_report = 2;
     Envelope envelope = 3; // reply path for Dispatch's request/reply correlation
     UninstallTaskReport uninstall_task_report = 4;
+    AdmissionEventBatch admission_event_batch = 5;
   }
 }
 
@@ -63,6 +66,7 @@ message HubMessage {
     Ack ack = 1;
     DesiredState desired_state = 2;
     Envelope envelope = 3; // carries Dispatch traffic over the existing Sync stream
+    AdmissionEventBatchAck admission_event_batch_ack = 4;
   }
 }
 
@@ -74,6 +78,63 @@ message DesiredState {
   repeated ManagedObject objects = 2;
   string trace_id = 3; // spec D18 correlation id; set only on a NotifyChange-triggered push, empty on ticker resync
   repeated UninstallTask uninstall_tasks = 4;
+  AdmissionEventConfig admission_event_config = 5;
+}
+
+message AdmissionEventConfig {
+  string version = 1;
+  int32 default_retention_days = 2;
+  repeated AdmissionStoragePolicy storage_policies = 3;
+}
+
+message AdmissionStoragePolicy {
+  int32 priority = 1;
+  repeated string verdicts = 2;
+  repeated string clusters = 3;
+  repeated string gvks = 4;
+  repeated string namespaces = 5;
+  string action = 6;
+  int32 retention_days = 7;
+}
+
+message AdmissionEvent {
+  string event_id = 1;
+  string cluster_uid = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+  string verdict = 4;
+  string api_group = 5;
+  string api_version = 6;
+  string resource = 7;
+  string operation = 8;
+  string namespace = 9;
+  string resource_name = 10;
+  string username = 11;
+  repeated string user_groups = 12;
+  repeated string policy_names = 13;
+  repeated string policy_group_names = 14;
+  repeated string violations = 15;
+  bytes metadata_snapshot = 16;
+  bytes spec_snapshot = 17;
+  string storage_policy_version = 18;
+  string request_uid = 19;
+}
+
+message AdmissionEventBatch {
+  repeated AdmissionEvent events = 1;
+}
+
+message AdmissionEventBatchAck {
+  message Result {
+    string event_id = 1;
+    enum Status {
+      STATUS_UNSPECIFIED = 0;
+      ACCEPTED = 1;
+      DISCARDED = 2;
+    }
+    Status status = 2;
+    string reason = 3;
+  }
+  repeated Result results = 1;
 }
 
 // UninstallTask is a durable, target-cluster-only command. The gateway keeps

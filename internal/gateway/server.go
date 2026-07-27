@@ -46,6 +46,7 @@ type Repos struct {
 	Groups         *dbrepo.GroupRepo
 	Distributions  *dbrepo.DistributionRepo
 	Exceptions     *dbrepo.ExceptionRepo
+	Admission      *dbrepo.AdmissionRepo
 	InstallRecords *dbrepo.InstallRecordRepo
 	UninstallTasks *dbrepo.UninstallTaskRepo
 }
@@ -268,7 +269,7 @@ func (s *Server) renderFor(ctx context.Context, cluster string) (RenderResult, e
 	}
 	res := RenderWithExceptions(toV1alpha1Cluster(cl), toV1alpha1Dists(dists), toV1alpha1Groups(groups), toV1alpha1Policies(policies), toV1alpha1Exceptions(exceptions))
 	if s.repos.UninstallTasks == nil || cl.ID == 0 {
-		return res, nil
+		return s.withAdmissionEventConfig(ctx, res)
 	}
 	tasks, err := s.repos.UninstallTasks.ListActiveByClusterID(ctx, cl.ID)
 	if err != nil {
@@ -276,6 +277,31 @@ func (s *Server) renderFor(ctx context.Context, cluster string) (RenderResult, e
 	}
 	res.UninstallTasks = ToProtoUninstallTasks(tasks)
 	res.Hash = hashWithUninstallTasks(res.Hash, res.UninstallTasks)
+	return s.withAdmissionEventConfig(ctx, res)
+}
+
+func (s *Server) withAdmissionEventConfig(ctx context.Context, res RenderResult) (RenderResult, error) {
+	if s.repos.Admission == nil {
+		return res, nil
+	}
+	settings, err := s.repos.Admission.GetSettings(ctx)
+	if err != nil {
+		return RenderResult{}, err
+	}
+	policies, err := s.repos.Admission.ListPolicies(ctx)
+	if err != nil {
+		return RenderResult{}, err
+	}
+	config := &gatewaypb.AdmissionEventConfig{Version: fmt.Sprint(settings.StoragePolicyVersion), DefaultRetentionDays: int32(settings.DefaultRetentionDays)}
+	for _, p := range policies {
+		retention := int32(0)
+		if p.RetentionDays != nil {
+			retention = int32(*p.RetentionDays)
+		}
+		config.StoragePolicies = append(config.StoragePolicies, &gatewaypb.AdmissionStoragePolicy{Priority: int32(p.Priority), Verdicts: p.Verdicts, Clusters: p.Clusters, Gvks: p.GVKs, Namespaces: p.Namespaces, Action: p.Action, RetentionDays: retention})
+	}
+	res.AdmissionEventConfig = config
+	res.Hash = hashWithAdmissionEventConfig(res.Hash, config)
 	return res, nil
 }
 
@@ -324,7 +350,7 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 					sendTraceID = traceID
 				}
 				if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_DesiredState{
-					DesiredState: &gatewaypb.DesiredState{VersionHash: res.Hash, Objects: ToProto(res.Objects), TraceId: sendTraceID, UninstallTasks: res.UninstallTasks},
+					DesiredState: &gatewaypb.DesiredState{VersionHash: res.Hash, Objects: ToProto(res.Objects), TraceId: sendTraceID, UninstallTasks: res.UninstallTasks, AdmissionEventConfig: res.AdmissionEventConfig},
 				}}); err != nil {
 					return // stream already broken; recv loop will wind down too
 				}
@@ -394,6 +420,15 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 			sess.deliverReply(m.Envelope)
 		case *gatewaypb.MemberMessage_UninstallTaskReport:
 			s.handleUninstallTaskReport(stream.Context(), cluster, m.UninstallTaskReport)
+		case *gatewaypb.MemberMessage_AdmissionEventBatch:
+			ack, err := s.handleAdmissionEventBatch(stream.Context(), cluster, m.AdmissionEventBatch)
+			if err != nil {
+				return status.Errorf(codes.Internal, "store admission events: %v", err)
+			}
+			if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_AdmissionEventBatchAck{AdmissionEventBatchAck: ack}}); err != nil {
+				return err
+			}
+			continue
 		}
 		if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Ack{Ack: &gatewaypb.Ack{}}}); err != nil {
 			return err

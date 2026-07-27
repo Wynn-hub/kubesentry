@@ -66,6 +66,7 @@ func dbRepos(t *testing.T) gateway.Repos {
 		InstallRecords: dbrepo.NewInstallRecordRepo(db),
 		Distributions:  dbrepo.NewDistributionRepo(db),
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
+		Admission:      dbrepo.NewAdmissionRepo(db),
 	}
 }
 

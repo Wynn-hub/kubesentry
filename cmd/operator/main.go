@@ -108,6 +108,12 @@ func runOperator() {
 			slog.Error("add gateway link", "error", err)
 			os.Exit(1)
 		}
+		if token := os.Getenv("ADMISSION_EVENT_TOKEN"); token != "" {
+			if err := mgr.Add(&operator.AdmissionEventServer{Address: envOrDefault("ADMISSION_EVENT_ADDR", ":8082"), Token: token, Sink: link}); err != nil {
+				slog.Error("add admission event server", "error", err)
+				os.Exit(1)
+			}
+		}
 		slog.Info("gateway link enabled", "gateway", gatewayAddr)
 	}
 

@@ -6,6 +6,7 @@ package dbrepo
 import (
 	"time"
 
+	"github.com/lib/pq"
 	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
@@ -127,3 +128,55 @@ type UninstallTask struct {
 }
 
 func (UninstallTask) TableName() string { return "kubesentry.cluster_uninstall_tasks" }
+
+// AdmissionEventSettings is the single global retention configuration. Its
+// version changes atomically with every policy mutation so member clusters can
+// report which configuration they used for a local decision.
+type AdmissionEventSettings struct {
+	ID                   int64 `gorm:"primaryKey;autoIncrement:false"`
+	DefaultRetentionDays int
+	StoragePolicyVersion int64
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
+func (AdmissionEventSettings) TableName() string { return "kubesentry.admission_event_settings" }
+
+type AdmissionStoragePolicy struct {
+	dbmodel.Base
+	Priority      int
+	Verdicts      pq.StringArray `gorm:"type:text[]"`
+	Clusters      pq.StringArray `gorm:"type:text[]"`
+	GVKs          pq.StringArray `gorm:"column:gvks;type:text[]"`
+	Namespaces    pq.StringArray `gorm:"type:text[]"`
+	Action        string
+	RetentionDays *int
+}
+
+func (AdmissionStoragePolicy) TableName() string { return "kubesentry.admission_storage_policies" }
+
+type AdmissionEvent struct {
+	dbmodel.Base
+	EventID              string `gorm:"uniqueIndex"`
+	RequestUID           string
+	ClusterID            int64
+	ClusterName          string
+	OccurredAt           time.Time
+	Verdict              string
+	APIGroup             string
+	APIVersion           string
+	Resource             string
+	Operation            string
+	Namespace            string
+	ResourceName         string
+	Username             string
+	UserGroups           pq.StringArray `gorm:"type:text[]"`
+	PolicyNames          pq.StringArray `gorm:"type:text[]"`
+	PolicyGroupNames     pq.StringArray `gorm:"type:text[]"`
+	Violations           datatypes.JSON `gorm:"type:jsonb"`
+	MetadataSnapshot     datatypes.JSON `gorm:"type:jsonb"`
+	SpecSnapshot         datatypes.JSON `gorm:"type:jsonb"`
+	StoragePolicyVersion string
+}
+
+func (AdmissionEvent) TableName() string { return "kubesentry.admission_events" }

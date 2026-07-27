@@ -65,6 +65,7 @@ func main() {
 		InstallRecords: dbrepo.NewInstallRecordRepo(db),
 		Distributions:  dbrepo.NewDistributionRepo(db),
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
+		Admission:      dbrepo.NewAdmissionRepo(db),
 	}
 
 	// console-api's k8s footprint is intentionally minimal: only a discovery

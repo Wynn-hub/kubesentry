@@ -62,12 +62,12 @@
           {{ $t('nav.exceptions') }}
         </el-menu-item>
         <div class="nav-group-title">{{ $t('nav.groupObservability') }}</div>
-        <el-menu-item index="/events" class="nav-soon">
+        <el-menu-item index="/events">
           <svg aria-hidden="true" class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4 17l4-8 4 5 3-3 5 6" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M3 21h18" stroke-linecap="round" />
           </svg>
-          {{ $t('nav.events') }}<span class="soon-badge">{{ $t('nav.soon') }}</span>
+          {{ $t('nav.events') }}
         </el-menu-item>
         <el-menu-item index="/audit" class="nav-soon">
           <svg aria-hidden="true" class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

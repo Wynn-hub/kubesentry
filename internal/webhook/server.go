@@ -9,6 +9,7 @@ type ServerConfig struct {
 	Addr     string
 	CertFile string
 	KeyFile  string
+	Reporter AdmissionEventReporter
 }
 
 // Server is an HTTPS server serving the webhook endpoints.
@@ -27,7 +28,9 @@ func NewServer(store PolicyStore, exceptions ExceptionStore, nsLister NamespaceL
 	mux := http.NewServeMux()
 	s := &Server{Handler: mux, config: cfg}
 
-	mux.Handle("/validate", NewHandlerWithExceptions(store, exceptions, nsLister))
+	handler := NewHandlerWithExceptions(store, exceptions, nsLister)
+	handler.SetAdmissionEventReporter(cfg.Reporter)
+	mux.Handle("/validate", handler)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})

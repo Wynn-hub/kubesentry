@@ -32,6 +32,22 @@ spec:
               value: {{ required "gateway.clusterName is required" .Values.gateway.clusterName | quote }}
             - name: OPERATOR_VERSION
               value: {{ .Chart.AppVersion | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if .Values.admissionEvents.enabled }}
+            - name: ADMISSION_EVENT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kubesentry-admission-events
+                  key: token
+            {{- end }}
+          ports:
+            {{- if .Values.admissionEvents.enabled }}
+            - name: admission-events
+              containerPort: {{ .Values.admissionEvents.servicePort }}
+            {{- end }}
           resources:
             {{- toYaml .Values.operator.resources | nindent 12 }}
           volumeMounts:

@@ -23,7 +23,7 @@ const router = createRouter({
         { path: 'clusters', name: 'clusters', component: () => import('../views/ClusterListView.vue') },
         { path: 'clusters/:name', name: 'cluster-detail', component: () => import('../views/ClusterDetailView.vue'), meta: { backFallback: { name: 'clusters' } } },
         { path: 'tenants', name: 'tenants', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'tenants', backFallback: { name: 'overview' } } },
-        { path: 'events', name: 'events', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'events', backFallback: { name: 'overview' } } },
+        { path: 'events', name: 'events', component: () => import('../views/AdmissionEventListView.vue') },
         { path: 'audit', name: 'audit', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'audit', backFallback: { name: 'overview' } } },
         { path: 'alerts', name: 'alerts', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'alerts', backFallback: { name: 'overview' } } },
       ],

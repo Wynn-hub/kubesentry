@@ -63,6 +63,7 @@ func main() {
 		Exceptions:     dbrepo.NewExceptionRepo(db),
 		Distributions:  dbrepo.NewDistributionRepo(db),
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
+		Admission:      dbrepo.NewAdmissionRepo(db),
 	}
 
 	tracker := gateway.NewHeartbeatTracker()
@@ -122,6 +123,11 @@ func main() {
 				go func() {
 					if err := flusher.Start(leaderCtx); err != nil {
 						slog.Error("status flusher error", "error", err)
+					}
+				}()
+				go func() {
+					if err := gateway.NewAdmissionCleaner(repos.Admission, 24*time.Hour).Start(leaderCtx); err != nil {
+						slog.Error("admission event cleanup error", "error", err)
 					}
 				}()
 

@@ -29,11 +29,12 @@ type ManagedObject struct {
 
 // RenderResult is a self-contained snapshot for one cluster.
 type RenderResult struct {
-	Hash           string            // sha256 over the sorted object list; never empty
-	Objects        []ManagedObject   // policies first, then groups, each name-sorted
-	Matched        []string          // distributions targeting the cluster (sorted)
-	Errors         map[string]string // distribution name -> render failure
-	UninstallTasks []*gatewaypb.UninstallTask
+	Hash                 string            // sha256 over the sorted object list; never empty
+	Objects              []ManagedObject   // policies first, then groups, each name-sorted
+	Matched              []string          // distributions targeting the cluster (sorted)
+	Errors               map[string]string // distribution name -> render failure
+	UninstallTasks       []*gatewaypb.UninstallTask
+	AdmissionEventConfig *gatewaypb.AdmissionEventConfig
 }
 
 func hashWithUninstallTasks(base string, tasks []*gatewaypb.UninstallTask) string {
@@ -45,6 +46,15 @@ func hashWithUninstallTasks(base string, tasks []*gatewaypb.UninstallTask) strin
 		parts = append(parts, fmt.Sprintf("%d:%d", task.TaskId, task.Attempt))
 	}
 	h := sha256.Sum256([]byte(strings.Join(parts, ",")))
+	return hex.EncodeToString(h[:])
+}
+
+func hashWithAdmissionEventConfig(base string, config *gatewaypb.AdmissionEventConfig) string {
+	if config == nil {
+		return base
+	}
+	raw, _ := json.Marshal(config)
+	h := sha256.Sum256(append([]byte(base+","), raw...))
 	return hex.EncodeToString(h[:])
 }
 

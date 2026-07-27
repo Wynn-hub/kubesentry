@@ -1,0 +1,30 @@
+{{- if .Values.admissionEvents.enabled }}
+{{- $existing := lookup "v1" "Secret" .Values.namespace "kubesentry-admission-events" }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubesentry-admission-events
+  namespace: {{ .Values.namespace }}
+type: Opaque
+{{- if $existing }}
+data:
+  token: {{ index $existing.data "token" | quote }}
+{{- else }}
+stringData:
+  token: {{ randAlphaNum 40 | quote }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubesentry-operator-events
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: kubesentry-operator
+    kubesentry.io/event-leader: "true"
+  ports:
+    - name: http
+      port: {{ .Values.admissionEvents.servicePort }}
+      targetPort: admission-events
+{{- end }}

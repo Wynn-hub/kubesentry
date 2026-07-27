@@ -126,11 +126,15 @@ func main() {
 	namespaceCache.SetReady()
 	slog.Info("namespace cache ready")
 
-	srv := webhook.NewServer(policyCache, exceptionCache, namespaceCache, webhook.ServerConfig{
+	serverConfig := webhook.ServerConfig{
 		Addr:     envOrDefault("ADDR", ":8443"),
 		CertFile: "/tls/tls.crt",
 		KeyFile:  "/tls/tls.key",
-	})
+	}
+	if endpoint, token := os.Getenv("ADMISSION_EVENT_ENDPOINT"), os.Getenv("ADMISSION_EVENT_TOKEN"); endpoint != "" && token != "" {
+		serverConfig.Reporter = webhook.NewHTTPAdmissionEventReporter(endpoint, token)
+	}
+	srv := webhook.NewServer(policyCache, exceptionCache, namespaceCache, serverConfig)
 	slog.Info("starting webhook server", "addr", ":8443")
 	if err := srv.ListenAndServeTLS(); err != nil {
 		slog.Error("server error", "error", err)

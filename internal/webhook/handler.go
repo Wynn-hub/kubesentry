@@ -63,6 +63,7 @@ type Handler struct {
 	store      PolicyStore
 	exceptions ExceptionStore
 	nsLister   NamespaceLister
+	reporter   AdmissionEventReporter
 }
 
 func NewHandler(store PolicyStore) *Handler {
@@ -77,6 +78,10 @@ func NewHandlerWithExceptions(store PolicyStore, exceptions ExceptionStore, nsLi
 		nsLister = noNamespaceLister{}
 	}
 	return &Handler{store: store, exceptions: exceptions, nsLister: nsLister}
+}
+
+func (h *Handler) SetAdmissionEventReporter(reporter AdmissionEventReporter) {
+	h.reporter = reporter
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -162,6 +167,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := h.evaluate(r.Context(), req, resolved)
+	if h.reporter != nil {
+		h.reporter.Report(req, resp)
+	}
 	review.Response = resp
 	review.Request = nil
 

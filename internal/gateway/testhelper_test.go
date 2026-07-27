@@ -30,6 +30,7 @@ func newTestRepos(t *testing.T) Repos {
 		Groups:         dbrepo.NewGroupRepo(db),
 		Distributions:  dbrepo.NewDistributionRepo(db),
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
+		Admission:      dbrepo.NewAdmissionRepo(db),
 	}
 }
 

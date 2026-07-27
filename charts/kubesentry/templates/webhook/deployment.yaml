@@ -18,6 +18,16 @@ spec:
         - name: webhook
           image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
+          {{- if .Values.admissionEvents.enabled }}
+          env:
+            - name: ADMISSION_EVENT_ENDPOINT
+              value: {{ printf "http://kubesentry-operator-events.%s.svc:%v/internal/v1/admission-events" .Values.namespace .Values.admissionEvents.servicePort | quote }}
+            - name: ADMISSION_EVENT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kubesentry-admission-events
+                  key: token
+          {{- end }}
           ports:
             - containerPort: 8443
           volumeMounts:
