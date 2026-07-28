@@ -128,6 +128,10 @@ CREATE TABLE admission_event_settings (
 INSERT INTO admission_event_settings (id, default_retention_days, storage_policy_version)
 VALUES (1, 14, 1);
 
+-- Storage rules carry conditions only: matching any rule stores the event, an
+-- empty rule set stores everything, and the retention period is the single
+-- global admission_event_settings.default_retention_days. priority therefore no
+-- longer affects the decision and only gives the console a stable row order.
 CREATE TABLE admission_storage_policies (
     id             BIGINT PRIMARY KEY,
     priority       INT NOT NULL,
@@ -136,8 +140,6 @@ CREATE TABLE admission_storage_policies (
     clusters       TEXT[] NOT NULL DEFAULT '{}',
     gvks           TEXT[] NOT NULL DEFAULT '{}',
     namespaces     TEXT[] NOT NULL DEFAULT '{}',
-    action         TEXT NOT NULL CHECK (action IN ('retain', 'discard')),
-    retention_days INT CHECK (retention_days BETWEEN 1 AND 365),
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at     TIMESTAMPTZ

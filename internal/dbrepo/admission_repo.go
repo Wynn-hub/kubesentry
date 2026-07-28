@@ -207,8 +207,9 @@ func (r *AdmissionRepo) DeleteExpired(ctx context.Context, before time.Time) (in
 }
 
 // Cleanup applies the currently active configuration to historical events.
-// Retention is intentionally not persisted per row: shortening a policy or
-// changing it to discard therefore affects existing data on the next run.
+// Retention is intentionally not persisted per row: shortening the global
+// retention period, or narrowing the rule set so an event no longer matches any
+// rule, therefore affects existing data on the next run.
 func (r *AdmissionRepo) Cleanup(ctx context.Context, now time.Time) (int64, error) {
 	settings, err := r.GetSettings(ctx)
 	if err != nil {
@@ -224,17 +225,11 @@ func (r *AdmissionRepo) Cleanup(ctx context.Context, now time.Time) (int64, erro
 	}
 	ids := make([]int64, 0)
 	for _, event := range events {
-		days := settings.DefaultRetentionDays
-		if policy := MatchAdmissionStoragePolicy(policies, event); policy != nil {
-			if policy.Action == AdmissionStorageActionDiscard {
-				ids = append(ids, event.ID)
-				continue
-			}
-			if policy.RetentionDays != nil {
-				days = *policy.RetentionDays
-			}
+		if !ShouldStoreAdmissionEvent(policies, event) {
+			ids = append(ids, event.ID)
+			continue
 		}
-		if !event.CreatedAt.Add(time.Duration(days) * 24 * time.Hour).After(now) {
+		if !event.CreatedAt.Add(time.Duration(settings.DefaultRetentionDays) * 24 * time.Hour).After(now) {
 			ids = append(ids, event.ID)
 		}
 	}

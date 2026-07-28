@@ -60,11 +60,20 @@ func (s *Server) handleAdmissionEventBatch(ctx context.Context, clusterName stri
 			UserGroups: pq.StringArray(in.UserGroups), PolicyNames: pq.StringArray(in.PolicyNames), PolicyGroupNames: pq.StringArray(in.PolicyGroupNames),
 			Violations: datatypes.JSON(violations), MetadataSnapshot: datatypes.JSON(in.MetadataSnapshot), SpecSnapshot: datatypes.JSON(in.SpecSnapshot), StoragePolicyVersion: in.StoragePolicyVersion,
 		}
-		if p := dbrepo.MatchAdmissionStoragePolicy(policies, event); p != nil && p.Action == dbrepo.AdmissionStorageActionDiscard {
-			ack.Results = append(ack.Results, discardedAdmissionEvent(in, "storage_policy_no_retain"))
+		if !dbrepo.ShouldStoreAdmissionEvent(policies, event) {
+			// Storage rules are an allow-list: matching any rule stores the
+			// event, matching none does not. An empty rule set stores all.
+			ack.Results = append(ack.Results, discardedAdmissionEvent(in, "storage_policy_no_match"))
 			continue
 		}
-		_ = settings // default retention is consumed by the cleanup worker, not persisted per event.
+		// A backlogged member can replay events older than the retention window
+		// (e.g. after a multi-day outage). Writing them just to have the cleanup
+		// worker delete them on its next pass makes the ingest counters disagree
+		// with what is actually retained, so drop them up front.
+		if !occurred.Add(time.Duration(settings.DefaultRetentionDays) * 24 * time.Hour).After(time.Now().UTC()) {
+			ack.Results = append(ack.Results, discardedAdmissionEvent(in, "retention_already_elapsed"))
+			continue
+		}
 		accepted = append(accepted, event)
 		ack.Results = append(ack.Results, acceptedAdmissionEvent(in))
 	}

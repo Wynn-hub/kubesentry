@@ -13,12 +13,14 @@ func newAdmissionEventLink(config *gatewaypb.AdmissionEventConfig) *Link {
 	return link
 }
 
+// Storage rules are an allow-list: an exclude rule stores everything outside its
+// conditions, so the event its conditions describe is the one dropped locally.
 func TestSubmitAdmissionEventsUsesNormalizedGVRAndWholeRuleExclusion(t *testing.T) {
 	link := newAdmissionEventLink(&gatewaypb.AdmissionEventConfig{StoragePolicies: []*gatewaypb.AdmissionStoragePolicy{
-		{MatchMode: "exclude", Namespaces: []string{"kube-system"}, Gvks: []string{"pods"}, Action: "discard"},
+		{MatchMode: "exclude", Namespaces: []string{"kube-system"}, Gvks: []string{"pods"}},
 	}})
 	batch := &gatewaypb.AdmissionEventBatch{Events: []*gatewaypb.AdmissionEvent{
-		{EventId: "excluded-condition", ApiGroup: "", Resource: "pods", Namespace: "kube-system"},
+		{EventId: "inside-excluded-condition", ApiGroup: "", Resource: "pods", Namespace: "kube-system"},
 		{EventId: "outside-condition", ApiGroup: "", Resource: "pods", Namespace: "payments"},
 	}}
 
@@ -26,14 +28,41 @@ func TestSubmitAdmissionEventsUsesNormalizedGVRAndWholeRuleExclusion(t *testing.
 	if !ok || len(results) != 2 {
 		t.Fatalf("submit = (%#v, %v), want two results", results, ok)
 	}
-	if results[0].Status != gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED {
-		t.Fatalf("excluded complete condition status = %s, want ACCEPTED", results[0].Status)
+	if results[0].Status != gatewaypb.AdmissionEventBatchAck_Result_DISCARDED {
+		t.Fatalf("event inside the excluded condition status = %s, want DISCARDED", results[0].Status)
 	}
-	if results[1].Status != gatewaypb.AdmissionEventBatchAck_Result_DISCARDED {
-		t.Fatalf("outside condition status = %s, want DISCARDED", results[1].Status)
+	if results[1].Status != gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED {
+		t.Fatalf("event outside the condition status = %s, want ACCEPTED", results[1].Status)
 	}
 	if len(link.events) != 1 {
 		t.Fatalf("queued events = %d, want 1", len(link.events))
+	}
+}
+
+// An include rule for one namespace/resource pair must drop everything else,
+// which is the "only store default/deployments" case.
+func TestSubmitAdmissionEventsIncludeRuleDropsNonMatchingEvents(t *testing.T) {
+	link := newAdmissionEventLink(&gatewaypb.AdmissionEventConfig{StoragePolicies: []*gatewaypb.AdmissionStoragePolicy{
+		{MatchMode: "include", Namespaces: []string{"default"}, Gvks: []string{"apps/deployments"}},
+	}})
+	results, ok := link.SubmitAdmissionEvents(&gatewaypb.AdmissionEventBatch{Events: []*gatewaypb.AdmissionEvent{
+		{EventId: "wanted", ApiGroup: "apps", Resource: "deployments", Namespace: "default"},
+		{EventId: "other-namespace", ApiGroup: "apps", Resource: "deployments", Namespace: "test-builtin-rules"},
+		{EventId: "other-resource", ApiGroup: "", Resource: "pods", Namespace: "test-builtin-rules"},
+	}})
+	if !ok || len(results) != 3 {
+		t.Fatalf("submit = (%#v, %v), want three results", results, ok)
+	}
+	if results[0].Status != gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED {
+		t.Errorf("wanted event status = %s, want ACCEPTED", results[0].Status)
+	}
+	for _, i := range []int{1, 2} {
+		if results[i].Status != gatewaypb.AdmissionEventBatchAck_Result_DISCARDED {
+			t.Errorf("result[%d] status = %s, want DISCARDED", i, results[i].Status)
+		}
+	}
+	if len(link.events) != 1 {
+		t.Fatalf("queued events = %d, want only the matching one", len(link.events))
 	}
 }
 

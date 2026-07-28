@@ -145,16 +145,17 @@ type AdmissionEventSettings struct {
 
 func (AdmissionEventSettings) TableName() string { return "kubesentry.admission_event_settings" }
 
+// AdmissionStoragePolicy is a conditions-only storage rule: matching any rule
+// stores the event, an empty rule set stores everything, and retention comes
+// from the global AdmissionEventSettings. Priority only fixes the display order.
 type AdmissionStoragePolicy struct {
 	dbmodel.Base
-	Priority      int
-	MatchMode     string
-	Verdicts      pq.StringArray `gorm:"type:text[]"`
-	Clusters      pq.StringArray `gorm:"type:text[]"`
-	GVKs          pq.StringArray `gorm:"column:gvks;type:text[]"`
-	Namespaces    pq.StringArray `gorm:"type:text[]"`
-	Action        string
-	RetentionDays *int
+	Priority   int
+	MatchMode  string
+	Verdicts   pq.StringArray `gorm:"type:text[]"`
+	Clusters   pq.StringArray `gorm:"type:text[]"`
+	GVKs       pq.StringArray `gorm:"column:gvks;type:text[]"`
+	Namespaces pq.StringArray `gorm:"type:text[]"`
 }
 
 func (AdmissionStoragePolicy) TableName() string { return "kubesentry.admission_storage_policies" }

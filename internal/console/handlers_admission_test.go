@@ -34,13 +34,11 @@ func TestAdmissionEventSettingsRoundTrip(t *testing.T) {
 		"maxRetryAttempts":     5,
 		"queueCapacity":        2048,
 		"storagePolicies": []map[string]any{{
-			"matchMode":     "exclude",
-			"verdicts":      []string{"deny"},
-			"clusters":      []string{},
-			"namespaces":    []string{"kube-system"},
-			"gvks":          []string{"pods", "apps/deployments"},
-			"action":        "retain",
-			"retentionDays": 30,
+			"matchMode":  "exclude",
+			"verdicts":   []string{"deny"},
+			"clusters":   []string{},
+			"namespaces": []string{"kube-system"},
+			"gvks":       []string{"pods", "apps/deployments"},
 		}},
 	}
 	rec, env := doRequest(t, server, "PUT", "/api/v1/admission-event-settings", body)
@@ -67,8 +65,8 @@ func TestAdmissionEventSettingsRejectInvalidMatchModeAndGVR(t *testing.T) {
 		name string
 		rule map[string]any
 	}{
-		{name: "match mode", rule: map[string]any{"matchMode": "not-in", "action": "discard"}},
-		{name: "versioned GVR", rule: map[string]any{"matchMode": "include", "gvks": []string{"apps/v1/deployments"}, "action": "discard"}},
+		{name: "match mode", rule: map[string]any{"matchMode": "not-in"}},
+		{name: "versioned GVR", rule: map[string]any{"matchMode": "include", "gvks": []string{"apps/v1/deployments"}}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			body := make(map[string]any, len(base)+1)

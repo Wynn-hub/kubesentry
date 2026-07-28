@@ -159,17 +159,6 @@
             :title="$t('admissionEvent.emptyExcludeWarning')"
             class="rule-warning"
           />
-          <div class="action-row">
-            <el-form-item :label="$t('admissionEvent.action')">
-              <el-radio-group v-model="rule.action" @change="onRuleActionChange(rule)">
-                <el-radio value="retain">{{ $t('admissionEvent.retain') }}</el-radio>
-                <el-radio value="discard">{{ $t('admissionEvent.discard') }}</el-radio>
-              </el-radio-group>
-            </el-form-item>
-            <el-form-item v-if="rule.action === 'retain'" :label="$t('admissionEvent.retentionDays')">
-              <el-input-number v-model="rule.retentionDays" :min="1" :max="365" />
-            </el-form-item>
-          </div>
         </el-card>
 
         <el-alert type="info" :closable="false" :title="$t('admissionEvent.settingsHint')" />
@@ -244,7 +233,6 @@ watch([verdicts, clusters, namespaces, resources, rangeKey, customRange], reload
 async function openSettings(){ settings.value=await getAdmissionSettings(); settingsOpen.value=true }
 async function saveSettings(){
   if(!settings.value)return
-  for(const rule of settings.value.storagePolicies)onRuleActionChange(rule)
   settingsSaving.value=true
   try {
     settings.value=await updateAdmissionSettings(settings.value)
@@ -255,7 +243,7 @@ async function saveSettings(){
 }
 function addStorageRule(){
   if(!settings.value)return
-  settings.value.storagePolicies.push({ matchMode:'include', verdicts:[], clusters:[], namespaces:[], gvks:[], action:'retain', retentionDays:settings.value.defaultRetentionDays })
+  settings.value.storagePolicies.push({ matchMode:'include', verdicts:[], clusters:[], namespaces:[], gvks:[] })
 }
 function removeStorageRule(index:number){ settings.value?.storagePolicies.splice(index,1) }
 function moveStorageRule(index:number, delta:number){
@@ -267,10 +255,6 @@ function moveStorageRule(index:number, delta:number){
 }
 function ruleIsEmpty(rule: AdmissionSettings['storagePolicies'][number]){
   return !rule.verdicts.length&&!rule.clusters.length&&!rule.namespaces.length&&!rule.gvks.length
-}
-function onRuleActionChange(rule: AdmissionSettings['storagePolicies'][number]){
-  if(rule.action==='retain'&&(!rule.retentionDays||rule.retentionDays<1))rule.retentionDays=settings.value?.defaultRetentionDays??14
-  if(rule.action==='discard')delete rule.retentionDays
 }
 // Normalized GVR: core group renders as bare resource ("pods"), matching the filter/canonical format.
 function resourceType(event: AdmissionEvent){ return event.apiGroup ? `${event.apiGroup}/${event.resource}` : event.resource }
@@ -341,11 +325,9 @@ onMounted(async () => {
 .settings-grid,.rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
 .rules-heading{display:flex;align-items:flex-start;justify-content:space-between;margin:16px 0 12px}
 .storage-rule{margin-bottom:12px}
-.rule-header,.rule-actions,.action-row{display:flex;align-items:center}
+.rule-header,.rule-actions{display:flex;align-items:center}
 .rule-header{justify-content:space-between}
 .rule-actions{gap:4px}
-.action-row{gap:24px}
-.action-row .el-form-item{margin-bottom:8px}
 .mode-hint{margin-left:12px;color:var(--el-text-color-secondary);font-size:12px}
 .rule-warning{margin-bottom:12px}
 .muted{color:var(--el-text-color-secondary);font-size:12px}
@@ -367,5 +349,5 @@ onMounted(async () => {
 .violation-deny{border-left-color:var(--el-color-danger);background:var(--el-color-danger-light-9)}
 .violation-audit{border-left-color:var(--el-color-warning);background:var(--el-color-warning-light-9)}
 .violations .violation-view:last-child{margin-bottom:20px}
-@media (max-width: 760px){.settings-grid,.rule-grid{grid-template-columns:1fr}.action-row{align-items:flex-start;flex-direction:column;gap:0}}
+@media (max-width: 760px){.settings-grid,.rule-grid{grid-template-columns:1fr}}
 </style>

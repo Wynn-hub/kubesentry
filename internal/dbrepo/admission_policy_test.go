@@ -6,53 +6,98 @@ import (
 	"github.com/lib/pq"
 )
 
-func TestMatchAdmissionStoragePolicyUsesFirstMatchingRule(t *testing.T) {
-	event := AdmissionEvent{Verdict: "deny", ClusterName: "prod", APIGroup: "", Resource: "pods", Namespace: "payments"}
-	policies := []AdmissionStoragePolicy{
-		{Priority: 1, Verdicts: pq.StringArray{"audit"}, Action: AdmissionStorageActionDiscard},
-		{Priority: 2, Clusters: pq.StringArray{"prod"}, GVKs: pq.StringArray{"pods"}, Action: AdmissionStorageActionDiscard},
-		{Priority: 3, Action: AdmissionStorageActionRetain},
-	}
-
-	got := MatchAdmissionStoragePolicy(policies, event)
-	if got == nil || got.Priority != 2 {
-		t.Fatalf("matched policy = %#v, want priority 2", got)
+func TestShouldStoreAdmissionEventEmptyRuleSetStoresEverything(t *testing.T) {
+	event := AdmissionEvent{Verdict: "deny", ClusterName: "prod", Resource: "pods", Namespace: "app"}
+	if !ShouldStoreAdmissionEvent(nil, event) {
+		t.Error("an empty rule set must store everything")
 	}
 }
 
-func TestMatchAdmissionStoragePolicyExcludeNegatesWholeCondition(t *testing.T) {
-	policy := AdmissionStoragePolicy{
+// The single rule a user naturally writes for "only keep default/deployments"
+// must do exactly that: matching events are stored, everything else is not.
+func TestShouldStoreAdmissionEventIsAnAllowList(t *testing.T) {
+	rules := []AdmissionStoragePolicy{{
 		Priority:   1,
-		MatchMode:  AdmissionMatchModeExclude,
-		Namespaces: pq.StringArray{"kube-system"},
-		GVKs:       pq.StringArray{"pods"},
-		Action:     AdmissionStorageActionRetain,
-	}
+		MatchMode:  AdmissionMatchModeInclude,
+		Namespaces: pq.StringArray{"default"},
+		GVKs:       pq.StringArray{"apps/deployments"},
+	}}
+
 	tests := []struct {
-		name      string
-		namespace string
-		resource  string
-		wantMatch bool
+		name  string
+		event AdmissionEvent
+		want  bool
 	}{
-		{name: "complete condition is excluded", namespace: "kube-system", resource: "pods", wantMatch: false},
-		{name: "different namespace matches", namespace: "payments", resource: "pods", wantMatch: true},
-		{name: "different resource matches", namespace: "kube-system", resource: "services", wantMatch: true},
+		{"matching namespace and resource", AdmissionEvent{Namespace: "default", APIGroup: "apps", Resource: "deployments"}, true},
+		{"other namespace, same resource", AdmissionEvent{Namespace: "test-builtin-rules", APIGroup: "apps", Resource: "deployments"}, false},
+		{"same namespace, other resource", AdmissionEvent{Namespace: "default", Resource: "pods"}, false},
+		{"other namespace and resource", AdmissionEvent{Namespace: "test-builtin-rules", Resource: "pods"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			event := AdmissionEvent{APIGroup: "", Resource: tt.resource, Namespace: tt.namespace}
-			got := MatchAdmissionStoragePolicy([]AdmissionStoragePolicy{policy}, event)
-			if (got != nil) != tt.wantMatch {
-				t.Fatalf("matched = %v, want %v", got != nil, tt.wantMatch)
+			if got := ShouldStoreAdmissionEvent(rules, tt.event); got != tt.want {
+				t.Errorf("ShouldStoreAdmissionEvent = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestMatchAdmissionStoragePolicyExcludeEmptyConditionNeverMatches(t *testing.T) {
-	policy := AdmissionStoragePolicy{Priority: 1, MatchMode: AdmissionMatchModeExclude, Action: AdmissionStorageActionDiscard}
-	if got := MatchAdmissionStoragePolicy([]AdmissionStoragePolicy{policy}, AdmissionEvent{}); got != nil {
-		t.Fatalf("matched policy = %#v, want nil", got)
+func TestShouldStoreAdmissionEventCombinesRulesWithOr(t *testing.T) {
+	rules := []AdmissionStoragePolicy{
+		{Priority: 1, Namespaces: pq.StringArray{"default"}},
+		{Priority: 2, GVKs: pq.StringArray{"pods"}},
+	}
+	if !ShouldStoreAdmissionEvent(rules, AdmissionEvent{Namespace: "default", Resource: "configmaps"}) {
+		t.Error("event matching the first rule must be stored")
+	}
+	if !ShouldStoreAdmissionEvent(rules, AdmissionEvent{Namespace: "other", Resource: "pods"}) {
+		t.Error("event matching the second rule must be stored")
+	}
+	if ShouldStoreAdmissionEvent(rules, AdmissionEvent{Namespace: "other", Resource: "configmaps"}) {
+		t.Error("event matching neither rule must not be stored")
+	}
+}
+
+func TestShouldStoreAdmissionEventExcludeStoresOutsideItsConditions(t *testing.T) {
+	rules := []AdmissionStoragePolicy{{
+		Priority:   1,
+		MatchMode:  AdmissionMatchModeExclude,
+		Namespaces: pq.StringArray{"kube-system"},
+		GVKs:       pq.StringArray{"pods"},
+	}}
+	tests := []struct {
+		name      string
+		namespace string
+		resource  string
+		want      bool
+	}{
+		{"complete condition is excluded", "kube-system", "pods", false},
+		{"different namespace is stored", "payments", "pods", true},
+		{"different resource is stored", "kube-system", "services", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			event := AdmissionEvent{Resource: tt.resource, Namespace: tt.namespace}
+			if got := ShouldStoreAdmissionEvent(rules, event); got != tt.want {
+				t.Errorf("ShouldStoreAdmissionEvent = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// An exclude rule with no conditions matches nothing, so with it as the only
+// rule nothing is stored.
+func TestShouldStoreAdmissionEventEmptyExcludeRuleStoresNothing(t *testing.T) {
+	rules := []AdmissionStoragePolicy{{Priority: 1, MatchMode: AdmissionMatchModeExclude}}
+	if ShouldStoreAdmissionEvent(rules, AdmissionEvent{Namespace: "app", Resource: "pods"}) {
+		t.Error("an empty exclude rule must not store anything")
+	}
+}
+
+func TestShouldStoreAdmissionEventTreatsEmptyConditionsAsWildcard(t *testing.T) {
+	rules := []AdmissionStoragePolicy{{Priority: 1, MatchMode: AdmissionMatchModeInclude}}
+	if !ShouldStoreAdmissionEvent(rules, AdmissionEvent{}) {
+		t.Error("an include rule with no conditions must store everything")
 	}
 }
 
@@ -62,12 +107,5 @@ func TestNormalizedAdmissionGVR(t *testing.T) {
 	}
 	if got := NormalizedAdmissionGVR("apps", "deployments"); got != "apps/deployments" {
 		t.Fatalf("apps GVR = %q, want apps/deployments", got)
-	}
-}
-
-func TestMatchAdmissionStoragePolicyTreatsEmptyConditionsAsWildcard(t *testing.T) {
-	got := MatchAdmissionStoragePolicy([]AdmissionStoragePolicy{{Priority: 1, Action: AdmissionStorageActionRetain}}, AdmissionEvent{})
-	if got == nil || got.Priority != 1 {
-		t.Fatalf("matched policy = %#v, want wildcard policy", got)
 	}
 }

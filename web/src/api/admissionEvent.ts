@@ -18,14 +18,15 @@ export interface AdmissionSettings {
   storagePolicyVersion: number
   storagePolicies: AdmissionStoragePolicy[]
 }
+// A storage rule carries conditions only: matching any rule stores the event,
+// an empty rule set stores everything, and retention is the global
+// defaultRetentionDays.
 export interface AdmissionStoragePolicy {
   matchMode: 'include' | 'exclude'
   verdicts: string[]
   clusters: string[]
   gvks: string[]
   namespaces: string[]
-  action: 'retain' | 'discard'
-  retentionDays?: number
 }
 export const listAdmissionEvents = (params: ListQuery & Record<string, string> = {}) => request<PageResult<AdmissionEvent>>('GET', '/admission-events', undefined, params)
 export const getAdmissionEvent = (id: string) => request<AdmissionEventDetail>('GET', `/admission-events/${id}`)

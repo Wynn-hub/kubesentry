@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/operator/uninstall"
@@ -169,6 +170,10 @@ func (l *Link) Start(ctx context.Context) error {
 	}
 }
 
+// shouldDiscardAdmissionEvent applies the synced storage rules locally so events
+// the hub would not store never occupy queue capacity or bandwidth. Rules are an
+// allow-list: matching any rule stores the event, matching none discards it, and
+// an empty rule set (or config not yet received) stores everything.
 func (l *Link) shouldDiscardAdmissionEvent(event *gatewaypb.AdmissionEvent) bool {
 	l.configMu.RLock()
 	config := l.eventConfig
@@ -176,43 +181,26 @@ func (l *Link) shouldDiscardAdmissionEvent(event *gatewaypb.AdmissionEvent) bool
 	if config == nil {
 		return false
 	}
-	gvr := normalizedAdmissionGVR(event.ApiGroup, event.Resource)
+	rules := make([]admissionpolicy.Rule, 0, len(config.StoragePolicies))
 	for _, policy := range config.StoragePolicies {
 		if policy == nil {
 			continue
 		}
-		conditionsMatch := matchesAdmissionField(policy.Verdicts, event.Verdict) &&
-			matchesAdmissionField(policy.Clusters, l.cfg.ClusterName) &&
-			matchesAdmissionField(policy.Gvks, gvr) &&
-			matchesAdmissionField(policy.Namespaces, event.Namespace)
-		ruleMatches := conditionsMatch
-		if policy.MatchMode == "exclude" {
-			ruleMatches = !conditionsMatch
-		}
-		if ruleMatches {
-			return policy.Action == "discard"
-		}
+		rules = append(rules, admissionpolicy.Rule{
+			MatchMode:  policy.MatchMode,
+			Verdicts:   policy.Verdicts,
+			Clusters:   policy.Clusters,
+			GVKs:       policy.Gvks,
+			Namespaces: policy.Namespaces,
+		})
 	}
-	return false
-}
-
-func normalizedAdmissionGVR(apiGroup, resource string) string {
-	if apiGroup == "" {
-		return resource
-	}
-	return apiGroup + "/" + resource
-}
-
-func matchesAdmissionField(values []string, value string) bool {
-	if len(values) == 0 {
-		return true
-	}
-	for _, candidate := range values {
-		if candidate == value {
-			return true
-		}
-	}
-	return false
+	return !admissionpolicy.ShouldStore(rules, admissionpolicy.Event{
+		Verdict:     event.Verdict,
+		ClusterName: l.cfg.ClusterName,
+		APIGroup:    event.ApiGroup,
+		Resource:    event.Resource,
+		Namespace:   event.Namespace,
+	})
 }
 
 func (l *Link) setEventLeaderLabel(ctx context.Context, enabled bool) error {

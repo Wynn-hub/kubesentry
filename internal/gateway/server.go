@@ -300,11 +300,7 @@ func (s *Server) withAdmissionEventConfig(ctx context.Context, res RenderResult)
 		QueueCapacity:        int32(settings.QueueCapacity),
 	}
 	for _, p := range policies {
-		retention := int32(0)
-		if p.RetentionDays != nil {
-			retention = int32(*p.RetentionDays)
-		}
-		config.StoragePolicies = append(config.StoragePolicies, &gatewaypb.AdmissionStoragePolicy{Priority: int32(p.Priority), MatchMode: p.MatchMode, Verdicts: p.Verdicts, Clusters: p.Clusters, Gvks: p.GVKs, Namespaces: p.Namespaces, Action: p.Action, RetentionDays: retention})
+		config.StoragePolicies = append(config.StoragePolicies, &gatewaypb.AdmissionStoragePolicy{Priority: int32(p.Priority), MatchMode: p.MatchMode, Verdicts: p.Verdicts, Clusters: p.Clusters, Gvks: p.GVKs, Namespaces: p.Namespaces})
 	}
 	res.AdmissionEventConfig = config
 	res.Hash = hashWithAdmissionEventConfig(res.Hash, config)

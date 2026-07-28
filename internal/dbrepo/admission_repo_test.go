@@ -106,7 +106,6 @@ func TestAdmissionRepoUpdatesDeliverySettingsAndMatchModeAtomically(t *testing.T
 	db := newTestDB(t)
 	repo := dbrepo.NewAdmissionRepo(db)
 	ctx := context.Background()
-	retention := 30
 	err := repo.UpdateSettingsAndPolicies(ctx, &dbrepo.AdmissionEventSettings{
 		ID:                   1,
 		DefaultRetentionDays: 21,
@@ -114,11 +113,9 @@ func TestAdmissionRepoUpdatesDeliverySettingsAndMatchModeAtomically(t *testing.T
 		MaxRetryAttempts:     5,
 		QueueCapacity:        2048,
 	}, []dbrepo.AdmissionStoragePolicy{{
-		Priority:      1,
-		MatchMode:     dbrepo.AdmissionMatchModeExclude,
-		Namespaces:    pq.StringArray{"kube-system"},
-		Action:        dbrepo.AdmissionStorageActionRetain,
-		RetentionDays: &retention,
+		Priority:   1,
+		MatchMode:  dbrepo.AdmissionMatchModeExclude,
+		Namespaces: pq.StringArray{"kube-system"},
 	}})
 	if err != nil {
 		t.Fatalf("update settings and policies: %v", err)

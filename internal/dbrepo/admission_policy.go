@@ -1,51 +1,45 @@
 package dbrepo
 
-import "strings"
+import "github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
 
 const (
-	AdmissionStorageActionRetain  = "retain"
-	AdmissionStorageActionDiscard = "discard"
-	AdmissionMatchModeInclude     = "include"
-	AdmissionMatchModeExclude     = "exclude"
+	AdmissionMatchModeInclude = admissionpolicy.MatchModeInclude
+	AdmissionMatchModeExclude = admissionpolicy.MatchModeExclude
 )
 
-// MatchAdmissionStoragePolicy returns the first matching rule. Empty fields
-// are wildcards; values in one field are alternatives while fields combine
-// with AND. Both Gateway and member-side code use this canonical matcher.
-func MatchAdmissionStoragePolicy(policies []AdmissionStoragePolicy, event AdmissionEvent) *AdmissionStoragePolicy {
-	gvr := NormalizedAdmissionGVR(event.APIGroup, event.Resource)
-	for i := range policies {
-		p := &policies[i]
-		conditionsMatch := matchesAny(p.Verdicts, event.Verdict) &&
-			matchesAny(p.Clusters, event.ClusterName) &&
-			matchesAny(p.GVKs, gvr) &&
-			matchesAny(p.Namespaces, event.Namespace)
-		ruleMatches := conditionsMatch
-		if p.MatchMode == AdmissionMatchModeExclude {
-			ruleMatches = !conditionsMatch
-		}
-		if ruleMatches {
-			return p
+func admissionRulesOf(policies []AdmissionStoragePolicy) []admissionpolicy.Rule {
+	rules := make([]admissionpolicy.Rule, len(policies))
+	for i, p := range policies {
+		rules[i] = admissionpolicy.Rule{
+			MatchMode:  p.MatchMode,
+			Verdicts:   p.Verdicts,
+			Clusters:   p.Clusters,
+			GVKs:       p.GVKs,
+			Namespaces: p.Namespaces,
 		}
 	}
-	return nil
+	return rules
 }
 
+// ShouldStoreAdmissionEvent reports whether the rule set stores this event.
+// Matching any rule stores it; an empty rule set stores everything. Retention
+// is not decided here — it is the single global default retention period.
+func ShouldStoreAdmissionEvent(policies []AdmissionStoragePolicy, event AdmissionEvent) bool {
+	return admissionpolicy.ShouldStore(admissionRulesOf(policies), admissionEventOf(event))
+}
+
+func admissionEventOf(event AdmissionEvent) admissionpolicy.Event {
+	return admissionpolicy.Event{
+		Verdict:     event.Verdict,
+		ClusterName: event.ClusterName,
+		APIGroup:    event.APIGroup,
+		Resource:    event.Resource,
+		Namespace:   event.Namespace,
+	}
+}
+
+// NormalizedAdmissionGVR is kept as the dbrepo-facing name for the canonical
+// version-less resource identifier.
 func NormalizedAdmissionGVR(apiGroup, resource string) string {
-	if apiGroup == "" {
-		return resource
-	}
-	return apiGroup + "/" + resource
-}
-
-func matchesAny(values []string, value string) bool {
-	if len(values) == 0 {
-		return true
-	}
-	for _, candidate := range values {
-		if strings.TrimSpace(candidate) == value {
-			return true
-		}
-	}
-	return false
+	return admissionpolicy.NormalizedGVR(apiGroup, resource)
 }

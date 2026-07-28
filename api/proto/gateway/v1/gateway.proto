@@ -90,14 +90,18 @@ message AdmissionEventConfig {
   int32 queue_capacity = 6;
 }
 
+// AdmissionStoragePolicy carries conditions only. Matching any rule stores the
+// event, an empty rule set stores everything, and the retention period is the
+// single default_retention_days above. priority only fixes the display order.
 message AdmissionStoragePolicy {
+  // 6 and 7 were action / retention_days before storage rules became
+  // conditions-only; never reuse them.
+  reserved 6, 7;
   int32 priority = 1;
   repeated string verdicts = 2;
   repeated string clusters = 3;
   repeated string gvks = 4;
   repeated string namespaces = 5;
-  string action = 6;
-  int32 retention_days = 7;
   string match_mode = 8;
 }
 

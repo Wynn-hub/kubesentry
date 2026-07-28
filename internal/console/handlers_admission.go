@@ -16,14 +16,15 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
+// admissionStoragePolicyInput is a conditions-only storage rule. Matching any
+// rule stores the event; an empty rule set stores everything. Retention lives in
+// the global DefaultRetentionDays, not per rule.
 type admissionStoragePolicyInput struct {
-	Verdicts      []string `json:"verdicts"`
-	Clusters      []string `json:"clusters"`
-	GVKs          []string `json:"gvks"`
-	Namespaces    []string `json:"namespaces"`
-	MatchMode     string   `json:"matchMode"`
-	Action        string   `json:"action"`
-	RetentionDays *int     `json:"retentionDays,omitempty"`
+	Verdicts   []string `json:"verdicts"`
+	Clusters   []string `json:"clusters"`
+	GVKs       []string `json:"gvks"`
+	Namespaces []string `json:"namespaces"`
+	MatchMode  string   `json:"matchMode"`
 }
 type admissionSettingsRequest struct {
 	DefaultRetentionDays int                           `json:"defaultRetentionDays"`
@@ -112,18 +113,7 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 				return
 			}
 		}
-		if input.Action != dbrepo.AdmissionStorageActionRetain && input.Action != dbrepo.AdmissionStorageActionDiscard {
-			writeErr(w, 400, "storage policy action must be retain or discard")
-			return
-		}
-		if input.Action == dbrepo.AdmissionStorageActionRetain && (input.RetentionDays == nil || *input.RetentionDays < 1 || *input.RetentionDays > 365) {
-			writeErr(w, 400, "retain policy requires retentionDays between 1 and 365")
-			return
-		}
-		if input.Action == dbrepo.AdmissionStorageActionDiscard {
-			input.RetentionDays = nil
-		}
-		policies = append(policies, dbrepo.AdmissionStoragePolicy{Priority: i + 1, MatchMode: input.MatchMode, Verdicts: pq.StringArray(input.Verdicts), Clusters: pq.StringArray(input.Clusters), GVKs: pq.StringArray(input.GVKs), Namespaces: pq.StringArray(input.Namespaces), Action: input.Action, RetentionDays: input.RetentionDays})
+		policies = append(policies, dbrepo.AdmissionStoragePolicy{Priority: i + 1, MatchMode: input.MatchMode, Verdicts: pq.StringArray(input.Verdicts), Clusters: pq.StringArray(input.Clusters), GVKs: pq.StringArray(input.GVKs), Namespaces: pq.StringArray(input.Namespaces)})
 	}
 	if err := h.Repos.Admission.UpdateSettingsAndPolicies(r.Context(), &dbrepo.AdmissionEventSettings{
 		ID:                   1,
@@ -146,7 +136,7 @@ func storagePolicyInputs(in []dbrepo.AdmissionStoragePolicy) []admissionStorageP
 		if matchMode == "" {
 			matchMode = dbrepo.AdmissionMatchModeInclude
 		}
-		out = append(out, admissionStoragePolicyInput{MatchMode: matchMode, Verdicts: p.Verdicts, Clusters: p.Clusters, GVKs: p.GVKs, Namespaces: p.Namespaces, Action: p.Action, RetentionDays: p.RetentionDays})
+		out = append(out, admissionStoragePolicyInput{MatchMode: matchMode, Verdicts: p.Verdicts, Clusters: p.Clusters, GVKs: p.GVKs, Namespaces: p.Namespaces})
 	}
 	return out
 }
