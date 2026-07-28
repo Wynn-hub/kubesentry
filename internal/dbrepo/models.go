@@ -129,12 +129,15 @@ type UninstallTask struct {
 
 func (UninstallTask) TableName() string { return "kubesentry.cluster_uninstall_tasks" }
 
-// AdmissionEventSettings is the single global retention configuration. Its
-// version changes atomically with every policy mutation so member clusters can
-// report which configuration they used for a local decision.
+// AdmissionEventSettings is the single global delivery and retention
+// configuration. Its version changes atomically with every mutation so member
+// clusters can report which configuration they used for a local decision.
 type AdmissionEventSettings struct {
 	ID                   int64 `gorm:"primaryKey;autoIncrement:false"`
 	DefaultRetentionDays int
+	RetryEnabled         bool
+	MaxRetryAttempts     int
+	QueueCapacity        int
 	StoragePolicyVersion int64
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
@@ -145,6 +148,7 @@ func (AdmissionEventSettings) TableName() string { return "kubesentry.admission_
 type AdmissionStoragePolicy struct {
 	dbmodel.Base
 	Priority      int
+	MatchMode     string
 	Verdicts      pq.StringArray `gorm:"type:text[]"`
 	Clusters      pq.StringArray `gorm:"type:text[]"`
 	GVKs          pq.StringArray `gorm:"column:gvks;type:text[]"`

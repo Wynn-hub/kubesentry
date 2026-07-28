@@ -10,8 +10,23 @@ export interface AdmissionEventDetail extends AdmissionEvent {
   requestUid: string; userGroups: string[]; policyGroupNames: string[]
   metadataSnapshot: Record<string, unknown>; specSnapshot: Record<string, unknown>; storagePolicyVersion: string
 }
-export interface AdmissionSettings { defaultRetentionDays: number; storagePolicyVersion: number; storagePolicies: AdmissionStoragePolicy[] }
-export interface AdmissionStoragePolicy { verdicts: string[]; clusters: string[]; gvks: string[]; namespaces: string[]; action: 'retain' | 'discard'; retentionDays?: number }
+export interface AdmissionSettings {
+  defaultRetentionDays: number
+  retryEnabled: boolean
+  maxRetryAttempts: number
+  queueCapacity: number
+  storagePolicyVersion: number
+  storagePolicies: AdmissionStoragePolicy[]
+}
+export interface AdmissionStoragePolicy {
+  matchMode: 'include' | 'exclude'
+  verdicts: string[]
+  clusters: string[]
+  gvks: string[]
+  namespaces: string[]
+  action: 'retain' | 'discard'
+  retentionDays?: number
+}
 export const listAdmissionEvents = (params: ListQuery & Record<string, string> = {}) => request<PageResult<AdmissionEvent>>('GET', '/admission-events', undefined, params)
 export const getAdmissionEvent = (id: string) => request<AdmissionEventDetail>('GET', `/admission-events/${id}`)
 export const getAdmissionSettings = () => request<AdmissionSettings>('GET', '/admission-event-settings')

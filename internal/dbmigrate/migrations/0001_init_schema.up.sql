@@ -118,6 +118,9 @@ CREATE INDEX cluster_install_records_cluster_name_idx ON cluster_install_records
 CREATE TABLE admission_event_settings (
     id                     BIGINT PRIMARY KEY,
     default_retention_days INT NOT NULL CHECK (default_retention_days BETWEEN 1 AND 365),
+    retry_enabled          BOOLEAN NOT NULL DEFAULT FALSE,
+    max_retry_attempts     INT NOT NULL DEFAULT 3 CHECK (max_retry_attempts BETWEEN 1 AND 100),
+    queue_capacity         INT NOT NULL DEFAULT 1024 CHECK (queue_capacity BETWEEN 1 AND 10000),
     storage_policy_version BIGINT NOT NULL DEFAULT 1,
     created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -128,6 +131,7 @@ VALUES (1, 14, 1);
 CREATE TABLE admission_storage_policies (
     id             BIGINT PRIMARY KEY,
     priority       INT NOT NULL,
+    match_mode     TEXT NOT NULL DEFAULT 'include' CHECK (match_mode IN ('include', 'exclude')),
     verdicts       TEXT[] NOT NULL DEFAULT '{}',
     clusters       TEXT[] NOT NULL DEFAULT '{}',
     gvks           TEXT[] NOT NULL DEFAULT '{}',

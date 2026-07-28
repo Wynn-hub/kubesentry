@@ -2,10 +2,12 @@ package dbrepo_test
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/lib/pq"
 )
 
 func TestAdmissionRepoStoresEmptyEventFieldsAsNonNullValues(t *testing.T) {
@@ -97,5 +99,43 @@ func TestAdmissionRepoListEventsPageFilters(t *testing.T) {
 	// Multi-value cluster is OR; the known cluster returns all, an unknown one returns none.
 	if got := page(dbrepo.AdmissionEventPageOptions{ClusterNames: []string{cluster.Name, "absent"}}); len(got) != 3 {
 		t.Errorf("cluster in (%s,absent) -> %v, want 3 events", cluster.Name, got)
+	}
+}
+
+func TestAdmissionRepoUpdatesDeliverySettingsAndMatchModeAtomically(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewAdmissionRepo(db)
+	ctx := context.Background()
+	retention := 30
+	err := repo.UpdateSettingsAndPolicies(ctx, &dbrepo.AdmissionEventSettings{
+		ID:                   1,
+		DefaultRetentionDays: 21,
+		RetryEnabled:         true,
+		MaxRetryAttempts:     5,
+		QueueCapacity:        2048,
+	}, []dbrepo.AdmissionStoragePolicy{{
+		Priority:      1,
+		MatchMode:     dbrepo.AdmissionMatchModeExclude,
+		Namespaces:    pq.StringArray{"kube-system"},
+		Action:        dbrepo.AdmissionStorageActionRetain,
+		RetentionDays: &retention,
+	}})
+	if err != nil {
+		t.Fatalf("update settings and policies: %v", err)
+	}
+
+	settings, err := repo.GetSettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.DefaultRetentionDays != 21 || !settings.RetryEnabled || settings.MaxRetryAttempts != 5 || settings.QueueCapacity != 2048 || settings.StoragePolicyVersion != 2 {
+		t.Fatalf("settings = %+v", settings)
+	}
+	policies, err := repo.ListPolicies(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(policies) != 1 || policies[0].MatchMode != dbrepo.AdmissionMatchModeExclude || !reflect.DeepEqual([]string(policies[0].Namespaces), []string{"kube-system"}) {
+		t.Fatalf("policies = %+v", policies)
 	}
 }

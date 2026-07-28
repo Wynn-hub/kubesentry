@@ -85,6 +85,9 @@ message AdmissionEventConfig {
   string version = 1;
   int32 default_retention_days = 2;
   repeated AdmissionStoragePolicy storage_policies = 3;
+  bool retry_enabled = 4;
+  int32 max_retry_attempts = 5;
+  int32 queue_capacity = 6;
 }
 
 message AdmissionStoragePolicy {
@@ -95,6 +98,7 @@ message AdmissionStoragePolicy {
   repeated string namespaces = 5;
   string action = 6;
   int32 retention_days = 7;
+  string match_mode = 8;
 }
 
 message AdmissionEvent {
@@ -117,6 +121,7 @@ message AdmissionEvent {
   bytes spec_snapshot = 17;
   string storage_policy_version = 18;
   string request_uid = 19;
+  int32 delivery_attempt = 20;
 }
 
 message AdmissionEventBatch {
@@ -130,9 +135,11 @@ message AdmissionEventBatchAck {
       STATUS_UNSPECIFIED = 0;
       ACCEPTED = 1;
       DISCARDED = 2;
+      RETRYABLE = 3;
     }
     Status status = 2;
     string reason = 3;
+    int32 delivery_attempt = 4;
   }
   repeated Result results = 1;
 }

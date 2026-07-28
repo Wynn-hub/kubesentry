@@ -13,9 +13,7 @@
       </el-select>
       <TagInput v-model="clusters" :placeholder="$t('admissionEvent.clusterPlaceholder')" style="width:200px" />
       <TagInput v-model="namespaces" :placeholder="$t('admissionEvent.namespacePlaceholder')" style="width:200px" />
-      <el-select v-model="resources" multiple collapse-tags filterable clearable :placeholder="$t('admissionEvent.resource')" style="width:240px">
-        <el-option v-for="gvr in gvrOptions" :key="gvr" :label="gvr" :value="gvr" />
-      </el-select>
+      <ResourceGVRSelect v-model="resources" :placeholder="$t('admissionEvent.resource')" style="width:240px" />
       <el-select v-model="rangeKey" style="width:170px">
         <el-option :label="$t('admissionEvent.last15m')" value="15m" />
         <el-option :label="$t('admissionEvent.last1h')" value="1h" />
@@ -84,11 +82,104 @@
         </template>
       </el-skeleton>
     </el-drawer>
-    <el-drawer v-model="settingsOpen" :title="$t('admissionEvent.settingsTitle')" size="520px"><el-form v-if="settings" label-position="top"><el-form-item :label="$t('admissionEvent.defaultRetentionDays')"><el-input-number v-model="settings.defaultRetentionDays" :min="1" :max="365"/></el-form-item><el-alert type="info" :closable="false" :title="$t('admissionEvent.settingsHint')"/><el-button type="primary" class="save" @click="saveSettings">{{ $t('common.save') }}</el-button></el-form></el-drawer>
+    <el-drawer v-model="settingsOpen" :title="$t('admissionEvent.settingsTitle')" size="min(920px, 92vw)">
+      <el-form v-if="settings" label-position="top">
+        <h3 class="section-title">{{ $t('admissionEvent.deliverySettings') }}</h3>
+        <div class="settings-grid">
+          <el-form-item :label="$t('admissionEvent.retryEnabled')">
+            <el-switch v-model="settings.retryEnabled" />
+          </el-form-item>
+          <el-form-item :label="$t('admissionEvent.maxRetryAttempts')">
+            <el-input-number v-model="settings.maxRetryAttempts" :min="1" :max="100" :disabled="!settings.retryEnabled" />
+          </el-form-item>
+          <el-form-item :label="$t('admissionEvent.queueCapacity')">
+            <el-input-number v-model="settings.queueCapacity" :min="1" :max="10000" />
+          </el-form-item>
+          <el-form-item :label="$t('admissionEvent.defaultRetentionDays')">
+            <el-input-number v-model="settings.defaultRetentionDays" :min="1" :max="365" />
+          </el-form-item>
+        </div>
+
+        <div class="rules-heading">
+          <div>
+            <h3 class="section-title">{{ $t('admissionEvent.storageRules') }}</h3>
+            <div class="muted">{{ $t('admissionEvent.ruleOrderHint') }}</div>
+          </div>
+          <el-button type="primary" plain @click="addStorageRule">{{ $t('admissionEvent.addRule') }}</el-button>
+        </div>
+
+        <el-empty v-if="settings.storagePolicies.length === 0" :description="$t('admissionEvent.noRules')" :image-size="72" />
+        <el-card v-for="(rule, index) in settings.storagePolicies" :key="index" class="storage-rule" shadow="never">
+          <template #header>
+            <div class="rule-header">
+              <strong>{{ $t('admissionEvent.ruleNumber', { n: index + 1 }) }}</strong>
+              <div class="rule-actions">
+                <el-button link :disabled="index === 0" @click="moveStorageRule(index, -1)">↑</el-button>
+                <el-button link :disabled="index === settings.storagePolicies.length - 1" @click="moveStorageRule(index, 1)">↓</el-button>
+                <el-button link type="danger" @click="removeStorageRule(index)">{{ $t('common.delete') }}</el-button>
+              </div>
+            </div>
+          </template>
+
+          <el-form-item :label="$t('admissionEvent.matchMode')">
+            <el-switch
+              v-model="rule.matchMode"
+              active-value="exclude"
+              inactive-value="include"
+              :active-text="$t('admissionEvent.exclude')"
+              :inactive-text="$t('admissionEvent.include')"
+            />
+            <span class="mode-hint">{{ $t(rule.matchMode === 'exclude' ? 'admissionEvent.excludeHint' : 'admissionEvent.includeHint') }}</span>
+          </el-form-item>
+
+          <div class="rule-grid">
+            <el-form-item :label="$t('admissionEvent.verdict')">
+              <el-select v-model="rule.verdicts" multiple clearable :placeholder="$t('admissionEvent.allValues')">
+                <el-option :label="$t('admissionEvent.audit')" value="audit" />
+                <el-option :label="$t('admissionEvent.deny')" value="deny" />
+              </el-select>
+            </el-form-item>
+            <el-form-item :label="$t('admissionEvent.cluster')">
+              <el-select v-model="rule.clusters" multiple filterable clearable allow-create default-first-option :placeholder="$t('admissionEvent.allClusters')">
+                <el-option v-for="name in clusterOptions" :key="name" :label="name" :value="name" />
+              </el-select>
+            </el-form-item>
+            <el-form-item :label="$t('admissionEvent.namespace')">
+              <TagInput v-model="rule.namespaces" :placeholder="$t('admissionEvent.allNamespaces')" />
+            </el-form-item>
+            <el-form-item :label="$t('admissionEvent.resource')">
+              <ResourceGVRSelect v-model="rule.gvks" :placeholder="$t('admissionEvent.allResources')" />
+            </el-form-item>
+          </div>
+
+          <el-alert
+            v-if="rule.matchMode === 'exclude' && ruleIsEmpty(rule)"
+            type="warning"
+            :closable="false"
+            :title="$t('admissionEvent.emptyExcludeWarning')"
+            class="rule-warning"
+          />
+          <div class="action-row">
+            <el-form-item :label="$t('admissionEvent.action')">
+              <el-radio-group v-model="rule.action" @change="onRuleActionChange(rule)">
+                <el-radio value="retain">{{ $t('admissionEvent.retain') }}</el-radio>
+                <el-radio value="discard">{{ $t('admissionEvent.discard') }}</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item v-if="rule.action === 'retain'" :label="$t('admissionEvent.retentionDays')">
+              <el-input-number v-model="rule.retentionDays" :min="1" :max="365" />
+            </el-form-item>
+          </div>
+        </el-card>
+
+        <el-alert type="info" :closable="false" :title="$t('admissionEvent.settingsHint')" />
+        <el-button type="primary" class="save" :loading="settingsSaving" @click="saveSettings">{{ $t('common.save') }}</el-button>
+      </el-form>
+    </el-drawer>
   </section>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -96,8 +187,10 @@ import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '../components/PageHeader.vue'
 import PaginationBar from '../components/PaginationBar.vue'
 import TagInput from '../components/TagInput.vue'
+import ResourceGVRSelect from '../components/ResourceGVRSelect.vue'
 import { getAdmissionEvent, getAdmissionSettings, listAdmissionEvents, updateAdmissionSettings, type AdmissionEvent, type AdmissionEventDetail, type AdmissionSettings } from '../api/admissionEvent'
-import { getResourceSuggestions } from '../api/policy'
+import { listClusters } from '../api/cluster'
+import { collectAllPages } from '../api/pagination'
 
 // How many policy tags to show inline in the list before collapsing the rest
 // into a "+N" badge; the detail drawer always shows the full set.
@@ -109,20 +202,9 @@ const events=ref<AdmissionEvent[]>([]), total=ref(0), loading=ref(false), page=r
 const verdicts=ref<string[]>([]), clusters=ref<string[]>([]), namespaces=ref<string[]>([])
 const resources=ref<string[]>([])
 const rangeKey=ref('24h'), customRange=ref<[Date,Date]|null>(null)
-const settingsOpen=ref(false), settings=ref<AdmissionSettings>(), detailOpen=ref(false), detailLoading=ref(false), detail=ref<AdmissionEventDetail>()
-
-// Resource options come from cluster discovery (same endpoint the policy form
-// uses), flattened into normalized GVR strings ("pods" for core group,
-// "apps/deployments" otherwise) so a single multi-select filters directly by
-// the value stored/matched on the backend. Multiple selections => OR.
-const suggestions = reactive({ resourcesByGroup: {} as Record<string, string[]> })
-const gvrOptions = computed<string[]>(() => {
-  const out: string[] = []
-  for (const [group, list] of Object.entries(suggestions.resourcesByGroup)) {
-    for (const rsc of list) out.push(group === '' ? rsc : `${group}/${rsc}`)
-  }
-  return out.sort()
-})
+const settingsOpen=ref(false), settings=ref<AdmissionSettings>(), settingsSaving=ref(false)
+const detailOpen=ref(false), detailLoading=ref(false), detail=ref<AdmissionEventDetail>()
+const clusterOptions=ref<string[]>([])
 
 // Grafana-style range: relative shortcuts resolve to [from,to] at query time;
 // "custom" uses the absolute datetimerange picker.
@@ -160,7 +242,36 @@ function reloadFromFirstPage(){ page.value=1; load() }
 watch([verdicts, clusters, namespaces, resources, rangeKey, customRange], reloadFromFirstPage, { deep: true })
 
 async function openSettings(){ settings.value=await getAdmissionSettings(); settingsOpen.value=true }
-async function saveSettings(){ if(!settings.value)return; settings.value=await updateAdmissionSettings(settings.value); ElMessage.success(t('common.saved')) }
+async function saveSettings(){
+  if(!settings.value)return
+  for(const rule of settings.value.storagePolicies)onRuleActionChange(rule)
+  settingsSaving.value=true
+  try {
+    settings.value=await updateAdmissionSettings(settings.value)
+    ElMessage.success(t('common.saved'))
+  } catch(e) {
+    ElMessage.error((e as Error).message)
+  } finally { settingsSaving.value=false }
+}
+function addStorageRule(){
+  if(!settings.value)return
+  settings.value.storagePolicies.push({ matchMode:'include', verdicts:[], clusters:[], namespaces:[], gvks:[], action:'retain', retentionDays:settings.value.defaultRetentionDays })
+}
+function removeStorageRule(index:number){ settings.value?.storagePolicies.splice(index,1) }
+function moveStorageRule(index:number, delta:number){
+  if(!settings.value)return
+  const target=index+delta
+  if(target<0||target>=settings.value.storagePolicies.length)return
+  const [rule]=settings.value.storagePolicies.splice(index,1)
+  settings.value.storagePolicies.splice(target,0,rule)
+}
+function ruleIsEmpty(rule: AdmissionSettings['storagePolicies'][number]){
+  return !rule.verdicts.length&&!rule.clusters.length&&!rule.namespaces.length&&!rule.gvks.length
+}
+function onRuleActionChange(rule: AdmissionSettings['storagePolicies'][number]){
+  if(rule.action==='retain'&&(!rule.retentionDays||rule.retentionDays<1))rule.retentionDays=settings.value?.defaultRetentionDays??14
+  if(rule.action==='discard')delete rule.retentionDays
+}
 // Normalized GVR: core group renders as bare resource ("pods"), matching the filter/canonical format.
 function resourceType(event: AdmissionEvent){ return event.apiGroup ? `${event.apiGroup}/${event.resource}` : event.resource }
 // deny = blocked (danger red), audit = warned (warning amber).
@@ -216,7 +327,7 @@ async function syncDetailFromRoute(){
 watch(() => route.query.event, syncDetailFromRoute)
 
 onMounted(async () => {
-  try { const s = await getResourceSuggestions(); suggestions.resourcesByGroup = s.resourcesByGroup } catch { /* resource picker degrades to empty options; filters still work by other fields */ }
+  try { clusterOptions.value=(await collectAllPages(listClusters)).filter(c=>c.phase!=='Uninstalled').map(c=>c.name) } catch { /* allow-create keeps cluster rules editable */ }
   await load()
   // Deep link / restored history entry may already carry ?event=<id>.
   await syncDetailFromRoute()
@@ -226,6 +337,17 @@ onMounted(async () => {
 .list-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:12px }
 .list-toolbar > * { flex-shrink:0 }
 .save{margin-top:24px}
+.section-title{margin:0 0 12px}
+.settings-grid,.rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+.rules-heading{display:flex;align-items:flex-start;justify-content:space-between;margin:16px 0 12px}
+.storage-rule{margin-bottom:12px}
+.rule-header,.rule-actions,.action-row{display:flex;align-items:center}
+.rule-header{justify-content:space-between}
+.rule-actions{gap:4px}
+.action-row{gap:24px}
+.action-row .el-form-item{margin-bottom:8px}
+.mode-hint{margin-left:12px;color:var(--el-text-color-secondary);font-size:12px}
+.rule-warning{margin-bottom:12px}
 .muted{color:var(--el-text-color-secondary);font-size:12px}
 .policy-tags{display:flex;gap:4px;flex-wrap:wrap}
 .policy-link{cursor:pointer;transition:opacity .15s}
@@ -245,4 +367,5 @@ onMounted(async () => {
 .violation-deny{border-left-color:var(--el-color-danger);background:var(--el-color-danger-light-9)}
 .violation-audit{border-left-color:var(--el-color-warning);background:var(--el-color-warning-light-9)}
 .violations .violation-view:last-child{margin-bottom:20px}
+@media (max-width: 760px){.settings-grid,.rule-grid{grid-template-columns:1fr}.action-row{align-items:flex-start;flex-direction:column;gap:0}}
 </style>

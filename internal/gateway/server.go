@@ -292,13 +292,19 @@ func (s *Server) withAdmissionEventConfig(ctx context.Context, res RenderResult)
 	if err != nil {
 		return RenderResult{}, err
 	}
-	config := &gatewaypb.AdmissionEventConfig{Version: fmt.Sprint(settings.StoragePolicyVersion), DefaultRetentionDays: int32(settings.DefaultRetentionDays)}
+	config := &gatewaypb.AdmissionEventConfig{
+		Version:              fmt.Sprint(settings.StoragePolicyVersion),
+		DefaultRetentionDays: int32(settings.DefaultRetentionDays),
+		RetryEnabled:         settings.RetryEnabled,
+		MaxRetryAttempts:     int32(settings.MaxRetryAttempts),
+		QueueCapacity:        int32(settings.QueueCapacity),
+	}
 	for _, p := range policies {
 		retention := int32(0)
 		if p.RetentionDays != nil {
 			retention = int32(*p.RetentionDays)
 		}
-		config.StoragePolicies = append(config.StoragePolicies, &gatewaypb.AdmissionStoragePolicy{Priority: int32(p.Priority), Verdicts: p.Verdicts, Clusters: p.Clusters, Gvks: p.GVKs, Namespaces: p.Namespaces, Action: p.Action, RetentionDays: retention})
+		config.StoragePolicies = append(config.StoragePolicies, &gatewaypb.AdmissionStoragePolicy{Priority: int32(p.Priority), MatchMode: p.MatchMode, Verdicts: p.Verdicts, Clusters: p.Clusters, Gvks: p.GVKs, Namespaces: p.Namespaces, Action: p.Action, RetentionDays: retention})
 	}
 	res.AdmissionEventConfig = config
 	res.Hash = hashWithAdmissionEventConfig(res.Hash, config)
@@ -423,7 +429,8 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 		case *gatewaypb.MemberMessage_AdmissionEventBatch:
 			ack, err := s.handleAdmissionEventBatch(stream.Context(), cluster, m.AdmissionEventBatch)
 			if err != nil {
-				return status.Errorf(codes.Internal, "store admission events: %v", err)
+				slog.Error("store admission event batch", "cluster", cluster, "error", err)
+				ack = admissionEventFailureAck(ack, m.AdmissionEventBatch, "gateway_storage_failed")
 			}
 			if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_AdmissionEventBatchAck{AdmissionEventBatchAck: ack}}); err != nil {
 				return err

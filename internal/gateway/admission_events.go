@@ -38,8 +38,12 @@ func (s *Server) handleAdmissionEventBatch(ctx context.Context, clusterName stri
 	}
 	accepted := make([]dbrepo.AdmissionEvent, 0, len(batch.Events))
 	for _, in := range batch.Events {
-		if in == nil || in.EventId == "" || (in.Verdict != "audit" && in.Verdict != "deny") {
-			continue // omitted from Ack: sender retries malformed/transient frames only after reconnect
+		if in == nil || in.EventId == "" {
+			continue
+		}
+		if in.Verdict != "audit" && in.Verdict != "deny" {
+			ack.Results = append(ack.Results, discardedAdmissionEvent(in, "invalid_event"))
+			continue
 		}
 		occurred := time.Now().UTC()
 		if in.OccurredAt != nil {
@@ -57,23 +61,58 @@ func (s *Server) handleAdmissionEventBatch(ctx context.Context, clusterName stri
 			Violations: datatypes.JSON(violations), MetadataSnapshot: datatypes.JSON(in.MetadataSnapshot), SpecSnapshot: datatypes.JSON(in.SpecSnapshot), StoragePolicyVersion: in.StoragePolicyVersion,
 		}
 		if p := dbrepo.MatchAdmissionStoragePolicy(policies, event); p != nil && p.Action == dbrepo.AdmissionStorageActionDiscard {
-			ack.Results = append(ack.Results, discardedAdmissionEvent(in.EventId, "storage_policy_no_retain"))
+			ack.Results = append(ack.Results, discardedAdmissionEvent(in, "storage_policy_no_retain"))
 			continue
 		}
 		_ = settings // default retention is consumed by the cleanup worker, not persisted per event.
 		accepted = append(accepted, event)
-		ack.Results = append(ack.Results, acceptedAdmissionEvent(in.EventId))
+		ack.Results = append(ack.Results, acceptedAdmissionEvent(in))
 	}
 	if err := s.repos.Admission.CreateEventsIdempotent(ctx, accepted); err != nil {
-		return nil, err
+		return ack, err
 	}
 	return ack, nil
 }
 
-func acceptedAdmissionEvent(id string) *gatewaypb.AdmissionEventBatchAck_Result {
-	return &gatewaypb.AdmissionEventBatchAck_Result{EventId: id, Status: gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED}
+func acceptedAdmissionEvent(event *gatewaypb.AdmissionEvent) *gatewaypb.AdmissionEventBatchAck_Result {
+	return &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED, DeliveryAttempt: event.DeliveryAttempt}
 }
 
-func discardedAdmissionEvent(id, reason string) *gatewaypb.AdmissionEventBatchAck_Result {
-	return &gatewaypb.AdmissionEventBatchAck_Result{EventId: id, Status: gatewaypb.AdmissionEventBatchAck_Result_DISCARDED, Reason: reason}
+func discardedAdmissionEvent(event *gatewaypb.AdmissionEvent, reason string) *gatewaypb.AdmissionEventBatchAck_Result {
+	return &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_DISCARDED, Reason: reason, DeliveryAttempt: event.DeliveryAttempt}
+}
+
+func admissionEventFailureAck(ack *gatewaypb.AdmissionEventBatchAck, batch *gatewaypb.AdmissionEventBatch, reason string) *gatewaypb.AdmissionEventBatchAck {
+	if ack == nil {
+		ack = &gatewaypb.AdmissionEventBatchAck{}
+	}
+	existing := make(map[string]*gatewaypb.AdmissionEventBatchAck_Result, len(ack.Results))
+	for _, result := range ack.Results {
+		if result == nil {
+			continue
+		}
+		existing[result.EventId] = result
+		if result.Status == gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED {
+			result.Status = gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE
+			result.Reason = reason
+		}
+	}
+	if batch == nil {
+		return ack
+	}
+	for _, event := range batch.Events {
+		if event == nil || event.EventId == "" {
+			continue
+		}
+		if _, ok := existing[event.EventId]; ok {
+			continue
+		}
+		ack.Results = append(ack.Results, &gatewaypb.AdmissionEventBatchAck_Result{
+			EventId:         event.EventId,
+			Status:          gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE,
+			Reason:          reason,
+			DeliveryAttempt: event.DeliveryAttempt,
+		})
+	}
+	return ack
 }

@@ -40,7 +40,11 @@ const (
 	keyToken           = "token"
 	keyClusterToken    = "clusterToken"
 
-	maxBackoff = 60 * time.Second
+	maxBackoff                   = 60 * time.Second
+	defaultEventMaxRetryAttempts = 3
+	defaultEventQueueCapacity    = 1024
+	eventAckTimeout              = 5 * time.Second
+	eventSendTick                = 500 * time.Millisecond
 )
 
 type Config struct {
@@ -62,18 +66,26 @@ type Link struct {
 	cfg         Config
 	leader      atomic.Bool
 	eventsMu    sync.Mutex
-	events      map[string]*gatewaypb.AdmissionEvent
+	events      map[string]*queuedAdmissionEvent
 	eventsWake  chan struct{}
 	prefix      string
 	configMu    sync.RWMutex
 	eventConfig *gatewaypb.AdmissionEventConfig
 }
 
+type queuedAdmissionEvent struct {
+	event       *gatewaypb.AdmissionEvent
+	retryCount  int
+	attempt     int32
+	inFlight    bool
+	ackDeadline time.Time
+}
+
 func New(cfg Config) *Link {
 	if cfg.HeartbeatEvery == 0 {
 		cfg.HeartbeatEvery = 15 * time.Second
 	}
-	return &Link{cfg: cfg, events: map[string]*gatewaypb.AdmissionEvent{}, eventsWake: make(chan struct{}, 1)}
+	return &Link{cfg: cfg, events: map[string]*queuedAdmissionEvent{}, eventsWake: make(chan struct{}, 1)}
 }
 
 // NeedLeaderElection: only the elected operator holds the hub link.
@@ -91,6 +103,7 @@ func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*g
 	results := make([]*gatewaypb.AdmissionEventBatchAck_Result, 0, len(batch.Events))
 	l.eventsMu.Lock()
 	defer l.eventsMu.Unlock()
+	_, _, queueCapacity := l.admissionDeliveryConfig()
 	for _, event := range batch.Events {
 		if event == nil || event.EventId == "" {
 			continue
@@ -98,9 +111,6 @@ func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*g
 		if l.shouldDiscardAdmissionEvent(event) {
 			results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_DISCARDED, Reason: "storage_policy_no_retain"})
 			continue
-		}
-		if len(l.events) >= 1024 {
-			return results, false
 		}
 		stored := proto.Clone(event).(*gatewaypb.AdmissionEvent)
 		l.configMu.RLock()
@@ -111,7 +121,15 @@ func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*g
 		if l.prefix != "" {
 			stored.EventId = l.prefix + "-" + event.EventId
 		}
-		l.events[stored.EventId] = stored
+		if _, exists := l.events[stored.EventId]; exists {
+			results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED})
+			continue
+		}
+		if len(l.events) >= queueCapacity {
+			results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE, Reason: "operator_event_queue_full"})
+			continue
+		}
+		l.events[stored.EventId] = &queuedAdmissionEvent{event: stored}
 		results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED})
 	}
 	select {
@@ -158,16 +176,31 @@ func (l *Link) shouldDiscardAdmissionEvent(event *gatewaypb.AdmissionEvent) bool
 	if config == nil {
 		return false
 	}
-	gvr := event.ApiGroup + "/" + event.Resource
+	gvr := normalizedAdmissionGVR(event.ApiGroup, event.Resource)
 	for _, policy := range config.StoragePolicies {
 		if policy == nil {
 			continue
 		}
-		if matchesAdmissionField(policy.Verdicts, event.Verdict) && matchesAdmissionField(policy.Clusters, l.cfg.ClusterName) && matchesAdmissionField(policy.Gvks, gvr) && matchesAdmissionField(policy.Namespaces, event.Namespace) {
+		conditionsMatch := matchesAdmissionField(policy.Verdicts, event.Verdict) &&
+			matchesAdmissionField(policy.Clusters, l.cfg.ClusterName) &&
+			matchesAdmissionField(policy.Gvks, gvr) &&
+			matchesAdmissionField(policy.Namespaces, event.Namespace)
+		ruleMatches := conditionsMatch
+		if policy.MatchMode == "exclude" {
+			ruleMatches = !conditionsMatch
+		}
+		if ruleMatches {
 			return policy.Action == "discard"
 		}
 	}
 	return false
+}
+
+func normalizedAdmissionGVR(apiGroup, resource string) string {
+	if apiGroup == "" {
+		return resource
+	}
+	return apiGroup + "/" + resource
 }
 
 func matchesAdmissionField(values []string, value string) bool {
@@ -240,7 +273,10 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		return stream.Send(m)
 	}
 	sessionCtx, cancelSession := context.WithCancel(ctx)
-	defer cancelSession()
+	defer func() {
+		cancelSession()
+		l.failInFlightAdmissionEvents("sync_stream_closed")
+	}()
 	go l.sendAdmissionEvents(sessionCtx, send)
 
 	var appliedMu sync.Mutex
@@ -361,25 +397,50 @@ func sendUninstallReport(send func(*gatewaypb.MemberMessage) error, taskID int64
 }
 
 func (l *Link) sendAdmissionEvents(ctx context.Context, send func(*gatewaypb.MemberMessage) error) {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(eventSendTick)
 	defer ticker.Stop()
 	for {
-		l.eventsMu.Lock()
-		events := make([]*gatewaypb.AdmissionEvent, 0, len(l.events))
-		for _, event := range l.events {
-			events = append(events, event)
-		}
-		l.eventsMu.Unlock()
-		if len(events) > 0 {
-			if err := send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_AdmissionEventBatch{AdmissionEventBatch: &gatewaypb.AdmissionEventBatch{Events: events}}}); err != nil {
-				return
-			}
-		}
 		select {
 		case <-ctx.Done():
 			return
 		case <-l.eventsWake:
 		case <-ticker.C:
+		}
+
+		now := time.Now()
+		l.eventsMu.Lock()
+		for id, queued := range l.events {
+			if queued.inFlight && !queued.ackDeadline.After(now) {
+				l.failAdmissionEventLocked(id, "gateway_ack_timeout")
+			}
+		}
+		events := make([]*gatewaypb.AdmissionEvent, 0, len(l.events))
+		eventIDs := make([]string, 0, len(l.events))
+		for id, queued := range l.events {
+			if queued.inFlight {
+				continue
+			}
+			queued.inFlight = true
+			queued.ackDeadline = now.Add(eventAckTimeout)
+			queued.attempt++
+			outgoing := proto.Clone(queued.event).(*gatewaypb.AdmissionEvent)
+			outgoing.DeliveryAttempt = queued.attempt
+			events = append(events, outgoing)
+			eventIDs = append(eventIDs, id)
+		}
+		l.eventsMu.Unlock()
+		if len(events) == 0 {
+			continue
+		}
+		if err := send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_AdmissionEventBatch{AdmissionEventBatch: &gatewaypb.AdmissionEventBatch{Events: events}}}); err != nil {
+			l.eventsMu.Lock()
+			for _, id := range eventIDs {
+				if queued := l.events[id]; queued != nil && queued.inFlight {
+					l.failAdmissionEventLocked(id, "send_failed")
+				}
+			}
+			l.eventsMu.Unlock()
+			return
 		}
 	}
 }
@@ -391,8 +452,71 @@ func (l *Link) ackAdmissionEvents(ack *gatewaypb.AdmissionEventBatchAck) {
 	l.eventsMu.Lock()
 	defer l.eventsMu.Unlock()
 	for _, result := range ack.Results {
-		if result != nil && result.Status != gatewaypb.AdmissionEventBatchAck_Result_STATUS_UNSPECIFIED {
+		if result == nil {
+			continue
+		}
+		queued := l.events[result.EventId]
+		if queued == nil {
+			continue
+		}
+		if result.DeliveryAttempt != 0 && result.DeliveryAttempt != queued.attempt {
+			continue
+		}
+		switch result.Status {
+		case gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED, gatewaypb.AdmissionEventBatchAck_Result_DISCARDED:
 			delete(l.events, result.EventId)
+		case gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE:
+			l.failAdmissionEventLocked(result.EventId, result.Reason)
+		}
+	}
+}
+
+func (l *Link) admissionDeliveryConfig() (retryEnabled bool, maxRetryAttempts, queueCapacity int) {
+	maxRetryAttempts = defaultEventMaxRetryAttempts
+	queueCapacity = defaultEventQueueCapacity
+	l.configMu.RLock()
+	defer l.configMu.RUnlock()
+	if l.eventConfig == nil {
+		return false, maxRetryAttempts, queueCapacity
+	}
+	retryEnabled = l.eventConfig.RetryEnabled
+	if l.eventConfig.MaxRetryAttempts > 0 {
+		maxRetryAttempts = int(l.eventConfig.MaxRetryAttempts)
+	}
+	if l.eventConfig.QueueCapacity > 0 {
+		queueCapacity = int(l.eventConfig.QueueCapacity)
+	}
+	return retryEnabled, maxRetryAttempts, queueCapacity
+}
+
+func (l *Link) failAdmissionEventLocked(eventID, reason string) {
+	queued := l.events[eventID]
+	if queued == nil {
+		return
+	}
+	retryEnabled, maxRetryAttempts, _ := l.admissionDeliveryConfig()
+	attempts := queued.retryCount + 1
+	if !retryEnabled || queued.retryCount >= maxRetryAttempts {
+		delete(l.events, eventID)
+		slog.Warn("admission event delivery dropped", "event", eventID, "attempts", attempts, "reason", reason, "retry_enabled", retryEnabled)
+		return
+	}
+	queued.retryCount++
+	queued.inFlight = false
+	queued.ackDeadline = time.Time{}
+	slog.Warn("admission event delivery will retry", "event", eventID, "retry", queued.retryCount, "max_retries", maxRetryAttempts, "reason", reason)
+	select {
+	case l.eventsWake <- struct{}{}:
+	default:
+	}
+}
+
+func (l *Link) failInFlightAdmissionEvents(reason string) {
+	l.eventsMu.Lock()
+	defer l.eventsMu.Unlock()
+	for id, queued := range l.events {
+		if queued.inFlight {
+			l.failAdmissionEventLocked(id, reason)
 		}
 	}
 }

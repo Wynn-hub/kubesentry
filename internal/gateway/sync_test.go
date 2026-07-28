@@ -107,6 +107,58 @@ func TestSyncRejectsBadToken(t *testing.T) {
 	}
 }
 
+func TestSyncAdmissionStorageFailureReturnsRetryableWithoutClosingStream(t *testing.T) {
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "uid-1"})
+	// Force the same handler error path as a database write failure without
+	// destroying the repositories needed by authentication and pushLoop.
+	repos.Admission = nil
+	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
+
+	ctx := metadata.AppendToOutgoingContext(context.Background(),
+		MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+	stream, err := client.Sync(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stream.Send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_AdmissionEventBatch{
+		AdmissionEventBatch: &gatewaypb.AdmissionEventBatch{Events: []*gatewaypb.AdmissionEvent{{
+			EventId: "event-1", Verdict: "deny", DeliveryAttempt: 7,
+		}}},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	var eventAck *gatewaypb.AdmissionEventBatchAck
+	for eventAck == nil {
+		reply, err := stream.Recv()
+		if err != nil {
+			t.Fatalf("stream closed after admission storage failure: %v", err)
+		}
+		eventAck = reply.GetAdmissionEventBatchAck()
+	}
+	if len(eventAck.Results) != 1 ||
+		eventAck.Results[0].Status != gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE ||
+		eventAck.Results[0].DeliveryAttempt != 7 {
+		t.Fatalf("event ack = %+v, want RETRYABLE attempt 7", eventAck)
+	}
+
+	if err := stream.Send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_Heartbeat{
+		Heartbeat: &gatewaypb.Heartbeat{OperatorVersion: "v1"},
+	}}); err != nil {
+		t.Fatalf("send heartbeat after admission failure: %v", err)
+	}
+	for {
+		reply, err := stream.Recv()
+		if err != nil {
+			t.Fatalf("stream closed before heartbeat ack: %v", err)
+		}
+		if reply.GetAck() != nil {
+			break
+		}
+	}
+}
+
 // recvDesiredState drains the stream in a background goroutine until a
 // DesiredState frame arrives (skipping Acks), or times out.
 func recvDesiredState(t *testing.T, stream gatewaypb.Hub_SyncClient, timeout time.Duration) *gatewaypb.DesiredState {

@@ -1,4 +1,8 @@
 SET search_path TO kubesentry;
+DROP TABLE IF EXISTS admission_events;
+DROP INDEX IF EXISTS admission_storage_policies_priority_key;
+DROP TABLE IF EXISTS admission_storage_policies;
+DROP TABLE IF EXISTS admission_event_settings;
 DROP INDEX IF EXISTS cluster_uninstall_tasks_active_cluster_key;
 DROP INDEX IF EXISTS cluster_uninstall_tasks_cluster_created_idx;
 DROP TABLE IF EXISTS cluster_uninstall_tasks;

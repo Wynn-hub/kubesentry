@@ -51,6 +51,9 @@ func (r *AdmissionRepo) UpdateSettingsAndPolicies(ctx context.Context, settings 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&AdmissionEventSettings{}).Where("id = ?", settings.ID).Updates(map[string]any{
 			"default_retention_days": settings.DefaultRetentionDays,
+			"retry_enabled":          settings.RetryEnabled,
+			"max_retry_attempts":     settings.MaxRetryAttempts,
+			"queue_capacity":         settings.QueueCapacity,
 			"storage_policy_version": gorm.Expr("storage_policy_version + 1"),
 		}).Error; err != nil {
 			return err
@@ -59,12 +62,31 @@ func (r *AdmissionRepo) UpdateSettingsAndPolicies(ctx context.Context, settings 
 			return err
 		}
 		for i := range policies {
+			normalizeAdmissionStoragePolicy(&policies[i])
 			if err := tx.Create(&policies[i]).Error; err != nil {
 				return err
 			}
 		}
 		return nil
 	})
+}
+
+func normalizeAdmissionStoragePolicy(policy *AdmissionStoragePolicy) {
+	if policy.MatchMode == "" {
+		policy.MatchMode = AdmissionMatchModeInclude
+	}
+	if policy.Verdicts == nil {
+		policy.Verdicts = pq.StringArray{}
+	}
+	if policy.Clusters == nil {
+		policy.Clusters = pq.StringArray{}
+	}
+	if policy.GVKs == nil {
+		policy.GVKs = pq.StringArray{}
+	}
+	if policy.Namespaces == nil {
+		policy.Namespaces = pq.StringArray{}
+	}
 }
 
 func (r *AdmissionRepo) CreateEvent(ctx context.Context, event *AdmissionEvent) error {

@@ -76,7 +76,10 @@ func (r *HTTPAdmissionEventReporter) run() {
 			_ = response.Body.Close()
 			var ack gatewaypb.AdmissionEventBatchAck
 			if readErr == nil && protojson.Unmarshal(data, &ack) == nil && len(ack.Results) == 1 && ack.Results[0].EventId == event.EventId {
-				continue
+				switch ack.Results[0].Status {
+				case gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED, gatewaypb.AdmissionEventBatchAck_Result_DISCARDED:
+					continue
+				}
 			}
 		}
 		if response != nil {

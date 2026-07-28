@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,15 +21,22 @@ type admissionStoragePolicyInput struct {
 	Clusters      []string `json:"clusters"`
 	GVKs          []string `json:"gvks"`
 	Namespaces    []string `json:"namespaces"`
+	MatchMode     string   `json:"matchMode"`
 	Action        string   `json:"action"`
 	RetentionDays *int     `json:"retentionDays,omitempty"`
 }
 type admissionSettingsRequest struct {
 	DefaultRetentionDays int                           `json:"defaultRetentionDays"`
+	RetryEnabled         bool                          `json:"retryEnabled"`
+	MaxRetryAttempts     int                           `json:"maxRetryAttempts"`
+	QueueCapacity        int                           `json:"queueCapacity"`
 	StoragePolicies      []admissionStoragePolicyInput `json:"storagePolicies"`
 }
 type admissionSettingsResponse struct {
 	DefaultRetentionDays int                           `json:"defaultRetentionDays"`
+	RetryEnabled         bool                          `json:"retryEnabled"`
+	MaxRetryAttempts     int                           `json:"maxRetryAttempts"`
+	QueueCapacity        int                           `json:"queueCapacity"`
 	StoragePolicyVersion int64                         `json:"storagePolicyVersion"`
 	StoragePolicies      []admissionStoragePolicyInput `json:"storagePolicies"`
 }
@@ -48,7 +56,14 @@ func (h *Handlers) getAdmissionEventSettings(w http.ResponseWriter, r *http.Requ
 		writeErr(w, 500, err.Error())
 		return
 	}
-	writeOK(w, admissionSettingsResponse{DefaultRetentionDays: settings.DefaultRetentionDays, StoragePolicyVersion: settings.StoragePolicyVersion, StoragePolicies: storagePolicyInputs(policies)})
+	writeOK(w, admissionSettingsResponse{
+		DefaultRetentionDays: settings.DefaultRetentionDays,
+		RetryEnabled:         settings.RetryEnabled,
+		MaxRetryAttempts:     settings.MaxRetryAttempts,
+		QueueCapacity:        settings.QueueCapacity,
+		StoragePolicyVersion: settings.StoragePolicyVersion,
+		StoragePolicies:      storagePolicyInputs(policies),
+	})
 }
 
 func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +71,10 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 		writeErr(w, http.StatusServiceUnavailable, "admission events are unavailable")
 		return
 	}
-	var req admissionSettingsRequest
+	req := admissionSettingsRequest{
+		MaxRetryAttempts: 3,
+		QueueCapacity:    1024,
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid request body")
 		return
@@ -65,8 +83,35 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 		writeErr(w, 400, "defaultRetentionDays must be between 1 and 365")
 		return
 	}
+	if req.MaxRetryAttempts < 1 || req.MaxRetryAttempts > 100 {
+		writeErr(w, 400, "maxRetryAttempts must be between 1 and 100")
+		return
+	}
+	if req.QueueCapacity < 1 || req.QueueCapacity > 10000 {
+		writeErr(w, 400, "queueCapacity must be between 1 and 10000")
+		return
+	}
 	policies := make([]dbrepo.AdmissionStoragePolicy, 0, len(req.StoragePolicies))
 	for i, input := range req.StoragePolicies {
+		if input.MatchMode == "" {
+			input.MatchMode = dbrepo.AdmissionMatchModeInclude
+		}
+		if input.MatchMode != dbrepo.AdmissionMatchModeInclude && input.MatchMode != dbrepo.AdmissionMatchModeExclude {
+			writeErr(w, 400, "storage policy matchMode must be include or exclude")
+			return
+		}
+		for _, verdict := range input.Verdicts {
+			if verdict != "audit" && verdict != "deny" {
+				writeErr(w, 400, "storage policy verdict must be audit or deny")
+				return
+			}
+		}
+		for _, gvr := range input.GVKs {
+			if !validAdmissionGVR(gvr) {
+				writeErr(w, 400, "storage policy gvk must be a normalized resource such as pods or apps/deployments")
+				return
+			}
+		}
 		if input.Action != dbrepo.AdmissionStorageActionRetain && input.Action != dbrepo.AdmissionStorageActionDiscard {
 			writeErr(w, 400, "storage policy action must be retain or discard")
 			return
@@ -78,9 +123,15 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 		if input.Action == dbrepo.AdmissionStorageActionDiscard {
 			input.RetentionDays = nil
 		}
-		policies = append(policies, dbrepo.AdmissionStoragePolicy{Priority: i + 1, Verdicts: pq.StringArray(input.Verdicts), Clusters: pq.StringArray(input.Clusters), GVKs: pq.StringArray(input.GVKs), Namespaces: pq.StringArray(input.Namespaces), Action: input.Action, RetentionDays: input.RetentionDays})
+		policies = append(policies, dbrepo.AdmissionStoragePolicy{Priority: i + 1, MatchMode: input.MatchMode, Verdicts: pq.StringArray(input.Verdicts), Clusters: pq.StringArray(input.Clusters), GVKs: pq.StringArray(input.GVKs), Namespaces: pq.StringArray(input.Namespaces), Action: input.Action, RetentionDays: input.RetentionDays})
 	}
-	if err := h.Repos.Admission.UpdateSettingsAndPolicies(r.Context(), &dbrepo.AdmissionEventSettings{ID: 1, DefaultRetentionDays: req.DefaultRetentionDays}, policies); err != nil {
+	if err := h.Repos.Admission.UpdateSettingsAndPolicies(r.Context(), &dbrepo.AdmissionEventSettings{
+		ID:                   1,
+		DefaultRetentionDays: req.DefaultRetentionDays,
+		RetryEnabled:         req.RetryEnabled,
+		MaxRetryAttempts:     req.MaxRetryAttempts,
+		QueueCapacity:        req.QueueCapacity,
+	}, policies); err != nil {
 		writeErr(w, 500, "update admission event settings: "+err.Error())
 		return
 	}
@@ -91,9 +142,28 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 func storagePolicyInputs(in []dbrepo.AdmissionStoragePolicy) []admissionStoragePolicyInput {
 	out := make([]admissionStoragePolicyInput, 0, len(in))
 	for _, p := range in {
-		out = append(out, admissionStoragePolicyInput{Verdicts: p.Verdicts, Clusters: p.Clusters, GVKs: p.GVKs, Namespaces: p.Namespaces, Action: p.Action, RetentionDays: p.RetentionDays})
+		matchMode := p.MatchMode
+		if matchMode == "" {
+			matchMode = dbrepo.AdmissionMatchModeInclude
+		}
+		out = append(out, admissionStoragePolicyInput{MatchMode: matchMode, Verdicts: p.Verdicts, Clusters: p.Clusters, GVKs: p.GVKs, Namespaces: p.Namespaces, Action: p.Action, RetentionDays: p.RetentionDays})
 	}
 	return out
+}
+
+var admissionResourcePart = regexp.MustCompile(`^[a-z0-9](?:[-a-z0-9.]*[a-z0-9])?$`)
+
+func validAdmissionGVR(value string) bool {
+	if value == "" || value != strings.TrimSpace(value) || strings.Count(value, "/") > 1 {
+		return false
+	}
+	parts := strings.Split(value, "/")
+	for _, part := range parts {
+		if !admissionResourcePart.MatchString(part) {
+			return false
+		}
+	}
+	return true
 }
 
 type admissionEventItem struct {
