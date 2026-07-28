@@ -184,11 +184,14 @@ func matchesAdmissionField(values []string, value string) bool {
 
 func (l *Link) setEventLeaderLabel(ctx context.Context, enabled bool) error {
 	podName := os.Getenv("POD_NAME")
-	if podName == "" || l.cfg.Client == nil {
+	if podName == "" || l.cfg.Reader == nil || l.cfg.Client == nil {
 		return nil
 	}
 	var pod corev1.Pod
-	if err := l.cfg.Client.Get(ctx, types.NamespacedName{Namespace: l.cfg.Namespace, Name: podName}, &pod); err != nil {
+	// Use the API reader rather than the manager's cached client. A cached
+	// read of Pod causes controller-runtime to create a cluster-wide Pod
+	// informer, which would require unnecessary list/watch permissions.
+	if err := l.cfg.Reader.Get(ctx, types.NamespacedName{Namespace: l.cfg.Namespace, Name: podName}, &pod); err != nil {
 		return err
 	}
 	patch := client.MergeFrom(pod.DeepCopy())

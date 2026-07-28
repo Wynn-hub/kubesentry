@@ -1,4 +1,7 @@
-FROM gcr.io/distroless/static:nonroot
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates curl \
+    && addgroup -S -g 65532 nonroot \
+    && adduser -S -D -H -u 65532 -G nonroot nonroot
 ARG TARGETARCH
 COPY bin/linux-${TARGETARCH}/operator /operator
 USER nonroot:nonroot

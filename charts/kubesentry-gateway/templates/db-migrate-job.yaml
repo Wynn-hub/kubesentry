@@ -13,11 +13,9 @@ spec:
       containers:
         - name: migrate
           image: "{{ .Values.db.image.repository }}:{{ .Values.db.image.tag }}"
-          # cmd/db ships on gcr.io/distroless/static (no shell, no
-          # pg_isready) like every other kubesentry binary — so the "wait
-          # for postgres" retry loop lives inside cmd/db/main.go itself
-          # rather than a shell probe here (spec D17: post-install fires
-          # once regular resources are submitted, not necessarily Ready).
+          # The "wait for postgres" retry loop lives inside cmd/db/main.go
+          # (spec D17: post-install fires once regular resources are
+          # submitted, not necessarily Ready).
           args: ["migrate"]
           env:
             - name: DATABASE_DSN

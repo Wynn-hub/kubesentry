@@ -45,7 +45,7 @@ spec:
             {{- end }}
           ports:
             {{- if .Values.admissionEvents.enabled }}
-            - name: admission-events
+            - name: admission-evt
               containerPort: {{ .Values.admissionEvents.servicePort }}
             {{- end }}
           resources:

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
@@ -49,7 +50,7 @@ func (r *HTTPAdmissionEventReporter) Report(req *admissionv1.AdmissionRequest, r
 	}
 	var raw map[string]json.RawMessage
 	_ = json.Unmarshal(req.Object.Raw, &raw)
-	policies, groups := admissionEventReferences(violations)
+	policies, groups := AdmissionEventReferences(violations)
 	event := &gatewaypb.AdmissionEvent{EventId: newAdmissionEventULID(), RequestUid: string(req.UID), OccurredAt: timestamppb.Now(), Verdict: verdict, ApiGroup: req.Resource.Group, ApiVersion: req.Resource.Version, Resource: req.Resource.Resource, Operation: string(req.Operation), Namespace: req.Namespace, ResourceName: req.Name, Username: req.UserInfo.Username, UserGroups: req.UserInfo.Groups, PolicyNames: policies, PolicyGroupNames: groups, Violations: violations, MetadataSnapshot: raw["metadata"], SpecSnapshot: raw["spec"]}
 	select {
 	case r.queue <- event:
@@ -115,6 +116,47 @@ func newAdmissionEventULID() string {
 	return string(out)
 }
 
-func admissionEventReferences(violations []string) ([]string, []string) {
-	return nil, nil
+// AdmissionEventReferences extracts the policy and policy-group references
+// embedded by formatViolation. Keeping this next to the formatter's producer
+// makes the event payload structured without changing the admission response
+// users and Kubernetes already receive.
+func AdmissionEventReferences(violations []string) ([]string, []string) {
+	policies := make([]string, 0)
+	groups := make([]string, 0)
+	seenPolicies := make(map[string]struct{})
+	seenGroups := make(map[string]struct{})
+
+	add := func(values *[]string, seen map[string]struct{}, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		if _, ok := seen[value]; ok {
+			return
+		}
+		seen[value] = struct{}{}
+		*values = append(*values, value)
+	}
+
+	for _, violation := range violations {
+		for _, line := range strings.Split(violation, "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.HasPrefix(line, "[") {
+				continue
+			}
+			end := strings.IndexByte(line, ']')
+			if end <= 1 {
+				continue
+			}
+			policy, rawGroups, hasGroups := strings.Cut(line[1:end], " via ")
+			add(&policies, seenPolicies, policy)
+			if !hasGroups {
+				continue
+			}
+			for _, group := range strings.Split(rawGroups, ",") {
+				add(&groups, seenGroups, group)
+			}
+		}
+	}
+	return policies, groups
 }

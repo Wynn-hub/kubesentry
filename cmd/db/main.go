@@ -29,11 +29,9 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/logging"
 )
 
-// ponytail: fixed retry budget instead of a shell pg_isready probe — this
-// binary ships on distroless/static (no shell, no postgres client tools)
-// like every other kubesentry image, and the post-install hook Job that
-// runs this fires right after Postgres's StatefulSet is submitted, not
-// necessarily Ready (spec D17). 60 attempts * 5s covers first-boot/PVC
+// ponytail: fixed retry budget rather than an external pg_isready probe. The
+// post-install hook Job fires right after Postgres's StatefulSet is submitted,
+// not necessarily Ready (spec D17). 60 attempts * 5s covers first-boot/PVC
 // provisioning latency; bump if that ever isn't enough.
 const (
 	migrateRetryAttempts = 60

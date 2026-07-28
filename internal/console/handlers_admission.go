@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
 type admissionStoragePolicyInput struct {
@@ -95,7 +97,10 @@ func storagePolicyInputs(in []dbrepo.AdmissionStoragePolicy) []admissionStorageP
 }
 
 type admissionEventItem struct {
-	ID           int64           `json:"id"`
+	// IDs are Snowflake int64 values and exceed JavaScript's safe integer range.
+	// Keep them as strings at the HTTP boundary so a detail request targets the
+	// exact database row selected in the list.
+	ID           string          `json:"id"`
 	EventID      string          `json:"eventId"`
 	ClusterName  string          `json:"clusterName"`
 	OccurredAt   time.Time       `json:"occurredAt"`
@@ -122,7 +127,14 @@ type admissionEventDetail struct {
 }
 
 func admissionEventItemOf(e dbrepo.AdmissionEvent) admissionEventItem {
-	return admissionEventItem{ID: e.ID, EventID: e.EventID, ClusterName: e.ClusterName, OccurredAt: e.OccurredAt, Verdict: e.Verdict, APIGroup: e.APIGroup, APIVersion: e.APIVersion, Resource: e.Resource, Operation: e.Operation, Namespace: e.Namespace, ResourceName: e.ResourceName, Username: e.Username, PolicyNames: e.PolicyNames, Violations: json.RawMessage(e.Violations)}
+	policyNames := []string(e.PolicyNames)
+	if len(policyNames) == 0 {
+		var violations []string
+		if err := json.Unmarshal(e.Violations, &violations); err == nil {
+			policyNames, _ = webhook.AdmissionEventReferences(violations)
+		}
+	}
+	return admissionEventItem{ID: strconv.FormatInt(e.ID, 10), EventID: e.EventID, ClusterName: e.ClusterName, OccurredAt: e.OccurredAt, Verdict: e.Verdict, APIGroup: e.APIGroup, APIVersion: e.APIVersion, Resource: e.Resource, Operation: e.Operation, Namespace: e.Namespace, ResourceName: e.ResourceName, Username: e.Username, PolicyNames: policyNames, Violations: json.RawMessage(e.Violations)}
 }
 
 func admissionEventDetailOf(e dbrepo.AdmissionEvent) admissionEventDetail {
@@ -135,7 +147,7 @@ func (h *Handlers) listAdmissionEvents(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, err.Error())
 		return
 	}
-	options := dbrepo.AdmissionEventPageOptions{PageOptions: dbrepo.PageOptions{Limit: q.PageSize, Offset: q.offset(), SortBy: q.SortBy, Desc: q.SortOrder == "desc"}, ClusterName: r.URL.Query().Get("cluster"), Verdict: r.URL.Query().Get("verdict"), PolicyName: r.URL.Query().Get("policy"), Namespace: r.URL.Query().Get("namespace"), GVK: r.URL.Query().Get("gvk"), ResourceName: r.URL.Query().Get("resourceName"), Username: r.URL.Query().Get("username")}
+	options := dbrepo.AdmissionEventPageOptions{PageOptions: dbrepo.PageOptions{Limit: q.PageSize, Offset: q.offset(), SortBy: q.SortBy, Desc: q.SortOrder == "desc"}, ClusterNames: splitCSVParam(r.URL.Query().Get("cluster")), Verdicts: splitCSVParam(r.URL.Query().Get("verdict")), PolicyName: r.URL.Query().Get("policy"), Namespaces: splitCSVParam(r.URL.Query().Get("namespace")), GVKs: splitCSVParam(r.URL.Query().Get("gvk")), ResourceName: r.URL.Query().Get("resourceName"), Username: r.URL.Query().Get("username")}
 	if options.From, err = parseOptionalTime(r.URL.Query().Get("from")); err != nil {
 		writeErr(w, 400, err.Error())
 		return
@@ -202,4 +214,20 @@ func parseOptionalTime(raw string) (*time.Time, error) {
 		return nil, fmt.Errorf("invalid RFC3339 time %q", raw)
 	}
 	return &value, nil
+}
+
+// splitCSVParam turns a comma-separated query value into a trimmed,
+// empty-free slice. "audit,deny" -> ["audit","deny"]; "" -> nil.
+func splitCSVParam(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if v := strings.TrimSpace(p); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }

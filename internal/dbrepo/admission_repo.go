@@ -1,11 +1,13 @@
 package dbrepo
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
 
 	"github.com/lib/pq"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -14,11 +16,11 @@ type AdmissionRepo struct{ db *gorm.DB }
 
 type AdmissionEventPageOptions struct {
 	PageOptions
-	ClusterName  string
-	Verdict      string
+	ClusterNames []string
+	Verdicts     []string
 	PolicyName   string
-	Namespace    string
-	GVK          string
+	Namespaces   []string
+	GVKs         []string
 	ResourceName string
 	Username     string
 	From         *time.Time
@@ -66,6 +68,7 @@ func (r *AdmissionRepo) UpdateSettingsAndPolicies(ctx context.Context, settings 
 }
 
 func (r *AdmissionRepo) CreateEvent(ctx context.Context, event *AdmissionEvent) error {
+	normalizeAdmissionEvent(event)
 	return r.db.WithContext(ctx).Create(event).Error
 }
 
@@ -79,20 +82,26 @@ func (r *AdmissionRepo) GetEvent(ctx context.Context, id int64) (*AdmissionEvent
 
 func (r *AdmissionRepo) ListEventsPage(ctx context.Context, options AdmissionEventPageOptions) ([]AdmissionEvent, int64, error) {
 	query := r.db.WithContext(ctx).Model(&AdmissionEvent{})
-	if options.ClusterName != "" {
-		query = query.Where("cluster_name = ?", options.ClusterName)
+	if len(options.ClusterNames) > 0 {
+		query = query.Where("cluster_name IN ?", options.ClusterNames)
 	}
-	if options.Verdict != "" {
-		query = query.Where("verdict = ?", options.Verdict)
+	if len(options.Verdicts) > 0 {
+		query = query.Where("verdict IN ?", options.Verdicts)
 	}
 	if options.PolicyName != "" {
 		query = query.Where("policy_names @> ?", pq.StringArray{options.PolicyName})
 	}
-	if options.Namespace != "" {
-		query = query.Where("namespace = ?", options.Namespace)
+	if len(options.Namespaces) > 0 {
+		query = query.Where("namespace IN ?", options.Namespaces)
 	}
-	if options.GVK != "" {
-		query = query.Where("api_group || '/' || resource = ?", options.GVK)
+	if len(options.GVKs) > 0 {
+		// Normalized GVR: core group ("") renders as bare resource ("pods"),
+		// non-core as "<group>/<resource>" ("apps/deployments") — matching the
+		// canonical storage-policy format (no leading slash for core group).
+		query = query.Where(
+			"CASE WHEN api_group = '' THEN resource ELSE api_group || '/' || resource END IN ?",
+			options.GVKs,
+		)
 	}
 	if options.ResourceName != "" {
 		query = query.Where("resource_name = ?", options.ResourceName)
@@ -136,12 +145,38 @@ func (r *AdmissionRepo) Trend(ctx context.Context, from, to time.Time, hourly bo
 func (r *AdmissionRepo) CreateEventsIdempotent(ctx context.Context, events []AdmissionEvent) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i := range events {
+			normalizeAdmissionEvent(&events[i])
 			if err := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "event_id"}}, DoNothing: true}).Create(&events[i]).Error; err != nil {
 				return err
 			}
 		}
 		return nil
 	})
+}
+
+// normalizeAdmissionEvent ensures optional protobuf fields cannot bypass the
+// non-NULL SQL defaults. pq.StringArray(nil) and datatypes.JSON(nil) are both
+// sent to PostgreSQL as NULL when GORM includes them in an INSERT.
+func normalizeAdmissionEvent(event *AdmissionEvent) {
+	if event.UserGroups == nil {
+		event.UserGroups = pq.StringArray{}
+	}
+	if event.PolicyNames == nil {
+		event.PolicyNames = pq.StringArray{}
+	}
+	if event.PolicyGroupNames == nil {
+		event.PolicyGroupNames = pq.StringArray{}
+	}
+	event.Violations = normalizeAdmissionJSON(event.Violations, []byte("[]"))
+	event.MetadataSnapshot = normalizeAdmissionJSON(event.MetadataSnapshot, []byte("{}"))
+	event.SpecSnapshot = normalizeAdmissionJSON(event.SpecSnapshot, []byte("{}"))
+}
+
+func normalizeAdmissionJSON(value datatypes.JSON, fallback []byte) datatypes.JSON {
+	if len(value) == 0 || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+		return datatypes.JSON(fallback)
+	}
+	return value
 }
 
 func (r *AdmissionRepo) DeleteExpired(ctx context.Context, before time.Time) (int64, error) {

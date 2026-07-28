@@ -2,6 +2,7 @@ package hublink
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
@@ -22,6 +24,14 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
+
+type clientWithoutGet struct {
+	client.Client
+}
+
+func (clientWithoutGet) Get(context.Context, client.ObjectKey, client.Object, ...client.GetOption) error {
+	return errors.New("cached client must not read pods")
+}
 
 const (
 	gatewayNS = "kubesentry-gateway-system"
@@ -38,6 +48,25 @@ func buildScheme(t *testing.T) *runtime.Scheme {
 		t.Fatal(err)
 	}
 	return s
+}
+
+func TestSetEventLeaderLabelReadsPodThroughAPIReader(t *testing.T) {
+	t.Setenv("POD_NAME", "kubesentry-operator-0")
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: memberNS, Name: "kubesentry-operator-0"}}
+	member := fake.NewClientBuilder().WithScheme(buildScheme(t)).WithObjects(pod).Build()
+	link := New(Config{Namespace: memberNS, Reader: member, Client: clientWithoutGet{Client: member}})
+
+	if err := link.setEventLeaderLabel(context.Background(), true); err != nil {
+		t.Fatalf("set event leader label: %v", err)
+	}
+
+	var actual corev1.Pod
+	if err := member.Get(context.Background(), types.NamespacedName{Namespace: memberNS, Name: pod.Name}, &actual); err != nil {
+		t.Fatalf("get patched pod: %v", err)
+	}
+	if got := actual.Labels["kubesentry.io/event-leader"]; got != "true" {
+		t.Fatalf("event leader label = %q, want true", got)
+	}
 }
 
 func mustCreateCluster(t *testing.T, repos gateway.Repos, c *dbrepo.Cluster) {
