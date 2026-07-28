@@ -7,6 +7,15 @@ describe('back navigation', () => {
     expect(isValidApplicationBack('/console/policies?page=2', '/policies/demo', '/console/')).toBe(true)
   })
 
+  // createWebHistory() with no argument reports an empty base. Treating it as a
+  // path prefix used to reject every in-app entry, so the back button always
+  // fell through to the parent-page fallback instead of the previous page.
+  it('treats an empty base as the domain root', () => {
+    expect(isValidApplicationBack('/events', '/policies/demo', '')).toBe(true)
+    expect(isValidApplicationBack('/policies?page=2', '/policies/demo', '')).toBe(true)
+    expect(isValidApplicationBack('/policies/demo', '/policies/demo', '')).toBe(false)
+  })
+
   it.each([
     [null, '/policies/demo', '/'],
     ['', '/policies/demo', '/'],

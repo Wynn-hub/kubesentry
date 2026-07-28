@@ -16,7 +16,11 @@ export function isValidApplicationBack(back: unknown, currentFullPath: string, b
   if (typeof back !== 'string' || !back.startsWith('/') || back.startsWith('//')) return false
 
   const path = back.split(/[?#]/, 1)[0]
-  const normalizedBase = base === '/' ? '' : `/${base.replace(/^\/+|\/+$/g, '')}`
+  // createWebHistory() with no argument yields an empty base, which means "app
+  // is served from the domain root" — same as '/'. Treating '' as a real prefix
+  // would compute normalizedBase='/' and reject every in-app path.
+  const trimmedBase = base.replace(/^\/+|\/+$/g, '')
+  const normalizedBase = trimmedBase === '' ? '' : `/${trimmedBase}`
   if (normalizedBase && path !== normalizedBase && !path.startsWith(`${normalizedBase}/`)) return false
 
   const applicationPath = back.slice(normalizedBase.length) || '/'
