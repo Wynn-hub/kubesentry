@@ -61,6 +61,10 @@ type Server struct {
 	sessions    *sessionRegistry
 	connected   *connectRegistry
 	sharedToken string
+	// cleaner, when set, receives a full-cleanup trigger on an
+	// admission-event-settings NotifyChange. Left nil by every non-leader
+	// path and by tests, both of which have no cleanup loop running.
+	cleaner *AdmissionCleaner
 }
 
 func NewServer(repos Repos, namespace string, hb *HeartbeatTracker, changes *Notifier, sharedToken string) *Server {
@@ -74,6 +78,12 @@ func NewServer(repos Repos, namespace string, hb *HeartbeatTracker, changes *Not
 		sharedToken: sharedToken,
 	}
 }
+
+// SetAdmissionCleaner attaches the cleanup loop this server should trigger when
+// the admission event configuration changes. Separate from NewServer because
+// only the elected leader runs a cleaner, and the leader builds both in the
+// same callback.
+func (s *Server) SetAdmissionCleaner(cleaner *AdmissionCleaner) { s.cleaner = cleaner }
 
 func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (*gatewaypb.RegisterResponse, error) {
 	if req.ClusterName == "" || req.RegistrationToken == "" || req.ClusterUid == "" {
@@ -505,6 +515,12 @@ func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRe
 	// CRs the operator applies (internal/operator/hublink/apply.go).
 	slog.Info("notify change", "topic", req.Topic, "trace_id", req.TraceId)
 	s.changes.NotifyWithTrace(req.TraceId)
+	// A storage-rule change also applies retroactively to stored events, so
+	// kick a full cleanup pass. Fire-and-forget: the console write already
+	// committed, and the daily pass is the fallback if this is dropped.
+	if req.Topic == AdmissionEventSettingsTopic {
+		s.cleaner.TriggerFullCleanup()
+	}
 	return &gatewaypb.NotifyChangeResponse{}, nil
 }
 

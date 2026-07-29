@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
@@ -125,7 +126,11 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 		writeErr(w, 500, "update admission event settings: "+err.Error())
 		return
 	}
-	h.notifyChange(r, "admission-event-settings")
+	// Uses the gateway's own topic constant: this notification is what makes
+	// the gateway run a full cleanup pass, so a narrowed rule set drops
+	// already-stored events that no longer match instead of waiting out the
+	// daily ticker. A drifting literal here would silently disable that.
+	h.notifyChange(r, gateway.AdmissionEventSettingsTopic)
 	h.getAdmissionEventSettings(w, r)
 }
 

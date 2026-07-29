@@ -9,6 +9,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
 func TestAdmissionEventItemFallsBackToViolationPolicyReferences(t *testing.T) {
@@ -92,5 +93,27 @@ func TestValidAdmissionGVR(t *testing.T) {
 		if validAdmissionGVR(value) {
 			t.Errorf("validAdmissionGVR(%q) = true, want false", value)
 		}
+	}
+}
+
+// The settings write must notify the gateway with the exact topic the gateway
+// matches on to run a full cleanup pass. A drifting literal on either side
+// would silently stop narrowed rules from dropping already-stored events.
+func TestAdmissionEventSettingsNotifyGatewayWithCleanupTopic(t *testing.T) {
+	server, _, handlers := newDBTestServerWithHandlers(t)
+	fake := &fakeHubClient{}
+	handlers.Gateway = fake
+
+	rec, env := doRequest(t, server, "PUT", "/api/v1/admission-event-settings", map[string]any{
+		"defaultRetentionDays": 14,
+		"maxRetryAttempts":     3,
+		"queueCapacity":        1024,
+	})
+	if rec.Code != 200 || !env.Success {
+		t.Fatalf("update settings = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	topics, _ := fake.calls()
+	if len(topics) != 1 || topics[0] != gateway.AdmissionEventSettingsTopic {
+		t.Fatalf("NotifyChange topics = %v, want [%s]", topics, gateway.AdmissionEventSettingsTopic)
 	}
 }

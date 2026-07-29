@@ -10,6 +10,8 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
 )
 
 type AdmissionRepo struct{ db *gorm.DB }
@@ -206,11 +208,58 @@ func (r *AdmissionRepo) DeleteExpired(ctx context.Context, before time.Time) (in
 	return result.RowsAffected, result.Error
 }
 
+// admissionCleanupBatchSize bounds how many candidate rows one cleanup
+// iteration holds in memory. admission_events is a high-write table, so a
+// single unbounded SELECT is not an option.
+const admissionCleanupBatchSize = 1000
+
+// minAdmissionRetention is the shortest retention the settings allow (see the
+// default_retention_days CHECK). Routine cleanup skips anything newer than
+// this, since no configuration can expire it yet; rows that stopped matching
+// the rule set within that window are collected by CleanupAll instead.
+const minAdmissionRetention = 24 * time.Hour
+
+// admissionCleanupCandidate is the column projection cleanup needs: the
+// storage-rule match inputs plus the retention timestamp. It deliberately
+// omits metadata_snapshot/spec_snapshot — reading those JSONB columns for
+// every historical row is the expensive part of a scan, and cleanup never
+// looks at their contents.
+type admissionCleanupCandidate struct {
+	ID          int64     `gorm:"column:id"`
+	ClusterName string    `gorm:"column:cluster_name"`
+	Verdict     string    `gorm:"column:verdict"`
+	APIGroup    string    `gorm:"column:api_group"`
+	Resource    string    `gorm:"column:resource"`
+	Namespace   string    `gorm:"column:namespace"`
+	CreatedAt   time.Time `gorm:"column:created_at"`
+}
+
 // Cleanup applies the currently active configuration to historical events.
 // Retention is intentionally not persisted per row: shortening the global
 // retention period, or narrowing the rule set so an event no longer matches any
 // rule, therefore affects existing data on the next run.
+//
+// This is the routine daily pass, so it ignores rows younger than the shortest
+// allowed retention. Use CleanupAll right after a configuration change to also
+// drop newly-unmatched rows inside that window.
 func (r *AdmissionRepo) Cleanup(ctx context.Context, now time.Time) (int64, error) {
+	return r.cleanup(ctx, now, now.Add(-minAdmissionRetention))
+}
+
+// CleanupAll is Cleanup over the whole table, including events younger than the
+// shortest allowed retention. Narrowing the rule set makes matching rows
+// immediately ineligible for storage at any age, and the routine pass would
+// otherwise leave the most recent day of them behind until it aged out —
+// looking, from the console, exactly like the new rule had not taken effect.
+func (r *AdmissionRepo) CleanupAll(ctx context.Context, now time.Time) (int64, error) {
+	return r.cleanup(ctx, now, now)
+}
+
+// cleanup scans candidates older than notAfter in primary-key batches and
+// deletes the ones the current configuration no longer keeps. Paging by `id >
+// cursor` rather than OFFSET keeps each batch's cost constant and is stable
+// under the concurrent inserts this table always sees.
+func (r *AdmissionRepo) cleanup(ctx context.Context, now, notAfter time.Time) (int64, error) {
 	settings, err := r.GetSettings(ctx)
 	if err != nil {
 		return 0, err
@@ -219,23 +268,55 @@ func (r *AdmissionRepo) Cleanup(ctx context.Context, now time.Time) (int64, erro
 	if err != nil {
 		return 0, err
 	}
-	var events []AdmissionEvent
-	if err := r.db.WithContext(ctx).Where("created_at <= ?", now.Add(-24*time.Hour)).Find(&events).Error; err != nil {
-		return 0, err
-	}
-	ids := make([]int64, 0)
-	for _, event := range events {
-		if !ShouldStoreAdmissionEvent(policies, event) {
-			ids = append(ids, event.ID)
-			continue
+	rules := admissionRulesOf(policies)
+	retention := time.Duration(settings.DefaultRetentionDays) * 24 * time.Hour
+
+	var deleted int64
+	var cursor int64
+	for {
+		var candidates []admissionCleanupCandidate
+		err := r.db.WithContext(ctx).Model(&AdmissionEvent{}).
+			Select("id", "cluster_name", "verdict", "api_group", "resource", "namespace", "created_at").
+			Where("created_at <= ? AND id > ?", notAfter, cursor).
+			Order("id ASC").Limit(admissionCleanupBatchSize).
+			Scan(&candidates).Error
+		if err != nil {
+			return deleted, fmt.Errorf("scan admission event cleanup candidates: %w", err)
 		}
-		if !event.CreatedAt.Add(time.Duration(settings.DefaultRetentionDays) * 24 * time.Hour).After(now) {
-			ids = append(ids, event.ID)
+		if len(candidates) == 0 {
+			return deleted, nil
+		}
+		cursor = candidates[len(candidates)-1].ID
+
+		expired := make([]int64, 0, len(candidates))
+		for _, candidate := range candidates {
+			if !admissionpolicy.ShouldStore(rules, candidate.storageEvent()) {
+				expired = append(expired, candidate.ID)
+				continue
+			}
+			if !candidate.CreatedAt.Add(retention).After(now) {
+				expired = append(expired, candidate.ID)
+			}
+		}
+		if len(expired) > 0 {
+			result := r.db.WithContext(ctx).Unscoped().Delete(&AdmissionEvent{}, expired)
+			if result.Error != nil {
+				return deleted, fmt.Errorf("delete expired admission events: %w", result.Error)
+			}
+			deleted += result.RowsAffected
+		}
+		if len(candidates) < admissionCleanupBatchSize {
+			return deleted, nil
 		}
 	}
-	if len(ids) == 0 {
-		return 0, nil
+}
+
+func (c admissionCleanupCandidate) storageEvent() admissionpolicy.Event {
+	return admissionpolicy.Event{
+		Verdict:     c.Verdict,
+		ClusterName: c.ClusterName,
+		APIGroup:    c.APIGroup,
+		Resource:    c.Resource,
+		Namespace:   c.Namespace,
 	}
-	result := r.db.WithContext(ctx).Unscoped().Delete(&AdmissionEvent{}, ids)
-	return result.RowsAffected, result.Error
 }

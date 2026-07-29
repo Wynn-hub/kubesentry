@@ -113,10 +113,16 @@ func main() {
 					// let Kubernetes restart this Pod.
 					os.Exit(1)
 				}
+				hub := gateway.NewServer(repos, namespace, tracker, notifier, sharedToken)
+				cleaner := gateway.NewAdmissionCleaner(repos.Admission, 24*time.Hour)
+				// Storage-rule changes apply to already-stored events, so the
+				// console's NotifyChange must be able to kick a full pass
+				// instead of leaving it to the daily ticker.
+				hub.SetAdmissionCleaner(cleaner)
 				grpcRun := &grpcRunnable{
 					addr:   grpcAddr,
 					cert:   cert,
-					server: gateway.NewServer(repos, namespace, tracker, notifier, sharedToken),
+					server: hub,
 					ready:  &ready,
 				}
 				flusher := gateway.NewStatusFlusher(repos.Clusters, tracker, flushInterval, offlineAfter)
@@ -126,7 +132,7 @@ func main() {
 					}
 				}()
 				go func() {
-					if err := gateway.NewAdmissionCleaner(repos.Admission, 24*time.Hour).Start(leaderCtx); err != nil {
+					if err := cleaner.Start(leaderCtx); err != nil {
 						slog.Error("admission event cleanup error", "error", err)
 					}
 				}()

@@ -2,12 +2,16 @@ package dbrepo_test
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/lib/pq"
+	"gorm.io/gorm"
+
+	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 func TestAdmissionRepoStoresEmptyEventFieldsAsNonNullValues(t *testing.T) {
@@ -134,5 +138,172 @@ func TestAdmissionRepoUpdatesDeliverySettingsAndMatchModeAtomically(t *testing.T
 	}
 	if len(policies) != 1 || policies[0].MatchMode != dbrepo.AdmissionMatchModeExclude || !reflect.DeepEqual([]string(policies[0].Namespaces), []string{"kube-system"}) {
 		t.Fatalf("policies = %+v", policies)
+	}
+}
+
+// seedCleanupEvent inserts one event with an explicit入库 time so cleanup's
+// retention math is deterministic. GORM only auto-fills CreatedAt when it is
+// the zero value, so an explicit timestamp survives the insert.
+func seedCleanupEvent(t *testing.T, repo *dbrepo.AdmissionRepo, cluster *dbrepo.Cluster, eventID, namespace, resource string, createdAt time.Time) {
+	t.Helper()
+	err := repo.CreateEventsIdempotent(context.Background(), []dbrepo.AdmissionEvent{{
+		Base:        dbmodel.Base{CreatedAt: createdAt},
+		EventID:     eventID,
+		ClusterID:   cluster.ID,
+		ClusterName: cluster.Name,
+		OccurredAt:  createdAt,
+		Verdict:     "deny",
+		Resource:    resource,
+		Namespace:   namespace,
+	}})
+	if err != nil {
+		t.Fatalf("seed event %s: %v", eventID, err)
+	}
+}
+
+func remainingEventIDs(t *testing.T, db *gorm.DB) []string {
+	t.Helper()
+	var events []dbrepo.AdmissionEvent
+	if err := db.Order("event_id ASC").Find(&events).Error; err != nil {
+		t.Fatalf("list remaining events: %v", err)
+	}
+	ids := make([]string, len(events))
+	for i, e := range events {
+		ids[i] = e.EventID
+	}
+	return ids
+}
+
+// The routine daily pass must leave the most recent day alone (nothing can
+// have expired yet) while still deleting older events that either aged past the
+// global retention or no longer match the rule set.
+func TestAdmissionRepoCleanupSkipsTheShortestRetentionWindow(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	cluster := &dbrepo.Cluster{Name: "cleanup-cluster", Phase: "Online"}
+	if err := dbrepo.NewClusterRepo(db).Create(ctx, cluster); err != nil {
+		t.Fatalf("create cluster: %v", err)
+	}
+	repo := dbrepo.NewAdmissionRepo(db)
+	now := time.Now().UTC()
+
+	// Rule set stores only the "default" namespace, so anything else is
+	// unmatched and therefore ineligible for storage at any age.
+	if err := repo.UpdateSettingsAndPolicies(ctx, &dbrepo.AdmissionEventSettings{
+		ID: 1, DefaultRetentionDays: 7, MaxRetryAttempts: 3, QueueCapacity: 1024,
+	}, []dbrepo.AdmissionStoragePolicy{{
+		Priority:   1,
+		MatchMode:  dbrepo.AdmissionMatchModeInclude,
+		Namespaces: pq.StringArray{"default"},
+	}}); err != nil {
+		t.Fatalf("configure storage rules: %v", err)
+	}
+
+	seedCleanupEvent(t, repo, cluster, "fresh-unmatched", "other", "pods", now.Add(-time.Hour))
+	seedCleanupEvent(t, repo, cluster, "old-unmatched", "other", "pods", now.Add(-48*time.Hour))
+	seedCleanupEvent(t, repo, cluster, "matched-within-retention", "default", "pods", now.Add(-48*time.Hour))
+	seedCleanupEvent(t, repo, cluster, "matched-past-retention", "default", "pods", now.Add(-8*24*time.Hour))
+
+	deleted, err := repo.Cleanup(ctx, now)
+	if err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+	if deleted != 2 {
+		t.Errorf("deleted = %d, want 2", deleted)
+	}
+	want := []string{"fresh-unmatched", "matched-within-retention"}
+	if got := remainingEventIDs(t, db); !reflect.DeepEqual(got, want) {
+		t.Errorf("remaining = %v, want %v", got, want)
+	}
+}
+
+// CleanupAll is what a configuration change triggers: narrowing the rule set
+// must drop already-stored non-matching events immediately, including the ones
+// inside the routine pass's skipped window. Without this the console shows the
+// new rule as saved while the events it excludes linger for up to a day,
+// looking exactly like the rule never took effect.
+func TestAdmissionRepoCleanupAllDropsRecentlyUnmatchedEvents(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	cluster := &dbrepo.Cluster{Name: "cleanup-all-cluster", Phase: "Online"}
+	if err := dbrepo.NewClusterRepo(db).Create(ctx, cluster); err != nil {
+		t.Fatalf("create cluster: %v", err)
+	}
+	repo := dbrepo.NewAdmissionRepo(db)
+	now := time.Now().UTC()
+
+	seedCleanupEvent(t, repo, cluster, "keep-default", "default", "pods", now.Add(-time.Minute))
+	seedCleanupEvent(t, repo, cluster, "drop-other", "other", "pods", now.Add(-time.Minute))
+
+	if err := repo.UpdateSettingsAndPolicies(ctx, &dbrepo.AdmissionEventSettings{
+		ID: 1, DefaultRetentionDays: 14, MaxRetryAttempts: 3, QueueCapacity: 1024,
+	}, []dbrepo.AdmissionStoragePolicy{{
+		Priority:   1,
+		MatchMode:  dbrepo.AdmissionMatchModeInclude,
+		Namespaces: pq.StringArray{"default"},
+	}}); err != nil {
+		t.Fatalf("narrow storage rules: %v", err)
+	}
+
+	// The routine pass cannot see either event yet.
+	if deleted, err := repo.Cleanup(ctx, now); err != nil || deleted != 0 {
+		t.Fatalf("routine cleanup deleted = %d, err = %v; want 0, nil", deleted, err)
+	}
+	deleted, err := repo.CleanupAll(ctx, now)
+	if err != nil {
+		t.Fatalf("cleanup all: %v", err)
+	}
+	if deleted != 1 {
+		t.Errorf("deleted = %d, want 1", deleted)
+	}
+	if got := remainingEventIDs(t, db); !reflect.DeepEqual(got, []string{"keep-default"}) {
+		t.Errorf("remaining = %v, want [keep-default]", got)
+	}
+}
+
+// Cleanup pages by primary key, so a candidate set larger than one batch must
+// still be fully processed rather than truncated at the batch boundary.
+func TestAdmissionRepoCleanupPagesBeyondOneBatch(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	cluster := &dbrepo.Cluster{Name: "cleanup-batch-cluster", Phase: "Online"}
+	if err := dbrepo.NewClusterRepo(db).Create(ctx, cluster); err != nil {
+		t.Fatalf("create cluster: %v", err)
+	}
+	repo := dbrepo.NewAdmissionRepo(db)
+	now := time.Now().UTC()
+	if err := repo.UpdateSettingsAndPolicies(ctx, &dbrepo.AdmissionEventSettings{
+		ID: 1, DefaultRetentionDays: 1, MaxRetryAttempts: 3, QueueCapacity: 1024,
+	}, nil); err != nil {
+		t.Fatalf("configure retention: %v", err)
+	}
+
+	const total = 1200 // > admissionCleanupBatchSize
+	events := make([]dbrepo.AdmissionEvent, 0, total)
+	for i := 0; i < total; i++ {
+		events = append(events, dbrepo.AdmissionEvent{
+			Base:        dbmodel.Base{CreatedAt: now.Add(-72 * time.Hour)},
+			EventID:     fmt.Sprintf("batch-%04d", i),
+			ClusterID:   cluster.ID,
+			ClusterName: cluster.Name,
+			OccurredAt:  now.Add(-72 * time.Hour),
+			Verdict:     "audit",
+			Resource:    "pods",
+			Namespace:   "default",
+		})
+	}
+	if err := repo.CreateEventsIdempotent(ctx, events); err != nil {
+		t.Fatalf("seed batch events: %v", err)
+	}
+
+	deleted, err := repo.Cleanup(ctx, now)
+	if err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+	if deleted != total {
+		t.Errorf("deleted = %d, want %d", deleted, total)
+	}
+	if got := remainingEventIDs(t, db); len(got) != 0 {
+		t.Errorf("remaining = %d events, want 0", len(got))
 	}
 }
