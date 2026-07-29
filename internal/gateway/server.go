@@ -413,7 +413,7 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 			s.hb.MarkAlive(cluster, m.Heartbeat.OperatorVersion)
 		case *gatewaypb.MemberMessage_StatusReport:
 			rep := m.StatusReport
-			s.hb.RecordStatus(cluster, rep.ReadyPolicies, rep.InvalidPolicies)
+			s.hb.RecordStatus(cluster, rep.ReadyPolicies, rep.InvalidPolicies, inventoryOf(rep))
 			if last, has := sess.last(); has {
 				s.markReported(stream.Context(), cluster, last, rep)
 			}

@@ -13,6 +13,14 @@
     <el-descriptions :column="2" border style="margin-bottom: 16px">
       <el-descriptions-item :label="$t('cluster.clusterUid')">{{ d.clusterUid || '-' }}</el-descriptions-item>
       <el-descriptions-item :label="$t('cluster.operatorVersion')">{{ d.operatorVersion || '-' }}</el-descriptions-item>
+      <el-descriptions-item :label="$t('cluster.kubernetesVersion')">{{ d.kubernetesVersion || '-' }}</el-descriptions-item>
+      <el-descriptions-item :label="$t('cluster.nodes')">
+        <span v-if="d.nodeCount > 0">
+          {{ $t('cluster.nodesReadyOfTotal', { ready: d.readyNodeCount, total: d.nodeCount }) }}
+        </span>
+        <span v-else>-</span>
+      </el-descriptions-item>
+      <el-descriptions-item :label="$t('cluster.apiServerAddress')" :span="2">{{ d.apiServerAddress || '-' }}</el-descriptions-item>
       <el-descriptions-item :label="$t('cluster.lastHeartbeatAt')">
         {{ d.lastHeartbeatAt ? relTime(d.lastHeartbeatAt, locale) : $t('cluster.neverHeartbeat') }}
       </el-descriptions-item>

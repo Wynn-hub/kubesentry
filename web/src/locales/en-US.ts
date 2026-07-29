@@ -57,6 +57,8 @@ export default {
     title: 'Clusters', subtitle: 'Manage registered member clusters',
     name: 'Name', phase: 'Phase', operatorVersion: 'Operator Version',
     lastHeartbeatAt: 'Last Heartbeat', clusterUid: 'Cluster UID', labels: 'Labels',
+    kubernetesVersion: 'Kubernetes Version', apiServerAddress: 'API Server Address',
+    nodes: 'Nodes', nodesReadyOfTotal: '{ready} / {total} ready',
     createdAt: 'Registered At', updatedAt: 'Last Updated',
     neverHeartbeat: 'Never online',
     createTitle: 'New Cluster', createHint: 'Name is required, labels are optional',

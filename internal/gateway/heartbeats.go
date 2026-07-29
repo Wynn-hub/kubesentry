@@ -7,6 +7,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
 // HeartbeatInfo is the in-memory record of a member's last heartbeat.
@@ -14,6 +15,37 @@ type HeartbeatInfo struct {
 	LastSeen        time.Time
 	OperatorVersion string
 	Summary         *v1alpha1.PolicySummary
+	// Inventory is the member's self-reported cluster facts from the last
+	// StatusReport, nil until one arrives. Heartbeats alone never set it.
+	Inventory *ClusterInventory
+}
+
+// ClusterInventory is the member-reported cluster description carried by
+// StatusReport. Fields the member could not read stay empty/zero and are not
+// persisted, so a transient read failure never wipes a known value.
+type ClusterInventory struct {
+	KubernetesVersion string
+	APIServerAddress  string
+	NodeCount         int
+	ReadyNodeCount    int
+}
+
+// inventoryOf extracts the cluster inventory from a StatusReport, returning nil
+// when the member reported nothing (an older operator, or one that could read
+// none of the values) so the tracker keeps any previously reported facts.
+func inventoryOf(rep *gatewaypb.StatusReport) *ClusterInventory {
+	if rep == nil {
+		return nil
+	}
+	if rep.KubernetesVersion == "" && rep.ApiServerAddress == "" && rep.NodeCount == 0 {
+		return nil
+	}
+	return &ClusterInventory{
+		KubernetesVersion: rep.KubernetesVersion,
+		APIServerAddress:  rep.ApiServerAddress,
+		NodeCount:         int(rep.NodeCount),
+		ReadyNodeCount:    int(rep.ReadyNodeCount),
+	}
 }
 
 // HeartbeatTracker keeps heartbeats in memory so the hot path never
@@ -30,17 +62,26 @@ func NewHeartbeatTracker() *HeartbeatTracker {
 func (h *HeartbeatTracker) MarkAlive(cluster, version string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.beats[cluster] = HeartbeatInfo{LastSeen: time.Now(), OperatorVersion: version}
+	// Preserve the inventory a previous StatusReport supplied: heartbeats are
+	// far more frequent and carry no inventory of their own.
+	info := h.beats[cluster]
+	info.LastSeen = time.Now()
+	info.OperatorVersion = version
+	info.Summary = nil
+	h.beats[cluster] = info
 }
 
-// RecordStatus notes a member StatusReport: proof of life plus policy
-// counts. OperatorVersion only changes via MarkAlive.
-func (h *HeartbeatTracker) RecordStatus(cluster string, ready, invalid int32) {
+// RecordStatus notes a member StatusReport: proof of life, policy counts and
+// the reported cluster inventory. OperatorVersion only changes via MarkAlive.
+func (h *HeartbeatTracker) RecordStatus(cluster string, ready, invalid int32, inventory *ClusterInventory) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	info := h.beats[cluster]
 	info.LastSeen = time.Now()
 	info.Summary = &v1alpha1.PolicySummary{Ready: ready, Invalid: invalid}
+	if inventory != nil {
+		info.Inventory = inventory
+	}
 	h.beats[cluster] = info
 }
 
@@ -121,6 +162,20 @@ func (f *StatusFlusher) flushOnce(ctx context.Context) error {
 		}
 		if err := f.clusters.UpdateHeartbeat(ctx, cl.ID, cl.Phase, cl.LastHeartbeatAt, cl.OperatorVersion); err != nil {
 			return err
+		}
+		// Inventory is written separately and only when reported, so a member
+		// that never reports it (or failed to read it) keeps whatever the
+		// database already has instead of being reset to empty/zero.
+		if ok && info.Inventory != nil {
+			inv := *info.Inventory
+			if err := f.clusters.UpdateInventory(ctx, cl.ID, dbrepo.ClusterInventory{
+				KubernetesVersion: inv.KubernetesVersion,
+				APIServerAddress:  inv.APIServerAddress,
+				NodeCount:         inv.NodeCount,
+				ReadyNodeCount:    inv.ReadyNodeCount,
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

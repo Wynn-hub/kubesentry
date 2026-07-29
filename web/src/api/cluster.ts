@@ -5,6 +5,9 @@ export interface ClusterListItem {
   name: string
   phase: string
   operatorVersion: string
+  kubernetesVersion: string
+  nodeCount: number
+  readyNodeCount: number
   lastHeartbeatAt: string | null
   createdAt: string
 }
@@ -15,6 +18,11 @@ export interface ClusterDetail {
   phase: string
   operatorVersion: string
   lastHeartbeatAt: string | null
+  // Member-reported inventory; empty/zero until the member reports it.
+  kubernetesVersion: string
+  apiServerAddress: string
+  nodeCount: number
+  readyNodeCount: number
   labels: Record<string, string> | null
   createdAt: string
   updatedAt: string

@@ -20,9 +20,16 @@ type Cluster struct {
 	Labels          datatypes.JSONType[map[string]string]
 	Phase           string
 	OperatorVersion string
-	LastHeartbeatAt *time.Time
-	RegTokenHash    string
-	AuthTokenHash   string
+	// Member-reported inventory, refreshed by StatusReport. Empty/zero means the
+	// member has not reported it (yet) or could not read it. Explicit column
+	// names guard against GORM initialism edge cases.
+	KubernetesVersion string `gorm:"column:kubernetes_version"`
+	APIServerAddress  string `gorm:"column:api_server_address"`
+	NodeCount         int    `gorm:"column:node_count"`
+	ReadyNodeCount    int    `gorm:"column:ready_node_count"`
+	LastHeartbeatAt   *time.Time
+	RegTokenHash      string
+	AuthTokenHash     string
 }
 
 func (Cluster) TableName() string { return "kubesentry.clusters" }

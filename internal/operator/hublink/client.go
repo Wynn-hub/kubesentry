@@ -26,6 +26,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
@@ -59,8 +60,28 @@ type Config struct {
 	Reader          client.Reader // 非缓存读（kube-system UID、Secret）
 	Client          client.Client // 写成员侧 auth Secret
 	HeartbeatEvery  time.Duration
+	// APIServerAddress is the apiserver URL as seen from inside the member
+	// (rest.Config.Host); reported to the hub as part of cluster inventory.
+	APIServerAddress string
+	// Discovery/NodeLister feed cluster inventory (Kubernetes version, node
+	// counts) into StatusReport. Nil disables that part of the inventory, which
+	// is how single-cluster and older builds behave.
+	Discovery  DiscoveryInterface
+	NodeLister NodeLister
 	// DialOverride 仅测试注入 bufconn；nil 时走真实 TLS 拨号。
 	DialOverride func(ctx context.Context) (*grpc.ClientConn, error)
+}
+
+// DiscoveryInterface is the discovery surface the inventory collector needs.
+// client-go's discovery.DiscoveryInterface satisfies it.
+type DiscoveryInterface interface {
+	ServerVersion() (*version.Info, error)
+}
+
+// NodeLister abstracts listing nodes so tests can stub the node inventory
+// without a fake controller-runtime client.
+type NodeLister interface {
+	ListNodes(ctx context.Context) ([]corev1.Node, error)
 }
 
 type Link struct {
@@ -277,11 +298,16 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		if err != nil {
 			slog.Warn("count policies for status report", "error", err)
 		}
+		k8sVersion, nodeCount, readyNodeCount := l.clusterInventory(ctx)
 		return &gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_StatusReport{StatusReport: &gatewaypb.StatusReport{
-			ReadyPolicies:   ready,
-			InvalidPolicies: invalid,
-			AppliedVersion:  appliedVersion,
-			ApplyError:      applyErr,
+			ReadyPolicies:     ready,
+			InvalidPolicies:   invalid,
+			AppliedVersion:    appliedVersion,
+			ApplyError:        applyErr,
+			KubernetesVersion: k8sVersion,
+			ApiServerAddress:  l.cfg.APIServerAddress,
+			NodeCount:         nodeCount,
+			ReadyNodeCount:    readyNodeCount,
 		}}}
 	}
 
@@ -643,4 +669,40 @@ func (l *Link) clusterUID(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("read kube-system uid: %w", err)
 	}
 	return string(ns.UID), nil
+}
+
+// clusterInventory collects the member cluster's own version/address/node
+// counts for StatusReport. Every source is optional and best-effort: a member
+// that cannot read one leaves it empty/zero and reports the rest, because a
+// missing inventory value must never hold back the status report itself.
+func (l *Link) clusterInventory(ctx context.Context) (k8sVersion string, nodeCount, readyNodeCount int32) {
+	if l.cfg.Discovery != nil {
+		if info, err := l.cfg.Discovery.ServerVersion(); err != nil {
+			slog.Warn("read kubernetes version", "error", err)
+		} else if info != nil {
+			k8sVersion = info.GitVersion
+		}
+	}
+	if l.cfg.NodeLister != nil {
+		if nodes, err := l.cfg.NodeLister.ListNodes(ctx); err != nil {
+			slog.Warn("list nodes for inventory", "error", err)
+		} else {
+			nodeCount = int32(len(nodes))
+			for _, node := range nodes {
+				if nodeReady(&node) {
+					readyNodeCount++
+				}
+			}
+		}
+	}
+	return k8sVersion, nodeCount, readyNodeCount
+}
+
+func nodeReady(node *corev1.Node) bool {
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == corev1.NodeReady {
+			return cond.Status == corev1.ConditionTrue
+		}
+	}
+	return false
 }

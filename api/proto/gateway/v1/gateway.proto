@@ -53,12 +53,19 @@ message Heartbeat {
   string operator_version = 1;
 }
 
-// StatusReport carries member policy counts and the last apply outcome.
+// StatusReport carries member policy counts, the last apply outcome, and the
+// member cluster's own inventory (version/address/node counts). Inventory
+// fields are best-effort: a member that cannot read them leaves them empty
+// rather than failing the report.
 message StatusReport {
   int32 ready_policies = 1;
   int32 invalid_policies = 2;
   string applied_version = 3; // hash of the last applied DesiredState
   string apply_error = 4;     // non-empty = last apply failed, why
+  string kubernetes_version = 5;  // e.g. "v1.31.2", from the discovery API
+  string api_server_address = 6;  // apiserver URL as seen from inside the member
+  int32 node_count = 7;           // total nodes
+  int32 ready_node_count = 8;     // nodes with Ready condition true
 }
 
 message HubMessage {

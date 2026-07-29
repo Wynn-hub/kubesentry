@@ -21,6 +21,15 @@
           <template #default="{ row }"><ClusterPhaseTag :phase="row.phase" /></template>
         </el-table-column>
         <el-table-column :label="$t('cluster.operatorVersion')" prop="operatorVersion" sortable="custom" :sort-orders="sortOrders" width="170" show-overflow-tooltip />
+        <el-table-column :label="$t('cluster.kubernetesVersion')" width="150" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.kubernetesVersion || '-' }}</template>
+        </el-table-column>
+        <el-table-column :label="$t('cluster.nodes')" width="120">
+          <template #default="{ row }">
+            <span v-if="row.nodeCount > 0">{{ row.readyNodeCount }} / {{ row.nodeCount }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="$t('cluster.lastHeartbeatAt')" prop="lastHeartbeatAt" sortable="custom" :sort-orders="sortOrders" width="175">
           <template #default="{ row }">
             {{ row.lastHeartbeatAt ? relTime(row.lastHeartbeatAt, locale) : $t('cluster.neverHeartbeat') }}

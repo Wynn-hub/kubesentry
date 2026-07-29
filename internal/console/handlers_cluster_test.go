@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 func validInstallParams() map[string]any {
@@ -185,6 +187,46 @@ func TestListClustersSortedByName(t *testing.T) {
 	}
 	if len(items) != 2 || items[0].Name != "alpha" || items[1].Name != "zeta" {
 		t.Fatalf("items = %+v, want [alpha, zeta]", items)
+	}
+}
+
+// Member-reported inventory is written by the gateway's StatusFlusher; the
+// console must surface it on both the list and the detail response.
+func TestClusterResponsesExposeMemberReportedInventory(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	ctx := context.Background()
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "member", "installParams": validInstallParams()})
+
+	cluster, err := repos.Clusters.GetByName(ctx, "member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Clusters.UpdateInventory(ctx, cluster.ID, dbrepo.ClusterInventory{
+		KubernetesVersion: "v1.31.2",
+		APIServerAddress:  "https://10.96.0.1:443",
+		NodeCount:         5,
+		ReadyNodeCount:    4,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/clusters/member", nil)
+	if rec.Code != 200 {
+		t.Fatalf("detail code = %d", rec.Code)
+	}
+	detail := mustUnmarshal[clusterDetail](t, env.Data)
+	if detail.KubernetesVersion != "v1.31.2" || detail.APIServerAddress != "https://10.96.0.1:443" ||
+		detail.NodeCount != 5 || detail.ReadyNodeCount != 4 {
+		t.Fatalf("detail inventory = %+v", detail)
+	}
+
+	rec, env = doRequest(t, h, "GET", "/api/v1/clusters", nil)
+	if rec.Code != 200 {
+		t.Fatalf("list code = %d", rec.Code)
+	}
+	items := mustUnmarshal[pageResult[clusterListItem]](t, env.Data).Items
+	if len(items) != 1 || items[0].KubernetesVersion != "v1.31.2" || items[0].NodeCount != 5 || items[0].ReadyNodeCount != 4 {
+		t.Fatalf("list inventory = %+v", items)
 	}
 }
 

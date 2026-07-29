@@ -56,6 +56,8 @@ export default {
     title: '集群管理', subtitle: '管理已注册的成员集群',
     name: '名称', phase: '状态', operatorVersion: 'Operator 版本',
     lastHeartbeatAt: '最后心跳', clusterUid: '集群 UID', labels: '标签',
+    kubernetesVersion: 'Kubernetes 版本', apiServerAddress: 'API Server 地址',
+    nodes: '节点数', nodesReadyOfTotal: '{ready} / {total} 就绪',
     createdAt: '注册时间', updatedAt: '最后更新',
     neverHeartbeat: '从未上线',
     createTitle: '新建集群', createHint: '仅需名称，标签可选',

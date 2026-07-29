@@ -8,6 +8,12 @@ CREATE TABLE clusters (
     labels             JSONB NOT NULL DEFAULT '{}',
     phase              TEXT NOT NULL DEFAULT '',
     operator_version   TEXT NOT NULL DEFAULT '',
+    -- Member-reported inventory, refreshed by StatusReport. Best-effort: a
+    -- member that cannot read a value leaves it empty/zero.
+    kubernetes_version TEXT NOT NULL DEFAULT '',
+    api_server_address TEXT NOT NULL DEFAULT '',
+    node_count         INT NOT NULL DEFAULT 0,
+    ready_node_count   INT NOT NULL DEFAULT 0,
     last_heartbeat_at  TIMESTAMPTZ,
     reg_token_hash     TEXT NOT NULL DEFAULT '',
     auth_token_hash    TEXT NOT NULL DEFAULT '',

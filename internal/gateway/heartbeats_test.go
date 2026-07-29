@@ -7,6 +7,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
 func TestTrackerMarkAliveAndSnapshot(t *testing.T) {
@@ -64,7 +65,7 @@ func TestFlusherOnlineAndOffline(t *testing.T) {
 func TestRecordStatusPreservesVersionAndFlushesSummary(t *testing.T) {
 	tr := NewHeartbeatTracker()
 	tr.MarkAlive("c1", "v1")
-	tr.RecordStatus("c1", 7, 2)
+	tr.RecordStatus("c1", 7, 2, nil)
 
 	info := tr.Snapshot()["c1"]
 	if info.OperatorVersion != "v1" || info.Summary == nil || info.Summary.Ready != 7 || info.Summary.Invalid != 2 {
@@ -104,5 +105,58 @@ func TestFlusherRestoresLegacyUninstallFailureToOnline(t *testing.T) {
 	}
 	if got.Phase != v1alpha1.ClusterPhaseOnline {
 		t.Fatalf("phase = %q, want Online", got.Phase)
+	}
+}
+
+func TestFlusherPersistsReportedClusterInventory(t *testing.T) {
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "member"})
+	ctx := context.Background()
+
+	tr := NewHeartbeatTracker()
+	tr.MarkAlive("member", "v1")
+	tr.RecordStatus("member", 3, 0, &ClusterInventory{
+		KubernetesVersion: "v1.31.2",
+		APIServerAddress:  "https://10.96.0.1:443",
+		NodeCount:         5,
+		ReadyNodeCount:    4,
+	})
+	f := NewStatusFlusher(repos.Clusters, tr, time.Hour, time.Minute)
+	if err := f.flushOnce(ctx); err != nil {
+		t.Fatalf("flushOnce: %v", err)
+	}
+	got, err := repos.Clusters.GetByName(ctx, "member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.KubernetesVersion != "v1.31.2" || got.APIServerAddress != "https://10.96.0.1:443" || got.NodeCount != 5 || got.ReadyNodeCount != 4 {
+		t.Fatalf("inventory not persisted: %+v", got)
+	}
+
+	// A later heartbeat carries no inventory of its own; the stored facts must
+	// survive rather than being reset to empty/zero.
+	tr.MarkAlive("member", "v2")
+	if err := f.flushOnce(ctx); err != nil {
+		t.Fatalf("second flushOnce: %v", err)
+	}
+	got, err = repos.Clusters.GetByName(ctx, "member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.KubernetesVersion != "v1.31.2" || got.NodeCount != 5 {
+		t.Fatalf("inventory lost after a heartbeat-only flush: %+v", got)
+	}
+}
+
+func TestInventoryOfIgnoresEmptyReport(t *testing.T) {
+	if inventoryOf(nil) != nil {
+		t.Error("nil report must yield no inventory")
+	}
+	if got := inventoryOf(&gatewaypb.StatusReport{ReadyPolicies: 2}); got != nil {
+		t.Errorf("report without inventory yielded %+v, want nil", got)
+	}
+	got := inventoryOf(&gatewaypb.StatusReport{KubernetesVersion: "v1.30.0"})
+	if got == nil || got.KubernetesVersion != "v1.30.0" {
+		t.Errorf("inventory = %+v, want the reported version", got)
 	}
 }

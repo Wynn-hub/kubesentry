@@ -20,6 +20,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -55,7 +58,8 @@ func main() {
 func runOperator() {
 	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseDevMode(true)))
 	scheme := buildScheme()
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	kubeConfig := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(kubeConfig, ctrl.Options{
 		Scheme: scheme,
 		Client: client.Options{
 			Cache: &client.CacheOptions{
@@ -92,7 +96,7 @@ func runOperator() {
 	}
 
 	if gatewayAddr := os.Getenv("GATEWAY_ADDRESS"); gatewayAddr != "" {
-		link := hublink.New(hublink.Config{
+		linkConfig := hublink.Config{
 			HubAddress:      gatewayAddr,
 			TLSCAFile:       envOrDefault("GATEWAY_CA_FILE", "/etc/kubesentry/hub-ca/ca.crt"),
 			TLSServerName:   os.Getenv("GATEWAY_TLS_SERVER_NAME"),
@@ -103,7 +107,21 @@ func runOperator() {
 			Reader:          mgr.GetAPIReader(),
 			Client:          mgr.GetClient(),
 			HeartbeatEvery:  15 * time.Second,
-		})
+		}
+		// Cluster inventory is best-effort: a member that cannot build the
+		// discovery/nodes clients still reports policy counts and heartbeats.
+		if discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeConfig); err != nil {
+			slog.Warn("build discovery client for cluster inventory", "error", err)
+		} else {
+			linkConfig.Discovery = discoveryClient
+		}
+		if nodesClient, err := kubernetes.NewForConfig(kubeConfig); err != nil {
+			slog.Warn("build nodes client for cluster inventory", "error", err)
+		} else {
+			linkConfig.NodeLister = clientsetNodeLister{core: nodesClient.CoreV1()}
+		}
+		linkConfig.APIServerAddress = kubeConfig.Host
+		link := hublink.New(linkConfig)
 		if err := mgr.Add(link); err != nil {
 			slog.Error("add gateway link", "error", err)
 			os.Exit(1)
@@ -321,4 +339,17 @@ func envOrDefault(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// clientsetNodeLister adapts the typed core client to hublink.NodeLister.
+type clientsetNodeLister struct {
+	core corev1client.CoreV1Interface
+}
+
+func (c clientsetNodeLister) ListNodes(ctx context.Context) ([]corev1.Node, error) {
+	list, err := c.core.Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
 }

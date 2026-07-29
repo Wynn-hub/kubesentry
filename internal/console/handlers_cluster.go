@@ -20,22 +20,30 @@ import (
 )
 
 type clusterListItem struct {
-	Name            string     `json:"name"`
-	Phase           string     `json:"phase"`
-	OperatorVersion string     `json:"operatorVersion"`
-	LastHeartbeatAt *time.Time `json:"lastHeartbeatAt,omitempty"`
-	CreatedAt       time.Time  `json:"createdAt"`
+	Name              string     `json:"name"`
+	Phase             string     `json:"phase"`
+	OperatorVersion   string     `json:"operatorVersion"`
+	KubernetesVersion string     `json:"kubernetesVersion"`
+	NodeCount         int        `json:"nodeCount"`
+	ReadyNodeCount    int        `json:"readyNodeCount"`
+	LastHeartbeatAt   *time.Time `json:"lastHeartbeatAt,omitempty"`
+	CreatedAt         time.Time  `json:"createdAt"`
 }
 
 type clusterDetail struct {
-	Name            string            `json:"name"`
-	ClusterUID      string            `json:"clusterUid"`
-	Phase           string            `json:"phase"`
-	OperatorVersion string            `json:"operatorVersion"`
-	LastHeartbeatAt *time.Time        `json:"lastHeartbeatAt,omitempty"`
-	Labels          map[string]string `json:"labels"`
-	CreatedAt       time.Time         `json:"createdAt"`
-	UpdatedAt       time.Time         `json:"updatedAt"`
+	Name            string     `json:"name"`
+	ClusterUID      string     `json:"clusterUid"`
+	Phase           string     `json:"phase"`
+	OperatorVersion string     `json:"operatorVersion"`
+	LastHeartbeatAt *time.Time `json:"lastHeartbeatAt,omitempty"`
+	// Member-reported inventory; empty/zero until a StatusReport supplies it.
+	KubernetesVersion string            `json:"kubernetesVersion"`
+	APIServerAddress  string            `json:"apiServerAddress"`
+	NodeCount         int               `json:"nodeCount"`
+	ReadyNodeCount    int               `json:"readyNodeCount"`
+	Labels            map[string]string `json:"labels"`
+	CreatedAt         time.Time         `json:"createdAt"`
+	UpdatedAt         time.Time         `json:"updatedAt"`
 }
 
 type imageParams struct {
@@ -253,24 +261,31 @@ func (h *Handlers) retryUninstallTask(w http.ResponseWriter, r *http.Request) {
 
 func toClusterListItem(c *dbrepo.Cluster) clusterListItem {
 	return clusterListItem{
-		Name:            c.Name,
-		Phase:           c.Phase,
-		OperatorVersion: c.OperatorVersion,
-		LastHeartbeatAt: c.LastHeartbeatAt,
-		CreatedAt:       c.CreatedAt,
+		Name:              c.Name,
+		Phase:             c.Phase,
+		OperatorVersion:   c.OperatorVersion,
+		KubernetesVersion: c.KubernetesVersion,
+		NodeCount:         c.NodeCount,
+		ReadyNodeCount:    c.ReadyNodeCount,
+		LastHeartbeatAt:   c.LastHeartbeatAt,
+		CreatedAt:         c.CreatedAt,
 	}
 }
 
 func toClusterDetail(c *dbrepo.Cluster) clusterDetail {
 	return clusterDetail{
-		Name:            c.Name,
-		ClusterUID:      c.ClusterUID,
-		Phase:           c.Phase,
-		OperatorVersion: c.OperatorVersion,
-		LastHeartbeatAt: c.LastHeartbeatAt,
-		Labels:          c.Labels.Data(),
-		CreatedAt:       c.CreatedAt,
-		UpdatedAt:       c.UpdatedAt,
+		Name:              c.Name,
+		ClusterUID:        c.ClusterUID,
+		Phase:             c.Phase,
+		OperatorVersion:   c.OperatorVersion,
+		LastHeartbeatAt:   c.LastHeartbeatAt,
+		KubernetesVersion: c.KubernetesVersion,
+		APIServerAddress:  c.APIServerAddress,
+		NodeCount:         c.NodeCount,
+		ReadyNodeCount:    c.ReadyNodeCount,
+		Labels:            c.Labels.Data(),
+		CreatedAt:         c.CreatedAt,
+		UpdatedAt:         c.UpdatedAt,
 	}
 }
 

@@ -103,6 +103,37 @@ func (r *ClusterRepo) UpdateHeartbeat(ctx context.Context, id int64, phase strin
 	}).Error
 }
 
+// ClusterInventory is the member-reported description of a cluster.
+type ClusterInventory struct {
+	KubernetesVersion string
+	APIServerAddress  string
+	NodeCount         int
+	ReadyNodeCount    int
+}
+
+// UpdateInventory writes only the member-reported inventory columns, following
+// the same column-scoped rule as UpdateHeartbeat above. Empty strings are
+// skipped so a member that temporarily cannot read a value does not blank out
+// what was previously reported; node counts are written together (a genuine
+// zero-node reading is meaningless, so both are skipped when NodeCount is 0).
+func (r *ClusterRepo) UpdateInventory(ctx context.Context, id int64, inv ClusterInventory) error {
+	updates := map[string]any{}
+	if inv.KubernetesVersion != "" {
+		updates["kubernetes_version"] = inv.KubernetesVersion
+	}
+	if inv.APIServerAddress != "" {
+		updates["api_server_address"] = inv.APIServerAddress
+	}
+	if inv.NodeCount > 0 {
+		updates["node_count"] = inv.NodeCount
+		updates["ready_node_count"] = inv.ReadyNodeCount
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&Cluster{}).Where("id = ?", id).Updates(updates).Error
+}
+
 // UpdateLabels overwrites only the labels column. Like UpdateHeartbeat
 // above, this must never be a full-row Save() — console-triggered label
 // edits run concurrently with StatusFlusher's heartbeat writes to the same
