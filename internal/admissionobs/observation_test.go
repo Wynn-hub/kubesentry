@@ -71,25 +71,27 @@ func TestSnapshotDeltaRejectsRollback(t *testing.T) {
 	}
 }
 
-func TestQueueGaugeOldAcknowledgementCannotEraseNewPeak(t *testing.T) {
+func TestQueueGaugeSnapshotResetsPeakToCurrentDepth(t *testing.T) {
 	var gauge QueueGauge
-	gauge.Observe(4, 256)
-	report := gauge.Snapshot()
 	gauge.Observe(9, 256)
-	gauge.Acknowledge(report)
-	if got := gauge.Snapshot().DepthPeak; got != 9 {
-		t.Fatalf("peak = %d, want 9", got)
+	gauge.Observe(2, 256)
+	if got := gauge.SnapshotAndReset(); got.DepthPeak != 9 || got.Capacity != 256 {
+		t.Fatalf("snapshot = %#v, want peak 9 and capacity 256", got)
+	}
+	if got := gauge.SnapshotAndReset().DepthPeak; got != 2 {
+		t.Fatalf("peak = %d, want current depth 2", got)
 	}
 }
 
-func TestQueueGaugeAcknowledgementResetsDeliveredPeak(t *testing.T) {
+func TestQueueGaugeNewPeakAppearsInNextSnapshot(t *testing.T) {
 	var gauge QueueGauge
+	gauge.Observe(4, 256)
+	if got := gauge.SnapshotAndReset().DepthPeak; got != 4 {
+		t.Fatalf("first peak = %d, want 4", got)
+	}
 	gauge.Observe(9, 256)
-	report := gauge.Snapshot()
-	gauge.Observe(2, 256)
-	gauge.Acknowledge(report)
-	if got := gauge.Snapshot().DepthPeak; got != 2 {
-		t.Fatalf("peak = %d, want current depth 2", got)
+	if got := gauge.SnapshotAndReset().DepthPeak; got != 9 {
+		t.Fatalf("next peak = %d, want 9", got)
 	}
 }
 

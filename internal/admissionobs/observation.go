@@ -463,16 +463,13 @@ func (g *QueueGauge) Observe(depth, capacity int64) {
 	}
 }
 
-func (g *QueueGauge) Snapshot() GaugeSnapshot {
-	return GaugeSnapshot{DepthPeak: g.peak.Load(), Capacity: g.capacity.Load()}
-}
-
-// Acknowledge resets a delivered peak only if no larger peak has appeared
-// since the report was created. Older acknowledgements therefore cannot erase
-// newer pressure.
-func (g *QueueGauge) Acknowledge(snapshot GaugeSnapshot) {
-	if g.peak.CompareAndSwap(snapshot.DepthPeak, g.depth.Load()) {
-		return
+func (g *QueueGauge) SnapshotAndReset() GaugeSnapshot {
+	for {
+		peak := g.peak.Load()
+		snapshot := GaugeSnapshot{DepthPeak: peak, Capacity: g.capacity.Load()}
+		if g.peak.CompareAndSwap(peak, g.depth.Load()) {
+			return snapshot
+		}
 	}
 }
 

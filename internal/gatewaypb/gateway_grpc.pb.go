@@ -8,6 +8,7 @@ package gatewaypb
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -153,15 +154,19 @@ type UnimplementedHubServer struct{}
 func (UnimplementedHubServer) Register(context.Context, *RegisterRequest) (*RegisterResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Register not implemented")
 }
+
 func (UnimplementedHubServer) Sync(grpc.BidiStreamingServer[MemberMessage, HubMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method Sync not implemented")
 }
+
 func (UnimplementedHubServer) Connect(grpc.BidiStreamingServer[Envelope, Envelope]) error {
 	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
 }
+
 func (UnimplementedHubServer) NotifyChange(context.Context, *NotifyChangeRequest) (*NotifyChangeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NotifyChange not implemented")
 }
+
 func (UnimplementedHubServer) Dispatch(context.Context, *DispatchRequest) (*DispatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Dispatch not implemented")
 }

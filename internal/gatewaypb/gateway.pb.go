@@ -7,12 +7,13 @@
 package gatewaypb
 
 import (
+	reflect "reflect"
+	sync "sync"
+
 	proto "github.com/golang/protobuf/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	reflect "reflect"
-	sync "sync"
 )
 
 const (
@@ -2833,46 +2834,48 @@ func file_api_proto_gateway_v1_gateway_proto_rawDescGZIP() []byte {
 	return file_api_proto_gateway_v1_gateway_proto_rawDescData
 }
 
-var file_api_proto_gateway_v1_gateway_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_api_proto_gateway_v1_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
-var file_api_proto_gateway_v1_gateway_proto_goTypes = []interface{}{
-	(AdmissionEventBatchAck_Result_Status)(0),    // 0: kubesentry.gateway.v1.AdmissionEventBatchAck.Result.Status
-	(ObservationReportBatchAck_Result_Status)(0), // 1: kubesentry.gateway.v1.ObservationReportBatchAck.Result.Status
-	(UninstallTaskReport_State)(0),               // 2: kubesentry.gateway.v1.UninstallTaskReport.State
-	(*RegisterRequest)(nil),                      // 3: kubesentry.gateway.v1.RegisterRequest
-	(*RegisterResponse)(nil),                     // 4: kubesentry.gateway.v1.RegisterResponse
-	(*MemberMessage)(nil),                        // 5: kubesentry.gateway.v1.MemberMessage
-	(*Heartbeat)(nil),                            // 6: kubesentry.gateway.v1.Heartbeat
-	(*StatusReport)(nil),                         // 7: kubesentry.gateway.v1.StatusReport
-	(*HubMessage)(nil),                           // 8: kubesentry.gateway.v1.HubMessage
-	(*DesiredState)(nil),                         // 9: kubesentry.gateway.v1.DesiredState
-	(*AdmissionEventConfig)(nil),                 // 10: kubesentry.gateway.v1.AdmissionEventConfig
-	(*AdmissionStoragePolicy)(nil),               // 11: kubesentry.gateway.v1.AdmissionStoragePolicy
-	(*AdmissionEvent)(nil),                       // 12: kubesentry.gateway.v1.AdmissionEvent
-	(*AdmissionEventBatch)(nil),                  // 13: kubesentry.gateway.v1.AdmissionEventBatch
-	(*AdmissionEventBatchAck)(nil),               // 14: kubesentry.gateway.v1.AdmissionEventBatchAck
-	(*ObservationCounters)(nil),                  // 15: kubesentry.gateway.v1.ObservationCounters
-	(*ObservationReport)(nil),                    // 16: kubesentry.gateway.v1.ObservationReport
-	(*ObservationReportBatch)(nil),               // 17: kubesentry.gateway.v1.ObservationReportBatch
-	(*ObservationReportBatchAck)(nil),            // 18: kubesentry.gateway.v1.ObservationReportBatchAck
-	(*UninstallTask)(nil),                        // 19: kubesentry.gateway.v1.UninstallTask
-	(*UninstallTaskReport)(nil),                  // 20: kubesentry.gateway.v1.UninstallTaskReport
-	(*ManagedObject)(nil),                        // 21: kubesentry.gateway.v1.ManagedObject
-	(*Ack)(nil),                                  // 22: kubesentry.gateway.v1.Ack
-	(*Envelope)(nil),                             // 23: kubesentry.gateway.v1.Envelope
-	(*ConnectRequest)(nil),                       // 24: kubesentry.gateway.v1.ConnectRequest
-	(*NotifyChangeRequest)(nil),                  // 25: kubesentry.gateway.v1.NotifyChangeRequest
-	(*NotifyChangeResponse)(nil),                 // 26: kubesentry.gateway.v1.NotifyChangeResponse
-	(*DispatchRequest)(nil),                      // 27: kubesentry.gateway.v1.DispatchRequest
-	(*DispatchResponse)(nil),                     // 28: kubesentry.gateway.v1.DispatchResponse
-	(*AdmissionEventBatchAck_Result)(nil),        // 29: kubesentry.gateway.v1.AdmissionEventBatchAck.Result
-	nil,                                          // 30: kubesentry.gateway.v1.ObservationReport.FaultReasonCountsEntry
-	nil,                                          // 31: kubesentry.gateway.v1.ObservationReport.PressureReasonCountsEntry
-	nil,                                          // 32: kubesentry.gateway.v1.ObservationReport.FilterReasonCountsEntry
-	(*ObservationReportBatchAck_Result)(nil),     // 33: kubesentry.gateway.v1.ObservationReportBatchAck.Result
-	nil,                                          // 34: kubesentry.gateway.v1.ManagedObject.LabelsEntry
-	(*timestamppb.Timestamp)(nil),                // 35: google.protobuf.Timestamp
-}
+var (
+	file_api_proto_gateway_v1_gateway_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+	file_api_proto_gateway_v1_gateway_proto_msgTypes  = make([]protoimpl.MessageInfo, 32)
+	file_api_proto_gateway_v1_gateway_proto_goTypes   = []interface{}{
+		(AdmissionEventBatchAck_Result_Status)(0),    // 0: kubesentry.gateway.v1.AdmissionEventBatchAck.Result.Status
+		(ObservationReportBatchAck_Result_Status)(0), // 1: kubesentry.gateway.v1.ObservationReportBatchAck.Result.Status
+		(UninstallTaskReport_State)(0),               // 2: kubesentry.gateway.v1.UninstallTaskReport.State
+		(*RegisterRequest)(nil),                      // 3: kubesentry.gateway.v1.RegisterRequest
+		(*RegisterResponse)(nil),                     // 4: kubesentry.gateway.v1.RegisterResponse
+		(*MemberMessage)(nil),                        // 5: kubesentry.gateway.v1.MemberMessage
+		(*Heartbeat)(nil),                            // 6: kubesentry.gateway.v1.Heartbeat
+		(*StatusReport)(nil),                         // 7: kubesentry.gateway.v1.StatusReport
+		(*HubMessage)(nil),                           // 8: kubesentry.gateway.v1.HubMessage
+		(*DesiredState)(nil),                         // 9: kubesentry.gateway.v1.DesiredState
+		(*AdmissionEventConfig)(nil),                 // 10: kubesentry.gateway.v1.AdmissionEventConfig
+		(*AdmissionStoragePolicy)(nil),               // 11: kubesentry.gateway.v1.AdmissionStoragePolicy
+		(*AdmissionEvent)(nil),                       // 12: kubesentry.gateway.v1.AdmissionEvent
+		(*AdmissionEventBatch)(nil),                  // 13: kubesentry.gateway.v1.AdmissionEventBatch
+		(*AdmissionEventBatchAck)(nil),               // 14: kubesentry.gateway.v1.AdmissionEventBatchAck
+		(*ObservationCounters)(nil),                  // 15: kubesentry.gateway.v1.ObservationCounters
+		(*ObservationReport)(nil),                    // 16: kubesentry.gateway.v1.ObservationReport
+		(*ObservationReportBatch)(nil),               // 17: kubesentry.gateway.v1.ObservationReportBatch
+		(*ObservationReportBatchAck)(nil),            // 18: kubesentry.gateway.v1.ObservationReportBatchAck
+		(*UninstallTask)(nil),                        // 19: kubesentry.gateway.v1.UninstallTask
+		(*UninstallTaskReport)(nil),                  // 20: kubesentry.gateway.v1.UninstallTaskReport
+		(*ManagedObject)(nil),                        // 21: kubesentry.gateway.v1.ManagedObject
+		(*Ack)(nil),                                  // 22: kubesentry.gateway.v1.Ack
+		(*Envelope)(nil),                             // 23: kubesentry.gateway.v1.Envelope
+		(*ConnectRequest)(nil),                       // 24: kubesentry.gateway.v1.ConnectRequest
+		(*NotifyChangeRequest)(nil),                  // 25: kubesentry.gateway.v1.NotifyChangeRequest
+		(*NotifyChangeResponse)(nil),                 // 26: kubesentry.gateway.v1.NotifyChangeResponse
+		(*DispatchRequest)(nil),                      // 27: kubesentry.gateway.v1.DispatchRequest
+		(*DispatchResponse)(nil),                     // 28: kubesentry.gateway.v1.DispatchResponse
+		(*AdmissionEventBatchAck_Result)(nil),        // 29: kubesentry.gateway.v1.AdmissionEventBatchAck.Result
+		nil,                                          // 30: kubesentry.gateway.v1.ObservationReport.FaultReasonCountsEntry
+		nil,                                          // 31: kubesentry.gateway.v1.ObservationReport.PressureReasonCountsEntry
+		nil,                                          // 32: kubesentry.gateway.v1.ObservationReport.FilterReasonCountsEntry
+		(*ObservationReportBatchAck_Result)(nil),     // 33: kubesentry.gateway.v1.ObservationReportBatchAck.Result
+		nil,                                          // 34: kubesentry.gateway.v1.ManagedObject.LabelsEntry
+		(*timestamppb.Timestamp)(nil),                // 35: google.protobuf.Timestamp
+	}
+)
 var file_api_proto_gateway_v1_gateway_proto_depIdxs = []int32{
 	6,  // 0: kubesentry.gateway.v1.MemberMessage.heartbeat:type_name -> kubesentry.gateway.v1.Heartbeat
 	7,  // 1: kubesentry.gateway.v1.MemberMessage.status_report:type_name -> kubesentry.gateway.v1.StatusReport
