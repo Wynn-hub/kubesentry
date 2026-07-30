@@ -114,7 +114,9 @@
         </div>
         <el-table :data="clusterPage?.items ?? []" row-key="name">
           <el-table-column prop="name" :label="$t('cluster.name')" min-width="150">
-            <template #default="{ row }"><el-button link type="primary" @click="cluster = row.name">{{ row.name }}</el-button></template>
+            <template #default="{ row }">
+              <router-link :to="{ name: 'cluster-detail', params: { name: row.name } }">{{ row.name }}</router-link>
+            </template>
           </el-table-column>
           <el-table-column :label="$t('observability.health')" width="150">
             <template #default="{ row }"><el-tag :type="healthTag(row.health)" effect="dark">{{ healthLabel(row.health) }}</el-tag></template>
