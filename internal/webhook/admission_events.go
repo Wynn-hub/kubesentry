@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -124,7 +124,7 @@ func (r *HTTPAdmissionEventReporter) deliver(event *gatewaypb.AdmissionEvent) (r
 	}
 	defer response.Body.Close() //nolint:errcheck
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Sprintf("http_%d", response.StatusCode), false
+		return admissionobs.HTTPFailureReason(response.StatusCode), false
 	}
 	data, readErr := io.ReadAll(response.Body)
 	if readErr != nil {
