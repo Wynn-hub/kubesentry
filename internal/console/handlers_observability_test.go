@@ -80,6 +80,16 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 	}
 
 	rec, env = doRequest(t, server, "GET",
+		"/api/v1/observability/admission/overview?cluster=observed-member&currentOnly=true", nil)
+	if rec.Code != 200 || !env.Success {
+		t.Fatalf("current overview = %d: %s", rec.Code, rec.Body.String())
+	}
+	currentOverview := mustUnmarshal[observationOverviewResponse](t, env.Data)
+	if currentOverview.FaultReasons == nil {
+		t.Fatal("current overview faultReasons is null, want an empty array")
+	}
+
+	rec, env = doRequest(t, server, "GET",
 		"/api/v1/observability/admission/trend?cluster=observed-member&from="+from+"&to="+to, nil)
 	if rec.Code != 200 || !env.Success {
 		t.Fatalf("trend = %d: %s", rec.Code, rec.Body.String())

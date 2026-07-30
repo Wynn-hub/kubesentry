@@ -122,15 +122,51 @@ export type ObservationQuery = {
 const paramsOf = (query: ObservationQuery): Record<string, string> =>
   Object.fromEntries(Object.entries(query).filter((entry): entry is [string, string] => Boolean(entry[1])))
 
+export function normalizeAdmissionObservationOverview(
+  value: AdmissionObservationOverview,
+): AdmissionObservationOverview {
+  return {
+    ...value,
+    freshness: value.freshness ?? {},
+    queueRejected: value.queueRejected ?? {},
+    retryCount: value.retryCount ?? {},
+    windowFaults: value.windowFaults ?? {},
+    seriesStarted: value.seriesStarted ?? {},
+    sequenceGap: value.sequenceGap ?? {},
+    baselineResetByComponent: value.baselineResetByComponent ?? {},
+    queues: value.queues ?? {},
+    faultReasons: value.faultReasons ?? [],
+  }
+}
+
+export function normalizeObservationTrend(value: ObservationTrend): ObservationTrend {
+  return { ...value, items: value.items ?? [] }
+}
+
+export function normalizeObservationClusterPage(value: ObservationClusterPage): ObservationClusterPage {
+  return {
+    ...value,
+    items: (value.items ?? []).map(item => ({
+      ...item,
+      freshness: item.freshness ?? {},
+      queues: item.queues ?? {},
+      majorFaultReasons: item.majorFaultReasons ?? [],
+    })),
+  }
+}
+
 export const getAdmissionObservationOverview = (query: ObservationQuery & { currentOnly?: string } = {}) =>
   request<AdmissionObservationOverview>('GET', '/observability/admission/overview', undefined, paramsOf(query))
+    .then(normalizeAdmissionObservationOverview)
 
 export const getAdmissionObservationTrend = (query: ObservationQuery = {}) =>
   request<ObservationTrend>('GET', '/observability/admission/trend', undefined, paramsOf(query))
+    .then(normalizeObservationTrend)
 
 export const listAdmissionObservationClusters = (
   query: ObservationQuery & { page: string; pageSize: string; health?: string },
 ) => request<ObservationClusterPage>('GET', '/observability/admission/clusters', undefined, paramsOf(query))
+  .then(normalizeObservationClusterPage)
 
 export const getObservationSettings = () =>
   request<ObservationSettings>('GET', '/observability/settings')

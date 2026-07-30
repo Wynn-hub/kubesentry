@@ -191,6 +191,7 @@ func (h *Handlers) admissionObservationOverview(w http.ResponseWriter, r *http.R
 		SequenceGap:              map[string]int64{},
 		BaselineResetByComponent: map[string]int64{},
 		Queues:                   map[string]observationQueue{},
+		FaultReasons:             make([]observationReason, 0),
 		ClusterCounts:            counts,
 		From:                     from,
 		To:                       to,
@@ -668,6 +669,7 @@ func (h *Handlers) admissionObservationClusters(w http.ResponseWriter, r *http.R
 			Name: cluster.Name, Phase: cluster.Phase, Health: state.health,
 			ObservabilityOnboarded: cluster.ObservabilityOnboardedAt != nil,
 			Freshness:              state.freshness, Queues: state.queues, DataIncomplete: state.incomplete,
+			MajorFaultReasons: make([]observationReason, 0),
 		}
 		for _, aggregate := range window[cluster.ID] {
 			item.WindowFaults.add(aggregate)

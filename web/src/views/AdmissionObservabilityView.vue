@@ -95,8 +95,8 @@
         </div>
         <div class="panel reasons-panel">
           <div class="panel-heading"><div><h2>{{ $t('observability.faultReasons') }}</h2><p>{{ $t('observability.faultReasonsHint') }}</p></div></div>
-          <ol v-if="overview.faultReasons.length" class="reason-list">
-            <li v-for="reason in overview.faultReasons.slice(0, 8)" :key="`${reason.component}-${reason.reason}`">
+          <ol v-if="overview.faultReasons?.length" class="reason-list">
+            <li v-for="reason in overview.faultReasons?.slice(0, 8) ?? []" :key="`${reason.component}-${reason.reason}`">
               <div><span class="component-pill">{{ reason.component }}</span><code>{{ reason.reason }}</code></div>
               <strong class="mono-num">{{ number(reason.count) }}</strong>
             </li>
@@ -132,7 +132,7 @@
             <template #default="{ row }"><span :class="{ danger: faultTotal(row.windowFaults) > 0 }">{{ number(faultTotal(row.windowFaults)) }}</span></template>
           </el-table-column>
           <el-table-column :label="$t('observability.mainReason')" min-width="210">
-            <template #default="{ row }"><code v-if="row.majorFaultReasons.length">{{ row.majorFaultReasons[0].reason }}</code><span v-else>—</span></template>
+            <template #default="{ row }"><code v-if="row.majorFaultReasons?.length">{{ row.majorFaultReasons[0].reason }}</code><span v-else>—</span></template>
           </el-table-column>
         </el-table>
         <PaginationBar
