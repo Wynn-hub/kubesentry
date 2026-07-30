@@ -46,6 +46,7 @@ message MemberMessage {
     Envelope envelope = 3; // reply path for Dispatch's request/reply correlation
     UninstallTaskReport uninstall_task_report = 4;
     AdmissionEventBatch admission_event_batch = 5;
+    ObservationReportBatch observation_report_batch = 6;
   }
 }
 
@@ -74,6 +75,7 @@ message HubMessage {
     DesiredState desired_state = 2;
     Envelope envelope = 3; // carries Dispatch traffic over the existing Sync stream
     AdmissionEventBatchAck admission_event_batch_ack = 4;
+    ObservationReportBatchAck observation_report_batch_ack = 5;
   }
 }
 
@@ -151,6 +153,60 @@ message AdmissionEventBatchAck {
     Status status = 2;
     string reason = 3;
     int32 delivery_attempt = 4;
+  }
+  repeated Result results = 1;
+}
+
+message ObservationCounters {
+  int64 generated = 1;
+  int64 received = 2;
+  int64 forwarded = 3;
+  int64 written = 4;
+  int64 duplicate = 5;
+  int64 policy_filtered = 6;
+  int64 retention_elapsed = 7;
+  int64 queue_rejected = 8;
+  int64 retry = 9;
+  int64 dropped = 10;
+  int64 retry_exhausted = 11;
+  int64 batch_failure = 12;
+  int64 auth_failure = 13;
+  int64 ack_timeout = 14;
+  int64 report_dropped = 15;
+  int64 cleanup_run = 16;
+  int64 cleanup_deleted = 17;
+  int64 cleanup_failure = 18;
+}
+
+message ObservationReport {
+  string report_id = 1;
+  string series_id = 2;
+  uint64 sequence = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  string component = 5;
+  ObservationCounters counters = 6;
+  int64 queue_depth_max = 7;
+  int64 queue_capacity = 8;
+  map<string, int64> fault_reason_counts = 9;
+  map<string, int64> pressure_reason_counts = 10;
+  map<string, int64> filter_reason_counts = 11;
+}
+
+message ObservationReportBatch {
+  repeated ObservationReport reports = 1;
+}
+
+message ObservationReportBatchAck {
+  message Result {
+    string report_id = 1;
+    enum Status {
+      STATUS_UNSPECIFIED = 0;
+      ACCEPTED = 1;
+      DISCARDED = 2;
+      RETRYABLE = 3;
+    }
+    Status status = 2;
+    string reason = 3;
   }
   repeated Result results = 1;
 }
