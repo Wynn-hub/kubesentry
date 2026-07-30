@@ -47,6 +47,7 @@ func TestMigrateCreatesAllTables(t *testing.T) {
 		"cluster_install_records", "cluster_uninstall_tasks",
 		"admission_event_settings", "admission_storage_policies", "admission_events",
 		"platform_observability_settings", "admission_observation_buckets", "observation_report_cursors",
+		"platform_component_samples", "platform_leadership_events",
 	}
 	for _, name := range wantTables {
 		var exists bool
@@ -69,13 +70,13 @@ func TestMigrateCreatesAllTables(t *testing.T) {
 		t.Errorf("admission delivery defaults = (%v, %d, %d), want (false, 3, 1024)", retryEnabled, maxRetryAttempts, queueCapacity)
 	}
 
-	var observabilityRetention int
-	if err := db.QueryRow(`SELECT retention_days FROM kubesentry.platform_observability_settings WHERE id = 1`).
-		Scan(&observabilityRetention); err != nil {
+	var admissionPipelineEnabled bool
+	if err := db.QueryRow(`SELECT admission_pipeline_enabled FROM kubesentry.platform_observability_settings WHERE id = 1`).
+		Scan(&admissionPipelineEnabled); err != nil {
 		t.Fatalf("query platform observability settings defaults: %v", err)
 	}
-	if observabilityRetention != 30 {
-		t.Errorf("observability retention = %d, want 30", observabilityRetention)
+	if admissionPipelineEnabled {
+		t.Error("admission pipeline observation must default to disabled")
 	}
 
 	// Migrate must be idempotent — re-running against an already-migrated

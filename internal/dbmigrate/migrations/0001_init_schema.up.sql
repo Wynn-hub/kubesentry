@@ -185,13 +185,66 @@ CREATE INDEX admission_events_cluster_occurred_at_idx ON admission_events (clust
 CREATE INDEX admission_events_occurred_at_idx ON admission_events (occurred_at DESC);
 
 CREATE TABLE platform_observability_settings (
-    id             BIGINT PRIMARY KEY,
-    retention_days INT NOT NULL DEFAULT 30 CHECK (retention_days BETWEEN 1 AND 365),
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    id                         BIGINT PRIMARY KEY,
+    admission_pipeline_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    last_cleanup_at            TIMESTAMPTZ,
+    created_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-INSERT INTO platform_observability_settings (id, retention_days)
-VALUES (1, 30);
+INSERT INTO platform_observability_settings (id, admission_pipeline_enabled)
+VALUES (1, FALSE);
+
+CREATE TABLE platform_component_samples (
+    id                     BIGINT PRIMARY KEY,
+    bucket_started_at      TIMESTAMPTZ NOT NULL,
+    component              TEXT NOT NULL CHECK (component IN (
+                               'webhook', 'operator', 'gateway',
+                               'console-api', 'console-web', 'postgres')),
+    instance               TEXT NOT NULL,
+    cluster_id             BIGINT NOT NULL DEFAULT 0,
+    cluster_name           TEXT NOT NULL DEFAULT '',
+    role                   TEXT NOT NULL CHECK (role IN ('leader', 'standby', 'none')),
+    process_started_at     TIMESTAMPTZ NOT NULL,
+    restart_count          BIGINT NOT NULL DEFAULT 0,
+    memory_bytes           BIGINT NOT NULL DEFAULT -1,
+    memory_limit_bytes     BIGINT NOT NULL DEFAULT -1,
+    cpu_usage_micros       BIGINT NOT NULL DEFAULT -1,
+    cpu_quota_micros       BIGINT NOT NULL DEFAULT -1,
+    goroutines             BIGINT NOT NULL DEFAULT -1,
+    heap_alloc_bytes       BIGINT NOT NULL DEFAULT -1,
+    heap_sys_bytes         BIGINT NOT NULL DEFAULT -1,
+    gc_pause_total_micros  BIGINT NOT NULL DEFAULT -1,
+    gc_count               BIGINT NOT NULL DEFAULT -1,
+    health                 TEXT NOT NULL CHECK (health IN ('ok', 'degraded')),
+    health_reason          TEXT NOT NULL DEFAULT '',
+    db_stats               JSONB NOT NULL DEFAULT '{}',
+    last_observed_at       TIMESTAMPTZ NOT NULL,
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX platform_component_samples_key
+    ON platform_component_samples (bucket_started_at, component, instance, cluster_id);
+CREATE INDEX platform_component_samples_time_idx
+    ON platform_component_samples (bucket_started_at DESC);
+CREATE INDEX platform_component_samples_freshness_idx
+    ON platform_component_samples (cluster_id, component, last_observed_at DESC);
+
+CREATE TABLE platform_leadership_events (
+    id            BIGINT PRIMARY KEY,
+    component     TEXT NOT NULL CHECK (component IN ('operator', 'gateway')),
+    cluster_id    BIGINT NOT NULL DEFAULT 0,
+    cluster_name  TEXT NOT NULL DEFAULT '',
+    instance      TEXT NOT NULL,
+    role_from     TEXT NOT NULL CHECK (role_from IN ('leader', 'standby', 'none')),
+    role_to       TEXT NOT NULL CHECK (role_to IN ('leader', 'standby', 'none')),
+    changed_at    TIMESTAMPTZ NOT NULL,
+    detected_by   TEXT NOT NULL CHECK (detected_by IN ('sample', 'session_lost')),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX platform_leadership_events_component_idx
+    ON platform_leadership_events (component, cluster_id, changed_at DESC);
+CREATE INDEX platform_leadership_events_time_idx
+    ON platform_leadership_events (changed_at);
 
 CREATE FUNCTION jsonb_counter_add(left_counts JSONB, right_counts JSONB)
 RETURNS JSONB

@@ -166,15 +166,12 @@ func TestObservabilityRepoCleanupSeparatesBucketAndCursorRetention(t *testing.T)
 	db := newTestDB(t)
 	ctx := context.Background()
 	repo := dbrepo.NewObservabilityRepo(db)
-	if err := repo.UpdateSettings(ctx, 7); err != nil {
-		t.Fatal(err)
-	}
 	now := time.Now().UTC()
 	oldBucket := dbrepo.ObservationBucketDelta{
-		BucketStartedAt: now.Add(-8 * 24 * time.Hour),
+		BucketStartedAt: now.Add(-31 * 24 * time.Hour),
 		ClusterID:       0,
 		Component:       admissionobs.ComponentCleanup,
-		LastObservedAt:  now.Add(-8 * 24 * time.Hour),
+		LastObservedAt:  now.Add(-31 * 24 * time.Hour),
 	}
 	if err := repo.UpsertBucket(ctx, oldBucket); err != nil {
 		t.Fatal(err)

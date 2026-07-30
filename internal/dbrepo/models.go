@@ -195,14 +195,66 @@ type AdmissionEvent struct {
 func (AdmissionEvent) TableName() string { return "kubesentry.admission_events" }
 
 type PlatformObservabilitySettings struct {
-	ID            int64 `gorm:"primaryKey;autoIncrement:false"`
-	RetentionDays int
+	ID                       int64 `gorm:"primaryKey;autoIncrement:false"`
+	AdmissionPipelineEnabled bool
+	LastCleanupAt            *time.Time
+	// RetentionDays remains a transient compatibility field for the existing
+	// admission-pipeline cleanup path. Platform samples use fixed retention.
+	RetentionDays int `gorm:"-"`
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
 
 func (PlatformObservabilitySettings) TableName() string {
 	return "kubesentry.platform_observability_settings"
+}
+
+type PlatformComponentSample struct {
+	ID                 int64 `gorm:"primaryKey;autoIncrement:false"`
+	BucketStartedAt    time.Time
+	Component          string
+	Instance           string
+	ClusterID          int64
+	ClusterName        string
+	Role               string
+	ProcessStartedAt   time.Time
+	RestartCount       int64
+	MemoryBytes        int64
+	MemoryLimitBytes   int64
+	CPUUsageMicros     int64 `gorm:"column:cpu_usage_micros"`
+	CPUQuotaMicros     int64 `gorm:"column:cpu_quota_micros"`
+	Goroutines         int64
+	HeapAllocBytes     int64
+	HeapSysBytes       int64
+	GCPauseTotalMicros int64 `gorm:"column:gc_pause_total_micros"`
+	GCCount            int64 `gorm:"column:gc_count"`
+	Health             string
+	HealthReason       string
+	DBStats            datatypes.JSONType[map[string]any]
+	LastObservedAt     time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+func (PlatformComponentSample) TableName() string {
+	return "kubesentry.platform_component_samples"
+}
+
+type PlatformLeadershipEvent struct {
+	ID          int64 `gorm:"primaryKey;autoIncrement:false"`
+	Component   string
+	ClusterID   int64
+	ClusterName string
+	Instance    string
+	RoleFrom    string
+	RoleTo      string
+	ChangedAt   time.Time
+	DetectedBy  string
+	CreatedAt   time.Time
+}
+
+func (PlatformLeadershipEvent) TableName() string {
+	return "kubesentry.platform_leadership_events"
 }
 
 type AdmissionObservationBucket struct {

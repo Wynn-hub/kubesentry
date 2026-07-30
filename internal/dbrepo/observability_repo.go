@@ -18,6 +18,7 @@ import (
 const (
 	observabilityCleanupBatchSize  = 1000
 	ObservationCursorIdleRetention = 24 * time.Hour
+	AdmissionObservationRetention  = 30 * 24 * time.Hour
 )
 
 type ObservabilityRepo struct {
@@ -33,6 +34,7 @@ func (r *ObservabilityRepo) GetSettings(ctx context.Context) (*PlatformObservabi
 	if err := r.db.WithContext(ctx).First(&settings, 1).Error; err != nil {
 		return nil, fmt.Errorf("get platform observability settings: %w", err)
 	}
+	settings.RetentionDays = int(AdmissionObservationRetention / (24 * time.Hour))
 	return &settings, nil
 }
 
@@ -40,16 +42,7 @@ func (r *ObservabilityRepo) UpdateSettings(ctx context.Context, retentionDays in
 	if retentionDays < 1 || retentionDays > 365 {
 		return fmt.Errorf("retention days must be between 1 and 365")
 	}
-	result := r.db.WithContext(ctx).Model(&PlatformObservabilitySettings{}).
-		Where("id = 1").
-		Updates(map[string]any{"retention_days": retentionDays, "updated_at": time.Now().UTC()})
-	if result.Error != nil {
-		return fmt.Errorf("update platform observability settings: %w", result.Error)
-	}
-	if result.RowsAffected != 1 {
-		return errors.New("platform observability settings row not found")
-	}
-	return nil
+	return errors.New("admission observation retention is fixed at 30 days")
 }
 
 type ApplyObservationResult struct {
@@ -415,10 +408,11 @@ func (r *ObservabilityRepo) Trend(
 	} else {
 		query = query.Where("cluster_id = ?", *clusterID)
 	}
-	interval := fmt.Sprintf("%d minutes", int(step/time.Minute))
+	stepSeconds := int64(step / time.Second)
 	bucketExpression := fmt.Sprintf(
-		"date_bin(INTERVAL '%s', bucket_started_at, TIMESTAMPTZ '1970-01-01 00:00:00+00')",
-		interval,
+		"to_timestamp(FLOOR(EXTRACT(EPOCH FROM bucket_started_at) / %d) * %d)",
+		stepSeconds,
+		stepSeconds,
 	)
 	var rows []ObservationTrendRow
 	err := query.Select(bucketExpression + ` AS bucket_started_at,
@@ -589,11 +583,7 @@ func (r *ObservabilityRepo) LatestByComponent(ctx context.Context, clusterID int
 }
 
 func (r *ObservabilityRepo) Cleanup(ctx context.Context, now time.Time) (bucketsDeleted, cursorsDeleted int64, err error) {
-	settings, err := r.GetSettings(ctx)
-	if err != nil {
-		return 0, 0, err
-	}
-	bucketsDeleted, err = r.deleteInBatches(ctx, &AdmissionObservationBucket{}, "bucket_started_at < ?", now.UTC().Add(-time.Duration(settings.RetentionDays)*24*time.Hour))
+	bucketsDeleted, err = r.deleteInBatches(ctx, &AdmissionObservationBucket{}, "bucket_started_at < ?", now.UTC().Add(-AdmissionObservationRetention))
 	if err != nil {
 		return bucketsDeleted, 0, fmt.Errorf("clean observation buckets: %w", err)
 	}
