@@ -107,6 +107,8 @@ func runOperator() {
 			Reader:          mgr.GetAPIReader(),
 			Client:          mgr.GetClient(),
 			HeartbeatEvery:  15 * time.Second,
+			Instance:        os.Getenv("POD_NAME"),
+			LeaderElected:   mgr.Elected(),
 		}
 		// Cluster inventory is best-effort: a member that cannot build the
 		// discovery/nodes clients still reports policy counts and heartbeats.

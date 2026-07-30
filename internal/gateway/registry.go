@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"sync"
+	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
@@ -11,33 +12,83 @@ import (
 // destination resolution here (spec D11a: Dispatch is a dumb relay).
 type sessionRegistry struct {
 	mu   sync.RWMutex
-	byID map[string]*syncSession
+	byID map[string]map[string]sessionEntry
 }
 
-func newSessionRegistry() *sessionRegistry { return &sessionRegistry{byID: map[string]*syncSession{}} }
+type sessionEntry struct {
+	session   *syncSession
+	role      string
+	updatedAt time.Time
+}
 
-func (r *sessionRegistry) put(name string, s *syncSession) {
+func newSessionRegistry() *sessionRegistry {
+	return &sessionRegistry{byID: map[string]map[string]sessionEntry{}}
+}
+
+// put indexes sessions by cluster and operator instance. If more than one
+// instance claims leadership, the newest claim wins and the previous leader
+// sessions are returned so their DesiredState push loops can be stopped.
+func (r *sessionRegistry) put(cluster, instance, role string, s *syncSession) []*syncSession {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.byID[name] = s
+	instances := r.byID[cluster]
+	if instances == nil {
+		instances = map[string]sessionEntry{}
+		r.byID[cluster] = instances
+	}
+	now := time.Now()
+	instances[instance] = sessionEntry{session: s, role: role, updatedAt: now}
+	if role != "leader" {
+		return nil
+	}
+	var demoted []*syncSession
+	for key, entry := range instances {
+		if key == instance || entry.role != "leader" {
+			continue
+		}
+		entry.role = "standby"
+		instances[key] = entry
+		demoted = append(demoted, entry.session)
+	}
+	return demoted
 }
 
-func (r *sessionRegistry) get(name string) (*syncSession, bool) {
+func (r *sessionRegistry) leader(cluster string) (*syncSession, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	s, ok := r.byID[name]
-	return s, ok
+	var selected sessionEntry
+	var found bool
+	for _, entry := range r.byID[cluster] {
+		if entry.role == "leader" && (!found || entry.updatedAt.After(selected.updatedAt)) {
+			selected, found = entry, true
+		}
+	}
+	return selected.session, found
+}
+
+// get is retained for Dispatch-facing call sites; only the authoritative
+// leader is a routable session.
+func (r *sessionRegistry) get(cluster string) (*syncSession, bool) {
+	return r.leader(cluster)
 }
 
 // remove is compare-and-delete: it only removes the entry if it still holds
 // sess. A disconnect/reconnect race can otherwise let a stale Sync's deferred
 // remove(cluster) evict the new, live session that already replaced it.
-func (r *sessionRegistry) remove(name string, sess *syncSession) {
+func (r *sessionRegistry) remove(cluster, instance string, sess *syncSession) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.byID[name] == sess {
-		delete(r.byID, name)
+	instances := r.byID[cluster]
+	entry, ok := instances[instance]
+	if !ok || entry.session != sess {
+		return false
 	}
+	wasLeader := entry.role == "leader"
+	delete(instances, instance)
+	if len(instances) == 0 {
+		delete(r.byID, cluster)
+	}
+	return wasLeader
 }
 
 // connectRegistry tracks live Connect streams by component id (e.g.

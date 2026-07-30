@@ -47,11 +47,22 @@ message MemberMessage {
     UninstallTaskReport uninstall_task_report = 4;
     AdmissionEventBatch admission_event_batch = 5;
     ObservationReportBatch observation_report_batch = 6;
+    MemberIdentity identity = 7;
+    ComponentSampleBatch component_sample_batch = 8;
   }
+}
+
+// MemberIdentity is the mandatory first Sync frame. Every operator replica
+// connects, so cluster identity alone is no longer sufficient to index a
+// session or decide which stream may receive DesiredState.
+message MemberIdentity {
+  string instance = 1;
+  string role = 2; // leader | standby
 }
 
 message Heartbeat {
   string operator_version = 1;
+  string role = 2;
 }
 
 // StatusReport carries member policy counts, the last apply outcome, and the
@@ -97,6 +108,33 @@ message AdmissionEventConfig {
   bool retry_enabled = 4;
   int32 max_retry_attempts = 5;
   int32 queue_capacity = 6;
+  bool observation_enabled = 7;
+}
+
+message ComponentSample {
+  string component = 1;
+  string instance = 2;
+  int64 cluster_id = 3;
+  string cluster_name = 4;
+  google.protobuf.Timestamp observed_at = 5;
+  string role = 6;
+  google.protobuf.Timestamp process_started_at = 7;
+  int64 memory_bytes = 8;
+  int64 memory_limit_bytes = 9;
+  int64 cpu_usage_micros = 10;
+  int64 cpu_quota_micros = 11;
+  int64 goroutines = 12;
+  int64 heap_alloc_bytes = 13;
+  int64 heap_sys_bytes = 14;
+  int64 gc_pause_total_micros = 15;
+  int64 gc_count = 16;
+  string health = 17;
+  string health_reason = 18;
+  bytes db_stats_json = 19;
+}
+
+message ComponentSampleBatch {
+  repeated ComponentSample samples = 1;
 }
 
 // AdmissionStoragePolicy carries conditions only. Matching any rule stores the

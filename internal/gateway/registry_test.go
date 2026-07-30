@@ -35,22 +35,51 @@ func TestSessionRegistryRemoveIsCompareAndDelete(t *testing.T) {
 	oldSess := &syncSession{}
 	newSess := &syncSession{}
 
-	r.put("prod", oldSess)
+	r.put("prod", "operator-0", "leader", oldSess)
 	// Reconnect races in and replaces the entry before the old session's
 	// deferred remove() runs.
-	r.put("prod", newSess)
+	r.put("prod", "operator-0", "leader", newSess)
 
 	// Old session's cleanup fires with a stale reference — must be a no-op.
-	r.remove("prod", oldSess)
-	got, ok := r.get("prod")
+	r.remove("prod", "operator-0", oldSess)
+	got, ok := r.leader("prod")
 	if !ok || got != newSess {
 		t.Fatalf("remove(name, stale) evicted the live session: got=%v ok=%v, want newSess", got, ok)
 	}
 
 	// The current session's own cleanup still works.
-	r.remove("prod", newSess)
-	if _, ok := r.get("prod"); ok {
+	r.remove("prod", "operator-0", newSess)
+	if _, ok := r.leader("prod"); ok {
 		t.Fatal("remove(name, current) should have deleted the entry")
+	}
+}
+
+func TestSessionRegistryStandbyDoesNotReplaceLeader(t *testing.T) {
+	r := newSessionRegistry()
+	leader := &syncSession{}
+	standby := &syncSession{}
+	r.put("prod", "operator-0", "leader", leader)
+	r.put("prod", "operator-1", "standby", standby)
+
+	got, ok := r.leader("prod")
+	if !ok || got != leader {
+		t.Fatalf("leader = %v, %v; want original leader", got, ok)
+	}
+}
+
+func TestSessionRegistryNewestLeaderClaimWins(t *testing.T) {
+	r := newSessionRegistry()
+	oldLeader := &syncSession{}
+	newLeader := &syncSession{}
+	r.put("prod", "operator-0", "leader", oldLeader)
+	demoted := r.put("prod", "operator-1", "leader", newLeader)
+
+	got, ok := r.leader("prod")
+	if !ok || got != newLeader {
+		t.Fatalf("leader = %v, %v; want newest leader", got, ok)
+	}
+	if len(demoted) != 1 || demoted[0] != oldLeader {
+		t.Fatalf("demoted = %+v, want old leader", demoted)
 	}
 }
 

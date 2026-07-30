@@ -193,6 +193,15 @@ func recvDesiredState(t *testing.T, stream gatewaypb.Hub_SyncClient, timeout tim
 	}
 }
 
+func sendLeaderIdentity(t *testing.T, stream gatewaypb.Hub_SyncClient, instance string) {
+	t.Helper()
+	if err := stream.Send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_Identity{
+		Identity: &gatewaypb.MemberIdentity{Instance: instance, Role: "leader"},
+	}}); err != nil {
+		t.Fatalf("send member identity: %v", err)
+	}
+}
+
 func TestSyncPushesSnapshotOnConnectAndChange(t *testing.T) {
 	repos := newTestRepos(t)
 	ctx := context.Background()
@@ -221,6 +230,7 @@ func TestSyncPushesSnapshotOnConnectAndChange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sendLeaderIdentity(t, stream, "operator-0")
 
 	// 连接即收到初始快照。The migrated schema seeds a built-in "default"
 	// PolicyGroup/PolicyDistribution matching every cluster (Task 3, mirrors
@@ -277,6 +287,7 @@ func TestSyncResendsOnResyncTickEvenWithUnchangedHash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sendLeaderIdentity(t, stream, "operator-0")
 
 	first := recvDesiredState(t, stream, 3*time.Second)
 	second := recvDesiredState(t, stream, 3*time.Second)

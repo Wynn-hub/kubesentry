@@ -61,6 +61,10 @@ type Config struct {
 	Reader          client.Reader // 非缓存读（kube-system UID、Secret）
 	Client          client.Client // 写成员侧 auth Secret
 	HeartbeatEvery  time.Duration
+	Instance        string
+	// LeaderElected closes when this manager instance acquires the operator
+	// lease. Nil keeps the single-instance/test behavior of starting as leader.
+	LeaderElected <-chan struct{}
 	// APIServerAddress is the apiserver URL as seen from inside the member
 	// (rest.Config.Host); reported to the hub as part of cluster inventory.
 	APIServerAddress string
@@ -133,8 +137,9 @@ func New(cfg Config) *Link {
 	return link
 }
 
-// NeedLeaderElection: only the elected operator holds the hub link.
-func (l *Link) NeedLeaderElection() bool { return true }
+// Every operator replica keeps a Sync session. DesiredState and webhook event
+// handling remain leader-only through the explicit IsLeader gates.
+func (l *Link) NeedLeaderElection() bool { return false }
 
 // IsLeader is the final correctness gate for the local event HTTP endpoint.
 // Service endpoint labels only optimize routing and can be stale during a
@@ -191,12 +196,25 @@ func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*g
 }
 
 func (l *Link) Start(ctx context.Context) error {
-	l.leader.Store(true)
+	if l.cfg.LeaderElected == nil {
+		l.leader.Store(true)
+		_ = l.setEventLeaderLabel(ctx, true)
+	} else {
+		go func() {
+			select {
+			case <-ctx.Done():
+			case <-l.cfg.LeaderElected:
+				l.leader.Store(true)
+				if err := l.setEventLeaderLabel(ctx, true); err != nil {
+					slog.Warn("mark operator event leader", "error", err)
+				}
+			}
+		}()
+	}
 	go l.generateOperatorObservations(ctx)
 	if uid, err := l.clusterUID(ctx); err == nil && len(uid) >= 8 {
 		l.prefix = uid[:8]
 	}
-	_ = l.setEventLeaderLabel(ctx, true)
 	defer func() { l.leader.Store(false); _ = l.setEventLeaderLabel(context.Background(), false) }()
 	backoff := time.Second
 	for {
@@ -311,6 +329,18 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		defer sendMu.Unlock()
 		return stream.Send(m)
 	}
+	instance := l.cfg.Instance
+	if instance == "" {
+		instance = os.Getenv("POD_NAME")
+	}
+	if instance == "" {
+		instance = l.cfg.ClusterName + "-operator"
+	}
+	if err := send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_Identity{
+		Identity: &gatewaypb.MemberIdentity{Instance: instance, Role: l.currentRole()},
+	}}); err != nil {
+		return false, fmt.Errorf("send member identity: %w", err)
+	}
 	sessionCtx, cancelSession := context.WithCancel(ctx)
 	defer func() {
 		cancelSession()
@@ -353,7 +383,7 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		const statusEvery = 4
 		for tick := 0; ; tick++ {
 			if err := send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_Heartbeat{
-				Heartbeat: &gatewaypb.Heartbeat{OperatorVersion: l.cfg.OperatorVersion},
+				Heartbeat: &gatewaypb.Heartbeat{OperatorVersion: l.cfg.OperatorVersion, Role: l.currentRole()},
 			}}); err != nil {
 				return
 			}
@@ -391,6 +421,10 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		case *gatewaypb.HubMessage_ObservationReportBatchAck:
 			l.ackObservationReports(m.ObservationReportBatchAck)
 		case *gatewaypb.HubMessage_DesiredState:
+			if !l.IsLeader() {
+				slog.Warn("ignored desired state on standby operator", "instance", instance)
+				continue
+			}
 			ds := m.DesiredState
 			l.configMu.Lock()
 			l.eventConfig = ds.AdmissionEventConfig
@@ -437,6 +471,13 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 			}
 		}
 	}
+}
+
+func (l *Link) currentRole() string {
+	if l.IsLeader() {
+		return "leader"
+	}
+	return "standby"
 }
 
 func sendUninstallReport(send func(*gatewaypb.MemberMessage) error, taskID int64, state gatewaypb.UninstallTaskReport_State, detail string) error {

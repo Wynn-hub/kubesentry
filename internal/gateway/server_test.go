@@ -142,6 +142,7 @@ func TestPushLoopIncludesTraceIDFromNotifyChange(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		sendLeaderIdentity(t, stream, "operator-0")
 
 		first := recvDesiredState(t, stream, 3*time.Second)
 		if first.TraceId != "" {
@@ -184,6 +185,7 @@ func TestPushLoopIncludesTraceIDFromNotifyChange(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		sendLeaderIdentity(t, stream, "operator-0")
 
 		_ = recvDesiredState(t, stream, 3*time.Second) // initial push
 		tick := recvDesiredState(t, stream, 3*time.Second)
@@ -277,6 +279,7 @@ func TestNotifyChangeTraceIDGoesToTheClusterThatActuallyChanged(t *testing.T) {
 		if err != nil {
 			t.Fatalf("connect %s: %v", cluster, err)
 		}
+		sendLeaderIdentity(t, stream, cluster+"-operator-0")
 		return stream
 	}
 	streamA := connect("cluster-a", "tok-a")

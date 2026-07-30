@@ -50,6 +50,11 @@ func TestDispatchRoundTripsViaCorrelationID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := stream.Send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_Identity{
+		Identity: &gatewaypb.MemberIdentity{Instance: "operator-0", Role: "leader"},
+	}}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Member-side echo loop: whenever an Envelope arrives, reply with the
 	// same correlation id and a fixed payload.

@@ -186,6 +186,9 @@ type syncSession struct {
 	lastRes RenderResult
 	hasLast bool
 	pending map[string]chan *gatewaypb.Envelope
+	pushMu  sync.Mutex
+	cancel  context.CancelFunc
+	pushSeq uint64
 }
 
 func (ss *syncSession) send(m *gatewaypb.HubMessage) error {
@@ -204,6 +207,36 @@ func (ss *syncSession) last() (RenderResult, bool) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	return ss.lastRes, ss.hasLast
+}
+
+func (ss *syncSession) startPush(parent context.Context, run func(context.Context)) {
+	ss.pushMu.Lock()
+	defer ss.pushMu.Unlock()
+	if ss.cancel != nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(parent)
+	ss.pushSeq++
+	sequence := ss.pushSeq
+	ss.cancel = cancel
+	go func() {
+		run(ctx)
+		ss.pushMu.Lock()
+		if ss.pushSeq == sequence {
+			ss.cancel = nil
+		}
+		ss.pushMu.Unlock()
+	}()
+}
+
+func (ss *syncSession) stopPush() {
+	ss.pushMu.Lock()
+	defer ss.pushMu.Unlock()
+	if ss.cancel != nil {
+		ss.cancel()
+		ss.cancel = nil
+		ss.pushSeq++
+	}
 }
 
 // deliverReply routes a reply Envelope received on the member->hub half of
@@ -423,24 +456,71 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 		return status.Error(codes.Unauthenticated, err.Error())
 	}
 
+	first, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+	instance, role := cluster, "leader" // legacy clients before MemberIdentity
+	var pending *gatewaypb.MemberMessage
+	if identity := first.GetIdentity(); identity != nil {
+		instance = strings.TrimSpace(identity.Instance)
+		role = strings.TrimSpace(identity.Role)
+		if instance == "" || (role != "leader" && role != "standby") {
+			return status.Error(codes.InvalidArgument, "first identity frame requires instance and role")
+		}
+		if err := (&syncSession{stream: stream}).send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Ack{Ack: &gatewaypb.Ack{}}}); err != nil {
+			return err
+		}
+	} else {
+		pending = first
+	}
+
 	sess := &syncSession{stream: stream}
-	s.sessions.put(cluster, sess)
-	defer s.sessions.remove(cluster, sess)
-	pushCtx, cancelPush := context.WithCancel(stream.Context())
-	defer cancelPush()
-	go s.pushLoop(pushCtx, sess, cluster)
+	updateRole := func(next string) {
+		if next != "leader" && next != "standby" {
+			return
+		}
+		role = next
+		for _, demoted := range s.sessions.put(cluster, instance, role, sess) {
+			demoted.stopPush()
+			slog.Warn("multiple operator leaders reported; newest claim selected",
+				"cluster", cluster, "instance", instance)
+		}
+		if role == "leader" {
+			if leader, ok := s.sessions.leader(cluster); ok && leader == sess {
+				sess.startPush(stream.Context(), func(ctx context.Context) {
+					s.pushLoop(ctx, sess, cluster)
+				})
+			}
+		} else {
+			sess.stopPush()
+		}
+	}
+	updateRole(role)
+	defer func() {
+		sess.stopPush()
+		s.sessions.remove(cluster, instance, sess)
+	}()
 
 	for {
-		msg, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
+		msg := pending
+		pending = nil
+		if msg == nil {
+			var err error
+			msg, err = stream.Recv()
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
 		}
 		switch m := msg.Msg.(type) {
 		case *gatewaypb.MemberMessage_Heartbeat:
+			updateRole(m.Heartbeat.Role)
 			s.hb.MarkAlive(cluster, m.Heartbeat.OperatorVersion)
+		case *gatewaypb.MemberMessage_Identity:
+			return status.Error(codes.InvalidArgument, "identity frame is only valid as the first message")
 		case *gatewaypb.MemberMessage_StatusReport:
 			rep := m.StatusReport
 			s.hb.RecordStatus(cluster, rep.ReadyPolicies, rep.InvalidPolicies, inventoryOf(rep))
@@ -561,7 +641,7 @@ func (s *Server) Dispatch(ctx context.Context, req *gatewaypb.DispatchRequest) (
 	if req.To == "" {
 		return nil, status.Error(codes.InvalidArgument, "to is required")
 	}
-	sess, ok := s.sessions.get(req.To)
+	sess, ok := s.sessions.leader(req.To)
 	if !ok {
 		return nil, status.Errorf(codes.Unavailable, "cluster %q not connected", req.To)
 	}
