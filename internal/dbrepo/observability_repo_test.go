@@ -195,3 +195,47 @@ func TestObservabilityRepoCleanupSeparatesBucketAndCursorRetention(t *testing.T)
 		t.Fatalf("cleanup = (%d, %d), want (1, 1)", buckets, cursors)
 	}
 }
+
+func TestObservabilityRepoRequiresConsecutiveMinutesForSustainedPressure(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	repo := dbrepo.NewObservabilityRepo(db)
+	cluster := &dbrepo.Cluster{Name: "pressure-cluster", Phase: "Online"}
+	if err := dbrepo.NewClusterRepo(db).Create(ctx, cluster); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC().Truncate(time.Minute)
+	write := func(bucket time.Time) {
+		t.Helper()
+		if err := repo.UpsertBucket(ctx, dbrepo.ObservationBucketDelta{
+			BucketStartedAt: bucket,
+			ClusterID:       cluster.ID,
+			ClusterName:     cluster.Name,
+			Component:       admissionobs.ComponentOperator,
+			Snapshot: admissionobs.Snapshot{Counters: admissionobs.Counters{
+				QueueRejected: 1,
+			}},
+			QueueDepthMax:  85,
+			QueueCapacity:  100,
+			LastObservedAt: bucket,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(now)
+	pressure, err := repo.SustainedPressure(ctx, now, now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pressure[cluster.ID] {
+		t.Fatal("one pressure minute was treated as sustained")
+	}
+	write(now.Add(-time.Minute))
+	pressure, err = repo.SustainedPressure(ctx, now.Add(-time.Minute), now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pressure[cluster.ID] {
+		t.Fatal("two consecutive pressure minutes were not detected")
+	}
+}

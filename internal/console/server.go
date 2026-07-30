@@ -28,6 +28,9 @@ type Handlers struct {
 
 	schemaCacheOnce sync.Once
 	schemaCacheMap  *sync.Map
+
+	observationCacheMu sync.Mutex
+	observationCache   map[string]observationAggregateCacheEntry
 }
 
 // Register wires all /api/v1 routes. Later tasks append routes here.

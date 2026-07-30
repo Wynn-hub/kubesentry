@@ -125,6 +125,61 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 	if len(topics) != 1 || topics[0] != gateway.PlatformObservabilitySettingsTopic {
 		t.Fatalf("topics = %v", topics)
 	}
+
+	recovered := &dbrepo.Cluster{Name: "recovered-member", Phase: "Online"}
+	if err := repos.Clusters.Create(ctx, recovered); err != nil {
+		t.Fatal(err)
+	}
+	for _, report := range []admissionobs.Report{
+		{
+			ReportID: "recovered-webhook-1", SeriesID: "recovered-webhook", Sequence: 1,
+			ObservedAt: now, Component: admissionobs.ComponentWebhook,
+			Snapshot: admissionobs.Snapshot{
+				Counters:          admissionobs.Counters{Generated: 2},
+				FaultReasonCounts: map[string]int64{}, PressureReasonCounts: map[string]int64{}, FilterReasonCounts: map[string]int64{},
+			},
+		},
+		{
+			ReportID: "recovered-operator-1", SeriesID: "recovered-operator", Sequence: 1,
+			ObservedAt: now, Component: admissionobs.ComponentOperator,
+			Snapshot: admissionobs.Snapshot{
+				Counters:          admissionobs.Counters{Received: 2, PolicyFiltered: 1, Retry: 1},
+				FaultReasonCounts: map[string]int64{}, PressureReasonCounts: map[string]int64{},
+				FilterReasonCounts: map[string]int64{admissionobs.ReasonStoragePolicyNoRetain: 1},
+			},
+		},
+	} {
+		if _, err := repos.Observability.ApplyMemberReport(ctx, recovered.ID, recovered.Name, report, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := repos.Observability.UpsertBucket(ctx, dbrepo.ObservationBucketDelta{
+		BucketStartedAt: now.Add(-6 * time.Minute), ClusterID: recovered.ID, ClusterName: recovered.Name,
+		Component: admissionobs.ComponentGateway,
+		Snapshot: admissionobs.Snapshot{Counters: admissionobs.Counters{
+			Written: 1, Duplicate: 1, Dropped: 1,
+		}},
+		LastObservedAt: now.Add(-6 * time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Observability.UpsertBucket(ctx, dbrepo.ObservationBucketDelta{
+		BucketStartedAt: now, ClusterID: 0, Component: admissionobs.ComponentCleanup,
+		ObservationWriteFailed: 1, LastObservedAt: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	recoveredPath := "/api/v1/observability/admission/overview?cluster=recovered-member&from=" + from + "&to=" + to
+	rec, env = doRequest(t, server, "GET", recoveredPath, nil)
+	if rec.Code != 200 {
+		t.Fatalf("recovered overview = %d: %s", rec.Code, rec.Body.String())
+	}
+	recoveredOverview := mustUnmarshal[observationOverviewResponse](t, env.Data)
+	if recoveredOverview.Health != "normal" ||
+		recoveredOverview.WindowFaults[string(admissionobs.ComponentGateway)].Dropped != 1 ||
+		recoveredOverview.PlatformHealth.Health != "warning" {
+		t.Fatalf("recovered overview = %+v", recoveredOverview)
+	}
 }
 
 func TestObservationHealthSeparatesPartialNoDataAndNotOnboarded(t *testing.T) {
@@ -170,5 +225,49 @@ func TestObservationTrendStepCoversRetentionRange(t *testing.T) {
 		if got := observationTrendStep(test.span); got != test.step {
 			t.Errorf("span %s: step = %s, want %s", test.span, got, test.step)
 		}
+	}
+}
+
+func TestObservationHealthIgnoresExpectedFilteringRetryAndIntegritySignals(t *testing.T) {
+	now := time.Now().UTC()
+	onboardedAt := now.Add(-time.Hour)
+	cluster := dbrepo.Cluster{Phase: "Online", ObservabilityOnboardedAt: &onboardedAt}
+	cluster.ID = 1
+	states := observationStates([]dbrepo.Cluster{cluster}, map[int64][]dbrepo.ObservationAggregate{
+		cluster.ID: {
+			{
+				Component: string(admissionobs.ComponentWebhook), LastObservedAt: &now,
+				Counters:         admissionobs.Counters{Retry: 3},
+				SequenceGapCount: 2, BaselineResetCount: 1, SeriesStartedCount: 1,
+			},
+			{
+				Component: string(admissionobs.ComponentOperator), LastObservedAt: &now,
+				Counters: admissionobs.Counters{PolicyFiltered: 4, Duplicate: 2},
+			},
+		},
+	}, nil, now)
+	if states[cluster.ID].health != "normal" {
+		t.Fatalf("health = %q, want normal", states[cluster.ID].health)
+	}
+	if !states[cluster.ID].incomplete {
+		t.Fatal("sequence gap did not set the informational incomplete flag")
+	}
+}
+
+func TestObservationAggregateCacheSeparatesWindows(t *testing.T) {
+	handlers := &Handlers{}
+	now := time.Now().UTC()
+	firstKey := "clusters/" + now.Add(-time.Hour).Format(time.RFC3339Nano) + "/" + now.Format(time.RFC3339Nano)
+	secondKey := "clusters/" + now.Add(-24*time.Hour).Format(time.RFC3339Nano) + "/" + now.Format(time.RFC3339Nano)
+	handlers.storeObservationAggregates(firstKey, []dbrepo.ObservationAggregate{{Component: "webhook"}})
+	if cached, ok := handlers.cachedObservationAggregates(firstKey); !ok || len(cached) != 1 {
+		t.Fatalf("first window cache = (%+v, %v)", cached, ok)
+	}
+	if _, ok := handlers.cachedObservationAggregates(secondKey); ok {
+		t.Fatal("different observation window reused the cached aggregate")
+	}
+	handlers.clearObservationCache()
+	if _, ok := handlers.cachedObservationAggregates(firstKey); ok {
+		t.Fatal("cache entry survived invalidation")
 	}
 }

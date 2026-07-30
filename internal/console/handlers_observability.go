@@ -20,7 +20,13 @@ import (
 const (
 	observationHealthWindow = 5 * time.Minute
 	observationFreshFor     = 90 * time.Second
+	observationCacheTTL     = 10 * time.Second
 )
+
+type observationAggregateCacheEntry struct {
+	expiresAt  time.Time
+	aggregates []dbrepo.ObservationAggregate
+}
 
 type observationFreshness struct {
 	LastObservedAt *time.Time `json:"lastObservedAt"`
@@ -129,10 +135,14 @@ func (h *Handlers) admissionObservationOverview(w http.ResponseWriter, r *http.R
 	if !ok {
 		return
 	}
-	windowAggregates, err := h.observationAggregates(r, clusterID, from, to)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
+	var windowAggregates []dbrepo.ObservationAggregate
+	var err error
+	if r.URL.Query().Get("currentOnly") != "true" {
+		windowAggregates, err = h.observationAggregates(r, clusterID, from, to)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 	healthAggregates, err := h.observationAggregates(r, clusterID, now.Add(-observationHealthWindow), now)
 	if err != nil {
@@ -150,7 +160,7 @@ func (h *Handlers) admissionObservationOverview(w http.ResponseWriter, r *http.R
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	fixedByCluster, err := h.Repos.Observability.AggregateClusters(r.Context(), now.Add(-observationHealthWindow), now)
+	fixedByCluster, err := h.observationClusterAggregates(r, now.Add(-observationHealthWindow), now)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
@@ -228,13 +238,64 @@ func (h *Handlers) admissionObservationOverview(w http.ResponseWriter, r *http.R
 
 func (h *Handlers) observationAggregates(r *http.Request, clusterID *int64, from, to time.Time) ([]dbrepo.ObservationAggregate, error) {
 	if clusterID != nil {
-		return h.Repos.Observability.Aggregate(r.Context(), clusterID, from, to)
+		key := "cluster/" + strconv.FormatInt(*clusterID, 10) + "/" + from.Format(time.RFC3339Nano) + "/" + to.Format(time.RFC3339Nano)
+		if cached, ok := h.cachedObservationAggregates(key); ok {
+			return cached, nil
+		}
+		aggregates, err := h.Repos.Observability.Aggregate(r.Context(), clusterID, from, to)
+		if err == nil {
+			h.storeObservationAggregates(key, aggregates)
+		}
+		return aggregates, err
 	}
-	byCluster, err := h.Repos.Observability.AggregateClusters(r.Context(), from, to)
+	byCluster, err := h.observationClusterAggregates(r, from, to)
 	if err != nil {
 		return nil, err
 	}
 	return mergeClusterAggregates(byCluster), nil
+}
+
+func (h *Handlers) observationClusterAggregates(r *http.Request, from, to time.Time) ([]dbrepo.ObservationAggregate, error) {
+	key := "clusters/" + from.Format(time.RFC3339Nano) + "/" + to.Format(time.RFC3339Nano)
+	if cached, ok := h.cachedObservationAggregates(key); ok {
+		return cached, nil
+	}
+	aggregates, err := h.Repos.Observability.AggregateClusters(r.Context(), from, to)
+	if err == nil {
+		h.storeObservationAggregates(key, aggregates)
+	}
+	return aggregates, err
+}
+
+func (h *Handlers) cachedObservationAggregates(key string) ([]dbrepo.ObservationAggregate, bool) {
+	h.observationCacheMu.Lock()
+	defer h.observationCacheMu.Unlock()
+	entry, ok := h.observationCache[key]
+	if !ok || !time.Now().Before(entry.expiresAt) {
+		if ok {
+			delete(h.observationCache, key)
+		}
+		return nil, false
+	}
+	return append([]dbrepo.ObservationAggregate(nil), entry.aggregates...), true
+}
+
+func (h *Handlers) storeObservationAggregates(key string, aggregates []dbrepo.ObservationAggregate) {
+	h.observationCacheMu.Lock()
+	defer h.observationCacheMu.Unlock()
+	if h.observationCache == nil {
+		h.observationCache = map[string]observationAggregateCacheEntry{}
+	}
+	h.observationCache[key] = observationAggregateCacheEntry{
+		expiresAt:  time.Now().Add(observationCacheTTL),
+		aggregates: append([]dbrepo.ObservationAggregate(nil), aggregates...),
+	}
+}
+
+func (h *Handlers) clearObservationCache() {
+	h.observationCacheMu.Lock()
+	defer h.observationCacheMu.Unlock()
+	h.observationCache = nil
 }
 
 func (h *Handlers) observationWindow(w http.ResponseWriter, r *http.Request) (time.Time, time.Time, time.Time, bool) {
@@ -575,12 +636,12 @@ func (h *Handlers) admissionObservationClusters(w http.ResponseWriter, r *http.R
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	windowAggregates, err := h.Repos.Observability.AggregateClusters(r.Context(), from, to)
+	windowAggregates, err := h.observationClusterAggregates(r, from, to)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	fixedAggregates, err := h.Repos.Observability.AggregateClusters(r.Context(), now.Add(-observationHealthWindow), now)
+	fixedAggregates, err := h.observationClusterAggregates(r, now.Add(-observationHealthWindow), now)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
@@ -694,6 +755,7 @@ func (h *Handlers) updateObservationSettings(w http.ResponseWriter, r *http.Requ
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	h.clearObservationCache()
 	h.notifyChange(r, gateway.PlatformObservabilitySettingsTopic)
 	h.getObservationSettings(w, r)
 }
