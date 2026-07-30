@@ -12,7 +12,10 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
-const gatewayObservationBufferCapacity = 512
+const (
+	gatewayObservationBufferCapacity  = 512
+	gatewayObservationShutdownTimeout = 5 * time.Second
+)
 
 type observationBufferKey struct {
 	minute    time.Time
@@ -120,7 +123,9 @@ func (c *GatewayObservationCollector) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			c.flush(ctx)
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), gatewayObservationShutdownTimeout)
+			c.flush(shutdownCtx)
+			cancel()
 			return nil
 		case <-ticker.C:
 			c.flush(ctx)

@@ -25,6 +25,7 @@ const (
 type queuedObservation struct {
 	report   *gatewaypb.ObservationReport
 	attempts int
+	inFlight bool
 }
 
 type webhookObservationReporter struct {
@@ -91,7 +92,11 @@ func (r *webhookObservationReporter) newReport() *gatewaypb.ObservationReport {
 func (r *webhookObservationReporter) enqueue(report *gatewaypb.ObservationReport) {
 	r.mu.Lock()
 	if len(r.queue) == cap(r.queue) {
-		copy(r.queue, r.queue[1:])
+		dropIndex := 0
+		if r.queue[0].inFlight && len(r.queue) > 1 {
+			dropIndex = 1
+		}
+		copy(r.queue[dropIndex:], r.queue[dropIndex+1:])
 		r.queue[len(r.queue)-1] = &queuedObservation{report: report}
 		r.counters.Add(admissionobs.Counters{ReportDropped: 1})
 		r.counters.AddReason(admissionobs.ReasonFault, admissionobs.ReasonObservationQueueFull, 1)
@@ -144,6 +149,7 @@ func (r *webhookObservationReporter) front() *queuedObservation {
 	if len(r.queue) == 0 {
 		return nil
 	}
+	r.queue[0].inFlight = true
 	return r.queue[0]
 }
 

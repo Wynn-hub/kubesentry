@@ -254,6 +254,29 @@ func TestObservationHealthIgnoresExpectedFilteringRetryAndIntegritySignals(t *te
 	}
 }
 
+func TestObservationHealthWarnsWhenRetryIsExhausted(t *testing.T) {
+	now := time.Now().UTC()
+	onboardedAt := now.Add(-time.Hour)
+	cluster := dbrepo.Cluster{Phase: "Online", ObservabilityOnboardedAt: &onboardedAt}
+	cluster.ID = 1
+	states := observationStates([]dbrepo.Cluster{cluster}, map[int64][]dbrepo.ObservationAggregate{
+		cluster.ID: {
+			{
+				Component:      string(admissionobs.ComponentWebhook),
+				LastObservedAt: &now,
+			},
+			{
+				Component:      string(admissionobs.ComponentOperator),
+				LastObservedAt: &now,
+				Counters:       admissionobs.Counters{RetryExhausted: 1},
+			},
+		},
+	}, nil, now)
+	if states[cluster.ID].health != "warning" {
+		t.Fatalf("health = %q, want warning", states[cluster.ID].health)
+	}
+}
+
 func TestObservationAggregateCacheSeparatesWindows(t *testing.T) {
 	handlers := &Handlers{}
 	now := time.Now().UTC()

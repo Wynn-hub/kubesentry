@@ -54,3 +54,28 @@ func TestWebhookObservationQueueDropsOldestReport(t *testing.T) {
 		t.Fatalf("snapshot = %#v, want one observation queue drop", snapshot)
 	}
 }
+
+func TestWebhookObservationQueueKeepsInFlightReportAndDropsOldestPending(t *testing.T) {
+	reporter := &webhookObservationReporter{
+		counters: admissionobs.NewAtomicCounters(),
+		queue:    make([]*queuedObservation, 0, 2),
+		wake:     make(chan struct{}, 1),
+	}
+	reporter.enqueue(&gatewaypb.ObservationReport{ReportId: "active"})
+	reporter.enqueue(&gatewaypb.ObservationReport{ReportId: "pending"})
+	if queued := reporter.front(); queued == nil || queued.report.ReportId != "active" {
+		t.Fatalf("front = %#v, want active report", queued)
+	}
+
+	reporter.enqueue(&gatewaypb.ObservationReport{ReportId: "newest"})
+
+	if len(reporter.queue) != 2 {
+		t.Fatalf("queue length = %d, want 2", len(reporter.queue))
+	}
+	if got := reporter.queue[0].report.ReportId; got != "active" {
+		t.Fatalf("in-flight report = %q, want active", got)
+	}
+	if got := reporter.queue[1].report.ReportId; got != "newest" {
+		t.Fatalf("pending report = %q, want newest", got)
+	}
+}

@@ -46,6 +46,10 @@ func (f observationFaults) total() int64 {
 	return f.Dropped + f.BatchFailure + f.AuthFailure + f.ACKTimeout + f.ReportDropped
 }
 
+func (f observationFaults) hasHealthFault() bool {
+	return f.total() > 0 || f.RetryExhausted > 0
+}
+
 func (f *observationFaults) add(aggregate dbrepo.ObservationAggregate) {
 	f.Dropped += aggregate.Dropped
 	f.RetryExhausted += aggregate.RetryExhausted
@@ -453,7 +457,7 @@ func observationStates(
 			state.health = "no_data"
 		case freshness[string(admissionobs.ComponentWebhook)].Fresh != freshness[string(admissionobs.ComponentOperator)].Fresh:
 			state.health = "partial_no_data"
-		case state.faults.total() > 0 || sustained[cluster.ID]:
+		case state.faults.hasHealthFault() || sustained[cluster.ID]:
 			state.health = "warning"
 		default:
 			state.health = "normal"

@@ -92,6 +92,36 @@ func TestGatewayObservationCollectorPersistsPendingWriteFailuresFirst(t *testing
 	}
 }
 
+func TestGatewayObservationCollectorFlushesBufferedDataOnShutdown(t *testing.T) {
+	repos := newTestRepos(t)
+	collector := NewGatewayObservationCollector(repos.Observability, time.Hour)
+	now := time.Now().UTC().Truncate(time.Minute)
+	collector.Record(dbrepo.ObservationBucketDelta{
+		BucketStartedAt: now,
+		ClusterID:       1,
+		Component:       admissionobs.ComponentGateway,
+		Snapshot:        admissionobs.Snapshot{Counters: admissionobs.Counters{Received: 2}},
+		LastObservedAt:  now,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := collector.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	aggregates, err := repos.Observability.Aggregate(
+		context.Background(),
+		nil,
+		now.Add(-time.Minute),
+		now.Add(time.Minute),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(aggregates) != 1 || aggregates[0].Received != 2 {
+		t.Fatalf("aggregates = %+v, want shutdown-flushed count", aggregates)
+	}
+}
+
 func TestNotifyChangeTriggersObservabilityCleanup(t *testing.T) {
 	cleaner := NewObservabilityCleaner(&dbrepo.ObservabilityRepo{}, nil, time.Hour)
 	server := NewServer(Repos{}, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token")
