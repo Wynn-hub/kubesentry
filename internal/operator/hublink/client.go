@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
@@ -93,6 +94,14 @@ type Link struct {
 	prefix      string
 	configMu    sync.RWMutex
 	eventConfig *gatewaypb.AdmissionEventConfig
+
+	observationsMu      sync.Mutex
+	observations        map[string]*queuedObservationReport
+	observationsWake    chan struct{}
+	observationStats    *admissionobs.AtomicCounters
+	eventQueueGauge     admissionobs.QueueGauge
+	observationSeries   string
+	observationSequence atomic.Uint64
 }
 
 type queuedAdmissionEvent struct {
@@ -107,7 +116,21 @@ func New(cfg Config) *Link {
 	if cfg.HeartbeatEvery == 0 {
 		cfg.HeartbeatEvery = 15 * time.Second
 	}
-	return &Link{cfg: cfg, events: map[string]*queuedAdmissionEvent{}, eventsWake: make(chan struct{}, 1)}
+	seriesID, err := admissionobs.NewSeriesID()
+	if err != nil {
+		panic("generate operator observation series id: " + err.Error())
+	}
+	link := &Link{
+		cfg:               cfg,
+		events:            map[string]*queuedAdmissionEvent{},
+		eventsWake:        make(chan struct{}, 1),
+		observations:      map[string]*queuedObservationReport{},
+		observationsWake:  make(chan struct{}, 1),
+		observationStats:  admissionobs.NewAtomicCounters(),
+		observationSeries: seriesID,
+	}
+	link.eventQueueGauge.Observe(0, defaultEventQueueCapacity)
+	return link
 }
 
 // NeedLeaderElection: only the elected operator holds the hub link.
@@ -126,11 +149,14 @@ func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*g
 	l.eventsMu.Lock()
 	defer l.eventsMu.Unlock()
 	_, _, queueCapacity := l.admissionDeliveryConfig()
+	l.observationStats.Add(admissionobs.Counters{Received: int64(len(batch.Events))})
 	for _, event := range batch.Events {
 		if event == nil || event.EventId == "" {
 			continue
 		}
 		if l.shouldDiscardAdmissionEvent(event) {
+			l.observationStats.Add(admissionobs.Counters{PolicyFiltered: 1})
+			l.observationStats.AddReason(admissionobs.ReasonFilter, admissionobs.ReasonStoragePolicyNoRetain, 1)
 			results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_DISCARDED, Reason: "storage_policy_no_retain"})
 			continue
 		}
@@ -148,10 +174,13 @@ func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*g
 			continue
 		}
 		if len(l.events) >= queueCapacity {
+			l.observationStats.Add(admissionobs.Counters{QueueRejected: 1})
+			l.observationStats.AddReason(admissionobs.ReasonPressure, admissionobs.ReasonOperatorEventQueueFull, 1)
 			results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE, Reason: "operator_event_queue_full"})
 			continue
 		}
 		l.events[stored.EventId] = &queuedAdmissionEvent{event: stored}
+		l.eventQueueGauge.Observe(int64(len(l.events)), int64(queueCapacity))
 		results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED})
 	}
 	select {
@@ -163,6 +192,7 @@ func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*g
 
 func (l *Link) Start(ctx context.Context) error {
 	l.leader.Store(true)
+	go l.generateOperatorObservations(ctx)
 	if uid, err := l.clusterUID(ctx); err == nil && len(uid) >= 8 {
 		l.prefix = uid[:8]
 	}
@@ -285,6 +315,7 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 	defer func() {
 		cancelSession()
 		l.failInFlightAdmissionEvents("sync_stream_closed")
+		l.failInFlightObservationReports(admissionobs.ReasonSyncStreamClosed)
 	}()
 	go l.sendAdmissionEvents(sessionCtx, send)
 
@@ -357,6 +388,8 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 			// heartbeat/status-report acknowledged; nothing to do
 		case *gatewaypb.HubMessage_AdmissionEventBatchAck:
 			l.ackAdmissionEvents(m.AdmissionEventBatchAck)
+		case *gatewaypb.HubMessage_ObservationReportBatchAck:
+			l.ackObservationReports(m.ObservationReportBatchAck)
 		case *gatewaypb.HubMessage_DesiredState:
 			ds := m.DesiredState
 			l.configMu.Lock()
@@ -418,10 +451,14 @@ func (l *Link) sendAdmissionEvents(ctx context.Context, send func(*gatewaypb.Mem
 		case <-ctx.Done():
 			return
 		case <-l.eventsWake:
+		case <-l.observationsWake:
 		case <-ticker.C:
 		}
 
 		now := time.Now()
+		if !l.sendObservationReports(now, send) {
+			return
+		}
 		l.eventsMu.Lock()
 		for id, queued := range l.events {
 			if queued.inFlight && !queued.ackDeadline.After(now) {
@@ -456,6 +493,7 @@ func (l *Link) sendAdmissionEvents(ctx context.Context, send func(*gatewaypb.Mem
 			l.eventsMu.Unlock()
 			return
 		}
+		l.observationStats.Add(admissionobs.Counters{Forwarded: int64(len(events))})
 	}
 }
 
@@ -479,6 +517,8 @@ func (l *Link) ackAdmissionEvents(ack *gatewaypb.AdmissionEventBatchAck) {
 		switch result.Status {
 		case gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED, gatewaypb.AdmissionEventBatchAck_Result_DISCARDED:
 			delete(l.events, result.EventId)
+			_, _, capacity := l.admissionDeliveryConfig()
+			l.eventQueueGauge.Observe(int64(len(l.events)), int64(capacity))
 		case gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE:
 			l.failAdmissionEventLocked(result.EventId, result.Reason)
 		}
@@ -510,14 +550,23 @@ func (l *Link) failAdmissionEventLocked(eventID, reason string) {
 	}
 	retryEnabled, maxRetryAttempts, _ := l.admissionDeliveryConfig()
 	attempts := queued.retryCount + 1
+	l.observationStats.AddReason(admissionobs.ReasonFault, reason, 1)
+	if reason == admissionobs.ReasonGatewayACKTimeout {
+		l.observationStats.Add(admissionobs.Counters{ACKTimeout: 1})
+	}
 	if !retryEnabled || queued.retryCount >= maxRetryAttempts {
 		delete(l.events, eventID)
+		l.observationStats.Add(admissionobs.Counters{Dropped: 1, RetryExhausted: 1})
+		l.observationStats.AddReason(admissionobs.ReasonFault, admissionobs.ReasonRetryExhausted, 1)
+		_, _, capacity := l.admissionDeliveryConfig()
+		l.eventQueueGauge.Observe(int64(len(l.events)), int64(capacity))
 		slog.Warn("admission event delivery dropped", "event", eventID, "attempts", attempts, "reason", reason, "retry_enabled", retryEnabled)
 		return
 	}
 	queued.retryCount++
 	queued.inFlight = false
 	queued.ackDeadline = time.Time{}
+	l.observationStats.Add(admissionobs.Counters{Retry: 1})
 	slog.Warn("admission event delivery will retry", "event", eventID, "retry", queued.retryCount, "max_retries", maxRetryAttempts, "reason", reason)
 	select {
 	case l.eventsWake <- struct{}{}:

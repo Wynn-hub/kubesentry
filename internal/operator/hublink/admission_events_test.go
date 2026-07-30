@@ -3,6 +3,7 @@ package hublink
 import (
 	"testing"
 
+	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -80,6 +81,11 @@ func TestSubmitAdmissionEventsReturnsRetryableWhenQueueIsFull(t *testing.T) {
 	}
 	if results[1].Status != gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE || results[1].Reason != "operator_event_queue_full" {
 		t.Fatalf("second result = %#v, want queue-full RETRYABLE", results[1])
+	}
+	snapshot := link.observationStats.Snapshot()
+	if snapshot.Counters.Received != 2 || snapshot.Counters.QueueRejected != 1 ||
+		snapshot.PressureReasonCounts[admissionobs.ReasonOperatorEventQueueFull] != 1 {
+		t.Fatalf("observation snapshot = %#v", snapshot)
 	}
 }
 
