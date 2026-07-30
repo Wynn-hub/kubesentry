@@ -9,6 +9,7 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/datatypes"
 
+	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
@@ -28,12 +29,26 @@ func (s *Server) handleAdmissionEventBatch(ctx context.Context, clusterName stri
 	if err != nil {
 		return nil, err
 	}
+	observation := admissionobs.Snapshot{
+		FaultReasonCounts:  map[string]int64{},
+		FilterReasonCounts: map[string]int64{},
+	}
+	for _, event := range batch.Events {
+		if event != nil {
+			observation.Counters.Received++
+		}
+	}
+	defer func() { s.recordGatewayObservation(cluster, observation) }()
 	settings, err := s.repos.Admission.GetSettings(ctx)
 	if err != nil {
+		observation.Counters.BatchFailure++
+		observation.FaultReasonCounts[admissionobs.ReasonDBWriteFailed]++
 		return nil, err
 	}
 	policies, err := s.repos.Admission.ListPolicies(ctx)
 	if err != nil {
+		observation.Counters.BatchFailure++
+		observation.FaultReasonCounts[admissionobs.ReasonDBWriteFailed]++
 		return nil, err
 	}
 	accepted := make([]dbrepo.AdmissionEvent, 0, len(batch.Events))
@@ -42,6 +57,8 @@ func (s *Server) handleAdmissionEventBatch(ctx context.Context, clusterName stri
 			continue
 		}
 		if in.Verdict != "audit" && in.Verdict != "deny" {
+			observation.Counters.Dropped++
+			observation.FaultReasonCounts[admissionobs.ReasonInvalidEvent]++
 			ack.Results = append(ack.Results, discardedAdmissionEvent(in, "invalid_event"))
 			continue
 		}
@@ -63,6 +80,8 @@ func (s *Server) handleAdmissionEventBatch(ctx context.Context, clusterName stri
 		if !dbrepo.ShouldStoreAdmissionEvent(policies, event) {
 			// Storage rules are an allow-list: matching any rule stores the
 			// event, matching none does not. An empty rule set stores all.
+			observation.Counters.PolicyFiltered++
+			observation.FilterReasonCounts[admissionobs.ReasonStoragePolicyNoMatch]++
 			ack.Results = append(ack.Results, discardedAdmissionEvent(in, "storage_policy_no_match"))
 			continue
 		}
@@ -71,15 +90,22 @@ func (s *Server) handleAdmissionEventBatch(ctx context.Context, clusterName stri
 		// worker delete them on its next pass makes the ingest counters disagree
 		// with what is actually retained, so drop them up front.
 		if !occurred.Add(time.Duration(settings.DefaultRetentionDays) * 24 * time.Hour).After(time.Now().UTC()) {
+			observation.Counters.RetentionElapsed++
+			observation.FilterReasonCounts[admissionobs.ReasonRetentionElapsed]++
 			ack.Results = append(ack.Results, discardedAdmissionEvent(in, "retention_already_elapsed"))
 			continue
 		}
 		accepted = append(accepted, event)
 		ack.Results = append(ack.Results, acceptedAdmissionEvent(in))
 	}
-	if err := s.repos.Admission.CreateEventsIdempotent(ctx, accepted); err != nil {
+	written, duplicates, err := s.repos.Admission.CreateEventsIdempotentCount(ctx, accepted)
+	if err != nil {
+		observation.Counters.BatchFailure++
+		observation.FaultReasonCounts[admissionobs.ReasonDBWriteFailed]++
 		return ack, err
 	}
+	observation.Counters.Written += written
+	observation.Counters.Duplicate += duplicates
 	return ack, nil
 }
 

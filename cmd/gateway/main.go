@@ -116,10 +116,14 @@ func main() {
 				}
 				hub := gateway.NewServer(repos, namespace, tracker, notifier, sharedToken)
 				cleaner := gateway.NewAdmissionCleaner(repos.Admission, 24*time.Hour)
+				observationCollector := gateway.NewGatewayObservationCollector(repos.Observability, 10*time.Second)
+				observabilityCleaner := gateway.NewObservabilityCleaner(repos.Observability, observationCollector, time.Hour)
 				// Storage-rule changes apply to already-stored events, so the
 				// console's NotifyChange must be able to kick a full pass
 				// instead of leaving it to the daily ticker.
 				hub.SetAdmissionCleaner(cleaner)
+				hub.SetObservationCollector(observationCollector)
+				hub.SetObservabilityCleaner(observabilityCleaner)
 				grpcRun := &grpcRunnable{
 					addr:   grpcAddr,
 					cert:   cert,
@@ -135,6 +139,16 @@ func main() {
 				go func() {
 					if err := cleaner.Start(leaderCtx); err != nil {
 						slog.Error("admission event cleanup error", "error", err)
+					}
+				}()
+				go func() {
+					if err := observationCollector.Start(leaderCtx); err != nil {
+						slog.Error("gateway observation collector error", "error", err)
+					}
+				}()
+				go func() {
+					if err := observabilityCleaner.Start(leaderCtx); err != nil {
+						slog.Error("platform observation cleanup error", "error", err)
 					}
 				}()
 

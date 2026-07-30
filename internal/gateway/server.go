@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 
+	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
@@ -65,7 +66,9 @@ type Server struct {
 	// cleaner, when set, receives a full-cleanup trigger on an
 	// admission-event-settings NotifyChange. Left nil by every non-leader
 	// path and by tests, both of which have no cleanup loop running.
-	cleaner *AdmissionCleaner
+	cleaner              *AdmissionCleaner
+	observationCollector *GatewayObservationCollector
+	observabilityCleaner *ObservabilityCleaner
 }
 
 func NewServer(repos Repos, namespace string, hb *HeartbeatTracker, changes *Notifier, sharedToken string) *Server {
@@ -86,6 +89,14 @@ func NewServer(repos Repos, namespace string, hb *HeartbeatTracker, changes *Not
 // same callback.
 func (s *Server) SetAdmissionCleaner(cleaner *AdmissionCleaner) { s.cleaner = cleaner }
 
+func (s *Server) SetObservationCollector(collector *GatewayObservationCollector) {
+	s.observationCollector = collector
+}
+
+func (s *Server) SetObservabilityCleaner(cleaner *ObservabilityCleaner) {
+	s.observabilityCleaner = cleaner
+}
+
 func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (*gatewaypb.RegisterResponse, error) {
 	if req.ClusterName == "" || req.RegistrationToken == "" || req.ClusterUid == "" {
 		return nil, status.Error(codes.InvalidArgument, "cluster_name, registration_token and cluster_uid are required")
@@ -104,6 +115,10 @@ func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (
 
 	// 校验一次性注册 token：gateway 只存哈希。
 	if subtle.ConstantTimeCompare([]byte(cl.RegTokenHash), []byte(HashToken(req.RegistrationToken))) != 1 {
+		s.recordGatewayObservation(nil, admissionobs.Snapshot{
+			Counters:          admissionobs.Counters{AuthFailure: 1},
+			FaultReasonCounts: map[string]int64{admissionobs.ReasonRegisterAuthFailed: 1},
+		})
 		return nil, status.Error(codes.PermissionDenied, "invalid registration token")
 	}
 
@@ -401,6 +416,10 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 		return status.Error(codes.Unauthenticated, "missing cluster identity metadata")
 	}
 	if err := s.validateSyncAuth(stream.Context(), cluster, token); err != nil {
+		s.recordGatewayObservation(nil, admissionobs.Snapshot{
+			Counters:          admissionobs.Counters{AuthFailure: 1},
+			FaultReasonCounts: map[string]int64{admissionobs.ReasonSyncAuthFailed: 1},
+		})
 		return status.Error(codes.Unauthenticated, err.Error())
 	}
 
@@ -440,6 +459,12 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 				ack = admissionEventFailureAck(ack, m.AdmissionEventBatch, "gateway_storage_failed")
 			}
 			if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_AdmissionEventBatchAck{AdmissionEventBatchAck: ack}}); err != nil {
+				return err
+			}
+			continue
+		case *gatewaypb.MemberMessage_ObservationReportBatch:
+			ack := s.handleObservationReportBatch(stream.Context(), cluster, m.ObservationReportBatch)
+			if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_ObservationReportBatchAck{ObservationReportBatchAck: ack}}); err != nil {
 				return err
 			}
 			continue
@@ -522,6 +547,9 @@ func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRe
 	if req.Topic == AdmissionEventSettingsTopic {
 		s.cleaner.TriggerFullCleanup()
 	}
+	if req.Topic == PlatformObservabilitySettingsTopic {
+		s.observabilityCleaner.Trigger()
+	}
 	return &gatewaypb.NotifyChangeResponse{}, nil
 }
 
@@ -563,6 +591,10 @@ func (s *Server) Connect(stream gatewaypb.Hub_ConnectServer) error {
 		return status.Error(codes.FailedPrecondition, "gateway shared token not configured")
 	}
 	if subtle.ConstantTimeCompare([]byte(req.SharedToken), []byte(s.sharedToken)) != 1 {
+		s.recordGatewayObservation(nil, admissionobs.Snapshot{
+			Counters:          admissionobs.Counters{AuthFailure: 1},
+			FaultReasonCounts: map[string]int64{admissionobs.ReasonAuthFailed: 1},
+		})
 		return status.Error(codes.Unauthenticated, "invalid shared token")
 	}
 

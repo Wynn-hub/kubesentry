@@ -167,15 +167,30 @@ func (r *AdmissionRepo) Trend(ctx context.Context, from, to time.Time, hourly bo
 // acknowledges it. A duplicate event ID is already durable and is therefore
 // treated as successfully accepted.
 func (r *AdmissionRepo) CreateEventsIdempotent(ctx context.Context, events []AdmissionEvent) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	_, _, err := r.CreateEventsIdempotentCount(ctx, events)
+	return err
+}
+
+// CreateEventsIdempotentCount is the instrumented form used by the gateway:
+// written counts newly durable rows, while duplicates counts rows that already
+// existed under the event_id unique key.
+func (r *AdmissionRepo) CreateEventsIdempotentCount(ctx context.Context, events []AdmissionEvent) (written, duplicates int64, err error) {
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i := range events {
 			normalizeAdmissionEvent(&events[i])
-			if err := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "event_id"}}, DoNothing: true}).Create(&events[i]).Error; err != nil {
-				return err
+			result := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "event_id"}}, DoNothing: true}).Create(&events[i])
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				duplicates++
+			} else {
+				written++
 			}
 		}
 		return nil
 	})
+	return written, duplicates, err
 }
 
 // normalizeAdmissionEvent ensures optional protobuf fields cannot bypass the
