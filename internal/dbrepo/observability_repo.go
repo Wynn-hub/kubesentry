@@ -287,6 +287,8 @@ func nonNilCounts(counts map[string]int64) map[string]int64 {
 }
 
 type ObservationAggregate struct {
+	ClusterID              int64
+	ClusterName            string
 	Component              string
 	admissionobs.Counters  `gorm:"embedded"`
 	ObservationWriteFailed int64
@@ -299,6 +301,186 @@ type ObservationAggregate struct {
 	FaultReasonCounts      map[string]int64
 	PressureReasonCounts   map[string]int64
 	FilterReasonCounts     map[string]int64
+}
+
+func (r *ObservabilityRepo) AggregateClusters(ctx context.Context, from, to time.Time) ([]ObservationAggregate, error) {
+	selectColumns := `
+		cluster_id,
+		MAX(cluster_name) AS cluster_name,
+		component,
+		SUM(generated_count) AS generated,
+		SUM(received_count) AS received,
+		SUM(forwarded_count) AS forwarded,
+		SUM(written_count) AS written,
+		SUM(duplicate_count) AS duplicate,
+		SUM(policy_filtered_count) AS policy_filtered,
+		SUM(retention_elapsed_count) AS retention_elapsed,
+		SUM(queue_rejected_count) AS queue_rejected,
+		SUM(retry_count) AS retry,
+		SUM(dropped_count) AS dropped,
+		SUM(retry_exhausted_count) AS retry_exhausted,
+		SUM(batch_failure_count) AS batch_failure,
+		SUM(auth_failure_count) AS auth_failure,
+		SUM(ack_timeout_count) AS ack_timeout,
+		SUM(report_dropped_count) AS report_dropped,
+		SUM(cleanup_run_count) AS cleanup_run,
+		SUM(cleanup_deleted_count) AS cleanup_deleted,
+		SUM(cleanup_failure_count) AS cleanup_failure,
+		SUM(observation_write_failed) AS observation_write_failed,
+		SUM(sequence_gap_count) AS sequence_gap_count,
+		SUM(baseline_reset_count) AS baseline_reset_count,
+		SUM(series_started_count) AS series_started_count,
+		MAX(queue_depth_max) AS queue_depth_max,
+		MAX(queue_capacity) AS queue_capacity,
+		MAX(last_observed_at) AS last_observed_at`
+	var result []ObservationAggregate
+	err := r.db.WithContext(ctx).Model(&AdmissionObservationBucket{}).
+		Select(selectColumns).
+		Where("cluster_id <> 0 AND bucket_started_at >= ? AND bucket_started_at < ?", from.UTC(), to.UTC()).
+		Group("cluster_id, component").
+		Order("cluster_id, component").
+		Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("aggregate cluster admission observations: %w", err)
+	}
+	if err := r.attachClusterReasons(ctx, result, from, to); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *ObservabilityRepo) attachClusterReasons(ctx context.Context, aggregates []ObservationAggregate, from, to time.Time) error {
+	type reasonRow struct {
+		ClusterID int64
+		Component string
+		Reason    string
+		Count     int64
+	}
+	index := make(map[string]*ObservationAggregate, len(aggregates))
+	for i := range aggregates {
+		key := fmt.Sprintf("%d/%s", aggregates[i].ClusterID, aggregates[i].Component)
+		index[key] = &aggregates[i]
+		aggregates[i].FaultReasonCounts = map[string]int64{}
+		aggregates[i].PressureReasonCounts = map[string]int64{}
+		aggregates[i].FilterReasonCounts = map[string]int64{}
+	}
+	for _, reasonColumn := range []struct {
+		column string
+		assign func(*ObservationAggregate) map[string]int64
+	}{
+		{"fault_reason_counts", func(aggregate *ObservationAggregate) map[string]int64 { return aggregate.FaultReasonCounts }},
+		{"pressure_reason_counts", func(aggregate *ObservationAggregate) map[string]int64 { return aggregate.PressureReasonCounts }},
+		{"filter_reason_counts", func(aggregate *ObservationAggregate) map[string]int64 { return aggregate.FilterReasonCounts }},
+	} {
+		var rows []reasonRow
+		sql := fmt.Sprintf(`
+			SELECT cluster_id, component, reason.key AS reason,
+			       SUM(reason.value::TEXT::BIGINT) AS count
+			FROM kubesentry.admission_observation_buckets,
+			     LATERAL jsonb_each(%s) AS reason
+			WHERE cluster_id <> 0
+			  AND bucket_started_at >= ? AND bucket_started_at < ?
+			GROUP BY cluster_id, component, reason.key`, reasonColumn.column)
+		if err := r.db.WithContext(ctx).Raw(sql, from.UTC(), to.UTC()).Scan(&rows).Error; err != nil {
+			return fmt.Errorf("aggregate cluster %s: %w", reasonColumn.column, err)
+		}
+		for _, row := range rows {
+			if aggregate := index[fmt.Sprintf("%d/%s", row.ClusterID, row.Component)]; aggregate != nil {
+				reasonColumn.assign(aggregate)[row.Reason] = row.Count
+			}
+		}
+	}
+	return nil
+}
+
+type ObservationTrendRow struct {
+	BucketStartedAt       time.Time
+	Component             string
+	admissionobs.Counters `gorm:"embedded"`
+}
+
+func (r *ObservabilityRepo) Trend(
+	ctx context.Context,
+	clusterID *int64,
+	from, to time.Time,
+	step time.Duration,
+) ([]ObservationTrendRow, error) {
+	if step < time.Minute || step%time.Minute != 0 {
+		return nil, errors.New("observation trend step must be whole minutes")
+	}
+	query := r.db.WithContext(ctx).Model(&AdmissionObservationBucket{}).
+		Where("bucket_started_at >= ? AND bucket_started_at < ?", from.UTC(), to.UTC())
+	if clusterID == nil {
+		query = query.Where("cluster_id <> 0")
+	} else {
+		query = query.Where("cluster_id = ?", *clusterID)
+	}
+	interval := fmt.Sprintf("%d minutes", int(step/time.Minute))
+	bucketExpression := fmt.Sprintf(
+		"date_bin(INTERVAL '%s', bucket_started_at, TIMESTAMPTZ '1970-01-01 00:00:00+00')",
+		interval,
+	)
+	var rows []ObservationTrendRow
+	err := query.Select(bucketExpression + ` AS bucket_started_at,
+			component,
+			SUM(generated_count) AS generated,
+			SUM(received_count) AS received,
+			SUM(forwarded_count) AS forwarded,
+			SUM(written_count) AS written,
+			SUM(policy_filtered_count) AS policy_filtered,
+			SUM(retention_elapsed_count) AS retention_elapsed,
+			SUM(queue_rejected_count) AS queue_rejected,
+			SUM(retry_count) AS retry,
+			SUM(dropped_count) AS dropped,
+			SUM(retry_exhausted_count) AS retry_exhausted,
+			SUM(batch_failure_count) AS batch_failure,
+			SUM(auth_failure_count) AS auth_failure,
+			SUM(ack_timeout_count) AS ack_timeout,
+			SUM(report_dropped_count) AS report_dropped`).
+		Group(bucketExpression + ", component").
+		Order("bucket_started_at, component").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("query admission observation trend: %w", err)
+	}
+	return rows, nil
+}
+
+func (r *ObservabilityRepo) SustainedPressure(ctx context.Context, from, to time.Time) (map[int64]bool, error) {
+	type pressureRow struct {
+		ClusterID int64
+	}
+	var rows []pressureRow
+	err := r.db.WithContext(ctx).Raw(`
+		WITH minute_pressure AS (
+			SELECT cluster_id, bucket_started_at,
+			       BOOL_OR(queue_capacity > 0 AND queue_depth_max * 100 >= queue_capacity * 80) AS high_water,
+			       BOOL_OR(queue_rejected_count > 0) AS rejected
+			FROM kubesentry.admission_observation_buckets
+			WHERE cluster_id <> 0
+			  AND bucket_started_at >= ? AND bucket_started_at < ?
+			GROUP BY cluster_id, bucket_started_at
+		),
+		with_previous AS (
+			SELECT cluster_id, bucket_started_at, high_water, rejected,
+			       LAG(bucket_started_at) OVER (PARTITION BY cluster_id ORDER BY bucket_started_at) AS previous_bucket,
+			       LAG(high_water) OVER (PARTITION BY cluster_id ORDER BY bucket_started_at) AS previous_high_water,
+			       LAG(rejected) OVER (PARTITION BY cluster_id ORDER BY bucket_started_at) AS previous_rejected
+			FROM minute_pressure
+		)
+		SELECT DISTINCT cluster_id
+		FROM with_previous
+		WHERE bucket_started_at - previous_bucket = INTERVAL '1 minute'
+		  AND ((high_water AND previous_high_water) OR (rejected AND previous_rejected))`,
+		from.UTC(), to.UTC()).Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("query sustained observation pressure: %w", err)
+	}
+	result := make(map[int64]bool, len(rows))
+	for _, row := range rows {
+		result[row.ClusterID] = true
+	}
+	return result, nil
 }
 
 func (r *ObservabilityRepo) Aggregate(ctx context.Context, clusterID *int64, from, to time.Time) ([]ObservationAggregate, error) {
