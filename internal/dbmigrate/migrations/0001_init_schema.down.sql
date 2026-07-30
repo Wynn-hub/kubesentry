@@ -1,4 +1,8 @@
 SET search_path TO kubesentry;
+DROP TABLE IF EXISTS observation_report_cursors;
+DROP TABLE IF EXISTS admission_observation_buckets;
+DROP FUNCTION IF EXISTS jsonb_counter_add(JSONB, JSONB);
+DROP TABLE IF EXISTS platform_observability_settings;
 DROP TABLE IF EXISTS admission_events;
 DROP INDEX IF EXISTS admission_storage_policies_priority_key;
 DROP TABLE IF EXISTS admission_storage_policies;

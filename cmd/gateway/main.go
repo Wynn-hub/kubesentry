@@ -64,6 +64,7 @@ func main() {
 		Distributions:  dbrepo.NewDistributionRepo(db),
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
 		Admission:      dbrepo.NewAdmissionRepo(db),
+		Observability:  dbrepo.NewObservabilityRepo(db),
 	}
 
 	tracker := gateway.NewHeartbeatTracker()

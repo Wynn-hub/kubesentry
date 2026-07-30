@@ -47,6 +47,7 @@ type Repos struct {
 	Distributions  *dbrepo.DistributionRepo
 	Exceptions     *dbrepo.ExceptionRepo
 	Admission      *dbrepo.AdmissionRepo
+	Observability  *dbrepo.ObservabilityRepo
 	InstallRecords *dbrepo.InstallRecordRepo
 	UninstallTasks *dbrepo.UninstallTaskRepo
 }

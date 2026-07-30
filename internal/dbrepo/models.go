@@ -23,13 +23,14 @@ type Cluster struct {
 	// Member-reported inventory, refreshed by StatusReport. Empty/zero means the
 	// member has not reported it (yet) or could not read it. Explicit column
 	// names guard against GORM initialism edge cases.
-	KubernetesVersion string `gorm:"column:kubernetes_version"`
-	APIServerAddress  string `gorm:"column:api_server_address"`
-	NodeCount         int    `gorm:"column:node_count"`
-	ReadyNodeCount    int    `gorm:"column:ready_node_count"`
-	LastHeartbeatAt   *time.Time
-	RegTokenHash      string
-	AuthTokenHash     string
+	KubernetesVersion        string `gorm:"column:kubernetes_version"`
+	APIServerAddress         string `gorm:"column:api_server_address"`
+	NodeCount                int    `gorm:"column:node_count"`
+	ReadyNodeCount           int    `gorm:"column:ready_node_count"`
+	LastHeartbeatAt          *time.Time
+	ObservabilityOnboardedAt *time.Time
+	RegTokenHash             string
+	AuthTokenHash            string
 }
 
 func (Cluster) TableName() string { return "kubesentry.clusters" }
@@ -192,3 +193,72 @@ type AdmissionEvent struct {
 }
 
 func (AdmissionEvent) TableName() string { return "kubesentry.admission_events" }
+
+type PlatformObservabilitySettings struct {
+	ID            int64 `gorm:"primaryKey;autoIncrement:false"`
+	RetentionDays int
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+func (PlatformObservabilitySettings) TableName() string {
+	return "kubesentry.platform_observability_settings"
+}
+
+type AdmissionObservationBucket struct {
+	ID                     int64 `gorm:"primaryKey;autoIncrement:false"`
+	BucketStartedAt        time.Time
+	ClusterID              int64
+	ClusterName            string
+	Component              string
+	GeneratedCount         int64
+	ReceivedCount          int64
+	ForwardedCount         int64
+	WrittenCount           int64
+	DuplicateCount         int64
+	PolicyFilteredCount    int64
+	RetentionElapsedCount  int64
+	QueueRejectedCount     int64
+	RetryCount             int64
+	DroppedCount           int64
+	RetryExhaustedCount    int64
+	BatchFailureCount      int64
+	AuthFailureCount       int64
+	ACKTimeoutCount        int64 `gorm:"column:ack_timeout_count"`
+	ReportDroppedCount     int64
+	ObservationWriteFailed int64
+	SequenceGapCount       int64
+	BaselineResetCount     int64
+	SeriesStartedCount     int64
+	CleanupRunCount        int64
+	CleanupDeletedCount    int64
+	CleanupFailureCount    int64
+	QueueDepthMax          int64
+	QueueCapacity          int64
+	FaultReasonCounts      datatypes.JSONType[map[string]int64]
+	PressureReasonCounts   datatypes.JSONType[map[string]int64]
+	FilterReasonCounts     datatypes.JSONType[map[string]int64]
+	LastObservedAt         time.Time
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+}
+
+func (AdmissionObservationBucket) TableName() string {
+	return "kubesentry.admission_observation_buckets"
+}
+
+type ObservationReportCursor struct {
+	ID              int64 `gorm:"primaryKey;autoIncrement:false"`
+	ClusterID       int64
+	SeriesID        string
+	Component       string
+	LastSequence    int64
+	CounterSnapshot datatypes.JSON
+	LastActiveAt    time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+func (ObservationReportCursor) TableName() string {
+	return "kubesentry.observation_report_cursors"
+}

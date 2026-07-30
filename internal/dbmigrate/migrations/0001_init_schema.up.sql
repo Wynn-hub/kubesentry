@@ -15,6 +15,7 @@ CREATE TABLE clusters (
     node_count         INT NOT NULL DEFAULT 0,
     ready_node_count   INT NOT NULL DEFAULT 0,
     last_heartbeat_at  TIMESTAMPTZ,
+    observability_onboarded_at TIMESTAMPTZ,
     reg_token_hash     TEXT NOT NULL DEFAULT '',
     auth_token_hash    TEXT NOT NULL DEFAULT '',
     created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -181,6 +182,98 @@ CREATE TABLE admission_events (
 CREATE UNIQUE INDEX admission_events_event_id_key ON admission_events (event_id);
 CREATE INDEX admission_events_created_at_idx ON admission_events (created_at);
 CREATE INDEX admission_events_cluster_occurred_at_idx ON admission_events (cluster_id, occurred_at DESC);
+CREATE INDEX admission_events_occurred_at_idx ON admission_events (occurred_at DESC);
+
+CREATE TABLE platform_observability_settings (
+    id             BIGINT PRIMARY KEY,
+    retention_days INT NOT NULL DEFAULT 30 CHECK (retention_days BETWEEN 1 AND 365),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO platform_observability_settings (id, retention_days)
+VALUES (1, 30);
+
+CREATE FUNCTION jsonb_counter_add(left_counts JSONB, right_counts JSONB)
+RETURNS JSONB
+LANGUAGE SQL
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+    SELECT COALESCE(jsonb_object_agg(counter_key, counter_value), '{}'::jsonb)
+    FROM (
+        SELECT counter_key, SUM(counter_value)::BIGINT AS counter_value
+        FROM (
+            SELECT key AS counter_key, value::TEXT::BIGINT AS counter_value
+            FROM jsonb_each(COALESCE(left_counts, '{}'::jsonb))
+            UNION ALL
+            SELECT key AS counter_key, value::TEXT::BIGINT AS counter_value
+            FROM jsonb_each(COALESCE(right_counts, '{}'::jsonb))
+        ) values_to_add
+        GROUP BY counter_key
+    ) merged
+$$;
+
+CREATE TABLE admission_observation_buckets (
+    id                         BIGINT PRIMARY KEY,
+    bucket_started_at          TIMESTAMPTZ NOT NULL,
+    cluster_id                 BIGINT NOT NULL DEFAULT 0,
+    cluster_name               TEXT NOT NULL DEFAULT '',
+    component                  TEXT NOT NULL CHECK (component IN ('webhook', 'operator', 'gateway', 'cleanup')),
+    generated_count            BIGINT NOT NULL DEFAULT 0,
+    received_count             BIGINT NOT NULL DEFAULT 0,
+    forwarded_count            BIGINT NOT NULL DEFAULT 0,
+    written_count              BIGINT NOT NULL DEFAULT 0,
+    duplicate_count            BIGINT NOT NULL DEFAULT 0,
+    policy_filtered_count      BIGINT NOT NULL DEFAULT 0,
+    retention_elapsed_count    BIGINT NOT NULL DEFAULT 0,
+    queue_rejected_count       BIGINT NOT NULL DEFAULT 0,
+    retry_count                BIGINT NOT NULL DEFAULT 0,
+    dropped_count              BIGINT NOT NULL DEFAULT 0,
+    retry_exhausted_count      BIGINT NOT NULL DEFAULT 0,
+    batch_failure_count        BIGINT NOT NULL DEFAULT 0,
+    auth_failure_count         BIGINT NOT NULL DEFAULT 0,
+    ack_timeout_count          BIGINT NOT NULL DEFAULT 0,
+    report_dropped_count       BIGINT NOT NULL DEFAULT 0,
+    observation_write_failed   BIGINT NOT NULL DEFAULT 0,
+    sequence_gap_count         BIGINT NOT NULL DEFAULT 0,
+    baseline_reset_count       BIGINT NOT NULL DEFAULT 0,
+    series_started_count       BIGINT NOT NULL DEFAULT 0,
+    cleanup_run_count          BIGINT NOT NULL DEFAULT 0,
+    cleanup_deleted_count      BIGINT NOT NULL DEFAULT 0,
+    cleanup_failure_count      BIGINT NOT NULL DEFAULT 0,
+    queue_depth_max            BIGINT NOT NULL DEFAULT 0,
+    queue_capacity             BIGINT NOT NULL DEFAULT 0,
+    fault_reason_counts        JSONB NOT NULL DEFAULT '{}',
+    pressure_reason_counts     JSONB NOT NULL DEFAULT '{}',
+    filter_reason_counts       JSONB NOT NULL DEFAULT '{}',
+    last_observed_at           TIMESTAMPTZ NOT NULL,
+    created_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX admission_observation_buckets_key
+    ON admission_observation_buckets (bucket_started_at, cluster_id, component);
+CREATE INDEX admission_observation_buckets_time_idx
+    ON admission_observation_buckets (bucket_started_at DESC);
+CREATE INDEX admission_observation_buckets_cluster_time_idx
+    ON admission_observation_buckets (cluster_id, bucket_started_at DESC);
+CREATE INDEX admission_observation_buckets_last_observed_idx
+    ON admission_observation_buckets (cluster_id, component, last_observed_at DESC);
+
+CREATE TABLE observation_report_cursors (
+    id               BIGINT PRIMARY KEY,
+    cluster_id       BIGINT NOT NULL DEFAULT 0,
+    series_id        TEXT NOT NULL,
+    component        TEXT NOT NULL CHECK (component IN ('webhook', 'operator')),
+    last_sequence    BIGINT NOT NULL,
+    counter_snapshot JSONB NOT NULL DEFAULT '{}',
+    last_active_at   TIMESTAMPTZ NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX observation_report_cursors_key
+    ON observation_report_cursors (cluster_id, series_id);
+CREATE INDEX observation_report_cursors_idle_idx
+    ON observation_report_cursors (last_active_at);
 
 -- Seed data below: 37 built-in policies, the "default" PolicyGroup and
 -- PolicyDistribution that reference them, their initial v1 PolicyVersion

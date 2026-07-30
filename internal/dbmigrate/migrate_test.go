@@ -46,6 +46,7 @@ func TestMigrateCreatesAllTables(t *testing.T) {
 		"policy_exceptions", "policy_distributions", "distribution_cluster_status",
 		"cluster_install_records", "cluster_uninstall_tasks",
 		"admission_event_settings", "admission_storage_policies", "admission_events",
+		"platform_observability_settings", "admission_observation_buckets", "observation_report_cursors",
 	}
 	for _, name := range wantTables {
 		var exists bool
@@ -66,6 +67,15 @@ func TestMigrateCreatesAllTables(t *testing.T) {
 	}
 	if retryEnabled || maxRetryAttempts != 3 || queueCapacity != 1024 {
 		t.Errorf("admission delivery defaults = (%v, %d, %d), want (false, 3, 1024)", retryEnabled, maxRetryAttempts, queueCapacity)
+	}
+
+	var observabilityRetention int
+	if err := db.QueryRow(`SELECT retention_days FROM kubesentry.platform_observability_settings WHERE id = 1`).
+		Scan(&observabilityRetention); err != nil {
+		t.Fatalf("query platform observability settings defaults: %v", err)
+	}
+	if observabilityRetention != 30 {
+		t.Errorf("observability retention = %d, want 30", observabilityRetention)
 	}
 
 	// Migrate must be idempotent — re-running against an already-migrated
