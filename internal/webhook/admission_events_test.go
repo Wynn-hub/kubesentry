@@ -43,6 +43,10 @@ func TestAdmissionEventReferencesIgnoresMalformedHeaders(t *testing.T) {
 func TestReporterStopsRetryingAfterAttemptBudget(t *testing.T) {
 	var posts int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.NotFound(w, r)
+			return
+		}
 		atomic.AddInt64(&posts, 1)
 		w.Header().Set("Content-Type", "application/json")
 		// Reply RETRYABLE for whatever event id was posted.

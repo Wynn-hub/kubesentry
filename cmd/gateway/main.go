@@ -65,6 +65,7 @@ func main() {
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
 		Admission:      dbrepo.NewAdmissionRepo(db),
 		Observability:  dbrepo.NewObservabilityRepo(db),
+		Platform:       dbrepo.NewPlatformObservabilityRepo(db),
 	}
 
 	tracker := gateway.NewHeartbeatTracker()
@@ -73,7 +74,15 @@ func main() {
 
 	ctx := ctrl.SetupSignalHandler()
 	var ready atomic.Bool
+	var isLeader atomic.Bool
 	go startHealthServer(ctx, &ready)
+	platformReporter := gateway.NewPlatformReporter(
+		repos.Platform, db, envOrDefault("POD_NAME", hostname()), isLeader.Load, time.Minute)
+	go func() {
+		if err := platformReporter.Start(ctx); err != nil {
+			slog.Error("platform observation reporter error", "error", err)
+		}
+	}()
 	flushInterval := envDurationOrDefault("HEARTBEAT_FLUSH_INTERVAL", 15*time.Second)
 	offlineAfter := envDurationOrDefault("HEARTBEAT_OFFLINE_AFTER", 90*time.Second)
 
@@ -105,6 +114,7 @@ func main() {
 		ReleaseOnCancel: true,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(leaderCtx context.Context) {
+				isLeader.Store(true)
 				cert, err := ensureTLS(namespace, tlsSecret, tlsDNS)
 				if err != nil {
 					slog.Error("ensure tls as gateway leader", "error", err)
@@ -124,6 +134,11 @@ func main() {
 				hub.SetAdmissionCleaner(cleaner)
 				hub.SetObservationCollector(observationCollector)
 				hub.SetObservabilityCleaner(observabilityCleaner)
+				if settings, err := repos.Platform.GetSettings(leaderCtx); err != nil {
+					slog.Warn("load admission observation setting", "error", err)
+				} else {
+					hub.SetAdmissionObservationEnabled(settings.AdmissionPipelineEnabled)
+				}
 				grpcRun := &grpcRunnable{
 					addr:   grpcAddr,
 					cert:   cert,
@@ -159,6 +174,7 @@ func main() {
 				}
 			},
 			OnStoppedLeading: func() {
+				isLeader.Store(false)
 				// Exclude a former leader from EndpointSlices before its gRPC
 				// server finishes draining existing long-lived streams.
 				ready.Store(false)

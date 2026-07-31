@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -21,6 +22,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
+	"github.com/Wynn-hub/kubesentry/internal/platformobs"
 )
 
 // pushResync is the fallback interval for re-rendering a cluster's snapshot
@@ -49,6 +51,7 @@ type Repos struct {
 	Exceptions     *dbrepo.ExceptionRepo
 	Admission      *dbrepo.AdmissionRepo
 	Observability  *dbrepo.ObservabilityRepo
+	Platform       *dbrepo.PlatformObservabilityRepo
 	InstallRecords *dbrepo.InstallRecordRepo
 	UninstallTasks *dbrepo.UninstallTaskRepo
 }
@@ -66,9 +69,10 @@ type Server struct {
 	// cleaner, when set, receives a full-cleanup trigger on an
 	// admission-event-settings NotifyChange. Left nil by every non-leader
 	// path and by tests, both of which have no cleanup loop running.
-	cleaner              *AdmissionCleaner
-	observationCollector *GatewayObservationCollector
-	observabilityCleaner *ObservabilityCleaner
+	cleaner                     *AdmissionCleaner
+	observationCollector        *GatewayObservationCollector
+	admissionObservationEnabled atomic.Bool
+	observabilityCleaner        *ObservabilityCleaner
 }
 
 func NewServer(repos Repos, namespace string, hb *HeartbeatTracker, changes *Notifier, sharedToken string) *Server {
@@ -91,6 +95,16 @@ func (s *Server) SetAdmissionCleaner(cleaner *AdmissionCleaner) { s.cleaner = cl
 
 func (s *Server) SetObservationCollector(collector *GatewayObservationCollector) {
 	s.observationCollector = collector
+	if collector != nil {
+		collector.SetEnabled(s.admissionObservationEnabled.Load())
+	}
+}
+
+func (s *Server) SetAdmissionObservationEnabled(enabled bool) {
+	s.admissionObservationEnabled.Store(enabled)
+	if s.observationCollector != nil {
+		s.observationCollector.SetEnabled(enabled)
+	}
 }
 
 func (s *Server) SetObservabilityCleaner(cleaner *ObservabilityCleaner) {
@@ -358,6 +372,14 @@ func (s *Server) withAdmissionEventConfig(ctx context.Context, res RenderResult)
 		MaxRetryAttempts:     int32(settings.MaxRetryAttempts),
 		QueueCapacity:        int32(settings.QueueCapacity),
 	}
+	if s.repos.Platform != nil {
+		platformSettings, err := s.repos.Platform.GetSettings(ctx)
+		if err != nil {
+			return RenderResult{}, err
+		}
+		config.ObservationEnabled = platformSettings.AdmissionPipelineEnabled
+		s.SetAdmissionObservationEnabled(platformSettings.AdmissionPipelineEnabled)
+	}
 	for _, p := range policies {
 		config.StoragePolicies = append(config.StoragePolicies, &gatewaypb.AdmissionStoragePolicy{Priority: int32(p.Priority), MatchMode: p.MatchMode, Verdicts: p.Verdicts, Clusters: p.Clusters, Gvks: p.GVKs, Namespaces: p.Namespaces})
 	}
@@ -499,7 +521,16 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 	updateRole(role)
 	defer func() {
 		sess.stopPush()
-		s.sessions.remove(cluster, instance, sess)
+		if s.sessions.remove(cluster, instance, sess) && s.repos.Platform != nil {
+			if row, err := s.repos.Clusters.GetByName(context.Background(), cluster); err == nil {
+				if err := s.repos.Platform.RecordSessionLost(
+					context.Background(), platformobs.ComponentOperator,
+					row.ID, row.Name, instance, time.Now()); err != nil {
+					slog.Warn("record lost operator leader session",
+						"cluster", cluster, "instance", instance, "error", err)
+				}
+			}
+		}
 	}()
 
 	for {
@@ -548,6 +579,10 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 				return err
 			}
 			continue
+		case *gatewaypb.MemberMessage_ComponentSampleBatch:
+			if err := s.handleMemberComponentSamples(stream.Context(), cluster, instance, role, m.ComponentSampleBatch); err != nil {
+				slog.Warn("store member platform samples", "cluster", cluster, "instance", instance, "error", err)
+			}
 		}
 		if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Ack{Ack: &gatewaypb.Ack{}}}); err != nil {
 			return err
@@ -628,7 +663,16 @@ func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRe
 		s.cleaner.TriggerFullCleanup()
 	}
 	if req.Topic == PlatformObservabilitySettingsTopic {
-		s.observabilityCleaner.Trigger()
+		if s.repos.Platform != nil {
+			if settings, err := s.repos.Platform.GetSettings(ctx); err != nil {
+				slog.Warn("reload platform observability settings", "error", err)
+			} else {
+				s.SetAdmissionObservationEnabled(settings.AdmissionPipelineEnabled)
+			}
+		}
+		if s.observabilityCleaner != nil {
+			s.observabilityCleaner.Trigger()
+		}
 	}
 	return &gatewaypb.NotifyChangeResponse{}, nil
 }
@@ -681,11 +725,22 @@ func (s *Server) Connect(stream gatewaypb.Hub_ConnectServer) error {
 	s.connected.register(req.ComponentId, stream)
 	defer s.connected.unregister(req.ComponentId, stream)
 	for {
-		if _, err := stream.Recv(); err != nil {
+		frame, err := stream.Recv()
+		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
 			return err
+		}
+		if frame.To == platformSampleEnvelopeTarget {
+			var batch gatewaypb.ComponentSampleBatch
+			if err := proto.Unmarshal(frame.Payload, &batch); err != nil {
+				slog.Warn("decode console platform samples", "component", req.ComponentId, "error", err)
+				continue
+			}
+			if err := s.handleGatewayComponentSamples(stream.Context(), &batch); err != nil {
+				slog.Warn("store console platform samples", "component", req.ComponentId, "error", err)
+			}
 		}
 	}
 }

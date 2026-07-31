@@ -1,7 +1,6 @@
 package console
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"sort"
@@ -14,7 +13,6 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
 const (
@@ -89,6 +87,7 @@ type observationPlatformHealth struct {
 }
 
 type observationOverviewResponse struct {
+	Disabled                 bool                            `json:"disabled"`
 	Health                   string                          `json:"health"`
 	DataIncomplete           bool                            `json:"dataIncomplete"`
 	BaselineReset            bool                            `json:"baselineReset"`
@@ -129,6 +128,16 @@ type clusterObservationState struct {
 func (h *Handlers) admissionObservationOverview(w http.ResponseWriter, r *http.Request) {
 	if h.Repos.Observability == nil || h.Repos.Clusters == nil {
 		writeErr(w, http.StatusServiceUnavailable, "platform observability is unavailable")
+		return
+	}
+	if h.admissionObservationDisabled(r) {
+		writeOK(w, observationOverviewResponse{
+			Disabled: true, Freshness: map[string]observationFreshness{},
+			QueueRejected: map[string]int64{}, RetryCount: map[string]int64{},
+			WindowFaults: map[string]observationFaults{}, SeriesStarted: map[string]int64{},
+			SequenceGap: map[string]int64{}, BaselineResetByComponent: map[string]int64{},
+			Queues: map[string]observationQueue{}, FaultReasons: []observationReason{},
+		})
 		return
 	}
 	from, to, now, ok := h.observationWindow(w, r)
@@ -243,7 +252,7 @@ func (h *Handlers) admissionObservationOverview(w http.ResponseWriter, r *http.R
 
 func (h *Handlers) observationAggregates(r *http.Request, clusterID *int64, from, to time.Time) ([]dbrepo.ObservationAggregate, error) {
 	if clusterID != nil {
-		key := "cluster/" + strconv.FormatInt(*clusterID, 10) + "/" + from.Format(time.RFC3339Nano) + "/" + to.Format(time.RFC3339Nano)
+		key := "cluster/" + strconv.FormatInt(*clusterID, 10) + "/" + observationCacheTime(from) + "/" + observationCacheTime(to)
 		if cached, ok := h.cachedObservationAggregates(key); ok {
 			return cached, nil
 		}
@@ -261,7 +270,7 @@ func (h *Handlers) observationAggregates(r *http.Request, clusterID *int64, from
 }
 
 func (h *Handlers) observationClusterAggregates(r *http.Request, from, to time.Time) ([]dbrepo.ObservationAggregate, error) {
-	key := "clusters/" + from.Format(time.RFC3339Nano) + "/" + to.Format(time.RFC3339Nano)
+	key := "clusters/" + observationCacheTime(from) + "/" + observationCacheTime(to)
 	if cached, ok := h.cachedObservationAggregates(key); ok {
 		return cached, nil
 	}
@@ -291,10 +300,28 @@ func (h *Handlers) storeObservationAggregates(key string, aggregates []dbrepo.Ob
 	if h.observationCache == nil {
 		h.observationCache = map[string]observationAggregateCacheEntry{}
 	}
+	now := time.Now()
+	for cachedKey, entry := range h.observationCache {
+		if !now.Before(entry.expiresAt) {
+			delete(h.observationCache, cachedKey)
+		}
+	}
 	h.observationCache[key] = observationAggregateCacheEntry{
-		expiresAt:  time.Now().Add(observationCacheTTL),
+		expiresAt:  now.Add(observationCacheTTL),
 		aggregates: append([]dbrepo.ObservationAggregate(nil), aggregates...),
 	}
+}
+
+func observationCacheTime(value time.Time) string {
+	return value.UTC().Truncate(observationCacheTTL).Format(time.RFC3339)
+}
+
+func (h *Handlers) admissionObservationDisabled(r *http.Request) bool {
+	if h.Repos.Platform == nil {
+		return false
+	}
+	settings, err := h.Repos.Platform.GetSettings(r.Context())
+	return err == nil && !settings.AdmissionPipelineEnabled
 }
 
 func (h *Handlers) clearObservationCache() {
@@ -542,6 +569,10 @@ func (h *Handlers) admissionObservationTrend(w http.ResponseWriter, r *http.Requ
 		writeErr(w, http.StatusServiceUnavailable, "platform observability is unavailable")
 		return
 	}
+	if h.admissionObservationDisabled(r) {
+		writeOK(w, map[string]any{"disabled": true, "items": []observationTrendPoint{}})
+		return
+	}
 	from, to, _, ok := h.observationWindow(w, r)
 	if !ok {
 		return
@@ -626,6 +657,13 @@ type observationClusterItem struct {
 func (h *Handlers) admissionObservationClusters(w http.ResponseWriter, r *http.Request) {
 	if h.Repos.Observability == nil || h.Repos.Clusters == nil {
 		writeErr(w, http.StatusServiceUnavailable, "platform observability is unavailable")
+		return
+	}
+	if h.admissionObservationDisabled(r) {
+		writeOK(w, map[string]any{
+			"disabled": true, "items": []observationClusterItem{},
+			"total": 0, "page": 1, "pageSize": 20,
+		})
 		return
 	}
 	from, to, now, ok := h.observationWindow(w, r)
@@ -724,44 +762,4 @@ func observationHealthFilter(value string) map[string]bool {
 		}
 	}
 	return result
-}
-
-type observationSettingsResponse struct {
-	RetentionDays int `json:"retentionDays"`
-}
-
-func (h *Handlers) getObservationSettings(w http.ResponseWriter, r *http.Request) {
-	if h.Repos.Observability == nil {
-		writeErr(w, http.StatusServiceUnavailable, "platform observability is unavailable")
-		return
-	}
-	settings, err := h.Repos.Observability.GetSettings(r.Context())
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	writeOK(w, observationSettingsResponse{RetentionDays: settings.RetentionDays})
-}
-
-func (h *Handlers) updateObservationSettings(w http.ResponseWriter, r *http.Request) {
-	if h.Repos.Observability == nil {
-		writeErr(w, http.StatusServiceUnavailable, "platform observability is unavailable")
-		return
-	}
-	var request observationSettingsResponse
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	if request.RetentionDays < 1 || request.RetentionDays > 365 {
-		writeErr(w, http.StatusBadRequest, "retentionDays must be between 1 and 365")
-		return
-	}
-	if err := h.Repos.Observability.UpdateSettings(r.Context(), request.RetentionDays); err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	h.clearObservationCache()
-	h.notifyChange(r, gateway.PlatformObservabilitySettingsTopic)
-	h.getObservationSettings(w, r)
 }

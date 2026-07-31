@@ -14,6 +14,11 @@ import (
 
 const unlimitedV1Threshold = int64(1 << 60)
 
+const (
+	defaultCgroupRoot = "/sys/fs/cgroup"
+	defaultProcCgroup = "/proc/self/cgroup"
+)
+
 type Identity struct {
 	Component   Component
 	Instance    string
@@ -32,7 +37,7 @@ type Collector struct {
 func NewCollector(identity Identity) *Collector {
 	return &Collector{
 		identity:  identity,
-		cgroupDir: "/sys/fs/cgroup",
+		cgroupDir: defaultCgroupRoot,
 		startedAt: time.Now().UTC(),
 		now:       time.Now,
 	}
@@ -48,7 +53,7 @@ func (c *Collector) Collect() Sample {
 		sample.Role = c.identity.Role()
 	}
 
-	resource := readCgroup(c.cgroupDir)
+	resource := readCgroup(resolveCurrentCgroup(c.cgroupDir, defaultProcCgroup))
 	sample.MemoryBytes = resource.memoryBytes
 	sample.MemoryLimitBytes = resource.memoryLimitBytes
 	sample.CPUUsageMicros = resource.cpuUsageMicros
@@ -60,6 +65,23 @@ func (c *Collector) Collect() Sample {
 	sample.HeapSysBytes = goMetrics.heapSysBytes
 	sample.GCPauseTotalMicros = goMetrics.gcPauseTotalMicros
 	sample.GCCount = goMetrics.gcCount
+	return sample
+}
+
+// CollectSiblingCgroup returns a non-Go component sample for a sibling
+// container in the same Pod. On cgroup v2 hosts, the current container path
+// identifies the Pod parent; the sibling with the largest memory footprint is
+// selected so the tiny pause container is not mistaken for the application
+// container. Private cgroup namespaces may hide the parent entirely, in which
+// case all resource fields remain -1 as required by the wire contract.
+func CollectSiblingCgroup(component Component, instance string, observedAt, processStartedAt time.Time) Sample {
+	sample := UnavailableSample(component, instance, observedAt.UTC())
+	sample.ProcessStartedAt = processStartedAt.UTC()
+	resource := readSiblingCgroup(defaultCgroupRoot, defaultProcCgroup)
+	sample.MemoryBytes = resource.memoryBytes
+	sample.MemoryLimitBytes = resource.memoryLimitBytes
+	sample.CPUUsageMicros = resource.cpuUsageMicros
+	sample.CPUQuotaMicros = resource.cpuQuotaMicros
 	return sample
 }
 
@@ -81,7 +103,8 @@ func unavailableCgroupMetrics() cgroupMetrics {
 
 func readCgroup(root string) cgroupMetrics {
 	result := unavailableCgroupMetrics()
-	if _, err := os.Stat(filepath.Join(root, "cgroup.controllers")); err == nil {
+	if fileExists(filepath.Join(root, "cgroup.controllers")) ||
+		fileExists(filepath.Join(root, "memory.current")) {
 		result.memoryBytes = readInt64(filepath.Join(root, "memory.current"), 1)
 		result.memoryLimitBytes = readMemoryLimit(filepath.Join(root, "memory.max"), false)
 		result.cpuUsageMicros = readCPUStat(filepath.Join(root, "cpu.stat"))
@@ -94,6 +117,66 @@ func readCgroup(root string) cgroupMetrics {
 	result.cpuUsageMicros = readInt64(filepath.Join(root, "cpuacct", "cpuacct.usage"), 1000)
 	result.cpuQuotaMicros = readMemoryLimit(filepath.Join(root, "cpu", "cpu.cfs_quota_us"), false)
 	return result
+}
+
+func resolveCurrentCgroup(root, procCgroup string) string {
+	if !fileExists(filepath.Join(root, "cgroup.controllers")) {
+		return root
+	}
+	raw, err := os.ReadFile(procCgroup)
+	if err != nil {
+		return root
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		fields := strings.SplitN(line, ":", 3)
+		if len(fields) != 3 || fields[0] != "0" {
+			continue
+		}
+		relative := strings.TrimPrefix(filepath.Clean(fields[2]), string(filepath.Separator))
+		if relative == "." || relative == "" {
+			return root
+		}
+		candidate := filepath.Join(root, relative)
+		if fileExists(filepath.Join(candidate, "memory.current")) {
+			return candidate
+		}
+	}
+	return root
+}
+
+func readSiblingCgroup(root, procCgroup string) cgroupMetrics {
+	current := resolveCurrentCgroup(root, procCgroup)
+	if current == root {
+		return unavailableCgroupMetrics()
+	}
+	parent := filepath.Dir(current)
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		return unavailableCgroupMetrics()
+	}
+	var selected cgroupMetrics
+	found := false
+	for _, entry := range entries {
+		if !entry.IsDir() || filepath.Join(parent, entry.Name()) == current {
+			continue
+		}
+		candidate := readCgroup(filepath.Join(parent, entry.Name()))
+		if candidate.memoryBytes < 0 {
+			continue
+		}
+		if !found || candidate.memoryBytes > selected.memoryBytes {
+			selected, found = candidate, true
+		}
+	}
+	if !found {
+		return unavailableCgroupMetrics()
+	}
+	return selected
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func readMemoryLimit(path string, v1 bool) int64 {

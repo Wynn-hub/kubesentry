@@ -15,6 +15,9 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 	server, repos, handlers := newDBTestServerWithHandlers(t)
 	ctx := context.Background()
 	now := time.Now().UTC()
+	if err := repos.Platform.SetAdmissionPipelineEnabled(ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	cluster := &dbrepo.Cluster{Name: "observed-member", Phase: "Online"}
 	if err := repos.Clusters.Create(ctx, cluster); err != nil {
 		t.Fatal(err)
@@ -123,17 +126,20 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 
 	fake := &fakeHubClient{}
 	handlers.Gateway = fake
-	rec, env = doRequest(t, server, "PUT", "/api/v1/observability/settings", map[string]any{"retentionDays": 45})
+	rec, env = doRequest(t, server, "PUT", "/api/v1/platform/settings", map[string]any{"admissionPipelineEnabled": false})
 	if rec.Code != 200 || !env.Success {
 		t.Fatalf("settings = %d: %s", rec.Code, rec.Body.String())
 	}
-	settings := mustUnmarshal[observationSettingsResponse](t, env.Data)
-	if settings.RetentionDays != 45 {
+	settings := mustUnmarshal[platformSettingsResponse](t, env.Data)
+	if settings.AdmissionPipelineEnabled {
 		t.Fatalf("settings = %+v", settings)
 	}
 	topics, _ := fake.calls()
 	if len(topics) != 1 || topics[0] != gateway.PlatformObservabilitySettingsTopic {
 		t.Fatalf("topics = %v", topics)
+	}
+	if err := repos.Platform.SetAdmissionPipelineEnabled(ctx, true); err != nil {
+		t.Fatal(err)
 	}
 
 	recovered := &dbrepo.Cluster{Name: "recovered-member", Phase: "Online"}

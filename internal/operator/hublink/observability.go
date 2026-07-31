@@ -36,6 +36,20 @@ func (l *Link) SubmitObservationReports(batch *gatewaypb.ObservationReportBatch)
 		return nil
 	}
 	results := make([]*gatewaypb.ObservationReportBatchAck_Result, 0, len(batch.Reports))
+	if !l.admissionObservationEnabled() {
+		for _, report := range batch.Reports {
+			reportID := ""
+			if report != nil {
+				reportID = report.ReportId
+			}
+			results = append(results, &gatewaypb.ObservationReportBatchAck_Result{
+				ReportId: reportID,
+				Status:   gatewaypb.ObservationReportBatchAck_Result_DISCARDED,
+				Reason:   "admission_pipeline_observation_disabled",
+			})
+		}
+		return results
+	}
 	if !l.IsLeader() {
 		for _, report := range batch.Reports {
 			reportID := ""
@@ -177,8 +191,31 @@ func (l *Link) generateOperatorObservations(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			l.enqueueOperatorObservation()
+			if l.IsLeader() && l.admissionObservationEnabled() {
+				l.enqueueOperatorObservation()
+			}
 		}
+	}
+}
+
+func (l *Link) admissionObservationEnabled() bool {
+	l.configMu.RLock()
+	defer l.configMu.RUnlock()
+	return l.eventConfig != nil && l.eventConfig.ObservationEnabled
+}
+
+func (l *Link) AdmissionObservationEnabled() bool {
+	return l.admissionObservationEnabled()
+}
+
+func (l *Link) setEventConfig(config *gatewaypb.AdmissionEventConfig) {
+	l.configMu.Lock()
+	l.eventConfig = config
+	l.configMu.Unlock()
+	if config == nil || !config.ObservationEnabled {
+		l.observationsMu.Lock()
+		l.observations = map[string]*queuedObservationReport{}
+		l.observationsMu.Unlock()
 	}
 }
 

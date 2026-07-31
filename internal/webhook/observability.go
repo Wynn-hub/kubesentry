@@ -2,6 +2,8 @@ package webhook
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -40,7 +42,12 @@ type webhookObservationReporter struct {
 
 	mu    sync.Mutex
 	queue []*queuedObservation
+	limit int
 	wake  chan struct{}
+
+	workersMu     sync.Mutex
+	workersCancel context.CancelFunc
+	configURL     string
 }
 
 func newWebhookObservationReporter(endpoint, token string, client *http.Client) *webhookObservationReporter {
@@ -49,25 +56,87 @@ func newWebhookObservationReporter(endpoint, token string, client *http.Client) 
 		panic("generate webhook observation series id: " + err.Error())
 	}
 	reporter := &webhookObservationReporter{
-		endpoint: strings.TrimSuffix(endpoint, "/") + "/observations",
-		token:    token,
-		client:   client,
-		counters: admissionobs.NewAtomicCounters(),
-		seriesID: seriesID,
-		queue:    make([]*queuedObservation, 0, webhookObservationQueueSize),
-		wake:     make(chan struct{}, 1),
+		endpoint:  strings.TrimSuffix(endpoint, "/") + "/observations",
+		configURL: strings.TrimSuffix(endpoint, "/") + "/observations/config",
+		token:     token,
+		client:    client,
+		counters:  admissionobs.NewAtomicCounters(),
+		seriesID:  seriesID,
+		queue:     make([]*queuedObservation, 0, webhookObservationQueueSize),
+		limit:     webhookObservationQueueSize,
+		wake:      make(chan struct{}, 1),
 	}
-	go reporter.generate()
-	go reporter.deliver()
+	go reporter.pollConfig()
 	return reporter
 }
 
-func (r *webhookObservationReporter) generate() {
+func (r *webhookObservationReporter) generate(ctx context.Context) {
 	ticker := time.NewTicker(webhookObservationInterval)
 	defer ticker.Stop()
-	for range ticker.C {
-		r.enqueue(r.newReport())
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			r.enqueue(r.newReport())
+		}
 	}
+}
+
+func (r *webhookObservationReporter) pollConfig() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		r.refreshEnabled()
+		<-ticker.C
+	}
+}
+
+func (r *webhookObservationReporter) refreshEnabled() {
+	req, err := http.NewRequest(http.MethodGet, r.configURL, nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+r.token)
+	response, err := r.client.Do(req)
+	if err != nil {
+		r.setEnabled(false)
+		return
+	}
+	defer response.Body.Close() //nolint:errcheck
+	var state struct {
+		Enabled bool `json:"enabled"`
+	}
+	if response.StatusCode != http.StatusOK || json.NewDecoder(response.Body).Decode(&state) != nil {
+		r.setEnabled(false)
+		return
+	}
+	r.setEnabled(state.Enabled)
+}
+
+func (r *webhookObservationReporter) setEnabled(enabled bool) {
+	r.workersMu.Lock()
+	defer r.workersMu.Unlock()
+	if enabled {
+		if r.workersCancel != nil {
+			return
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		r.workersCancel = cancel
+		go r.generate(ctx)
+		go r.deliver(ctx)
+		return
+	}
+	if r.workersCancel != nil {
+		r.workersCancel()
+		r.workersCancel = nil
+	}
+	r.mu.Lock()
+	for index := range r.queue {
+		r.queue[index] = nil
+	}
+	r.queue = r.queue[:0]
+	r.mu.Unlock()
 }
 
 func (r *webhookObservationReporter) newReport() *gatewaypb.ObservationReport {
@@ -91,7 +160,7 @@ func (r *webhookObservationReporter) newReport() *gatewaypb.ObservationReport {
 
 func (r *webhookObservationReporter) enqueue(report *gatewaypb.ObservationReport) {
 	r.mu.Lock()
-	if len(r.queue) == cap(r.queue) {
+	if len(r.queue) == r.limit {
 		dropIndex := 0
 		if r.queue[0].inFlight && len(r.queue) > 1 {
 			dropIndex = 1
@@ -110,8 +179,13 @@ func (r *webhookObservationReporter) enqueue(report *gatewaypb.ObservationReport
 	}
 }
 
-func (r *webhookObservationReporter) deliver() {
-	for range r.wake {
+func (r *webhookObservationReporter) deliver(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-r.wake:
+		}
 		for {
 			queued := r.front()
 			if queued == nil {
@@ -137,7 +211,11 @@ func (r *webhookObservationReporter) deliver() {
 				}
 				r.counters.Add(admissionobs.Counters{Retry: 1})
 				r.counters.AddReason(admissionobs.ReasonFault, reason, 1)
-				time.Sleep(retryDelay)
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(retryDelay):
+				}
 			}
 		}
 	}
@@ -159,7 +237,9 @@ func (r *webhookObservationReporter) remove(reportID string) {
 	if len(r.queue) == 0 || r.queue[0].report.ReportId != reportID {
 		return
 	}
-	r.queue = r.queue[1:]
+	copy(r.queue, r.queue[1:])
+	r.queue[len(r.queue)-1] = nil
+	r.queue = r.queue[:len(r.queue)-1]
 }
 
 func (r *webhookObservationReporter) post(report *gatewaypb.ObservationReport) (gatewaypb.ObservationReportBatchAck_Result_Status, string) {

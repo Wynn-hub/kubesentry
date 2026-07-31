@@ -227,11 +227,90 @@ func (r *PlatformObservabilityRepo) LatestSamples(ctx context.Context, since tim
 }
 
 type PlatformTrendRow struct {
-	BucketStartedAt time.Time
-	MemoryBytes     int64
-	CPUUsageMicros  int64
-	Goroutines      int64
-	GCPauseMicros   int64
+	BucketStartedAt time.Time `json:"bucketStartedAt"`
+	MemoryBytes     int64     `json:"memoryBytes"`
+	CPUUsageMicros  int64     `json:"cpuUsageMicros"`
+	Goroutines      int64     `json:"goroutines"`
+	GCPauseMicros   int64     `json:"gcPauseMicros"`
+}
+
+type PlatformRestartedInstance struct {
+	Component string
+	Instance  string
+	ClusterID int64
+}
+
+type PlatformCPUUsage struct {
+	Component      string
+	Instance       string
+	ClusterID      int64
+	CPUUsageMicros int64
+}
+
+func (r *PlatformObservabilityRepo) LatestCPUUsage(
+	ctx context.Context,
+	since time.Time,
+) ([]PlatformCPUUsage, error) {
+	var rows []PlatformCPUUsage
+	err := r.db.WithContext(ctx).Raw(`
+		WITH ranked AS (
+			SELECT component, instance, cluster_id, cpu_usage_micros,
+			       ROW_NUMBER() OVER (
+			           PARTITION BY component, instance, cluster_id
+			           ORDER BY bucket_started_at DESC
+			       ) AS row_number
+			FROM kubesentry.platform_component_samples
+			WHERE bucket_started_at >= ? AND cpu_usage_micros >= 0
+		)
+		SELECT latest.component, latest.instance, latest.cluster_id,
+		       CASE
+		           WHEN previous.cpu_usage_micros IS NULL THEN -1
+		           ELSE GREATEST(0, latest.cpu_usage_micros - previous.cpu_usage_micros)
+		       END AS cpu_usage_micros
+		FROM ranked latest
+		LEFT JOIN ranked previous
+		  ON previous.component = latest.component
+		 AND previous.instance = latest.instance
+		 AND previous.cluster_id = latest.cluster_id
+		 AND previous.row_number = 2
+		WHERE latest.row_number = 1`,
+		since.UTC()).Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("query latest platform cpu usage: %w", err)
+	}
+	return rows, nil
+}
+
+func (r *PlatformObservabilityRepo) RestartedInstances(
+	ctx context.Context,
+	since time.Time,
+) ([]PlatformRestartedInstance, error) {
+	var rows []PlatformRestartedInstance
+	err := r.db.WithContext(ctx).Raw(`
+		WITH current_window AS (
+			SELECT component, instance, cluster_id,
+			       MIN(restart_count) AS minimum_restart_count,
+			       MAX(restart_count) AS maximum_restart_count
+			FROM kubesentry.platform_component_samples
+			WHERE last_observed_at >= ?
+			GROUP BY component, instance, cluster_id
+		), baseline AS (
+			SELECT DISTINCT ON (component, instance, cluster_id)
+			       component, instance, cluster_id, restart_count
+			FROM kubesentry.platform_component_samples
+			WHERE last_observed_at < ?
+			ORDER BY component, instance, cluster_id, last_observed_at DESC
+		)
+		SELECT current_window.component, current_window.instance, current_window.cluster_id
+		FROM current_window
+		LEFT JOIN baseline USING (component, instance, cluster_id)
+		WHERE current_window.maximum_restart_count >
+		      COALESCE(baseline.restart_count, current_window.minimum_restart_count)`,
+		since.UTC(), since.UTC()).Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("query restarted platform instances: %w", err)
+	}
+	return rows, nil
 }
 
 func (r *PlatformObservabilityRepo) Trend(
@@ -267,8 +346,8 @@ func (r *PlatformObservabilityRepo) Trend(
 			GROUP BY bucket_started_at
 		), rates AS (
 			SELECT bucket_started_at, memory_bytes, goroutines,
-			       GREATEST(0, cpu_usage_micros - LAG(cpu_usage_micros) OVER (ORDER BY bucket_started_at)) AS cpu_usage_micros,
-			       GREATEST(0, gc_pause_total_micros - LAG(gc_pause_total_micros) OVER (ORDER BY bucket_started_at)) AS gc_pause_micros
+			       COALESCE(GREATEST(0, cpu_usage_micros - LAG(cpu_usage_micros) OVER (ORDER BY bucket_started_at)), 0) AS cpu_usage_micros,
+			       COALESCE(GREATEST(0, gc_pause_total_micros - LAG(gc_pause_total_micros) OVER (ORDER BY bucket_started_at)), 0) AS gc_pause_micros
 			FROM grouped
 		)
 		SELECT * FROM rates ORDER BY bucket_started_at`,
@@ -283,6 +362,23 @@ func (r *PlatformObservabilityRepo) Trend(
 type LeadershipEventPage struct {
 	Items []PlatformLeadershipEvent
 	Total int64
+}
+
+func (r *PlatformObservabilityRepo) LatestLeadershipEvents(
+	ctx context.Context,
+	since time.Time,
+) ([]PlatformLeadershipEvent, error) {
+	var rows []PlatformLeadershipEvent
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT DISTINCT ON (component, cluster_id) *
+		FROM kubesentry.platform_leadership_events
+		WHERE changed_at >= ?
+		ORDER BY component, cluster_id, changed_at DESC, id DESC`,
+		since.UTC()).Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("query latest platform leadership events: %w", err)
+	}
+	return rows, nil
 }
 
 func (r *PlatformObservabilityRepo) LeadershipEvents(

@@ -241,16 +241,16 @@ func (PlatformComponentSample) TableName() string {
 }
 
 type PlatformLeadershipEvent struct {
-	ID          int64 `gorm:"primaryKey;autoIncrement:false"`
-	Component   string
-	ClusterID   int64
-	ClusterName string
-	Instance    string
-	RoleFrom    string
-	RoleTo      string
-	ChangedAt   time.Time
-	DetectedBy  string
-	CreatedAt   time.Time
+	ID          int64     `gorm:"primaryKey;autoIncrement:false" json:"id"`
+	Component   string    `json:"component"`
+	ClusterID   int64     `json:"clusterId"`
+	ClusterName string    `json:"clusterName"`
+	Instance    string    `json:"instance"`
+	RoleFrom    string    `json:"roleFrom"`
+	RoleTo      string    `json:"roleTo"`
+	ChangedAt   time.Time `json:"changedAt"`
+	DetectedBy  string    `json:"detectedBy"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 func (PlatformLeadershipEvent) TableName() string {

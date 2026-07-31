@@ -18,8 +18,19 @@ spec:
         - name: webhook
           image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
-          {{- if .Values.admissionEvents.enabled }}
           env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: PLATFORM_SAMPLE_ENDPOINT
+              value: {{ printf "http://kubesentry-operator-events.%s.svc:%v/internal/v1/platform-samples" .Values.namespace .Values.admissionEvents.servicePort | quote }}
+            - name: PLATFORM_SAMPLE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kubesentry-admission-events
+                  key: token
+            {{- if .Values.admissionEvents.enabled }}
             - name: ADMISSION_EVENT_ENDPOINT
               value: {{ printf "http://kubesentry-operator-events.%s.svc:%v/internal/v1/admission-events" .Values.namespace .Values.admissionEvents.servicePort | quote }}
             - name: ADMISSION_EVENT_TOKEN
@@ -27,7 +38,7 @@ spec:
                 secretKeyRef:
                   name: kubesentry-admission-events
                   key: token
-          {{- end }}
+            {{- end }}
           ports:
             - containerPort: 8443
           volumeMounts:

@@ -29,21 +29,38 @@ type GatewayObservationCollector struct {
 	mu                 sync.Mutex
 	buffer             map[observationBufferKey]dbrepo.ObservationBucketDelta
 	pendingWriteFailed atomic.Int64
+	enabled            atomic.Bool
 }
 
 func NewGatewayObservationCollector(repo *dbrepo.ObservabilityRepo, flushInterval time.Duration) *GatewayObservationCollector {
 	if flushInterval <= 0 {
 		flushInterval = 10 * time.Second
 	}
-	return &GatewayObservationCollector{
+	result := &GatewayObservationCollector{
 		repo:          repo,
 		flushInterval: flushInterval,
 		buffer:        make(map[observationBufferKey]dbrepo.ObservationBucketDelta),
 	}
+	result.enabled.Store(true)
+	return result
+}
+
+func (c *GatewayObservationCollector) SetEnabled(enabled bool) {
+	if c == nil {
+		return
+	}
+	c.enabled.Store(enabled)
+	if enabled {
+		return
+	}
+	c.mu.Lock()
+	clear(c.buffer)
+	c.mu.Unlock()
+	c.pendingWriteFailed.Store(0)
 }
 
 func (c *GatewayObservationCollector) Record(delta dbrepo.ObservationBucketDelta) {
-	if c == nil {
+	if c == nil || !c.enabled.Load() {
 		return
 	}
 	if delta.BucketStartedAt.IsZero() {
@@ -56,6 +73,9 @@ func (c *GatewayObservationCollector) Record(delta dbrepo.ObservationBucketDelta
 	key := observationBufferKey{minute: delta.BucketStartedAt, clusterID: delta.ClusterID, component: delta.Component}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if !c.enabled.Load() {
+		return
+	}
 	if existing, ok := c.buffer[key]; ok {
 		c.buffer[key] = mergeObservationDeltas(existing, delta)
 		return
@@ -134,10 +154,13 @@ func (c *GatewayObservationCollector) Start(ctx context.Context) error {
 }
 
 func (c *GatewayObservationCollector) flush(ctx context.Context) {
-	if c == nil || c.repo == nil {
+	if c == nil || c.repo == nil || !c.enabled.Load() {
 		return
 	}
 	if pending := c.pendingWriteFailed.Swap(0); pending > 0 {
+		if !c.enabled.Load() {
+			return
+		}
 		now := time.Now().UTC()
 		err := c.repo.UpsertBucket(ctx, dbrepo.ObservationBucketDelta{
 			BucketStartedAt:        now,
@@ -177,6 +200,9 @@ func (c *GatewayObservationCollector) flush(ctx context.Context) {
 		if !ok {
 			continue
 		}
+		if !c.enabled.Load() {
+			return
+		}
 		if err := c.repo.UpsertBucket(ctx, delta); err != nil {
 			c.mu.Lock()
 			if current, exists := c.buffer[key]; exists {
@@ -210,7 +236,7 @@ func (c *GatewayObservationCollector) BufferedBuckets() int {
 }
 
 func (s *Server) recordGatewayObservation(cluster *dbrepo.Cluster, snapshot admissionobs.Snapshot) {
-	if s == nil || s.observationCollector == nil {
+	if s == nil || s.observationCollector == nil || !s.admissionObservationEnabled.Load() {
 		return
 	}
 	now := time.Now().UTC()

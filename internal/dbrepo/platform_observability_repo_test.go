@@ -65,6 +65,13 @@ func TestPlatformObservabilityUpsertKeepsLatestAndDerivesRestart(t *testing.T) {
 	if result.RestartCount != 1 || !result.RoleChanged {
 		t.Fatalf("restart result = %+v", result)
 	}
+	restartedRows, err := repo.RestartedInstances(ctx, now.Add(30*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(restartedRows) != 1 || restartedRows[0].Instance != first.Instance {
+		t.Fatalf("restarted instances = %+v", restartedRows)
+	}
 
 	rows, err := repo.LatestSamples(ctx, now.Add(-time.Minute))
 	if err != nil {

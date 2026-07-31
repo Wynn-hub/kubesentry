@@ -36,18 +36,14 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            {{- if .Values.admissionEvents.enabled }}
             - name: ADMISSION_EVENT_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: kubesentry-admission-events
                   key: token
-            {{- end }}
           ports:
-            {{- if .Values.admissionEvents.enabled }}
             - name: admission-evt
               containerPort: {{ .Values.admissionEvents.servicePort }}
-            {{- end }}
           resources:
             {{- toYaml .Values.operator.resources | nindent 12 }}
           volumeMounts:

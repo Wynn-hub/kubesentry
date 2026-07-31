@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
@@ -38,6 +39,7 @@ func TestWebhookObservationQueueDropsOldestReport(t *testing.T) {
 	reporter := &webhookObservationReporter{
 		counters: admissionobs.NewAtomicCounters(),
 		queue:    make([]*queuedObservation, 0, webhookObservationQueueSize),
+		limit:    webhookObservationQueueSize,
 		wake:     make(chan struct{}, 1),
 	}
 	for sequence := uint64(1); sequence <= webhookObservationQueueSize; sequence++ {
@@ -59,6 +61,7 @@ func TestWebhookObservationQueueKeepsInFlightReportAndDropsOldestPending(t *test
 	reporter := &webhookObservationReporter{
 		counters: admissionobs.NewAtomicCounters(),
 		queue:    make([]*queuedObservation, 0, 2),
+		limit:    2,
 		wake:     make(chan struct{}, 1),
 	}
 	reporter.enqueue(&gatewaypb.ObservationReport{ReportId: "active"})
@@ -77,5 +80,28 @@ func TestWebhookObservationQueueKeepsInFlightReportAndDropsOldestPending(t *test
 	}
 	if got := reporter.queue[1].report.ReportId; got != "newest" {
 		t.Fatalf("pending report = %q, want newest", got)
+	}
+}
+
+func TestWebhookObservationQueueLimitSurvivesRepeatedDelivery(t *testing.T) {
+	reporter := &webhookObservationReporter{
+		counters: admissionobs.NewAtomicCounters(),
+		queue:    make([]*queuedObservation, 0, 2),
+		limit:    2,
+		wake:     make(chan struct{}, 1),
+	}
+	for sequence := 1; sequence <= 100; sequence++ {
+		id := fmt.Sprintf("series/%d", sequence)
+		reporter.enqueue(&gatewaypb.ObservationReport{ReportId: id})
+		if got := reporter.front(); got == nil || got.report.ReportId != id {
+			t.Fatalf("front at sequence %d = %+v", sequence, got)
+		}
+		reporter.remove(id)
+	}
+	if len(reporter.queue) != 0 || cap(reporter.queue) != 2 {
+		t.Fatalf("queue len/cap = %d/%d, want 0/2", len(reporter.queue), cap(reporter.queue))
+	}
+	if got := reporter.counters.Snapshot().Counters.ReportDropped; got != 0 {
+		t.Fatalf("report dropped = %d, want 0", got)
 	}
 }

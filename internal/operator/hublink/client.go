@@ -34,6 +34,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/operator/uninstall"
+	"github.com/Wynn-hub/kubesentry/internal/platformobs"
 	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
 
@@ -106,6 +107,8 @@ type Link struct {
 	eventQueueGauge     admissionobs.QueueGauge
 	observationSeries   string
 	observationSequence atomic.Uint64
+	platformSamples     chan *gatewaypb.ComponentSample
+	platformCollector   *platformobs.Collector
 }
 
 type queuedAdmissionEvent struct {
@@ -132,7 +135,23 @@ func New(cfg Config) *Link {
 		observationsWake:  make(chan struct{}, 1),
 		observationStats:  admissionobs.NewAtomicCounters(),
 		observationSeries: seriesID,
+		platformSamples:   make(chan *gatewaypb.ComponentSample, 256),
 	}
+	instance := cfg.Instance
+	if instance == "" {
+		instance = os.Getenv("POD_NAME")
+	}
+	if instance == "" {
+		instance = cfg.ClusterName + "-operator"
+	}
+	link.platformCollector = platformobs.NewCollector(platformobs.Identity{
+		Component:   platformobs.ComponentOperator,
+		Instance:    instance,
+		ClusterName: cfg.ClusterName,
+		Role: func() platformobs.Role {
+			return platformobs.Role(link.currentRole())
+		},
+	})
 	link.eventQueueGauge.Observe(0, defaultEventQueueCapacity)
 	return link
 }
@@ -212,6 +231,7 @@ func (l *Link) Start(ctx context.Context) error {
 		}()
 	}
 	go l.generateOperatorObservations(ctx)
+	go l.generatePlatformSamples(ctx)
 	if uid, err := l.clusterUID(ctx); err == nil && len(uid) >= 8 {
 		l.prefix = uid[:8]
 	}
@@ -426,9 +446,7 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 				continue
 			}
 			ds := m.DesiredState
-			l.configMu.Lock()
-			l.eventConfig = ds.AdmissionEventConfig
-			l.configMu.Unlock()
+			l.setEventConfig(ds.AdmissionEventConfig)
 			if len(ds.UninstallTasks) > 0 {
 				for _, task := range ds.UninstallTasks {
 					if err := sendUninstallReport(send, task.TaskId, gatewaypb.UninstallTaskReport_RECEIVED, ""); err != nil {
@@ -500,6 +518,9 @@ func (l *Link) sendAdmissionEvents(ctx context.Context, send func(*gatewaypb.Mem
 		if !l.sendObservationReports(now, send) {
 			return
 		}
+		if !l.sendPlatformSamples(send) {
+			return
+		}
 		l.eventsMu.Lock()
 		for id, queued := range l.events {
 			if queued.inFlight && !queued.ackDeadline.After(now) {
@@ -536,6 +557,76 @@ func (l *Link) sendAdmissionEvents(ctx context.Context, send func(*gatewaypb.Mem
 		}
 		l.observationStats.Add(admissionobs.Counters{Forwarded: int64(len(events))})
 	}
+}
+
+func (l *Link) generatePlatformSamples(ctx context.Context) {
+	ticker := time.NewTicker(platformobs.DefaultInterval)
+	defer ticker.Stop()
+	for {
+		l.enqueuePlatformSample(platformobs.ToProto(l.platformCollector.Collect()))
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (l *Link) enqueuePlatformSample(sample *gatewaypb.ComponentSample) {
+	if sample == nil {
+		return
+	}
+	select {
+	case l.platformSamples <- sample:
+	default:
+		// Keep the newest bounded sample. Platform observations are point-in-
+		// time state, so replacing an old sample is preferable to blocking.
+		select {
+		case <-l.platformSamples:
+		default:
+		}
+		select {
+		case l.platformSamples <- sample:
+		default:
+		}
+	}
+	select {
+	case l.observationsWake <- struct{}{}:
+	default:
+	}
+}
+
+func (l *Link) SubmitComponentSamples(batch *gatewaypb.ComponentSampleBatch) bool {
+	if !l.IsLeader() || batch == nil {
+		return false
+	}
+	for _, sample := range batch.Samples {
+		if sample == nil || sample.Component != string(platformobs.ComponentWebhook) {
+			continue
+		}
+		l.enqueuePlatformSample(proto.Clone(sample).(*gatewaypb.ComponentSample))
+	}
+	return true
+}
+
+func (l *Link) sendPlatformSamples(send func(*gatewaypb.MemberMessage) error) bool {
+	samples := make([]*gatewaypb.ComponentSample, 0, 32)
+	for len(samples) < cap(samples) {
+		select {
+		case sample := <-l.platformSamples:
+			samples = append(samples, sample)
+		default:
+			if len(samples) == 0 {
+				return true
+			}
+			return send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_ComponentSampleBatch{
+				ComponentSampleBatch: &gatewaypb.ComponentSampleBatch{Samples: samples},
+			}}) == nil
+		}
+	}
+	return send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_ComponentSampleBatch{
+		ComponentSampleBatch: &gatewaypb.ComponentSampleBatch{Samples: samples},
+	}}) == nil
 }
 
 func (l *Link) ackAdmissionEvents(ack *gatewaypb.AdmissionEventBatchAck) {

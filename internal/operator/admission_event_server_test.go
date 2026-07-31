@@ -1,18 +1,23 @@
 package operator
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
+	"github.com/Wynn-hub/kubesentry/internal/platformobs"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type admissionEventSinkStub struct {
 	leader      bool
 	observed    int
+	samples     int
 	faultReason string
 }
 
@@ -29,6 +34,12 @@ func (s *admissionEventSinkStub) SubmitObservationReports(batch *gatewaypb.Obser
 		Status:   gatewaypb.ObservationReportBatchAck_Result_ACCEPTED,
 	}}
 }
+
+func (s *admissionEventSinkStub) SubmitComponentSamples(batch *gatewaypb.ComponentSampleBatch) bool {
+	s.samples += len(batch.GetSamples())
+	return s.leader
+}
+func (s *admissionEventSinkStub) AdmissionObservationEnabled() bool { return s.leader }
 
 func (s *admissionEventSinkStub) RecordAdmissionObservationFailure(_ admissionobs.ReasonClass, reason string) {
 	s.faultReason = reason
@@ -58,5 +69,45 @@ func TestAdmissionObservationEndpointRecordsAuthenticationFailure(t *testing.T) 
 		httptest.NewRequest(http.MethodPost, "/internal/v1/admission-events/observations", strings.NewReader(`{}`)))
 	if response.Code != http.StatusUnauthorized || sink.faultReason != admissionobs.ReasonAuthFailed {
 		t.Fatalf("response = %d, fault = %q", response.Code, sink.faultReason)
+	}
+}
+
+func TestPlatformSampleEndpointAcceptsLeaderSamples(t *testing.T) {
+	sink := &admissionEventSinkStub{leader: true}
+	server := &AdmissionEventServer{Token: "secret", Sink: sink}
+	sample := platformobs.UnavailableSample(platformobs.ComponentWebhook, "webhook-0", time.Now())
+	sample.ProcessStartedAt = time.Now().Add(-time.Hour)
+	body, err := protojson.Marshal(&gatewaypb.ComponentSampleBatch{
+		Samples: []*gatewaypb.ComponentSample{platformobs.ToProto(sample)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/internal/v1/platform-samples", strings.NewReader(string(body)))
+	request.Header.Set("Authorization", "Bearer secret")
+	response := httptest.NewRecorder()
+
+	server.handlePlatformSamples(response, request)
+	if response.Code != http.StatusAccepted || sink.samples != 1 {
+		t.Fatalf("response = %d, samples = %d", response.Code, sink.samples)
+	}
+}
+
+func TestAdmissionObservationConfigReflectsLeaderAndSetting(t *testing.T) {
+	sink := &admissionEventSinkStub{leader: true}
+	server := &AdmissionEventServer{Token: "secret", Sink: sink}
+	request := httptest.NewRequest(http.MethodGet, "/internal/v1/admission-events/observations/config", nil)
+	request.Header.Set("Authorization", "Bearer secret")
+	response := httptest.NewRecorder()
+
+	server.handleObservationConfig(response, request)
+	var state struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &state); err != nil {
+		t.Fatal(err)
+	}
+	if response.Code != http.StatusOK || !state.Enabled {
+		t.Fatalf("response = %d, state = %+v", response.Code, state)
 	}
 }

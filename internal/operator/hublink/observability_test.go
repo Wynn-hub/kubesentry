@@ -21,7 +21,7 @@ func validWebhookObservation(reportID string, sequence uint64) *gatewaypb.Observ
 }
 
 func TestSubmitObservationReportsValidatesNormalizesAndDeduplicates(t *testing.T) {
-	link := newAdmissionEventLink(nil)
+	link := newAdmissionEventLink(&gatewaypb.AdmissionEventConfig{ObservationEnabled: true})
 	report := validWebhookObservation("report-1", 1)
 	report.FaultReasonCounts = map[string]int64{"future_fault": 2}
 
@@ -45,7 +45,7 @@ func TestSubmitObservationReportsValidatesNormalizesAndDeduplicates(t *testing.T
 }
 
 func TestSubmitObservationReportsReturnsRetryableAtCapacity(t *testing.T) {
-	link := newAdmissionEventLink(nil)
+	link := newAdmissionEventLink(&gatewaypb.AdmissionEventConfig{ObservationEnabled: true})
 	for sequence := uint64(1); sequence <= operatorObservationQueueCapacity; sequence++ {
 		report := validWebhookObservation(admissionobs.ReportID("series", sequence), sequence)
 		link.observations[report.ReportId] = &queuedObservationReport{report: report}
@@ -60,6 +60,18 @@ func TestSubmitObservationReportsReturnsRetryableAtCapacity(t *testing.T) {
 	}
 	if got := link.observationStats.Snapshot().Counters.ReportDropped; got != 1 {
 		t.Fatalf("report dropped = %d, want 1", got)
+	}
+}
+
+func TestSubmitObservationReportsDiscardsWhenDisabled(t *testing.T) {
+	link := newAdmissionEventLink(&gatewaypb.AdmissionEventConfig{ObservationEnabled: false})
+	result := link.SubmitObservationReports(&gatewaypb.ObservationReportBatch{
+		Reports: []*gatewaypb.ObservationReport{validWebhookObservation("disabled", 1)},
+	})
+	if len(result) != 1 ||
+		result[0].Status != gatewaypb.ObservationReportBatchAck_Result_DISCARDED ||
+		len(link.observations) != 0 {
+		t.Fatalf("disabled result = %#v, queued = %d", result, len(link.observations))
 	}
 }
 

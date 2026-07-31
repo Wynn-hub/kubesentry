@@ -32,6 +32,7 @@ func newTestRepos(t *testing.T) Repos {
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
 		Admission:      dbrepo.NewAdmissionRepo(db),
 		Observability:  dbrepo.NewObservabilityRepo(db),
+		Platform:       dbrepo.NewPlatformObservabilityRepo(db),
 	}
 }
 

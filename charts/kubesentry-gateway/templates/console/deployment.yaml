@@ -70,6 +70,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: CONSOLE_WEB_URL
+              value: "http://127.0.0.1:{{ .Values.console.ports.web }}/"
             - name: DATABASE_DSN
               valueFrom:
                 secretKeyRef:

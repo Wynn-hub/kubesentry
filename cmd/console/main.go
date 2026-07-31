@@ -67,6 +67,7 @@ func main() {
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
 		Admission:      dbrepo.NewAdmissionRepo(db),
 		Observability:  dbrepo.NewObservabilityRepo(db),
+		Platform:       dbrepo.NewPlatformObservabilityRepo(db),
 	}
 
 	// console-api's k8s footprint is intentionally minimal: only a discovery
@@ -108,7 +109,13 @@ func main() {
 			slog.Error("dial gateway, continuing without gateway link", "error", err)
 		} else {
 			gatewayClient = gatewaypb.NewHubClient(conn)
-			go console.RunGatewayLink(gatewayCtx, gatewayClient, "console-api", os.Getenv("GATEWAY_SHARED_TOKEN"))
+			sampleSource := console.NewPlatformSampleSource(
+				envOrDefault("POD_NAME", "console-api"),
+				envOrDefault("CONSOLE_WEB_URL", "http://127.0.0.1:8080/"),
+			)
+			go console.RunGatewayLinkWithSamples(
+				gatewayCtx, gatewayClient, "console-api",
+				os.Getenv("GATEWAY_SHARED_TOKEN"), sampleSource)
 			slog.Info("gateway link enabled", "gateway", gatewayAddr)
 		}
 	} else {

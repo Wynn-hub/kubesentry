@@ -134,6 +134,10 @@ func main() {
 	if endpoint, token := os.Getenv("ADMISSION_EVENT_ENDPOINT"), os.Getenv("ADMISSION_EVENT_TOKEN"); endpoint != "" && token != "" {
 		serverConfig.Reporter = webhook.NewHTTPAdmissionEventReporter(endpoint, token)
 	}
+	if endpoint, token := os.Getenv("PLATFORM_SAMPLE_ENDPOINT"), os.Getenv("PLATFORM_SAMPLE_TOKEN"); endpoint != "" && token != "" {
+		platformReporter := webhook.NewPlatformReporter(endpoint, token, envOrDefault("POD_NAME", "webhook"))
+		go platformReporter.Start(ctx)
+	}
 	srv := webhook.NewServer(policyCache, exceptionCache, namespaceCache, serverConfig)
 	slog.Info("starting webhook server", "addr", ":8443")
 	if err := srv.ListenAndServeTLS(); err != nil {

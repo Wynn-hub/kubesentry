@@ -86,6 +86,54 @@ func TestUnavailableSampleUsesMinusOne(t *testing.T) {
 	}
 }
 
+func TestReadSiblingCgroupSelectsApplicationOverPauseContainer(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cgroup.controllers", "cpu memory\n")
+	writeTestFile(t, root, "pod/api/memory.current", "100\n")
+	writeTestFile(t, root, "pod/api/memory.max", "1000\n")
+	writeTestFile(t, root, "pod/api/cpu.stat", "usage_usec 10\n")
+	writeTestFile(t, root, "pod/api/cpu.max", "100 100000\n")
+	writeTestFile(t, root, "pod/web/memory.current", "300\n")
+	writeTestFile(t, root, "pod/web/memory.max", "2000\n")
+	writeTestFile(t, root, "pod/web/cpu.stat", "usage_usec 20\n")
+	writeTestFile(t, root, "pod/web/cpu.max", "200 100000\n")
+	writeTestFile(t, root, "pod/pause/memory.current", "5\n")
+	writeTestFile(t, root, "pod/pause/memory.max", "max\n")
+	writeTestFile(t, root, "pod/pause/cpu.stat", "usage_usec 1\n")
+	writeTestFile(t, root, "pod/pause/cpu.max", "max 100000\n")
+	proc := filepath.Join(t.TempDir(), "cgroup")
+	if err := os.WriteFile(proc, []byte("0::/pod/api\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got := readSiblingCgroup(root, proc)
+	if got.memoryBytes != 300 || got.memoryLimitBytes != 2000 ||
+		got.cpuUsageMicros != 20 || got.cpuQuotaMicros != 200 {
+		t.Fatalf("sibling metrics = %+v", got)
+	}
+}
+
+func TestComponentSampleWireRoundTrip(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	sample := platformSampleForWire(now)
+	wire := ToProto(sample)
+	got, err := FromProto(wire)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Component != sample.Component || got.Instance != sample.Instance ||
+		got.MemoryBytes != sample.MemoryBytes || got.DBStats["connections"] != float64(3) {
+		t.Fatalf("round trip = %+v", got)
+	}
+}
+
+func platformSampleForWire(now time.Time) Sample {
+	sample := UnavailableSample(ComponentPostgres, "postgres", now)
+	sample.ProcessStartedAt = now.Add(-time.Hour)
+	sample.DBStats = map[string]any{"connections": 3}
+	return sample
+}
+
 func writeTestFile(t *testing.T, root, name, content string) {
 	t.Helper()
 	path := filepath.Join(root, name)

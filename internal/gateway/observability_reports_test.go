@@ -16,6 +16,9 @@ func TestHandleObservationReportBatchStoresAndAcknowledgesEachReport(t *testing.
 	repos := newTestRepos(t)
 	cluster := &dbrepo.Cluster{Name: "observed", Phase: "Online"}
 	mustCreateCluster(t, repos, cluster)
+	if err := repos.Platform.SetAdmissionPipelineEnabled(context.Background(), true); err != nil {
+		t.Fatal(err)
+	}
 	server := NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token")
 	now := time.Now().UTC()
 	batch := &gatewaypb.ObservationReportBatch{Reports: []*gatewaypb.ObservationReport{
@@ -70,6 +73,26 @@ func TestGatewayObservationCollectorEvictsOldestAndTracksLoss(t *testing.T) {
 	}
 	if got := collector.PendingWriteFailures(); got != 1 {
 		t.Fatalf("pending write failures = %d, want 1", got)
+	}
+}
+
+func TestGatewayObservationCollectorDropsBufferedAndNewDataWhenDisabled(t *testing.T) {
+	collector := NewGatewayObservationCollector(nil, time.Hour)
+	collector.Record(dbrepo.ObservationBucketDelta{
+		BucketStartedAt: time.Now(),
+		Component:       admissionobs.ComponentGateway,
+	})
+	if collector.BufferedBuckets() != 1 {
+		t.Fatal("collector did not buffer the enabled observation")
+	}
+	collector.SetEnabled(false)
+	collector.Record(dbrepo.ObservationBucketDelta{
+		BucketStartedAt: time.Now(),
+		Component:       admissionobs.ComponentGateway,
+	})
+	if collector.BufferedBuckets() != 0 || collector.PendingWriteFailures() != 0 {
+		t.Fatalf("disabled collector retained data: buckets=%d failures=%d",
+			collector.BufferedBuckets(), collector.PendingWriteFailures())
 	}
 }
 
