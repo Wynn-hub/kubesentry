@@ -39,6 +39,7 @@ export interface ObservationClusterCounts {
 }
 
 export interface AdmissionObservationOverview {
+  disabled?: boolean
   health: ObservationHealth
   dataIncomplete: boolean
   baselineReset: boolean
@@ -109,10 +110,6 @@ export interface ObservationClusterPage {
   pageSize: number
 }
 
-export interface ObservationSettings {
-  retentionDays: number
-}
-
 export type ObservationQuery = {
   cluster?: string
   from?: string
@@ -167,9 +164,3 @@ export const listAdmissionObservationClusters = (
   query: ObservationQuery & { page: string; pageSize: string; health?: string },
 ) => request<ObservationClusterPage>('GET', '/observability/admission/clusters', undefined, paramsOf(query))
   .then(normalizeObservationClusterPage)
-
-export const getObservationSettings = () =>
-  request<ObservationSettings>('GET', '/observability/settings')
-
-export const updateObservationSettings = (body: ObservationSettings) =>
-  request<ObservationSettings>('PUT', '/observability/settings', body)

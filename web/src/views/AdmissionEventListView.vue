@@ -1,6 +1,6 @@
 <template>
   <section>
-    <PageHeader :title="$t('admissionEvent.title')" :subtitle="$t('admissionEvent.subtitle')">
+    <PageHeader v-if="!embedded" :title="$t('admissionEvent.title')" :subtitle="$t('admissionEvent.subtitle')">
       <el-button @click="openSettings">
         <el-icon style="margin-right:4px"><Setting /></el-icon>{{ $t('admissionEvent.storageSettings') }}
       </el-button>
@@ -24,6 +24,9 @@
         <el-option :label="$t('admissionEvent.customRange')" value="custom" />
       </el-select>
       <el-date-picker v-if="rangeKey === 'custom'" v-model="customRange" type="datetimerange" :teleported="false" style="width:360px" />
+      <el-button v-if="embedded" class="storage-button" @click="openSettings">
+        <el-icon style="margin-right:4px"><Setting /></el-icon>{{ $t('admissionEvent.storageSettings') }}
+      </el-button>
     </div>
 
     <el-table :data="events" v-loading="loading" row-key="id">
@@ -184,6 +187,7 @@ import { collectAllPages } from '../api/pagination'
 // How many policy tags to show inline in the list before collapsing the rest
 // into a "+N" badge; the detail drawer always shows the full set.
 const POLICY_PREVIEW = 2
+defineProps<{ embedded?: boolean }>()
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
@@ -320,6 +324,7 @@ onMounted(async () => {
 <style scoped>
 .list-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:12px }
 .list-toolbar > * { flex-shrink:0 }
+.storage-button{margin-left:auto}
 .save{margin-top:24px}
 .section-title{margin:0 0 12px}
 .settings-grid,.rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}

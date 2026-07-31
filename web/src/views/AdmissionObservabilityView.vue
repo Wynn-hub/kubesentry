@@ -1,7 +1,6 @@
 <template>
   <section v-loading="loading">
-    <PageHeader :title="$t('observability.title')" :subtitle="$t('observability.subtitle')">
-      <el-button @click="settingsOpen = true"><el-icon><Setting /></el-icon>{{ $t('observability.settings') }}</el-button>
+    <PageHeader v-if="!embedded" :title="$t('observability.title')" :subtitle="$t('observability.subtitle')">
       <el-button type="primary" plain @click="refreshAll"><el-icon><Refresh /></el-icon>{{ $t('common.refresh') }}</el-button>
     </PageHeader>
 
@@ -147,19 +146,17 @@
       </div>
     </template>
 
-    <ObservationSettingsDrawer v-model="settingsOpen" />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Setting } from '@element-plus/icons-vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import PageHeader from '../components/PageHeader.vue'
 import PaginationBar from '../components/PaginationBar.vue'
 import ObservationTrendChart from '../components/ObservationTrendChart.vue'
-import ObservationSettingsDrawer from '../components/ObservationSettingsDrawer.vue'
 import { createObservationPoller } from './observationPolling'
 import { collectAllPages } from '../api/pagination'
 import { listClusters } from '../api/cluster'
@@ -177,6 +174,7 @@ import {
 } from '../api/observability'
 
 const { t } = useI18n()
+defineProps<{ embedded?: boolean }>()
 const overview = ref<AdmissionObservationOverview>()
 const trend = ref<ObservationTrend>()
 const clusterPage = ref<ObservationClusterPage>()
@@ -188,7 +186,6 @@ const healthFilter = ref('')
 const page = ref(1)
 const pageSize = ref(20)
 const loading = ref(true)
-const settingsOpen = ref(false)
 const healthOptions: ObservationHealth[] = ['warning', 'partial_no_data', 'no_data', 'not_onboarded', 'normal', 'offline']
 
 function rangeQuery() {
