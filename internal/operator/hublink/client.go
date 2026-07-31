@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -50,6 +51,8 @@ const (
 	eventAckTimeout              = 5 * time.Second
 	eventSendTick                = 500 * time.Millisecond
 )
+
+var errWaitingForLeaderCredential = errors.New("waiting for leader operator to register cluster credential")
 
 type Config struct {
 	HubAddress      string // host:port；空 = 不启用（调用方保证）
@@ -769,6 +772,15 @@ func (l *Link) ensureRegistered(ctx context.Context, hc gatewaypb.HubClient) (st
 	if err != nil && !apierrors.IsNotFound(err) {
 		return "", fmt.Errorf("read auth secret: %w", err)
 	}
+	// All replicas maintain a Sync stream, but the one-time registration token
+	// must only be consumed once. The elected operator owns registration and
+	// persists the shared long-lived credential; standbys retry until that
+	// Secret appears. Without this gate, two fresh HA replicas can both pass
+	// Register concurrently, rotate the hub token twice, and delete each
+	// other's Secret while recovering from the rejected credential.
+	if l.cfg.LeaderElected != nil && !l.IsLeader() {
+		return "", errWaitingForLeaderCredential
+	}
 
 	var reg corev1.Secret
 	if err := l.cfg.Reader.Get(ctx,
@@ -822,6 +834,13 @@ func (l *Link) ensureRegistered(ctx context.Context, hc gatewaypb.HubClient) (st
 // invalid token and are left untouched.
 func (l *Link) clearCredentialIfUnauthenticated(ctx context.Context, err error) {
 	if status.Code(err) != codes.Unauthenticated {
+		return
+	}
+	// The credential is shared by every operator replica. Only the elected
+	// replica may remove it and perform re-registration; otherwise a standby
+	// handling a delayed rejection can delete a credential the leader has just
+	// refreshed.
+	if l.cfg.LeaderElected != nil && !l.IsLeader() {
 		return
 	}
 	if clearErr := l.clearStoredCredential(ctx); clearErr != nil {

@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"gorm.io/datatypes"
 	corev1 "k8s.io/api/core/v1"
@@ -141,6 +143,90 @@ func TestLinkRegistersAndHeartbeats(t *testing.T) {
 		info, ok := tracker.Snapshot()["prod"]
 		return ok && info.OperatorVersion == "v-test"
 	}, "heartbeat never reached hub tracker")
+}
+
+func TestOnlyLeaderConsumesRegistrationTokenInHA(t *testing.T) {
+	repos := newTestRepos(t)
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gateway.HashToken("reg-tok")})
+	dial, _ := startHub(t, repos)
+
+	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
+	kubeSystem.UID = "uid-1"
+	member := fake.NewClientBuilder().WithScheme(buildScheme(t)).WithObjects(
+		kubeSystem,
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: memberNS, Name: registerSecretName},
+			Data:       map[string][]byte{keyToken: []byte("reg-tok")},
+		},
+	).Build()
+	ctx := context.Background()
+	conn, err := dial(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	hub := gatewaypb.NewHubClient(conn)
+
+	neverElected := make(chan struct{})
+	standby := New(Config{
+		ClusterName: "prod", Namespace: memberNS, Reader: member, Client: member,
+		LeaderElected: neverElected,
+	})
+	if _, err := standby.ensureRegistered(ctx, hub); !errors.Is(err, errWaitingForLeaderCredential) {
+		t.Fatalf("standby registration error = %v, want waiting-for-leader", err)
+	}
+	cluster, err := repos.Clusters.GetByName(ctx, "prod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cluster.RegTokenHash == "" {
+		t.Fatal("standby consumed the one-time registration token")
+	}
+
+	elected := make(chan struct{})
+	close(elected)
+	leader := New(Config{
+		ClusterName: "prod", Namespace: memberNS, Reader: member, Client: member,
+		LeaderElected: elected,
+	})
+	leader.leader.Store(true)
+	leaderToken, err := leader.ensureRegistered(ctx, hub)
+	if err != nil {
+		t.Fatalf("leader register: %v", err)
+	}
+	standbyToken, err := standby.ensureRegistered(ctx, hub)
+	if err != nil {
+		t.Fatalf("standby read shared credential: %v", err)
+	}
+	if standbyToken != leaderToken {
+		t.Fatalf("standby token differs from leader token")
+	}
+}
+
+func TestOnlyLeaderClearsSharedRejectedCredential(t *testing.T) {
+	member := fake.NewClientBuilder().WithScheme(buildScheme(t)).WithObjects(
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: memberNS, Name: authSecretName},
+			Data:       map[string][]byte{keyClusterToken: []byte("stale-token")},
+		},
+	).Build()
+	leaderElection := make(chan struct{})
+	standby := New(Config{
+		Namespace: memberNS, Reader: member, Client: member, LeaderElected: leaderElection,
+	})
+	rejected := status.Error(codes.Unauthenticated, "invalid cluster token")
+	standby.clearCredentialIfUnauthenticated(context.Background(), rejected)
+	var secret corev1.Secret
+	key := types.NamespacedName{Namespace: memberNS, Name: authSecretName}
+	if err := member.Get(context.Background(), key, &secret); err != nil {
+		t.Fatalf("standby deleted shared credential: %v", err)
+	}
+
+	standby.leader.Store(true)
+	standby.clearCredentialIfUnauthenticated(context.Background(), rejected)
+	if err := member.Get(context.Background(), key, &secret); !apierrors.IsNotFound(err) {
+		t.Fatalf("leader did not delete rejected credential: %v", err)
+	}
 }
 
 func TestLinkReusesStoredToken(t *testing.T) {
