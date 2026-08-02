@@ -143,3 +143,44 @@ func TestSendObservationReportsMarksBatchInFlight(t *testing.T) {
 		t.Fatal("report was not marked in flight")
 	}
 }
+
+// The platform observation switch must not come from DesiredState. Only the
+// leader receives DesiredState, so a standby fed from there would read the
+// switch as permanently off and never sample itself — which is exactly what
+// happened: an HA cluster showed a primary and no secondary.
+func TestPlatformObservationSwitchReachesStandbyThroughAck(t *testing.T) {
+	standby := New(Config{ClusterName: "member-a", Instance: "operator-1"})
+	if standby.IsLeader() {
+		t.Fatal("a fresh link must not claim leadership")
+	}
+	if standby.PlatformObservationEnabled() {
+		t.Fatal("sampling must be off until the gateway says otherwise")
+	}
+
+	// DesiredState alone must not enable it — that path never reaches a standby,
+	// so relying on it is the bug this test guards.
+	standby.setEventConfig(&gatewaypb.AdmissionEventConfig{PlatformObservationEnabled: true})
+	if standby.PlatformObservationEnabled() {
+		t.Fatal("the switch must be driven by Ack, not by DesiredState")
+	}
+
+	standby.SetPlatformObservationEnabled(true)
+	if !standby.PlatformObservationEnabled() {
+		t.Fatal("standby did not enable sampling after the Ack carried the switch")
+	}
+}
+
+// Switching off drains whatever is queued: sending a burst of minutes-old
+// samples when it is switched back on would misreport the gap as live data.
+func TestPlatformObservationDisableDrainsQueuedSamples(t *testing.T) {
+	link := New(Config{ClusterName: "member-a", Instance: "operator-0"})
+	link.SetPlatformObservationEnabled(true)
+	link.enqueuePlatformSample(&gatewaypb.ComponentSample{Component: "operator"})
+	if len(link.platformSamples) != 1 {
+		t.Fatalf("queued samples = %d, want 1", len(link.platformSamples))
+	}
+	link.SetPlatformObservationEnabled(false)
+	if len(link.platformSamples) != 0 {
+		t.Fatalf("queued samples after disabling = %d, want 0", len(link.platformSamples))
+	}
+}

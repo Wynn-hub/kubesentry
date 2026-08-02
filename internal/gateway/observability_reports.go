@@ -11,9 +11,9 @@ import (
 
 func (s *Server) handleObservationReportBatch(ctx context.Context, clusterName string, batch *gatewaypb.ObservationReportBatch) *gatewaypb.ObservationReportBatchAck {
 	ack := &gatewaypb.ObservationReportBatchAck{}
-	if s.repos.Platform != nil {
-		settings, err := s.repos.Platform.GetSettings(ctx)
-		if err != nil || !settings.AdmissionPipelineEnabled {
+	if s.repos.Admission != nil {
+		settings, err := s.repos.Admission.GetSettings(ctx)
+		if err != nil || !settings.ObservationEnabled {
 			for _, report := range batch.GetReports() {
 				if report != nil {
 					ack.Results = append(ack.Results, observationReportACK(

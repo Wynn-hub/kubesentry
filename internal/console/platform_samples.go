@@ -16,7 +16,7 @@ func NewPlatformSampleSource(instance, webURL string) func() *gatewaypb.Componen
 		Instance:  instance,
 		Role:      func() platformobs.Role { return platformobs.RoleNone },
 	})
-	startedAt := time.Now().UTC()
+	startedAt := platformobs.NormalizeProcessStart(time.Now())
 	client := &http.Client{Timeout: 2 * time.Second}
 	return func() *gatewaypb.ComponentSampleBatch {
 		api := apiCollector.Collect()

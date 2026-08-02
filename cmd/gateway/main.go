@@ -134,10 +134,18 @@ func main() {
 				hub.SetAdmissionCleaner(cleaner)
 				hub.SetObservationCollector(observationCollector)
 				hub.SetObservabilityCleaner(observabilityCleaner)
+				// Seed both switches before serving: a member that connects
+				// before the first render would otherwise be told observation is
+				// off, then told again a moment later that it is on.
 				if settings, err := repos.Platform.GetSettings(leaderCtx); err != nil {
+					slog.Warn("load platform observation setting", "error", err)
+				} else {
+					hub.SetPlatformObservationEnabled(settings.Enabled)
+				}
+				if settings, err := repos.Admission.GetSettings(leaderCtx); err != nil {
 					slog.Warn("load admission observation setting", "error", err)
 				} else {
-					hub.SetAdmissionObservationEnabled(settings.AdmissionPipelineEnabled)
+					hub.SetAdmissionObservationEnabled(settings.ObservationEnabled)
 				}
 				grpcRun := &grpcRunnable{
 					addr:   grpcAddr,

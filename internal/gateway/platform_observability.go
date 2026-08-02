@@ -23,6 +23,12 @@ type PlatformReporter struct {
 	cleanupErr atomic.Int32
 }
 
+// platformLeadershipGrace bounds how long the first sample waits for leader
+// election. Longer than the 2s RetryPeriod so an uncontested single replica
+// resolves well within it, short enough that a real standby is not silently
+// missing from the overview.
+const platformLeadershipGrace = 8 * time.Second
+
 func NewPlatformReporter(
 	repo *dbrepo.PlatformObservabilityRepo,
 	db *gorm.DB,
@@ -45,7 +51,7 @@ func NewPlatformReporter(
 	})
 	return &PlatformReporter{
 		repo: repo, db: db, collector: collector, instance: instance,
-		isLeader: isLeader, interval: interval, startedAt: time.Now().UTC(),
+		isLeader: isLeader, interval: interval, startedAt: platformobs.NormalizeProcessStart(time.Now()),
 	}
 }
 
@@ -54,6 +60,13 @@ func (r *PlatformReporter) Start(ctx context.Context) error {
 	defer ticker.Stop()
 	cleanupTicker := time.NewTicker(time.Hour)
 	defer cleanupTicker.Stop()
+	// The reporter starts before leader election resolves, so an immediate first
+	// sample would record this pod as standby and — for a single-replica install
+	// where the only instance must be the leader — make the component look
+	// degraded ("no leader") for its first minute. Wait for the outcome instead.
+	if !r.awaitLeadershipDecision(ctx) {
+		return nil
+	}
 	for {
 		r.collect(ctx)
 		select {
@@ -68,8 +81,37 @@ func (r *PlatformReporter) Start(ctx context.Context) error {
 	}
 }
 
+// awaitLeadershipDecision blocks until this pod becomes leader or the grace
+// period elapses, whichever comes first. A genuine standby simply waits out the
+// grace period and then reports standby, which is correct.
+func (r *PlatformReporter) awaitLeadershipDecision(ctx context.Context) bool {
+	deadline := time.After(platformLeadershipGrace)
+	poll := time.NewTicker(200 * time.Millisecond)
+	defer poll.Stop()
+	for {
+		if r.isLeader() {
+			return true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-deadline:
+			return true
+		case <-poll.C:
+		}
+	}
+}
+
 func (r *PlatformReporter) collect(ctx context.Context) {
 	if r.repo == nil {
+		return
+	}
+	settings, err := r.repo.GetSettings(ctx)
+	if err != nil {
+		slog.Warn("read platform observability settings", "error", err)
+		return
+	}
+	if !settings.Enabled {
 		return
 	}
 	sample := r.collector.Collect()
@@ -126,7 +168,7 @@ func (r *PlatformReporter) postgresSample(ctx context.Context) (platformobs.Samp
 	}
 	var startedAt time.Time
 	if err := r.db.WithContext(ctx).Raw(`SELECT pg_postmaster_start_time()`).Row().Scan(&startedAt); err == nil {
-		sample.ProcessStartedAt = startedAt.UTC()
+		sample.ProcessStartedAt = platformobs.NormalizeProcessStart(startedAt)
 	}
 	var maxConnections int64
 	if err := r.db.WithContext(ctx).Raw(`SHOW max_connections`).Row().Scan(&maxConnections); err != nil {

@@ -1,6 +1,6 @@
 import { request } from './http'
 
-export type PlatformHealth = 'ok' | 'degraded' | 'unavailable'
+export type PlatformHealth = 'ok' | 'pending' | 'degraded' | 'unavailable' | 'disabled'
 export type PlatformRole = 'leader' | 'standby' | 'none'
 
 export interface PlatformInstance {
@@ -23,7 +23,10 @@ export interface PlatformInstance {
 export interface PlatformComponent {
   component: string
   health: PlatformHealth
+  healthReason: string
   hasLeadership: boolean
+  noLeader: boolean
+  singleReplica: boolean
   instances: PlatformInstance[]
   lastLeadershipChange?: string
 }
@@ -36,6 +39,7 @@ export interface PlatformCluster {
 }
 
 export interface PlatformOverview {
+  enabled: boolean
   platformHealth: PlatformHealth
   gatewayPlane: PlatformComponent[]
   memberPlane: {
@@ -81,7 +85,14 @@ export interface PlatformLeadershipPage {
 }
 
 export interface PlatformSettings {
-  admissionPipelineEnabled: boolean
+  enabled: boolean
+  retentionDays: number
+  maxRetentionDays: number
+}
+
+export interface PlatformSettingsInput {
+  enabled: boolean
+  retentionDays: number
 }
 
 const cleanParams = (query: Record<string, string | undefined>): Record<string, string> =>
@@ -105,7 +116,13 @@ export function normalizePlatformOverview(value: PlatformOverview): PlatformOver
 }
 
 function normalizeComponent(component: PlatformComponent): PlatformComponent {
-  return { ...component, instances: component.instances ?? [] }
+  return {
+    ...component,
+    instances: component.instances ?? [],
+    healthReason: component.healthReason ?? '',
+    noLeader: component.noLeader ?? false,
+    singleReplica: component.singleReplica ?? false,
+  }
 }
 
 export const getPlatformOverview = (query: { page: string; pageSize: string; health?: string }) =>
@@ -131,5 +148,5 @@ export const listPlatformLeadershipEvents = (
 export const getPlatformSettings = () =>
   request<PlatformSettings>('GET', '/platform/settings')
 
-export const updatePlatformSettings = (body: PlatformSettings) =>
+export const updatePlatformSettings = (body: PlatformSettingsInput) =>
   request<PlatformSettings>('PUT', '/platform/settings', body)

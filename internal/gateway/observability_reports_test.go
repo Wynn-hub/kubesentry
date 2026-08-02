@@ -16,7 +16,7 @@ func TestHandleObservationReportBatchStoresAndAcknowledgesEachReport(t *testing.
 	repos := newTestRepos(t)
 	cluster := &dbrepo.Cluster{Name: "observed", Phase: "Online"}
 	mustCreateCluster(t, repos, cluster)
-	if err := repos.Platform.SetAdmissionPipelineEnabled(context.Background(), true); err != nil {
+	if err := enableAdmissionObservation(context.Background(), repos); err != nil {
 		t.Fatal(err)
 	}
 	server := NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token")

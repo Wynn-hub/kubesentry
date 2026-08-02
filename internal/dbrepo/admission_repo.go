@@ -56,6 +56,7 @@ func (r *AdmissionRepo) UpdateSettingsAndPolicies(ctx context.Context, settings 
 			"retry_enabled":          settings.RetryEnabled,
 			"max_retry_attempts":     settings.MaxRetryAttempts,
 			"queue_capacity":         settings.QueueCapacity,
+			"observation_enabled":    settings.ObservationEnabled,
 			"storage_policy_version": gorm.Expr("storage_policy_version + 1"),
 		}).Error; err != nil {
 			return err

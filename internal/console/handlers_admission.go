@@ -32,6 +32,7 @@ type admissionSettingsRequest struct {
 	RetryEnabled         bool                          `json:"retryEnabled"`
 	MaxRetryAttempts     int                           `json:"maxRetryAttempts"`
 	QueueCapacity        int                           `json:"queueCapacity"`
+	ObservationEnabled   bool                          `json:"observationEnabled"`
 	StoragePolicies      []admissionStoragePolicyInput `json:"storagePolicies"`
 }
 type admissionSettingsResponse struct {
@@ -39,6 +40,7 @@ type admissionSettingsResponse struct {
 	RetryEnabled         bool                          `json:"retryEnabled"`
 	MaxRetryAttempts     int                           `json:"maxRetryAttempts"`
 	QueueCapacity        int                           `json:"queueCapacity"`
+	ObservationEnabled   bool                          `json:"observationEnabled"`
 	StoragePolicyVersion int64                         `json:"storagePolicyVersion"`
 	StoragePolicies      []admissionStoragePolicyInput `json:"storagePolicies"`
 }
@@ -63,6 +65,7 @@ func (h *Handlers) getAdmissionEventSettings(w http.ResponseWriter, r *http.Requ
 		RetryEnabled:         settings.RetryEnabled,
 		MaxRetryAttempts:     settings.MaxRetryAttempts,
 		QueueCapacity:        settings.QueueCapacity,
+		ObservationEnabled:   settings.ObservationEnabled,
 		StoragePolicyVersion: settings.StoragePolicyVersion,
 		StoragePolicies:      storagePolicyInputs(policies),
 	})
@@ -122,6 +125,7 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 		RetryEnabled:         req.RetryEnabled,
 		MaxRetryAttempts:     req.MaxRetryAttempts,
 		QueueCapacity:        req.QueueCapacity,
+		ObservationEnabled:   req.ObservationEnabled,
 	}, policies); err != nil {
 		writeErr(w, 500, "update admission event settings: "+err.Error())
 		return
@@ -130,6 +134,10 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 	// the gateway run a full cleanup pass, so a narrowed rule set drops
 	// already-stored events that no longer match instead of waiting out the
 	// daily ticker. A drifting literal here would silently disable that.
+	// The observation switch lives in these settings, and the overview responses
+	// are cached for a few seconds. Without dropping the cache, toggling the
+	// switch leaves the page showing the previous state for up to one TTL.
+	h.clearObservationCache()
 	h.notifyChange(r, gateway.AdmissionEventSettingsTopic)
 	h.getAdmissionEventSettings(w, r)
 }

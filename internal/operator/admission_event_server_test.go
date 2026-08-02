@@ -15,10 +15,11 @@ import (
 )
 
 type admissionEventSinkStub struct {
-	leader      bool
-	observed    int
-	samples     int
-	faultReason string
+	leader          bool
+	platformEnabled bool
+	observed        int
+	samples         int
+	faultReason     string
 }
 
 func (s *admissionEventSinkStub) IsLeader() bool { return s.leader }
@@ -40,6 +41,8 @@ func (s *admissionEventSinkStub) SubmitComponentSamples(batch *gatewaypb.Compone
 	return s.leader
 }
 func (s *admissionEventSinkStub) AdmissionObservationEnabled() bool { return s.leader }
+
+func (s *admissionEventSinkStub) PlatformObservationEnabled() bool { return s.platformEnabled }
 
 func (s *admissionEventSinkStub) RecordAdmissionObservationFailure(_ admissionobs.ReasonClass, reason string) {
 	s.faultReason = reason
@@ -73,7 +76,7 @@ func TestAdmissionObservationEndpointRecordsAuthenticationFailure(t *testing.T) 
 }
 
 func TestPlatformSampleEndpointAcceptsLeaderSamples(t *testing.T) {
-	sink := &admissionEventSinkStub{leader: true}
+	sink := &admissionEventSinkStub{leader: true, platformEnabled: true}
 	server := &AdmissionEventServer{Token: "secret", Sink: sink}
 	sample := platformobs.UnavailableSample(platformobs.ComponentWebhook, "webhook-0", time.Now())
 	sample.ProcessStartedAt = time.Now().Add(-time.Hour)
@@ -90,6 +93,22 @@ func TestPlatformSampleEndpointAcceptsLeaderSamples(t *testing.T) {
 	server.handlePlatformSamples(response, request)
 	if response.Code != http.StatusAccepted || sink.samples != 1 {
 		t.Fatalf("response = %d, samples = %d", response.Code, sink.samples)
+	}
+}
+
+// Disabled must answer 204, not 503: the webhook treats 503 as a transient
+// failure worth warning about, and would log every minute for as long as the
+// feature stays off.
+func TestPlatformSampleEndpointReportsDisabledAsNoContent(t *testing.T) {
+	sink := &admissionEventSinkStub{leader: true, platformEnabled: false}
+	server := &AdmissionEventServer{Token: "secret", Sink: sink}
+	request := httptest.NewRequest(http.MethodPost, "/internal/v1/platform-samples", strings.NewReader("{}"))
+	request.Header.Set("Authorization", "Bearer secret")
+	response := httptest.NewRecorder()
+
+	server.handlePlatformSamples(response, request)
+	if response.Code != http.StatusNoContent || sink.samples != 0 {
+		t.Fatalf("response = %d, samples = %d; want 204 and no samples", response.Code, sink.samples)
 	}
 }
 

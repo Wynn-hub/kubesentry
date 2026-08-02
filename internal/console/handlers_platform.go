@@ -2,7 +2,9 @@ package console
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +39,10 @@ type platformInstanceResponse struct {
 type platformComponentResponse struct {
 	Component            string                     `json:"component"`
 	Health               string                     `json:"health"`
+	HealthReason         string                     `json:"healthReason"`
 	HasLeadership        bool                       `json:"hasLeadership"`
+	NoLeader             bool                       `json:"noLeader"`
+	SingleReplica        bool                       `json:"singleReplica"`
 	Instances            []platformInstanceResponse `json:"instances"`
 	LastLeadershipChange *time.Time                 `json:"lastLeadershipChange"`
 }
@@ -50,6 +55,7 @@ type platformClusterResponse struct {
 }
 
 type platformOverviewResponse struct {
+	Enabled        bool                        `json:"enabled"`
 	PlatformHealth string                      `json:"platformHealth"`
 	GatewayPlane   []platformComponentResponse `json:"gatewayPlane"`
 	MemberPlane    struct {
@@ -58,6 +64,22 @@ type platformOverviewResponse struct {
 		Page     int                       `json:"page"`
 		PageSize int                       `json:"pageSize"`
 	} `json:"memberPlane"`
+}
+
+// gatewayPlaneOrder follows the data path: samples enter at the gateway, land in
+// postgres, and are served by console-api to console-web.
+var gatewayPlaneOrder = []platformobs.Component{
+	platformobs.ComponentGateway,
+	platformobs.ComponentPostgres,
+	platformobs.ComponentConsoleAPI,
+	platformobs.ComponentConsoleWeb,
+}
+
+// memberPlaneOrder puts the management plane before the data plane, matching how
+// the architecture is described everywhere else.
+var memberPlaneOrder = []platformobs.Component{
+	platformobs.ComponentOperator,
+	platformobs.ComponentWebhook,
 }
 
 func (h *Handlers) platformOverview(w http.ResponseWriter, r *http.Request) {
@@ -69,8 +91,28 @@ func (h *Handlers) platformOverview(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	settings, err := h.Repos.Platform.GetSettings(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if !settings.Enabled {
+		// Report the switch state rather than an empty platform: the page needs
+		// to distinguish "off" from "on but nothing reporting", which look
+		// identical in the data.
+		response := platformOverviewResponse{Enabled: false, PlatformHealth: "disabled"}
+		response.GatewayPlane = []platformComponentResponse{}
+		response.MemberPlane.Clusters = []platformClusterResponse{}
+		response.MemberPlane.Page, response.MemberPlane.PageSize = page, pageSize
+		writeOK(w, response)
+		return
+	}
 	now := time.Now().UTC()
-	samples, err := h.Repos.Platform.LatestSamples(r.Context(), now.Add(-dbrepo.PlatformSampleRetention))
+	retention := time.Duration(settings.RetentionDays) * 24 * time.Hour
+	if retention <= 0 || retention > dbrepo.PlatformSampleRetentionMax {
+		retention = dbrepo.PlatformSampleRetentionMax
+	}
+	samples, err := h.Repos.Platform.LatestSamples(r.Context(), now.Add(-retention))
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
@@ -80,18 +122,29 @@ func (h *Handlers) platformOverview(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	restarted := map[string]bool{}
-	for _, row := range restartedRows {
-		restarted[platformInstanceKey(row.Component, row.Instance, row.ClusterID)] = true
+	signals := platformHealthSignals{
+		restarted: map[string]bool{},
+		pressured: map[string]bool{},
+		cpuUsage:  map[string]int64{},
 	}
-	cpuRows, err := h.Repos.Platform.LatestCPUUsage(r.Context(), now.Add(-dbrepo.PlatformSampleRetention))
+	for _, row := range restartedRows {
+		signals.restarted[platformInstanceKey(row.Component, row.Instance, row.ClusterID)] = true
+	}
+	pressuredRows, err := h.Repos.Platform.MemoryPressuredInstances(r.Context(), now.Add(-platformHealthRange))
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	cpuUsage := map[string]int64{}
+	for _, row := range pressuredRows {
+		signals.pressured[platformInstanceKey(row.Component, row.Instance, row.ClusterID)] = true
+	}
+	cpuRows, err := h.Repos.Platform.LatestCPUUsage(r.Context(), now.Add(-retention))
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	for _, row := range cpuRows {
-		cpuUsage[platformInstanceKey(row.Component, row.Instance, row.ClusterID)] = row.CPUUsageMicros
+		signals.cpuUsage[platformInstanceKey(row.Component, row.Instance, row.ClusterID)] = row.CPUUsageMicros
 	}
 	events, err := h.Repos.Platform.LatestLeadershipEvents(
 		r.Context(), now.Add(-dbrepo.PlatformLeadershipRetention))
@@ -107,15 +160,12 @@ func (h *Handlers) platformOverview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	grouped := groupPlatformSamples(samples)
-	response := platformOverviewResponse{}
-	response.GatewayPlane = make([]platformComponentResponse, 0, 4)
-	for _, component := range []platformobs.Component{
-		platformobs.ComponentGateway, platformobs.ComponentConsoleAPI,
-		platformobs.ComponentConsoleWeb, platformobs.ComponentPostgres,
-	} {
+	response := platformOverviewResponse{Enabled: true}
+	response.GatewayPlane = make([]platformComponentResponse, 0, len(gatewayPlaneOrder))
+	for _, component := range gatewayPlaneOrder {
 		response.GatewayPlane = append(response.GatewayPlane,
 			buildPlatformComponent(component, grouped[platformComponentKey(string(component), 0)],
-				lastChanges[platformComponentKey(string(component), 0)], restarted, cpuUsage, now))
+				lastChanges[platformComponentKey(string(component), 0)], signals, now))
 	}
 	response.PlatformHealth = "ok"
 	for _, component := range response.GatewayPlane {
@@ -130,13 +180,11 @@ func (h *Handlers) platformOverview(w http.ResponseWriter, r *http.Request) {
 	filter := strings.TrimSpace(r.URL.Query().Get("health"))
 	all := make([]platformClusterResponse, 0, len(clusters))
 	for _, cluster := range clusters {
-		components := []platformComponentResponse{
-			buildPlatformComponent(platformobs.ComponentWebhook,
-				grouped[platformComponentKey(string(platformobs.ComponentWebhook), cluster.ID)],
-				lastChanges[platformComponentKey(string(platformobs.ComponentWebhook), cluster.ID)], restarted, cpuUsage, now),
-			buildPlatformComponent(platformobs.ComponentOperator,
-				grouped[platformComponentKey(string(platformobs.ComponentOperator), cluster.ID)],
-				lastChanges[platformComponentKey(string(platformobs.ComponentOperator), cluster.ID)], restarted, cpuUsage, now),
+		components := make([]platformComponentResponse, 0, len(memberPlaneOrder))
+		for _, component := range memberPlaneOrder {
+			components = append(components, buildPlatformComponent(component,
+				grouped[platformComponentKey(string(component), cluster.ID)],
+				lastChanges[platformComponentKey(string(component), cluster.ID)], signals, now))
 		}
 		health := "ok"
 		for _, component := range components {
@@ -182,12 +230,19 @@ func platformInstanceKey(component, instance string, clusterID int64) string {
 	return platformComponentKey(component, clusterID) + "/" + instance
 }
 
+// platformHealthSignals carries the window-derived facts that a single sample row
+// cannot answer on its own, because both are changes in a cumulative counter.
+type platformHealthSignals struct {
+	restarted map[string]bool
+	pressured map[string]bool
+	cpuUsage  map[string]int64
+}
+
 func buildPlatformComponent(
 	component platformobs.Component,
 	rows []dbrepo.PlatformComponentSample,
 	lastChange time.Time,
-	restarted map[string]bool,
-	cpuUsage map[string]int64,
+	signals platformHealthSignals,
 	now time.Time,
 ) platformComponentResponse {
 	hasLeadership := component == platformobs.ComponentGateway || component == platformobs.ComponentOperator
@@ -200,19 +255,31 @@ func buildPlatformComponent(
 	}
 	leaderCount, noDataCount := 0, 0
 	for _, row := range rows {
+		key := platformInstanceKey(row.Component, row.Instance, row.ClusterID)
 		health := row.Health
 		reason := row.HealthReason
-		if now.Sub(row.LastObservedAt) > platformNoDataAfter {
+		switch {
+		case now.Sub(row.LastObservedAt) > platformNoDataAfter:
 			health, reason = "no_data", "sample_stale"
 			if component == platformobs.ComponentConsoleWeb {
 				reason = "sample_stale_collected_by_console_api"
 			}
 			noDataCount++
-		} else if row.MemoryLimitBytes > 0 &&
-			row.MemoryBytes > row.MemoryLimitBytes-row.MemoryLimitBytes/10 {
-			health, reason = "degraded", "memory_limit_pressure"
-		} else if restarted[platformInstanceKey(row.Component, row.Instance, row.ClusterID)] {
+		// Deliberately NOT "memory usage is close to the limit". A Go process
+		// grows its RSS toward the cgroup ceiling before GC reclaims, so a high
+		// usage ratio is ordinary operation — flagging it marked every healthy
+		// console-api degraded. Only the kernel's own verdict counts: an
+		// allocation that had to reclaim at the limit, or an OOM kill.
+		case signals.pressured[key]:
+			health, reason = "degraded", "memory_pressure_events"
+		case signals.restarted[key]:
 			health, reason = "degraded", "restarted_in_health_window"
+		}
+		// A degraded instance with no reason gives the operator nothing to do.
+		// The producers always set one, but a direct DB edit or an older row
+		// could leave it blank.
+		if health == "degraded" && reason == "" {
+			reason = "unspecified"
 		}
 		if row.Role == string(platformobs.RoleLeader) && health != "no_data" {
 			leaderCount++
@@ -222,7 +289,7 @@ func buildPlatformComponent(
 			uptime = 0
 		}
 		cpuMillis := int64(-1)
-		if value, exists := cpuUsage[platformInstanceKey(row.Component, row.Instance, row.ClusterID)]; exists && value >= 0 {
+		if value, exists := signals.cpuUsage[key]; exists && value >= 0 {
 			cpuMillis = value / 1000
 		}
 		result.Instances = append(result.Instances, platformInstanceResponse{
@@ -234,27 +301,79 @@ func buildPlatformComponent(
 			LastObservedAt: row.LastObservedAt, DBStats: dbrepo.DecodeDBStats(row),
 		})
 	}
+	// Leader first, then standby, then by name. Sample rows arrive in map-iteration
+	// order, so without this the primary and secondary swap places between polls.
+	sort.SliceStable(result.Instances, func(i, j int) bool {
+		left, right := result.Instances[i], result.Instances[j]
+		if rank := platformRoleRank(left.Role) - platformRoleRank(right.Role); rank != 0 {
+			return rank < 0
+		}
+		return left.Instance < right.Instance
+	})
 	switch {
-	case len(rows) == 0 || noDataCount == len(rows):
+	// "Never reported" and "reported, then stopped" look identical in the data
+	// — both have no fresh sample — but only the second is a fault. Right after
+	// the switch is turned on every component is in the first state for up to a
+	// sampling interval, and calling that "unavailable" told the operator to
+	// investigate a healthy platform that simply had not reported yet.
+	case len(rows) == 0:
+		result.Health = "pending"
+		result.HealthReason = "component_pending"
+	case noDataCount == len(rows):
 		result.Health = "unavailable"
+		result.HealthReason = "component_no_samples"
 	case noDataCount > 0:
 		result.Health = "degraded"
+		result.HealthReason = "component_partial_no_data"
 	default:
 		result.Health = "ok"
 		for _, instance := range result.Instances {
 			if instance.Health == "degraded" {
 				result.Health = "degraded"
+				// Carry the first instance reason up so the component card can
+				// explain itself without the operator opening every instance.
+				if result.HealthReason == "" {
+					result.HealthReason = instance.HealthReason
+				}
 			}
 		}
 	}
-	if hasLeadership && result.Health != "unavailable" && leaderCount != 1 {
+	// Skip while pending: a component with no samples has no roles to judge, so
+	// asking "who is the leader?" would report a fault before the first report.
+	if hasLeadership && result.Health != "unavailable" && result.Health != "pending" && leaderCount != 1 {
 		result.Health = "degraded"
+		result.NoLeader = true
+		result.HealthReason = "no_leader"
 	}
+	// Never leave a degraded component without a stated reason: an unexplained
+	// warning colour is worse than no warning, because there is nothing to act on.
+	if result.Health == "degraded" && result.HealthReason == "" {
+		result.HealthReason = "unspecified"
+	}
+	// A single instance holding the leader role is a valid single-replica
+	// install, not a missing secondary. Say which it is rather than leaving the
+	// standby slot silently empty, which reads as "the secondary disappeared".
+	result.SingleReplica = hasLeadership && len(result.Instances) == 1 && !result.NoLeader
 	return result
 }
 
+func platformRoleRank(role string) int {
+	switch role {
+	case string(platformobs.RoleLeader):
+		return 0
+	case string(platformobs.RoleStandby):
+		return 1
+	default:
+		return 2
+	}
+}
+
+// worsePlatformHealth folds component health into the platform banner. "pending"
+// ranks with "ok" on purpose: a component that has not reported its first sample
+// yet is not evidence of a problem, and ranking it as a fault made every
+// freshly-enabled platform raise an alarm about itself.
 func worsePlatformHealth(current, candidate string) string {
-	rank := map[string]int{"ok": 0, "degraded": 1, "unavailable": 2}
+	rank := map[string]int{"ok": 0, "pending": 0, "degraded": 1, "unavailable": 2}
 	if rank[candidate] > rank[current] {
 		return candidate
 	}
@@ -266,7 +385,7 @@ func (h *Handlers) platformInstanceTrend(w http.ResponseWriter, r *http.Request)
 		writeErr(w, http.StatusServiceUnavailable, "platform observability is unavailable")
 		return
 	}
-	from, to, ok := platformWindow(w, r, dbrepo.PlatformSampleRetention, 24*time.Hour)
+	from, to, ok := platformWindow(w, r, dbrepo.PlatformSampleRetentionMax, 24*time.Hour)
 	if !ok {
 		return
 	}
@@ -326,7 +445,17 @@ func (h *Handlers) platformLeadershipEvents(w http.ResponseWriter, r *http.Reque
 }
 
 type platformSettingsResponse struct {
-	AdmissionPipelineEnabled bool `json:"admissionPipelineEnabled"`
+	Enabled          bool `json:"enabled"`
+	RetentionDays    int  `json:"retentionDays"`
+	MaxRetentionDays int  `json:"maxRetentionDays"`
+}
+
+func platformSettingsOf(settings *dbrepo.PlatformObservabilitySettings) platformSettingsResponse {
+	return platformSettingsResponse{
+		Enabled:          settings.Enabled,
+		RetentionDays:    settings.RetentionDays,
+		MaxRetentionDays: int(dbrepo.PlatformSampleRetentionMax / (24 * time.Hour)),
+	}
 }
 
 func (h *Handlers) getPlatformSettings(w http.ResponseWriter, r *http.Request) {
@@ -339,7 +468,12 @@ func (h *Handlers) getPlatformSettings(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeOK(w, platformSettingsResponse{AdmissionPipelineEnabled: settings.AdmissionPipelineEnabled})
+	writeOK(w, platformSettingsOf(settings))
+}
+
+type platformSettingsRequest struct {
+	Enabled       bool `json:"enabled"`
+	RetentionDays int  `json:"retentionDays"`
 }
 
 func (h *Handlers) updatePlatformSettings(w http.ResponseWriter, r *http.Request) {
@@ -347,16 +481,21 @@ func (h *Handlers) updatePlatformSettings(w http.ResponseWriter, r *http.Request
 		writeErr(w, http.StatusServiceUnavailable, "platform observability is unavailable")
 		return
 	}
-	var request platformSettingsResponse
+	var request platformSettingsRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if err := h.Repos.Platform.SetAdmissionPipelineEnabled(r.Context(), request.AdmissionPipelineEnabled); err != nil {
+	maximum := int(dbrepo.PlatformSampleRetentionMax / (24 * time.Hour))
+	if request.RetentionDays < 1 || request.RetentionDays > maximum {
+		writeErr(w, http.StatusBadRequest,
+			fmt.Sprintf("retentionDays must be between 1 and %d", maximum))
+		return
+	}
+	if err := h.Repos.Platform.UpdateSettings(r.Context(), request.Enabled, request.RetentionDays); err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	h.clearObservationCache()
 	h.notifyChange(r, gateway.PlatformObservabilitySettingsTopic)
 	h.getPlatformSettings(w, r)
 }

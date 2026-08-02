@@ -19,7 +19,7 @@ func (s *Server) handleMemberComponentSamples(
 	clusterName, operatorInstance, operatorRole string,
 	batch *gatewaypb.ComponentSampleBatch,
 ) error {
-	if s.repos.Platform == nil || batch == nil {
+	if s.repos.Platform == nil || batch == nil || !s.platformObservationEnabled.Load() {
 		return nil
 	}
 	cluster, err := s.repos.Clusters.GetByName(ctx, clusterName)
@@ -54,7 +54,7 @@ func (s *Server) handleMemberComponentSamples(
 }
 
 func (s *Server) handleGatewayComponentSamples(ctx context.Context, batch *gatewaypb.ComponentSampleBatch) error {
-	if s.repos.Platform == nil || batch == nil {
+	if s.repos.Platform == nil || batch == nil || !s.platformObservationEnabled.Load() {
 		return nil
 	}
 	for _, wire := range batch.Samples {

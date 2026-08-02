@@ -38,7 +38,7 @@ func NewCollector(identity Identity) *Collector {
 	return &Collector{
 		identity:  identity,
 		cgroupDir: defaultCgroupRoot,
-		startedAt: time.Now().UTC(),
+		startedAt: NormalizeProcessStart(time.Now()),
 		now:       time.Now,
 	}
 }
@@ -56,6 +56,7 @@ func (c *Collector) Collect() Sample {
 	resource := readCgroup(resolveCurrentCgroup(c.cgroupDir, defaultProcCgroup))
 	sample.MemoryBytes = resource.memoryBytes
 	sample.MemoryLimitBytes = resource.memoryLimitBytes
+	sample.MemoryPressureEvents = resource.memoryPressureEvents
 	sample.CPUUsageMicros = resource.cpuUsageMicros
 	sample.CPUQuotaMicros = resource.cpuQuotaMicros
 
@@ -76,28 +77,31 @@ func (c *Collector) Collect() Sample {
 // case all resource fields remain -1 as required by the wire contract.
 func CollectSiblingCgroup(component Component, instance string, observedAt, processStartedAt time.Time) Sample {
 	sample := UnavailableSample(component, instance, observedAt.UTC())
-	sample.ProcessStartedAt = processStartedAt.UTC()
+	sample.ProcessStartedAt = NormalizeProcessStart(processStartedAt)
 	resource := readSiblingCgroup(defaultCgroupRoot, defaultProcCgroup)
 	sample.MemoryBytes = resource.memoryBytes
 	sample.MemoryLimitBytes = resource.memoryLimitBytes
+	sample.MemoryPressureEvents = resource.memoryPressureEvents
 	sample.CPUUsageMicros = resource.cpuUsageMicros
 	sample.CPUQuotaMicros = resource.cpuQuotaMicros
 	return sample
 }
 
 type cgroupMetrics struct {
-	memoryBytes      int64
-	memoryLimitBytes int64
-	cpuUsageMicros   int64
-	cpuQuotaMicros   int64
+	memoryBytes          int64
+	memoryLimitBytes     int64
+	memoryPressureEvents int64
+	cpuUsageMicros       int64
+	cpuQuotaMicros       int64
 }
 
 func unavailableCgroupMetrics() cgroupMetrics {
 	return cgroupMetrics{
-		memoryBytes:      -1,
-		memoryLimitBytes: -1,
-		cpuUsageMicros:   -1,
-		cpuQuotaMicros:   -1,
+		memoryBytes:          -1,
+		memoryLimitBytes:     -1,
+		memoryPressureEvents: -1,
+		cpuUsageMicros:       -1,
+		cpuQuotaMicros:       -1,
 	}
 }
 
@@ -107,6 +111,7 @@ func readCgroup(root string) cgroupMetrics {
 		fileExists(filepath.Join(root, "memory.current")) {
 		result.memoryBytes = readInt64(filepath.Join(root, "memory.current"), 1)
 		result.memoryLimitBytes = readMemoryLimit(filepath.Join(root, "memory.max"), false)
+		result.memoryPressureEvents = readMemoryPressureEvents(filepath.Join(root, "memory.events"))
 		result.cpuUsageMicros = readCPUStat(filepath.Join(root, "cpu.stat"))
 		result.cpuQuotaMicros = readCPUQuotaV2(filepath.Join(root, "cpu.max"))
 		return result
@@ -114,9 +119,38 @@ func readCgroup(root string) cgroupMetrics {
 
 	result.memoryBytes = readInt64(filepath.Join(root, "memory", "memory.usage_in_bytes"), 1)
 	result.memoryLimitBytes = readMemoryLimit(filepath.Join(root, "memory", "memory.limit_in_bytes"), true)
+	// cgroup v1 exposes the same idea as failcnt: allocations that hit the limit.
+	result.memoryPressureEvents = readInt64(filepath.Join(root, "memory", "memory.failcnt"), 1)
 	result.cpuUsageMicros = readInt64(filepath.Join(root, "cpuacct", "cpuacct.usage"), 1000)
 	result.cpuQuotaMicros = readMemoryLimit(filepath.Join(root, "cpu", "cpu.cfs_quota_us"), false)
 	return result
+}
+
+// readMemoryPressureEvents sums the cgroup v2 counters that mean "the limit
+// actually bit": `max` counts allocations forced to reclaim at the ceiling, and
+// `oom_kill` counts processes killed for it. `low`/`high` are excluded — they
+// fire under soft targets that are not configured here.
+func readMemoryPressureEvents(path string) int64 {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return -1
+	}
+	total := int64(-1)
+	for _, line := range strings.Split(string(raw), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 || (fields[0] != "max" && fields[0] != "oom_kill") {
+			continue
+		}
+		value, parseErr := strconv.ParseInt(fields[1], 10, 64)
+		if parseErr != nil || value < 0 {
+			continue
+		}
+		if total < 0 {
+			total = 0
+		}
+		total += value
+	}
+	return total
 }
 
 func resolveCurrentCgroup(root, procCgroup string) string {

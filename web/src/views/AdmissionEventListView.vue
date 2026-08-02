@@ -24,9 +24,6 @@
         <el-option :label="$t('admissionEvent.customRange')" value="custom" />
       </el-select>
       <el-date-picker v-if="rangeKey === 'custom'" v-model="customRange" type="datetimerange" :teleported="false" style="width:360px" />
-      <el-button v-if="embedded" class="storage-button" @click="openSettings">
-        <el-icon style="margin-right:4px"><Setting /></el-icon>{{ $t('admissionEvent.storageSettings') }}
-      </el-button>
     </div>
 
     <el-table :data="events" v-loading="loading" row-key="id">
@@ -102,6 +99,17 @@
             <el-input-number v-model="settings.defaultRetentionDays" :min="1" :max="365" />
           </el-form-item>
         </div>
+
+        <h3 class="section-title">{{ $t('admissionEvent.observationSettings') }}</h3>
+        <el-form-item :label="$t('admissionEvent.observationEnabled')">
+          <el-switch
+            v-model="settings.observationEnabled"
+            :active-text="$t('common.enabled')"
+            :inactive-text="$t('common.disabled')"
+            :before-change="confirmObservation"
+          />
+        </el-form-item>
+        <div class="muted observation-hint">{{ $t('admissionEvent.observationHint') }}</div>
 
         <div class="rules-heading">
           <div>
@@ -188,6 +196,9 @@ import { collectAllPages } from '../api/pagination'
 // into a "+N" badge; the detail drawer always shows the full set.
 const POLICY_PREVIEW = 2
 defineProps<{ embedded?: boolean }>()
+// The tab host renders the page header, so it owns the settings action and
+// opens this drawer through the exposed handle.
+defineExpose({ openSettings: () => openSettings() })
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
@@ -235,6 +246,19 @@ function reloadFromFirstPage(){ page.value=1; load() }
 watch([verdicts, clusters, namespaces, resources, rangeKey, customRange], reloadFromFirstPage, { deep: true })
 
 async function openSettings(){ settings.value=await getAdmissionSettings(); settingsOpen.value=true }
+// Pipeline observability costs about 18 reports per cluster per minute plus a
+// cursor transaction per report, so the cost is stated before it is accepted.
+async function confirmObservation(){
+  if(settings.value?.observationEnabled) return true
+  try{
+    await ElMessageBox.confirm(
+      t('admissionEvent.observationWarning'),
+      t('admissionEvent.observationWarningTitle'),
+      { type:'warning', confirmButtonText:t('common.confirm'), cancelButtonText:t('common.cancel') },
+    )
+    return true
+  }catch{ return false }
+}
 async function saveSettings(){
   if(!settings.value)return
   settingsSaving.value=true
@@ -324,7 +348,6 @@ onMounted(async () => {
 <style scoped>
 .list-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:12px }
 .list-toolbar > * { flex-shrink:0 }
-.storage-button{margin-left:auto}
 .save{margin-top:24px}
 .section-title{margin:0 0 12px}
 .settings-grid,.rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}

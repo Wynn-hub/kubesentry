@@ -147,8 +147,12 @@ type AdmissionEventSettings struct {
 	MaxRetryAttempts     int
 	QueueCapacity        int
 	StoragePolicyVersion int64
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+	// ObservationEnabled gates the pipeline funnel observability. It lives here
+	// rather than in PlatformObservabilitySettings because it instruments the
+	// admission event path, and the operator configures it from the same screen.
+	ObservationEnabled bool
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 func (AdmissionEventSettings) TableName() string { return "kubesentry.admission_event_settings" }
@@ -195,12 +199,10 @@ type AdmissionEvent struct {
 func (AdmissionEvent) TableName() string { return "kubesentry.admission_events" }
 
 type PlatformObservabilitySettings struct {
-	ID                       int64 `gorm:"primaryKey;autoIncrement:false"`
-	AdmissionPipelineEnabled bool
-	LastCleanupAt            *time.Time
-	// RetentionDays remains a transient compatibility field for the existing
-	// admission-pipeline cleanup path. Platform samples use fixed retention.
-	RetentionDays int `gorm:"-"`
+	ID            int64 `gorm:"primaryKey;autoIncrement:false"`
+	Enabled       bool
+	RetentionDays int
+	LastCleanupAt *time.Time
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
@@ -210,30 +212,31 @@ func (PlatformObservabilitySettings) TableName() string {
 }
 
 type PlatformComponentSample struct {
-	ID                 int64 `gorm:"primaryKey;autoIncrement:false"`
-	BucketStartedAt    time.Time
-	Component          string
-	Instance           string
-	ClusterID          int64
-	ClusterName        string
-	Role               string
-	ProcessStartedAt   time.Time
-	RestartCount       int64
-	MemoryBytes        int64
-	MemoryLimitBytes   int64
-	CPUUsageMicros     int64 `gorm:"column:cpu_usage_micros"`
-	CPUQuotaMicros     int64 `gorm:"column:cpu_quota_micros"`
-	Goroutines         int64
-	HeapAllocBytes     int64
-	HeapSysBytes       int64
-	GCPauseTotalMicros int64 `gorm:"column:gc_pause_total_micros"`
-	GCCount            int64 `gorm:"column:gc_count"`
-	Health             string
-	HealthReason       string
-	DBStats            datatypes.JSONType[map[string]any]
-	LastObservedAt     time.Time
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ID                   int64 `gorm:"primaryKey;autoIncrement:false"`
+	BucketStartedAt      time.Time
+	Component            string
+	Instance             string
+	ClusterID            int64
+	ClusterName          string
+	Role                 string
+	ProcessStartedAt     time.Time
+	RestartCount         int64
+	MemoryBytes          int64
+	MemoryLimitBytes     int64
+	MemoryPressureEvents int64
+	CPUUsageMicros       int64 `gorm:"column:cpu_usage_micros"`
+	CPUQuotaMicros       int64 `gorm:"column:cpu_quota_micros"`
+	Goroutines           int64
+	HeapAllocBytes       int64
+	HeapSysBytes         int64
+	GCPauseTotalMicros   int64 `gorm:"column:gc_pause_total_micros"`
+	GCCount              int64 `gorm:"column:gc_count"`
+	Health               string
+	HealthReason         string
+	DBStats              datatypes.JSONType[map[string]any]
+	LastObservedAt       time.Time
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 func (PlatformComponentSample) TableName() string {

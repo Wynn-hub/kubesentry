@@ -109,6 +109,9 @@ message AdmissionEventConfig {
   int32 max_retry_attempts = 5;
   int32 queue_capacity = 6;
   bool observation_enabled = 7;
+  // Gates platform component sampling (webhook/operator self-observation).
+  // Separate from observation_enabled, which gates the admission event funnel.
+  bool platform_observation_enabled = 8;
 }
 
 message ComponentSample {
@@ -131,6 +134,9 @@ message ComponentSample {
   string health = 17;
   string health_reason = 18;
   bytes db_stats_json = 19;
+  // cgroup-reported memory pressure (v2 memory.events max+oom_kill, v1
+  // failcnt). -1 when unavailable.
+  int64 memory_pressure_events = 20;
 }
 
 message ComponentSampleBatch {
@@ -276,7 +282,14 @@ message ManagedObject {
   bytes spec_json = 4; // JSON of the CR spec (v1alpha1 types both sides)
 }
 
-message Ack {}
+// Ack answers every member frame that has no richer reply. It also carries the
+// platform observation switch, because that is the only hub->member channel a
+// standby operator has: DesiredState is pushed to the leader alone by design,
+// so a switch riding on it never reaches the standby, and the standby then
+// never samples itself.
+message Ack {
+  bool platform_observation_enabled = 1;
+}
 
 // Envelope is the generic point-to-point frame used by Connect and by
 // Dispatch's ride-along traffic over the existing Sync stream.

@@ -21,6 +21,7 @@ type AdmissionEventSink interface {
 	SubmitObservationReports(*gatewaypb.ObservationReportBatch) []*gatewaypb.ObservationReportBatchAck_Result
 	SubmitComponentSamples(*gatewaypb.ComponentSampleBatch) bool
 	AdmissionObservationEnabled() bool
+	PlatformObservationEnabled() bool
 	RecordAdmissionObservationFailure(admissionobs.ReasonClass, string)
 }
 type AdmissionEventServer struct {
@@ -60,6 +61,13 @@ func (s *AdmissionEventServer) handlePlatformSamples(w http.ResponseWriter, r *h
 	}
 	if s.Sink == nil || !s.Sink.IsLeader() {
 		http.Error(w, "platform sample leader unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	// 204 rather than 503: the feature being switched off is a settled answer,
+	// not a transient failure, so the webhook stops sampling instead of
+	// retrying and logging a warning every minute.
+	if !s.Sink.PlatformObservationEnabled() {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	var batch gatewaypb.ComponentSampleBatch

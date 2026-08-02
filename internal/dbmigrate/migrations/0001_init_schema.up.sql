@@ -129,6 +129,11 @@ CREATE TABLE admission_event_settings (
     max_retry_attempts     INT NOT NULL DEFAULT 3 CHECK (max_retry_attempts BETWEEN 1 AND 100),
     queue_capacity         INT NOT NULL DEFAULT 1024 CHECK (queue_capacity BETWEEN 1 AND 10000),
     storage_policy_version BIGINT NOT NULL DEFAULT 1,
+    -- Pipeline observability (webhook -> operator -> gateway funnel counters)
+    -- lives with the admission-event settings it instruments, not with the
+    -- platform observability settings. Off by default: it costs roughly 18
+    -- reports per cluster per minute plus a cursor transaction per report.
+    observation_enabled    BOOLEAN NOT NULL DEFAULT FALSE,
     created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -185,14 +190,20 @@ CREATE INDEX admission_events_cluster_occurred_at_idx ON admission_events (clust
 CREATE INDEX admission_events_occurred_at_idx ON admission_events (occurred_at DESC);
 
 CREATE TABLE platform_observability_settings (
-    id                         BIGINT PRIMARY KEY,
-    admission_pipeline_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-    last_cleanup_at            TIMESTAMPTZ,
-    created_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
+    id              BIGINT PRIMARY KEY,
+    -- Off by default: collecting component samples costs roughly 45 inserts per
+    -- minute at ten member clusters, plus an aggregation query per console poll.
+    enabled         BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Minute-resolution samples are for reading a failure that just happened,
+    -- not for capacity planning, so the ceiling is deliberately low. Longer
+    -- trends belong in a real monitoring stack.
+    retention_days  INT NOT NULL DEFAULT 1 CHECK (retention_days BETWEEN 1 AND 7),
+    last_cleanup_at TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-INSERT INTO platform_observability_settings (id, admission_pipeline_enabled)
-VALUES (1, FALSE);
+INSERT INTO platform_observability_settings (id, enabled, retention_days)
+VALUES (1, FALSE, 1);
 
 CREATE TABLE platform_component_samples (
     id                     BIGINT PRIMARY KEY,
@@ -208,6 +219,10 @@ CREATE TABLE platform_component_samples (
     restart_count          BIGINT NOT NULL DEFAULT 0,
     memory_bytes           BIGINT NOT NULL DEFAULT -1,
     memory_limit_bytes     BIGINT NOT NULL DEFAULT -1,
+    -- cgroup-reported memory pressure (v2 memory.events max+oom_kill, v1
+    -- failcnt). Cumulative; a rise inside the health window is what marks an
+    -- instance degraded, because a high usage ratio alone is normal for Go.
+    memory_pressure_events BIGINT NOT NULL DEFAULT -1,
     cpu_usage_micros       BIGINT NOT NULL DEFAULT -1,
     cpu_quota_micros       BIGINT NOT NULL DEFAULT -1,
     goroutines             BIGINT NOT NULL DEFAULT -1,

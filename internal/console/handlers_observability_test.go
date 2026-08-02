@@ -15,7 +15,7 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 	server, repos, handlers := newDBTestServerWithHandlers(t)
 	ctx := context.Background()
 	now := time.Now().UTC()
-	if err := repos.Platform.SetAdmissionPipelineEnabled(ctx, true); err != nil {
+	if err := enableAdmissionObservation(ctx, repos); err != nil {
 		t.Fatal(err)
 	}
 	cluster := &dbrepo.Cluster{Name: "observed-member", Phase: "Online"}
@@ -64,7 +64,9 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 	}
 
 	from := url.QueryEscape(now.Add(-time.Hour).Format(time.RFC3339))
-	to := url.QueryEscape(now.Add(time.Minute).Format(time.RFC3339))
+	// Generous upper bound: container round-trips later in this test stamp their
+	// samples with the wall clock, which can drift well past `now`.
+	to := url.QueryEscape(now.Add(10 * time.Minute).Format(time.RFC3339))
 	overviewPath := "/api/v1/observability/admission/overview?cluster=observed-member&from=" + from + "&to=" + to
 	rec, env := doRequest(t, server, "GET", overviewPath, nil)
 	if rec.Code != 200 || !env.Success {
@@ -126,19 +128,20 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 
 	fake := &fakeHubClient{}
 	handlers.Gateway = fake
-	rec, env = doRequest(t, server, "PUT", "/api/v1/platform/settings", map[string]any{"admissionPipelineEnabled": false})
+	rec, env = doRequest(t, server, "PUT", "/api/v1/platform/settings",
+		map[string]any{"enabled": true, "retentionDays": 2})
 	if rec.Code != 200 || !env.Success {
 		t.Fatalf("settings = %d: %s", rec.Code, rec.Body.String())
 	}
 	settings := mustUnmarshal[platformSettingsResponse](t, env.Data)
-	if settings.AdmissionPipelineEnabled {
+	if !settings.Enabled || settings.RetentionDays != 2 || settings.MaxRetentionDays != 7 {
 		t.Fatalf("settings = %+v", settings)
 	}
 	topics, _ := fake.calls()
 	if len(topics) != 1 || topics[0] != gateway.PlatformObservabilitySettingsTopic {
 		t.Fatalf("topics = %v", topics)
 	}
-	if err := repos.Platform.SetAdmissionPipelineEnabled(ctx, true); err != nil {
+	if err := enableAdmissionObservation(ctx, repos); err != nil {
 		t.Fatal(err)
 	}
 
@@ -146,10 +149,14 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 	if err := repos.Clusters.Create(ctx, recovered); err != nil {
 		t.Fatal(err)
 	}
+	// Freshness is judged against wall-clock time, so these reports must be
+	// stamped now rather than with the `now` captured at the top of the test —
+	// the container round-trips above can easily exceed the 90s threshold.
+	recoveredNow := time.Now().UTC()
 	for _, report := range []admissionobs.Report{
 		{
 			ReportID: "recovered-webhook-1", SeriesID: "recovered-webhook", Sequence: 1,
-			ObservedAt: now, Component: admissionobs.ComponentWebhook,
+			ObservedAt: recoveredNow, Component: admissionobs.ComponentWebhook,
 			Snapshot: admissionobs.Snapshot{
 				Counters:          admissionobs.Counters{Generated: 2},
 				FaultReasonCounts: map[string]int64{}, PressureReasonCounts: map[string]int64{}, FilterReasonCounts: map[string]int64{},
@@ -157,7 +164,7 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 		},
 		{
 			ReportID: "recovered-operator-1", SeriesID: "recovered-operator", Sequence: 1,
-			ObservedAt: now, Component: admissionobs.ComponentOperator,
+			ObservedAt: recoveredNow, Component: admissionobs.ComponentOperator,
 			Snapshot: admissionobs.Snapshot{
 				Counters:          admissionobs.Counters{Received: 2, PolicyFiltered: 1, Retry: 1},
 				FaultReasonCounts: map[string]int64{}, PressureReasonCounts: map[string]int64{},
@@ -165,26 +172,29 @@ func TestAdmissionObservabilityEndpointsAndSettings(t *testing.T) {
 			},
 		},
 	} {
-		if _, err := repos.Observability.ApplyMemberReport(ctx, recovered.ID, recovered.Name, report, now); err != nil {
+		if _, err := repos.Observability.ApplyMemberReport(ctx, recovered.ID, recovered.Name, report, recoveredNow); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if err := repos.Observability.UpsertBucket(ctx, dbrepo.ObservationBucketDelta{
-		BucketStartedAt: now.Add(-6 * time.Minute), ClusterID: recovered.ID, ClusterName: recovered.Name,
+		BucketStartedAt: recoveredNow.Add(-6 * time.Minute), ClusterID: recovered.ID, ClusterName: recovered.Name,
 		Component: admissionobs.ComponentGateway,
 		Snapshot: admissionobs.Snapshot{Counters: admissionobs.Counters{
 			Written: 1, Duplicate: 1, Dropped: 1,
 		}},
-		LastObservedAt: now.Add(-6 * time.Minute),
+		LastObservedAt: recoveredNow.Add(-6 * time.Minute),
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := repos.Observability.UpsertBucket(ctx, dbrepo.ObservationBucketDelta{
-		BucketStartedAt: now, ClusterID: 0, Component: admissionobs.ComponentCleanup,
-		ObservationWriteFailed: 1, LastObservedAt: now,
+		BucketStartedAt: recoveredNow, ClusterID: 0, Component: admissionobs.ComponentCleanup,
+		ObservationWriteFailed: 1, LastObservedAt: recoveredNow,
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// Responses are cached per window for a few seconds, and the earlier requests
+	// in this test populated those windows before these rows existed.
+	handlers.clearObservationCache()
 	recoveredPath := "/api/v1/observability/admission/overview?cluster=recovered-member&from=" + from + "&to=" + to
 	rec, env = doRequest(t, server, "GET", recoveredPath, nil)
 	if rec.Code != 200 {

@@ -72,6 +72,7 @@ type Server struct {
 	cleaner                     *AdmissionCleaner
 	observationCollector        *GatewayObservationCollector
 	admissionObservationEnabled atomic.Bool
+	platformObservationEnabled  atomic.Bool
 	observabilityCleaner        *ObservabilityCleaner
 }
 
@@ -109,6 +110,24 @@ func (s *Server) SetAdmissionObservationEnabled(enabled bool) {
 
 func (s *Server) SetObservabilityCleaner(cleaner *ObservabilityCleaner) {
 	s.observabilityCleaner = cleaner
+}
+
+// SetPlatformObservationEnabled gates component sampling. Rejecting samples at
+// the gateway is the backstop for members that have not yet received the
+// updated config; the members stop generating them on their next push.
+func (s *Server) SetPlatformObservationEnabled(enabled bool) {
+	s.platformObservationEnabled.Store(enabled)
+}
+
+func (s *Server) PlatformObservationEnabled() bool {
+	return s.platformObservationEnabled.Load()
+}
+
+// ack carries the platform observation switch on every acknowledgement. Members
+// refresh from it each heartbeat, which is the only path that also reaches a
+// standby operator.
+func (s *Server) ack() *gatewaypb.Ack {
+	return &gatewaypb.Ack{PlatformObservationEnabled: s.platformObservationEnabled.Load()}
 }
 
 func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (*gatewaypb.RegisterResponse, error) {
@@ -371,14 +390,19 @@ func (s *Server) withAdmissionEventConfig(ctx context.Context, res RenderResult)
 		RetryEnabled:         settings.RetryEnabled,
 		MaxRetryAttempts:     int32(settings.MaxRetryAttempts),
 		QueueCapacity:        int32(settings.QueueCapacity),
+		// Pipeline observability is configured alongside the admission event
+		// settings it instruments, so it rides the same config the member
+		// clusters already receive.
+		ObservationEnabled: settings.ObservationEnabled,
 	}
+	s.SetAdmissionObservationEnabled(settings.ObservationEnabled)
 	if s.repos.Platform != nil {
 		platformSettings, err := s.repos.Platform.GetSettings(ctx)
 		if err != nil {
 			return RenderResult{}, err
 		}
-		config.ObservationEnabled = platformSettings.AdmissionPipelineEnabled
-		s.SetAdmissionObservationEnabled(platformSettings.AdmissionPipelineEnabled)
+		config.PlatformObservationEnabled = platformSettings.Enabled
+		s.SetPlatformObservationEnabled(platformSettings.Enabled)
 	}
 	for _, p := range policies {
 		config.StoragePolicies = append(config.StoragePolicies, &gatewaypb.AdmissionStoragePolicy{Priority: int32(p.Priority), MatchMode: p.MatchMode, Verdicts: p.Verdicts, Clusters: p.Clusters, Gvks: p.GVKs, Namespaces: p.Namespaces})
@@ -490,7 +514,7 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 		if instance == "" || (role != "leader" && role != "standby") {
 			return status.Error(codes.InvalidArgument, "first identity frame requires instance and role")
 		}
-		if err := (&syncSession{stream: stream}).send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Ack{Ack: &gatewaypb.Ack{}}}); err != nil {
+		if err := (&syncSession{stream: stream}).send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Ack{Ack: s.ack()}}); err != nil {
 			return err
 		}
 	} else {
@@ -584,7 +608,7 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 				slog.Warn("store member platform samples", "cluster", cluster, "instance", instance, "error", err)
 			}
 		}
-		if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Ack{Ack: &gatewaypb.Ack{}}}); err != nil {
+		if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_Ack{Ack: s.ack()}}); err != nil {
 			return err
 		}
 	}
@@ -661,13 +685,23 @@ func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRe
 	// committed, and the daily pass is the fallback if this is dropped.
 	if req.Topic == AdmissionEventSettingsTopic {
 		s.cleaner.TriggerFullCleanup()
+		// The pipeline observation flag lives in the admission settings, so a
+		// write there is what toggles it. Reload eagerly rather than waiting for
+		// the next render, which is what gates the gateway's own instrumentation.
+		if s.repos.Admission != nil {
+			if settings, err := s.repos.Admission.GetSettings(ctx); err != nil {
+				slog.Warn("reload admission observation setting", "error", err)
+			} else {
+				s.SetAdmissionObservationEnabled(settings.ObservationEnabled)
+			}
+		}
 	}
 	if req.Topic == PlatformObservabilitySettingsTopic {
 		if s.repos.Platform != nil {
 			if settings, err := s.repos.Platform.GetSettings(ctx); err != nil {
 				slog.Warn("reload platform observability settings", "error", err)
 			} else {
-				s.SetAdmissionObservationEnabled(settings.AdmissionPipelineEnabled)
+				s.SetPlatformObservationEnabled(settings.Enabled)
 			}
 		}
 		if s.observabilityCleaner != nil {

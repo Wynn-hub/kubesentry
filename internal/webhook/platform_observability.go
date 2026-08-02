@@ -71,6 +71,12 @@ func (r *PlatformReporter) post(ctx context.Context, sample platformobs.Sample) 
 		return err
 	}
 	defer response.Body.Close() //nolint:errcheck
+	// 204 means the operator has platform observation switched off. That is a
+	// settled answer, not a failure — stay quiet rather than warning every
+	// minute for as long as the feature is disabled.
+	if response.StatusCode == http.StatusNoContent {
+		return nil
+	}
 	if response.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("platform sample endpoint returned %s", response.Status)
 	}

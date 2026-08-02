@@ -317,11 +317,11 @@ func observationCacheTime(value time.Time) string {
 }
 
 func (h *Handlers) admissionObservationDisabled(r *http.Request) bool {
-	if h.Repos.Platform == nil {
+	if h.Repos.Admission == nil {
 		return false
 	}
-	settings, err := h.Repos.Platform.GetSettings(r.Context())
-	return err == nil && !settings.AdmissionPipelineEnabled
+	settings, err := h.Repos.Admission.GetSettings(r.Context())
+	return err == nil && !settings.ObservationEnabled
 }
 
 func (h *Handlers) clearObservationCache() {

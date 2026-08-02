@@ -16,7 +16,10 @@ import (
 )
 
 const (
-	PlatformSampleRetention     = 7 * 24 * time.Hour
+	// PlatformSampleRetentionMax bounds the configurable sample retention. It is
+	// also the window LatestSamples scans, so a stale row can still be found and
+	// reported as no_data rather than silently disappearing from the overview.
+	PlatformSampleRetentionMax  = 7 * 24 * time.Hour
 	PlatformLeadershipRetention = 30 * 24 * time.Hour
 	platformCleanupBatchSize    = 1000
 )
@@ -63,7 +66,11 @@ func (r *PlatformObservabilityRepo) UpsertSample(
 			return fmt.Errorf("query previous platform sample: %w", err)
 		default:
 			result.RestartCount = previous.RestartCount
-			if !previous.ProcessStartedAt.Equal(sample.ProcessStartedAt.UTC()) {
+			// Both sides are normalized to the storage precision, so a
+			// difference here is a genuinely different process rather than a
+			// nanosecond tail the database dropped on the way in.
+			if !platformobs.NormalizeProcessStart(previous.ProcessStartedAt).
+				Equal(platformobs.NormalizeProcessStart(sample.ProcessStartedAt)) {
 				result.RestartCount++
 			}
 			if leadershipComponent(sample.Component) && previous.Role != string(sample.Role) {
@@ -95,24 +102,25 @@ func (r *PlatformObservabilityRepo) UpsertSample(
 				{Name: "cluster_id"},
 			},
 			DoUpdates: clause.Assignments(map[string]any{
-				"cluster_name":          row.ClusterName,
-				"role":                  row.Role,
-				"process_started_at":    row.ProcessStartedAt,
-				"restart_count":         row.RestartCount,
-				"memory_bytes":          row.MemoryBytes,
-				"memory_limit_bytes":    row.MemoryLimitBytes,
-				"cpu_usage_micros":      row.CPUUsageMicros,
-				"cpu_quota_micros":      row.CPUQuotaMicros,
-				"goroutines":            row.Goroutines,
-				"heap_alloc_bytes":      row.HeapAllocBytes,
-				"heap_sys_bytes":        row.HeapSysBytes,
-				"gc_pause_total_micros": row.GCPauseTotalMicros,
-				"gc_count":              row.GCCount,
-				"health":                row.Health,
-				"health_reason":         row.HealthReason,
-				"db_stats":              row.DBStats,
-				"last_observed_at":      row.LastObservedAt,
-				"updated_at":            receivedAt,
+				"cluster_name":           row.ClusterName,
+				"role":                   row.Role,
+				"process_started_at":     row.ProcessStartedAt,
+				"restart_count":          row.RestartCount,
+				"memory_bytes":           row.MemoryBytes,
+				"memory_limit_bytes":     row.MemoryLimitBytes,
+				"memory_pressure_events": row.MemoryPressureEvents,
+				"cpu_usage_micros":       row.CPUUsageMicros,
+				"cpu_quota_micros":       row.CPUQuotaMicros,
+				"goroutines":             row.Goroutines,
+				"heap_alloc_bytes":       row.HeapAllocBytes,
+				"heap_sys_bytes":         row.HeapSysBytes,
+				"gc_pause_total_micros":  row.GCPauseTotalMicros,
+				"gc_count":               row.GCCount,
+				"health":                 row.Health,
+				"health_reason":          row.HealthReason,
+				"db_stats":               row.DBStats,
+				"last_observed_at":       row.LastObservedAt,
+				"updated_at":             receivedAt,
 			}),
 		}).Create(&row).Error
 		if err != nil {
@@ -129,30 +137,31 @@ func platformSampleRow(sample platformobs.Sample, bucket, receivedAt time.Time, 
 		stats = map[string]any{}
 	}
 	return PlatformComponentSample{
-		ID:                 dbmodel.NewID(),
-		BucketStartedAt:    bucket,
-		Component:          string(sample.Component),
-		Instance:           sample.Instance,
-		ClusterID:          sample.ClusterID,
-		ClusterName:        sample.ClusterName,
-		Role:               string(sample.Role),
-		ProcessStartedAt:   sample.ProcessStartedAt.UTC(),
-		RestartCount:       restartCount,
-		MemoryBytes:        sample.MemoryBytes,
-		MemoryLimitBytes:   sample.MemoryLimitBytes,
-		CPUUsageMicros:     sample.CPUUsageMicros,
-		CPUQuotaMicros:     sample.CPUQuotaMicros,
-		Goroutines:         sample.Goroutines,
-		HeapAllocBytes:     sample.HeapAllocBytes,
-		HeapSysBytes:       sample.HeapSysBytes,
-		GCPauseTotalMicros: sample.GCPauseTotalMicros,
-		GCCount:            sample.GCCount,
-		Health:             string(sample.Health),
-		HealthReason:       sample.HealthReason,
-		DBStats:            datatypes.NewJSONType(stats),
-		LastObservedAt:     receivedAt,
-		CreatedAt:          receivedAt,
-		UpdatedAt:          receivedAt,
+		ID:                   dbmodel.NewID(),
+		BucketStartedAt:      bucket,
+		Component:            string(sample.Component),
+		Instance:             sample.Instance,
+		ClusterID:            sample.ClusterID,
+		ClusterName:          sample.ClusterName,
+		Role:                 string(sample.Role),
+		ProcessStartedAt:     platformobs.NormalizeProcessStart(sample.ProcessStartedAt),
+		RestartCount:         restartCount,
+		MemoryBytes:          sample.MemoryBytes,
+		MemoryLimitBytes:     sample.MemoryLimitBytes,
+		MemoryPressureEvents: sample.MemoryPressureEvents,
+		CPUUsageMicros:       sample.CPUUsageMicros,
+		CPUQuotaMicros:       sample.CPUQuotaMicros,
+		Goroutines:           sample.Goroutines,
+		HeapAllocBytes:       sample.HeapAllocBytes,
+		HeapSysBytes:         sample.HeapSysBytes,
+		GCPauseTotalMicros:   sample.GCPauseTotalMicros,
+		GCCount:              sample.GCCount,
+		Health:               string(sample.Health),
+		HealthReason:         sample.HealthReason,
+		DBStats:              datatypes.NewJSONType(stats),
+		LastObservedAt:       receivedAt,
+		CreatedAt:            receivedAt,
+		UpdatedAt:            receivedAt,
 	}
 }
 
@@ -196,12 +205,17 @@ func (r *PlatformObservabilityRepo) GetSettings(ctx context.Context) (*PlatformO
 	return &settings, nil
 }
 
-func (r *PlatformObservabilityRepo) SetAdmissionPipelineEnabled(ctx context.Context, enabled bool) error {
+func (r *PlatformObservabilityRepo) UpdateSettings(ctx context.Context, enabled bool, retentionDays int) error {
+	if retentionDays < 1 || retentionDays > int(PlatformSampleRetentionMax/(24*time.Hour)) {
+		return fmt.Errorf("platform observation retention must be between 1 and %d days",
+			int(PlatformSampleRetentionMax/(24*time.Hour)))
+	}
 	result := r.db.WithContext(ctx).Model(&PlatformObservabilitySettings{}).
 		Where("id = 1").
 		Updates(map[string]any{
-			"admission_pipeline_enabled": enabled,
-			"updated_at":                 time.Now().UTC(),
+			"enabled":        enabled,
+			"retention_days": retentionDays,
+			"updated_at":     time.Now().UTC(),
 		})
 	if result.Error != nil {
 		return fmt.Errorf("update platform observability settings: %w", result.Error)
@@ -313,6 +327,42 @@ func (r *PlatformObservabilityRepo) RestartedInstances(
 	return rows, nil
 }
 
+// MemoryPressuredInstances returns instances whose cgroup pressure counter rose
+// inside the window. The counter is cumulative, so comparing against the last
+// sample before the window is what distinguishes "was OOM-killed just now" from
+// "was OOM-killed once last week and has been fine since".
+func (r *PlatformObservabilityRepo) MemoryPressuredInstances(
+	ctx context.Context,
+	since time.Time,
+) ([]PlatformRestartedInstance, error) {
+	var rows []PlatformRestartedInstance
+	err := r.db.WithContext(ctx).Raw(`
+		WITH current_window AS (
+			SELECT component, instance, cluster_id,
+			       MIN(memory_pressure_events) AS minimum_events,
+			       MAX(memory_pressure_events) AS maximum_events
+			FROM kubesentry.platform_component_samples
+			WHERE last_observed_at >= ? AND memory_pressure_events >= 0
+			GROUP BY component, instance, cluster_id
+		), baseline AS (
+			SELECT DISTINCT ON (component, instance, cluster_id)
+			       component, instance, cluster_id, memory_pressure_events
+			FROM kubesentry.platform_component_samples
+			WHERE last_observed_at < ? AND memory_pressure_events >= 0
+			ORDER BY component, instance, cluster_id, last_observed_at DESC
+		)
+		SELECT current_window.component, current_window.instance, current_window.cluster_id
+		FROM current_window
+		LEFT JOIN baseline USING (component, instance, cluster_id)
+		WHERE current_window.maximum_events >
+		      COALESCE(baseline.memory_pressure_events, current_window.minimum_events)`,
+		since.UTC(), since.UTC()).Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("query memory pressured platform instances: %w", err)
+	}
+	return rows, nil
+}
+
 func (r *PlatformObservabilityRepo) Trend(
 	ctx context.Context,
 	component, instance string,
@@ -409,8 +459,16 @@ func (r *PlatformObservabilityRepo) LeadershipEvents(
 }
 
 func (r *PlatformObservabilityRepo) Cleanup(ctx context.Context, now time.Time) (samples, events int64, err error) {
+	settings, err := r.GetSettings(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	retention := time.Duration(settings.RetentionDays) * 24 * time.Hour
+	if retention <= 0 || retention > PlatformSampleRetentionMax {
+		retention = PlatformSampleRetentionMax
+	}
 	samples, err = r.deleteInBatches(ctx, &PlatformComponentSample{},
-		"bucket_started_at < ?", now.UTC().Add(-PlatformSampleRetention))
+		"bucket_started_at < ?", now.UTC().Add(-retention))
 	if err != nil {
 		return samples, 0, fmt.Errorf("clean platform samples: %w", err)
 	}
@@ -434,16 +492,21 @@ func (r *PlatformObservabilityRepo) deleteInBatches(
 	value time.Time,
 ) (int64, error) {
 	var deleted int64
+	// Page by primary key rather than re-scanning from the start each round.
+	// Both are correct (deleted rows cannot be selected again), but without the
+	// cursor every batch walks the index prefix it already consumed.
+	var cursor int64
 	for {
 		var ids []int64
 		if err := r.db.WithContext(ctx).Model(model).Select("id").
-			Where(where, value).Order("id ASC").
+			Where(where, value).Where("id > ?", cursor).Order("id ASC").
 			Limit(platformCleanupBatchSize).Scan(&ids).Error; err != nil {
 			return deleted, err
 		}
 		if len(ids) == 0 {
 			return deleted, nil
 		}
+		cursor = ids[len(ids)-1]
 		result := r.db.WithContext(ctx).Where("id IN ?", ids).Delete(model)
 		if result.Error != nil {
 			return deleted, result.Error

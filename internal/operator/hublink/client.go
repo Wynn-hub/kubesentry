@@ -112,6 +112,7 @@ type Link struct {
 	observationSequence atomic.Uint64
 	platformSamples     chan *gatewaypb.ComponentSample
 	platformCollector   *platformobs.Collector
+	platformObservation atomic.Bool
 }
 
 type queuedAdmissionEvent struct {
@@ -438,7 +439,9 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 		}
 		switch m := msg.Msg.(type) {
 		case *gatewaypb.HubMessage_Ack:
-			// heartbeat/status-report acknowledged; nothing to do
+			// Every Ack refreshes the platform observation switch. This is the
+			// only hub->member path a standby operator has.
+			l.SetPlatformObservationEnabled(m.Ack.GetPlatformObservationEnabled())
 		case *gatewaypb.HubMessage_AdmissionEventBatchAck:
 			l.ackAdmissionEvents(m.AdmissionEventBatchAck)
 		case *gatewaypb.HubMessage_ObservationReportBatchAck:
@@ -566,7 +569,12 @@ func (l *Link) generatePlatformSamples(ctx context.Context) {
 	ticker := time.NewTicker(platformobs.DefaultInterval)
 	defer ticker.Stop()
 	for {
-		l.enqueuePlatformSample(platformobs.ToProto(l.platformCollector.Collect()))
+		// Skip collection entirely while disabled rather than sampling and
+		// dropping: reading cgroup files and runtime metrics is the cost the
+		// switch is meant to avoid.
+		if l.PlatformObservationEnabled() {
+			l.enqueuePlatformSample(platformobs.ToProto(l.platformCollector.Collect()))
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -600,7 +608,7 @@ func (l *Link) enqueuePlatformSample(sample *gatewaypb.ComponentSample) {
 }
 
 func (l *Link) SubmitComponentSamples(batch *gatewaypb.ComponentSampleBatch) bool {
-	if !l.IsLeader() || batch == nil {
+	if !l.IsLeader() || batch == nil || !l.PlatformObservationEnabled() {
 		return false
 	}
 	for _, sample := range batch.Samples {

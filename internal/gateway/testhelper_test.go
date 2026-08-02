@@ -70,3 +70,14 @@ func newTestDB(t *testing.T) *gorm.DB {
 	}
 	return db
 }
+
+// enableAdmissionObservation turns on the pipeline funnel switch, which lives
+// with the admission event settings it instruments.
+func enableAdmissionObservation(ctx context.Context, repos Repos) error {
+	settings, err := repos.Admission.GetSettings(ctx)
+	if err != nil {
+		return err
+	}
+	settings.ObservationEnabled = true
+	return repos.Admission.UpdateSettingsAndPolicies(ctx, settings, nil)
+}

@@ -219,6 +219,33 @@ func (l *Link) setEventConfig(config *gatewaypb.AdmissionEventConfig) {
 	}
 }
 
+// SetPlatformObservationEnabled records the switch value carried by every Ack.
+// It deliberately does NOT read from eventConfig: DesiredState reaches the
+// leader only, so a standby fed from there would never sample itself.
+func (l *Link) SetPlatformObservationEnabled(enabled bool) {
+	if l.platformObservation.Swap(enabled) == enabled {
+		return
+	}
+	if !enabled {
+		// Drain queued samples: otherwise switching back on minutes later would
+		// send a burst of stale ones.
+		for {
+			select {
+			case <-l.platformSamples:
+			default:
+				return
+			}
+		}
+	}
+}
+
+// PlatformObservationEnabled reports whether the gateway has enabled component
+// sampling. Off until the first Ack arrives, so a member that never reaches the
+// gateway never samples.
+func (l *Link) PlatformObservationEnabled() bool {
+	return l.platformObservation.Load()
+}
+
 func (l *Link) enqueueOperatorObservation() {
 	_, _, eventCapacity := l.admissionDeliveryConfig()
 	l.eventsMu.Lock()
