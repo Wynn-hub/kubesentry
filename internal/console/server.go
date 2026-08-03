@@ -28,9 +28,6 @@ type Handlers struct {
 
 	schemaCacheOnce sync.Once
 	schemaCacheMap  *sync.Map
-
-	observationCacheMu sync.Mutex
-	observationCache   map[string]observationAggregateCacheEntry
 }
 
 // Register wires all /api/v1 routes. Later tasks append routes here.
@@ -61,9 +58,8 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/admission-events/trend", h.admissionEventTrend)
 	mux.HandleFunc("GET /api/v1/admission-event-settings", h.getAdmissionEventSettings)
 	mux.HandleFunc("PUT /api/v1/admission-event-settings", h.updateAdmissionEventSettings)
-	mux.HandleFunc("GET /api/v1/observability/admission/overview", h.admissionObservationOverview)
-	mux.HandleFunc("GET /api/v1/observability/admission/trend", h.admissionObservationTrend)
-	mux.HandleFunc("GET /api/v1/observability/admission/clusters", h.admissionObservationClusters)
+	mux.HandleFunc("GET /api/v1/admission-link-incidents", h.listAdmissionLinkIncidents)
+	mux.HandleFunc("GET /api/v1/admission-link-incidents/{id}", h.getAdmissionLinkIncident)
 	mux.HandleFunc("GET /api/v1/platform/overview", h.platformOverview)
 	mux.HandleFunc("GET /api/v1/platform/instances/{component}/{instance}/trend", h.platformInstanceTrend)
 	mux.HandleFunc("GET /api/v1/platform/leadership-events", h.platformLeadershipEvents)

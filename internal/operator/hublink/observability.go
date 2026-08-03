@@ -2,7 +2,7 @@ package hublink
 
 import (
 	"context"
-	"log/slog"
+	"errors"
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
@@ -12,187 +12,119 @@ import (
 )
 
 const (
-	operatorObservationInterval      = 10 * time.Second
-	operatorObservationQueueCapacity = 128
-	maxObservationRetryAttempts      = 3
+	operatorIncidentInterval = 10 * time.Second
+	operatorIncidentCapacity = 256
 )
 
-type queuedObservationReport struct {
-	report      *gatewaypb.ObservationReport
-	retryCount  int
-	inFlight    bool
-	ackDeadline time.Time
+type queuedLinkIncident struct {
+	incident         *gatewaypb.LinkIncident
+	inFlight         bool
+	inFlightRevision uint64
+	ackDeadline      time.Time
 }
 
-func (l *Link) RecordAdmissionObservationFailure(class admissionobs.ReasonClass, reason string) {
-	if reason == admissionobs.ReasonAuthFailed {
-		l.observationStats.Add(admissionobs.Counters{AuthFailure: 1})
+func (l *Link) RecordLinkIncident(reason string, affected int64, detail string) {
+	if !l.admissionObservationEnabled() {
+		return
 	}
-	l.observationStats.AddReason(class, reason, 1)
+	l.incidentTracker.Record(reason, affected, "", detail, time.Now().UTC())
 }
 
-func (l *Link) SubmitObservationReports(batch *gatewaypb.ObservationReportBatch) []*gatewaypb.ObservationReportBatchAck_Result {
-	if batch == nil || len(batch.Reports) == 0 {
+func (l *Link) SubmitLinkIncidents(batch *gatewaypb.LinkIncidentBatch) []*gatewaypb.LinkIncidentBatchAck_Result {
+	if batch == nil || len(batch.Incidents) == 0 {
 		return nil
 	}
-	results := make([]*gatewaypb.ObservationReportBatchAck_Result, 0, len(batch.Reports))
+	results := make([]*gatewaypb.LinkIncidentBatchAck_Result, 0, len(batch.Incidents))
+	if len(batch.Incidents) > admissionobs.MaxBatchSize {
+		for _, incident := range batch.Incidents {
+			results = append(results, linkIncidentACK(incidentIdentity(incident), incidentRevision(incident), gatewaypb.LinkIncidentBatchAck_Result_DISCARDED, "batch_too_large"))
+		}
+		return results
+	}
 	if !l.admissionObservationEnabled() {
-		for _, report := range batch.Reports {
-			reportID := ""
-			if report != nil {
-				reportID = report.ReportId
-			}
-			results = append(results, &gatewaypb.ObservationReportBatchAck_Result{
-				ReportId: reportID,
-				Status:   gatewaypb.ObservationReportBatchAck_Result_DISCARDED,
-				Reason:   "admission_pipeline_observation_disabled",
-			})
+		for _, incident := range batch.Incidents {
+			results = append(results, linkIncidentACK(incidentIdentity(incident), incidentRevision(incident), gatewaypb.LinkIncidentBatchAck_Result_DISCARDED, "admission_pipeline_observation_disabled"))
 		}
 		return results
 	}
 	if !l.IsLeader() {
-		for _, report := range batch.Reports {
-			reportID := ""
-			if report != nil {
-				reportID = report.ReportId
-			}
-			results = append(results, &gatewaypb.ObservationReportBatchAck_Result{
-				ReportId: reportID,
-				Status:   gatewaypb.ObservationReportBatchAck_Result_RETRYABLE,
-				Reason:   admissionobs.ReasonNotLeader,
-			})
+		for _, incident := range batch.Incidents {
+			results = append(results, linkIncidentACK(incidentIdentity(incident), incidentRevision(incident), gatewaypb.LinkIncidentBatchAck_Result_RETRYABLE, admissionobs.ReasonNotLeader))
 		}
-		l.RecordAdmissionObservationFailure(admissionobs.ReasonFault, admissionobs.ReasonNotLeader)
+		l.RecordLinkIncident(admissionobs.ReasonBatchFailure, int64(len(batch.Incidents)), admissionobs.ReasonNotLeader)
 		return results
 	}
-	l.observationsMu.Lock()
-	defer l.observationsMu.Unlock()
-	for _, incoming := range batch.Reports {
-		report, err := normalizeWebhookObservationReport(incoming)
+
+	l.incidentsMu.Lock()
+	for _, incoming := range batch.Incidents {
+		incident, err := normalizeWebhookIncident(incoming)
 		if err != nil {
-			l.RecordAdmissionObservationFailure(admissionobs.ReasonFault, admissionobs.ReasonInvalidReport)
-			reportID := ""
-			if incoming != nil {
-				reportID = incoming.ReportId
+			results = append(results, linkIncidentACK(incidentIdentity(incoming), incidentRevision(incoming), gatewaypb.LinkIncidentBatchAck_Result_DISCARDED, admissionobs.ReasonInvalidReport))
+			continue
+		}
+		if queued := l.incidents[incident.IncidentKey]; queued != nil {
+			if incident.Revision > queued.incident.Revision {
+				queued.incident = incident
 			}
-			results = append(results, &gatewaypb.ObservationReportBatchAck_Result{
-				ReportId: reportID,
-				Status:   gatewaypb.ObservationReportBatchAck_Result_DISCARDED,
-				Reason:   admissionobs.ReasonInvalidReport,
-			})
+			results = append(results, linkIncidentACK(incident.IncidentKey, incident.Revision, gatewaypb.LinkIncidentBatchAck_Result_ACCEPTED, ""))
 			continue
 		}
-		if _, exists := l.observations[report.ReportId]; exists {
-			results = append(results, &gatewaypb.ObservationReportBatchAck_Result{
-				ReportId: report.ReportId,
-				Status:   gatewaypb.ObservationReportBatchAck_Result_ACCEPTED,
-			})
+		if len(l.incidents) >= operatorIncidentCapacity {
+			results = append(results, linkIncidentACK(incident.IncidentKey, incident.Revision, gatewaypb.LinkIncidentBatchAck_Result_RETRYABLE, admissionobs.ReasonQueueFull))
 			continue
 		}
-		if len(l.observations) >= operatorObservationQueueCapacity {
-			l.observationStats.Add(admissionobs.Counters{ReportDropped: 1})
-			l.observationStats.AddReason(admissionobs.ReasonFault, admissionobs.ReasonObservationQueueFull, 1)
-			results = append(results, &gatewaypb.ObservationReportBatchAck_Result{
-				ReportId: report.ReportId,
-				Status:   gatewaypb.ObservationReportBatchAck_Result_RETRYABLE,
-				Reason:   admissionobs.ReasonObservationQueueFull,
-			})
-			continue
-		}
-		l.observations[report.ReportId] = &queuedObservationReport{report: report}
-		results = append(results, &gatewaypb.ObservationReportBatchAck_Result{
-			ReportId: report.ReportId,
-			Status:   gatewaypb.ObservationReportBatchAck_Result_ACCEPTED,
-		})
+		l.incidents[incident.IncidentKey] = &queuedLinkIncident{incident: incident}
+		results = append(results, linkIncidentACK(incident.IncidentKey, incident.Revision, gatewaypb.LinkIncidentBatchAck_Result_ACCEPTED, ""))
 	}
+	l.incidentsMu.Unlock()
 	select {
-	case l.observationsWake <- struct{}{}:
+	case l.incidentsWake <- struct{}{}:
 	default:
 	}
 	return results
 }
 
-func normalizeWebhookObservationReport(incoming *gatewaypb.ObservationReport) (*gatewaypb.ObservationReport, error) {
-	report, err := observationReportModel(incoming)
+func normalizeWebhookIncident(incoming *gatewaypb.LinkIncident) (*gatewaypb.LinkIncident, error) {
+	model, err := incidentModel(incoming)
 	if err != nil {
 		return nil, err
 	}
-	if report.Component != admissionobs.ComponentWebhook {
-		return nil, &invalidObservationError{message: "HTTP observation report must come from webhook"}
+	if model.Component != admissionobs.ComponentWebhook {
+		return nil, errors.New("HTTP incidents must come from webhook")
 	}
-	report.Snapshot = admissionobs.NormalizeSnapshot(report.Snapshot)
-	normalized := proto.Clone(incoming).(*gatewaypb.ObservationReport)
-	normalized.FaultReasonCounts = report.Snapshot.FaultReasonCounts
-	normalized.PressureReasonCounts = report.Snapshot.PressureReasonCounts
-	normalized.FilterReasonCounts = report.Snapshot.FilterReasonCounts
-	return normalized, nil
+	return proto.Clone(incoming).(*gatewaypb.LinkIncident), nil
 }
 
-type invalidObservationError struct {
-	message string
+func incidentModel(wire *gatewaypb.LinkIncident) (admissionobs.Incident, error) {
+	if wire == nil || wire.StartedAt == nil || wire.LastSeenAt == nil {
+		return admissionobs.Incident{}, errors.New("missing incident fields")
+	}
+	if err := wire.StartedAt.CheckValid(); err != nil {
+		return admissionobs.Incident{}, err
+	}
+	if err := wire.LastSeenAt.CheckValid(); err != nil {
+		return admissionobs.Incident{}, err
+	}
+	model := admissionobs.Incident{
+		IncidentKey: wire.IncidentKey, ReporterInstanceID: wire.ReporterInstanceId,
+		Revision: wire.Revision, Component: admissionobs.Component(wire.Component), Reason: wire.Reason,
+		StartedAt: wire.StartedAt.AsTime(), LastSeenAt: wire.LastSeenAt.AsTime(),
+		AffectedCount: wire.AffectedCount, SampleEventIDs: wire.SampleEventIds,
+		Detail: wire.Detail, Closed: wire.Closed,
+	}
+	return model, model.Validate()
 }
 
-func (e *invalidObservationError) Error() string { return e.message }
-
-func observationReportModel(report *gatewaypb.ObservationReport) (admissionobs.Report, error) {
-	if report == nil || report.Counters == nil || report.ObservedAt == nil {
-		return admissionobs.Report{}, &invalidObservationError{message: "missing observation fields"}
-	}
-	if err := report.ObservedAt.CheckValid(); err != nil {
-		return admissionobs.Report{}, err
-	}
-	counters := report.Counters
-	model := admissionobs.Report{
-		ReportID:   report.ReportId,
-		SeriesID:   report.SeriesId,
-		Sequence:   report.Sequence,
-		ObservedAt: report.ObservedAt.AsTime(),
-		Component:  admissionobs.Component(report.Component),
-		Snapshot: admissionobs.Snapshot{
-			Counters: admissionobs.Counters{
-				Generated:        counters.Generated,
-				Received:         counters.Received,
-				Forwarded:        counters.Forwarded,
-				Written:          counters.Written,
-				Duplicate:        counters.Duplicate,
-				PolicyFiltered:   counters.PolicyFiltered,
-				RetentionElapsed: counters.RetentionElapsed,
-				QueueRejected:    counters.QueueRejected,
-				Retry:            counters.Retry,
-				Dropped:          counters.Dropped,
-				RetryExhausted:   counters.RetryExhausted,
-				BatchFailure:     counters.BatchFailure,
-				AuthFailure:      counters.AuthFailure,
-				ACKTimeout:       counters.AckTimeout,
-				ReportDropped:    counters.ReportDropped,
-				CleanupRun:       counters.CleanupRun,
-				CleanupDeleted:   counters.CleanupDeleted,
-				CleanupFailure:   counters.CleanupFailure,
-			},
-			FaultReasonCounts:    report.FaultReasonCounts,
-			PressureReasonCounts: report.PressureReasonCounts,
-			FilterReasonCounts:   report.FilterReasonCounts,
-		},
-		QueueDepthMax: report.QueueDepthMax,
-		QueueCapacity: report.QueueCapacity,
-	}
-	model.Snapshot = admissionobs.NormalizeSnapshot(model.Snapshot)
-	if err := model.Validate(); err != nil {
-		return admissionobs.Report{}, err
-	}
-	return model, nil
-}
-
-func (l *Link) generateOperatorObservations(ctx context.Context) {
-	ticker := time.NewTicker(operatorObservationInterval)
+func (l *Link) generateOperatorIncidents(ctx context.Context) {
+	ticker := time.NewTicker(operatorIncidentInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case now := <-ticker.C:
 			if l.IsLeader() && l.admissionObservationEnabled() {
-				l.enqueueOperatorObservation()
+				l.enqueueLocalIncidents(now.UTC())
 			}
 		}
 	}
@@ -204,31 +136,151 @@ func (l *Link) admissionObservationEnabled() bool {
 	return l.eventConfig != nil && l.eventConfig.ObservationEnabled
 }
 
-func (l *Link) AdmissionObservationEnabled() bool {
-	return l.admissionObservationEnabled()
-}
+func (l *Link) AdmissionObservationEnabled() bool { return l.admissionObservationEnabled() }
 
 func (l *Link) setEventConfig(config *gatewaypb.AdmissionEventConfig) {
 	l.configMu.Lock()
 	l.eventConfig = config
 	l.configMu.Unlock()
 	if config == nil || !config.ObservationEnabled {
-		l.observationsMu.Lock()
-		l.observations = map[string]*queuedObservationReport{}
-		l.observationsMu.Unlock()
+		l.incidentsMu.Lock()
+		l.incidents = map[string]*queuedLinkIncident{}
+		l.incidentsMu.Unlock()
+		l.incidentTracker.Reset()
 	}
 }
 
-// SetPlatformObservationEnabled records the switch value carried by every Ack.
-// It deliberately does NOT read from eventConfig: DesiredState reaches the
-// leader only, so a standby fed from there would never sample itself.
+func (l *Link) enqueueLocalIncidents(now time.Time) {
+	items := l.incidentTracker.Snapshot(now)
+	l.incidentsMu.Lock()
+	for _, item := range items {
+		wire := incidentProto(item)
+		if queued := l.incidents[item.IncidentKey]; queued != nil {
+			if item.Revision > queued.incident.Revision {
+				queued.incident = wire
+			}
+			continue
+		}
+		if len(l.incidents) >= operatorIncidentCapacity {
+			l.incidentTracker.Record(admissionobs.ReasonReportDropped, 1, "", "operator incident queue reached capacity", now)
+			break
+		}
+		l.incidents[item.IncidentKey] = &queuedLinkIncident{incident: wire}
+	}
+	l.incidentsMu.Unlock()
+	select {
+	case l.incidentsWake <- struct{}{}:
+	default:
+	}
+}
+
+func (l *Link) sendLinkIncidents(now time.Time, send func(*gatewaypb.MemberMessage) error) bool {
+	l.incidentsMu.Lock()
+	incidents := make([]*gatewaypb.LinkIncident, 0, min(len(l.incidents), admissionobs.MaxBatchSize))
+	keys := make([]string, 0, cap(incidents))
+	for key, queued := range l.incidents {
+		if queued.inFlight && !queued.ackDeadline.After(now) {
+			queued.inFlight = false
+			queued.ackDeadline = time.Time{}
+			l.incidentTracker.Record(admissionobs.ReasonACKTimeout, 1, "", key, now)
+		}
+		if queued.inFlight || len(incidents) >= admissionobs.MaxBatchSize {
+			continue
+		}
+		queued.inFlight = true
+		queued.inFlightRevision = queued.incident.Revision
+		queued.ackDeadline = now.Add(eventAckTimeout)
+		incidents = append(incidents, proto.Clone(queued.incident).(*gatewaypb.LinkIncident))
+		keys = append(keys, key)
+	}
+	l.incidentsMu.Unlock()
+	if len(incidents) == 0 {
+		return true
+	}
+	if err := send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_LinkIncidentBatch{LinkIncidentBatch: &gatewaypb.LinkIncidentBatch{Incidents: incidents}}}); err != nil {
+		l.incidentsMu.Lock()
+		for _, key := range keys {
+			if queued := l.incidents[key]; queued != nil {
+				queued.inFlight = false
+			}
+		}
+		l.incidentsMu.Unlock()
+		return false
+	}
+	return true
+}
+
+func (l *Link) ackLinkIncidents(ack *gatewaypb.LinkIncidentBatchAck) {
+	if ack == nil {
+		return
+	}
+	l.incidentsMu.Lock()
+	defer l.incidentsMu.Unlock()
+	for _, result := range ack.Results {
+		if result == nil {
+			continue
+		}
+		queued := l.incidents[result.IncidentKey]
+		if queued == nil || result.Revision < queued.inFlightRevision {
+			continue
+		}
+		terminal := result.Status == gatewaypb.LinkIncidentBatchAck_Result_ACCEPTED || result.Status == gatewaypb.LinkIncidentBatchAck_Result_DISCARDED
+		if terminal {
+			l.incidentTracker.Acknowledge(result.IncidentKey, result.Revision, true)
+			if queued.incident.Revision <= result.Revision {
+				delete(l.incidents, result.IncidentKey)
+			} else {
+				queued.inFlight = false
+			}
+		} else {
+			queued.inFlight = false
+			queued.ackDeadline = time.Time{}
+		}
+	}
+}
+
+func (l *Link) failInFlightLinkIncidents() {
+	l.incidentsMu.Lock()
+	defer l.incidentsMu.Unlock()
+	for _, queued := range l.incidents {
+		queued.inFlight = false
+		queued.ackDeadline = time.Time{}
+	}
+}
+
+func incidentProto(incident admissionobs.Incident) *gatewaypb.LinkIncident {
+	return &gatewaypb.LinkIncident{
+		IncidentKey: incident.IncidentKey, ReporterInstanceId: incident.ReporterInstanceID,
+		Revision: incident.Revision, Component: string(incident.Component), Reason: incident.Reason,
+		StartedAt: timestamppb.New(incident.StartedAt), LastSeenAt: timestamppb.New(incident.LastSeenAt),
+		AffectedCount: incident.AffectedCount, SampleEventIds: incident.SampleEventIDs,
+		Detail: incident.Detail, Closed: incident.Closed,
+	}
+}
+
+func linkIncidentACK(key string, revision uint64, status gatewaypb.LinkIncidentBatchAck_Result_Status, reason string) *gatewaypb.LinkIncidentBatchAck_Result {
+	return &gatewaypb.LinkIncidentBatchAck_Result{IncidentKey: key, Revision: revision, Status: status, Reason: reason}
+}
+
+func incidentIdentity(incident *gatewaypb.LinkIncident) string {
+	if incident == nil {
+		return ""
+	}
+	return incident.IncidentKey
+}
+
+func incidentRevision(incident *gatewaypb.LinkIncident) uint64 {
+	if incident == nil {
+		return 0
+	}
+	return incident.Revision
+}
+
 func (l *Link) SetPlatformObservationEnabled(enabled bool) {
 	if l.platformObservation.Swap(enabled) == enabled {
 		return
 	}
 	if !enabled {
-		// Drain queued samples: otherwise switching back on minutes later would
-		// send a burst of stale ones.
 		for {
 			select {
 			case <-l.platformSamples:
@@ -239,164 +291,4 @@ func (l *Link) SetPlatformObservationEnabled(enabled bool) {
 	}
 }
 
-// PlatformObservationEnabled reports whether the gateway has enabled component
-// sampling. Off until the first Ack arrives, so a member that never reaches the
-// gateway never samples.
-func (l *Link) PlatformObservationEnabled() bool {
-	return l.platformObservation.Load()
-}
-
-func (l *Link) enqueueOperatorObservation() {
-	_, _, eventCapacity := l.admissionDeliveryConfig()
-	l.eventsMu.Lock()
-	l.eventQueueGauge.Observe(int64(len(l.events)), int64(eventCapacity))
-	l.eventsMu.Unlock()
-	gauge := l.eventQueueGauge.SnapshotAndReset()
-	snapshot := l.observationStats.Snapshot()
-	sequence := l.observationSequence.Add(1)
-	report := &gatewaypb.ObservationReport{
-		ReportId:             admissionobs.ReportID(l.observationSeries, sequence),
-		SeriesId:             l.observationSeries,
-		Sequence:             sequence,
-		ObservedAt:           timestamppb.Now(),
-		Component:            string(admissionobs.ComponentOperator),
-		Counters:             observationCountersProto(snapshot.Counters),
-		QueueDepthMax:        gauge.DepthPeak,
-		QueueCapacity:        gauge.Capacity,
-		FaultReasonCounts:    snapshot.FaultReasonCounts,
-		PressureReasonCounts: snapshot.PressureReasonCounts,
-		FilterReasonCounts:   snapshot.FilterReasonCounts,
-	}
-
-	l.observationsMu.Lock()
-	if len(l.observations) >= operatorObservationQueueCapacity {
-		l.observationsMu.Unlock()
-		l.observationStats.Add(admissionobs.Counters{ReportDropped: 1})
-		l.observationStats.AddReason(admissionobs.ReasonFault, admissionobs.ReasonObservationQueueFull, 1)
-		return
-	}
-	l.observations[report.ReportId] = &queuedObservationReport{report: report}
-	l.observationsMu.Unlock()
-	select {
-	case l.observationsWake <- struct{}{}:
-	default:
-	}
-}
-
-func observationCountersProto(counters admissionobs.Counters) *gatewaypb.ObservationCounters {
-	return &gatewaypb.ObservationCounters{
-		Generated:        counters.Generated,
-		Received:         counters.Received,
-		Forwarded:        counters.Forwarded,
-		Written:          counters.Written,
-		Duplicate:        counters.Duplicate,
-		PolicyFiltered:   counters.PolicyFiltered,
-		RetentionElapsed: counters.RetentionElapsed,
-		QueueRejected:    counters.QueueRejected,
-		Retry:            counters.Retry,
-		Dropped:          counters.Dropped,
-		RetryExhausted:   counters.RetryExhausted,
-		BatchFailure:     counters.BatchFailure,
-		AuthFailure:      counters.AuthFailure,
-		AckTimeout:       counters.ACKTimeout,
-		ReportDropped:    counters.ReportDropped,
-		CleanupRun:       counters.CleanupRun,
-		CleanupDeleted:   counters.CleanupDeleted,
-		CleanupFailure:   counters.CleanupFailure,
-	}
-}
-
-func (l *Link) sendObservationReports(
-	now time.Time,
-	send func(*gatewaypb.MemberMessage) error,
-) bool {
-	l.observationsMu.Lock()
-	for id, queued := range l.observations {
-		if queued.inFlight && !queued.ackDeadline.After(now) {
-			l.failObservationReportLocked(id, admissionobs.ReasonGatewayACKTimeout)
-		}
-	}
-	reports := make([]*gatewaypb.ObservationReport, 0, len(l.observations))
-	reportIDs := make([]string, 0, len(l.observations))
-	for id, queued := range l.observations {
-		if queued.inFlight {
-			continue
-		}
-		queued.inFlight = true
-		queued.ackDeadline = now.Add(eventAckTimeout)
-		reports = append(reports, proto.Clone(queued.report).(*gatewaypb.ObservationReport))
-		reportIDs = append(reportIDs, id)
-	}
-	l.observationsMu.Unlock()
-	if len(reports) == 0 {
-		return true
-	}
-	if err := send(&gatewaypb.MemberMessage{Msg: &gatewaypb.MemberMessage_ObservationReportBatch{
-		ObservationReportBatch: &gatewaypb.ObservationReportBatch{Reports: reports},
-	}}); err != nil {
-		l.observationsMu.Lock()
-		for _, id := range reportIDs {
-			if queued := l.observations[id]; queued != nil && queued.inFlight {
-				l.failObservationReportLocked(id, admissionobs.ReasonSendFailed)
-			}
-		}
-		l.observationsMu.Unlock()
-		return false
-	}
-	return true
-}
-
-func (l *Link) ackObservationReports(ack *gatewaypb.ObservationReportBatchAck) {
-	if ack == nil {
-		return
-	}
-	l.observationsMu.Lock()
-	defer l.observationsMu.Unlock()
-	for _, result := range ack.Results {
-		if result == nil {
-			continue
-		}
-		if _, exists := l.observations[result.ReportId]; !exists {
-			continue
-		}
-		switch result.Status {
-		case gatewaypb.ObservationReportBatchAck_Result_ACCEPTED,
-			gatewaypb.ObservationReportBatchAck_Result_DISCARDED:
-			delete(l.observations, result.ReportId)
-		case gatewaypb.ObservationReportBatchAck_Result_RETRYABLE:
-			l.failObservationReportLocked(result.ReportId, result.Reason)
-		}
-	}
-}
-
-func (l *Link) failObservationReportLocked(reportID, reason string) {
-	queued := l.observations[reportID]
-	if queued == nil {
-		return
-	}
-	l.observationStats.AddReason(admissionobs.ReasonFault, reason, 1)
-	if reason == admissionobs.ReasonGatewayACKTimeout {
-		l.observationStats.Add(admissionobs.Counters{ACKTimeout: 1})
-	}
-	if queued.retryCount >= maxObservationRetryAttempts {
-		delete(l.observations, reportID)
-		l.observationStats.Add(admissionobs.Counters{ReportDropped: 1, RetryExhausted: 1})
-		l.observationStats.AddReason(admissionobs.ReasonFault, admissionobs.ReasonRetryExhausted, 1)
-		slog.Warn("observation report delivery dropped", "report", reportID, "reason", reason)
-		return
-	}
-	queued.retryCount++
-	queued.inFlight = false
-	queued.ackDeadline = time.Time{}
-	l.observationStats.Add(admissionobs.Counters{Retry: 1})
-}
-
-func (l *Link) failInFlightObservationReports(reason string) {
-	l.observationsMu.Lock()
-	defer l.observationsMu.Unlock()
-	for id, queued := range l.observations {
-		if queued.inFlight {
-			l.failObservationReportLocked(id, reason)
-		}
-	}
-}
+func (l *Link) PlatformObservationEnabled() bool { return l.platformObservation.Load() }

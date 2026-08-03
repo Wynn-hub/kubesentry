@@ -1,45 +1,21 @@
-import { describe, expect, it } from 'vitest'
-import {
-  normalizeAdmissionObservationOverview,
-  normalizeObservationClusterPage,
-  normalizeObservationTrend,
-  type AdmissionObservationOverview,
-  type ObservationClusterPage,
-  type ObservationTrend,
-} from '../observability'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { getLinkIncident, listLinkIncidents } from '../observability'
+import { request } from '../http'
 
-describe('admission observability response normalization', () => {
-  it('normalizes nullable overview collections from an older backend', () => {
-    const overview = {
-      faultReasons: null,
-      windowFaults: null,
-      retryCount: null,
-      seriesStarted: null,
-    } as unknown as AdmissionObservationOverview
+vi.mock('../http', () => ({ request: vi.fn() }))
 
-    expect(normalizeAdmissionObservationOverview(overview)).toMatchObject({
-      faultReasons: [],
-      windowFaults: {},
-      retryCount: {},
-      seriesStarted: {},
-    })
+describe('link incident API normalization', () => {
+  afterEach(() => vi.resetAllMocks())
+
+  it('normalizes a nullable incident page from an older backend', async () => {
+    vi.mocked(request).mockResolvedValue({ items: null, total: 0, page: 1, pageSize: 20 })
+
+    await expect(listLinkIncidents()).resolves.toMatchObject({ items: [], total: 0 })
   })
 
-  it('normalizes nullable trend and cluster collections', () => {
-    const trend = { items: null } as unknown as ObservationTrend
-    const page = {
-      items: [{
-        freshness: null,
-        queues: null,
-        majorFaultReasons: null,
-      }],
-    } as unknown as ObservationClusterPage
+  it('normalizes nullable incident samples', async () => {
+    vi.mocked(request).mockResolvedValue({ id: '1', samples: null })
 
-    expect(normalizeObservationTrend(trend).items).toEqual([])
-    expect(normalizeObservationClusterPage(page).items[0]).toMatchObject({
-      freshness: {},
-      queues: {},
-      majorFaultReasons: [],
-    })
+    await expect(getLinkIncident('1')).resolves.toMatchObject({ id: '1', samples: [] })
   })
 })

@@ -2,6 +2,7 @@ package hublink
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
@@ -82,10 +83,9 @@ func TestSubmitAdmissionEventsReturnsRetryableWhenQueueIsFull(t *testing.T) {
 	if results[1].Status != gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE || results[1].Reason != "operator_event_queue_full" {
 		t.Fatalf("second result = %#v, want queue-full RETRYABLE", results[1])
 	}
-	snapshot := link.observationStats.Snapshot()
-	if snapshot.Counters.Received != 2 || snapshot.Counters.QueueRejected != 1 ||
-		snapshot.PressureReasonCounts[admissionobs.ReasonOperatorEventQueueFull] != 1 {
-		t.Fatalf("observation snapshot = %#v", snapshot)
+	incidents := link.incidentTracker.Snapshot(time.Now().UTC())
+	if len(incidents) != 1 || incidents[0].Reason != admissionobs.ReasonQueueFull || incidents[0].AffectedCount != 1 {
+		t.Fatalf("link incidents = %#v", incidents)
 	}
 }
 
@@ -139,5 +139,16 @@ func TestAdmissionEventAckIgnoresStaleDeliveryAttempt(t *testing.T) {
 	queued := link.events["event-1"]
 	if queued == nil || queued.retryCount != 0 || !queued.inFlight {
 		t.Fatalf("queued event changed after stale ack: %#v", queued)
+	}
+}
+
+func TestAdmissionEventAckTimeoutCreatesLinkIncident(t *testing.T) {
+	link := newAdmissionEventLink(&gatewaypb.AdmissionEventConfig{RetryEnabled: true, MaxRetryAttempts: 3, ObservationEnabled: true})
+	_, _ = link.SubmitAdmissionEvents(&gatewaypb.AdmissionEventBatch{Events: []*gatewaypb.AdmissionEvent{{EventId: "event-timeout"}}})
+	link.failAdmissionEventLocked("event-timeout", admissionobs.ReasonGatewayACKTimeout)
+
+	incidents := link.incidentTracker.Snapshot(time.Now().UTC())
+	if len(incidents) != 1 || incidents[0].Reason != admissionobs.ReasonACKTimeout || len(incidents[0].SampleEventIDs) != 1 || incidents[0].SampleEventIDs[0] != "event-timeout" {
+		t.Fatalf("incidents = %#v", incidents)
 	}
 }

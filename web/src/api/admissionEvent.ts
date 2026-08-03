@@ -15,6 +15,7 @@ export interface AdmissionSettings {
   retryEnabled: boolean
   maxRetryAttempts: number
   queueCapacity: number
+  incidentRetentionDays: number
   observationEnabled: boolean
   storagePolicyVersion: number
   storagePolicies: AdmissionStoragePolicy[]

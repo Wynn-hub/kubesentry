@@ -64,7 +64,7 @@ func main() {
 		Distributions:  dbrepo.NewDistributionRepo(db),
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
 		Admission:      dbrepo.NewAdmissionRepo(db),
-		Observability:  dbrepo.NewObservabilityRepo(db),
+		Incidents:      dbrepo.NewIncidentRepo(db),
 		Platform:       dbrepo.NewPlatformObservabilityRepo(db),
 	}
 
@@ -126,14 +126,12 @@ func main() {
 				}
 				hub := gateway.NewServer(repos, namespace, tracker, notifier, sharedToken)
 				cleaner := gateway.NewAdmissionCleaner(repos.Admission, 24*time.Hour)
-				observationCollector := gateway.NewGatewayObservationCollector(repos.Observability, 10*time.Second)
-				observabilityCleaner := gateway.NewObservabilityCleaner(repos.Observability, observationCollector, time.Hour)
+				incidentCleaner := gateway.NewIncidentCleaner(repos.Incidents, repos.Admission, time.Hour, platformReporter.RecordIncidentCleanupResult)
 				// Storage-rule changes apply to already-stored events, so the
 				// console's NotifyChange must be able to kick a full pass
 				// instead of leaving it to the daily ticker.
 				hub.SetAdmissionCleaner(cleaner)
-				hub.SetObservationCollector(observationCollector)
-				hub.SetObservabilityCleaner(observabilityCleaner)
+				hub.SetIncidentCleaner(incidentCleaner)
 				// Seed both switches before serving: a member that connects
 				// before the first render would otherwise be told observation is
 				// off, then told again a moment later that it is on.
@@ -164,14 +162,10 @@ func main() {
 						slog.Error("admission event cleanup error", "error", err)
 					}
 				}()
+				go hub.RunGatewayIncidentReporter(leaderCtx, 10*time.Second)
 				go func() {
-					if err := observationCollector.Start(leaderCtx); err != nil {
-						slog.Error("gateway observation collector error", "error", err)
-					}
-				}()
-				go func() {
-					if err := observabilityCleaner.Start(leaderCtx); err != nil {
-						slog.Error("platform observation cleanup error", "error", err)
+					if err := incidentCleaner.Start(leaderCtx); err != nil {
+						slog.Error("admission link incident cleanup error", "error", err)
 					}
 				}()
 

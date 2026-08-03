@@ -128,11 +128,12 @@ CREATE TABLE admission_event_settings (
     retry_enabled          BOOLEAN NOT NULL DEFAULT FALSE,
     max_retry_attempts     INT NOT NULL DEFAULT 3 CHECK (max_retry_attempts BETWEEN 1 AND 100),
     queue_capacity         INT NOT NULL DEFAULT 1024 CHECK (queue_capacity BETWEEN 1 AND 10000),
+    incident_retention_days INT NOT NULL DEFAULT 7 CHECK (incident_retention_days BETWEEN 1 AND 365),
     storage_policy_version BIGINT NOT NULL DEFAULT 1,
-    -- Pipeline observability (webhook -> operator -> gateway funnel counters)
+    -- Pipeline observability (webhook -> operator -> gateway link incidents)
     -- lives with the admission-event settings it instruments, not with the
-    -- platform observability settings. Off by default: it costs roughly 18
-    -- reports per cluster per minute plus a cursor transaction per report.
+    -- platform observability settings. Off by default so installations that do
+    -- not need incident diagnostics do not create reporting traffic or rows.
     observation_enabled    BOOLEAN NOT NULL DEFAULT FALSE,
     created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -261,87 +262,31 @@ CREATE INDEX platform_leadership_events_component_idx
 CREATE INDEX platform_leadership_events_time_idx
     ON platform_leadership_events (changed_at);
 
-CREATE FUNCTION jsonb_counter_add(left_counts JSONB, right_counts JSONB)
-RETURNS JSONB
-LANGUAGE SQL
-IMMUTABLE
-PARALLEL SAFE
-AS $$
-    SELECT COALESCE(jsonb_object_agg(counter_key, counter_value), '{}'::jsonb)
-    FROM (
-        SELECT counter_key, SUM(counter_value)::BIGINT AS counter_value
-        FROM (
-            SELECT key AS counter_key, value::TEXT::BIGINT AS counter_value
-            FROM jsonb_each(COALESCE(left_counts, '{}'::jsonb))
-            UNION ALL
-            SELECT key AS counter_key, value::TEXT::BIGINT AS counter_value
-            FROM jsonb_each(COALESCE(right_counts, '{}'::jsonb))
-        ) values_to_add
-        GROUP BY counter_key
-    ) merged
-$$;
-
-CREATE TABLE admission_observation_buckets (
-    id                         BIGINT PRIMARY KEY,
-    bucket_started_at          TIMESTAMPTZ NOT NULL,
-    cluster_id                 BIGINT NOT NULL DEFAULT 0,
-    cluster_name               TEXT NOT NULL DEFAULT '',
-    component                  TEXT NOT NULL CHECK (component IN ('webhook', 'operator', 'gateway', 'cleanup')),
-    generated_count            BIGINT NOT NULL DEFAULT 0,
-    received_count             BIGINT NOT NULL DEFAULT 0,
-    forwarded_count            BIGINT NOT NULL DEFAULT 0,
-    written_count              BIGINT NOT NULL DEFAULT 0,
-    duplicate_count            BIGINT NOT NULL DEFAULT 0,
-    policy_filtered_count      BIGINT NOT NULL DEFAULT 0,
-    retention_elapsed_count    BIGINT NOT NULL DEFAULT 0,
-    queue_rejected_count       BIGINT NOT NULL DEFAULT 0,
-    retry_count                BIGINT NOT NULL DEFAULT 0,
-    dropped_count              BIGINT NOT NULL DEFAULT 0,
-    retry_exhausted_count      BIGINT NOT NULL DEFAULT 0,
-    batch_failure_count        BIGINT NOT NULL DEFAULT 0,
-    auth_failure_count         BIGINT NOT NULL DEFAULT 0,
-    ack_timeout_count          BIGINT NOT NULL DEFAULT 0,
-    report_dropped_count       BIGINT NOT NULL DEFAULT 0,
-    observation_write_failed   BIGINT NOT NULL DEFAULT 0,
-    sequence_gap_count         BIGINT NOT NULL DEFAULT 0,
-    baseline_reset_count       BIGINT NOT NULL DEFAULT 0,
-    series_started_count       BIGINT NOT NULL DEFAULT 0,
-    cleanup_run_count          BIGINT NOT NULL DEFAULT 0,
-    cleanup_deleted_count      BIGINT NOT NULL DEFAULT 0,
-    cleanup_failure_count      BIGINT NOT NULL DEFAULT 0,
-    queue_depth_max            BIGINT NOT NULL DEFAULT 0,
-    queue_capacity             BIGINT NOT NULL DEFAULT 0,
-    fault_reason_counts        JSONB NOT NULL DEFAULT '{}',
-    pressure_reason_counts     JSONB NOT NULL DEFAULT '{}',
-    filter_reason_counts       JSONB NOT NULL DEFAULT '{}',
-    last_observed_at           TIMESTAMPTZ NOT NULL,
-    created_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE TABLE admission_link_incidents (
+    id                   BIGINT PRIMARY KEY,
+    cluster_id           BIGINT NOT NULL DEFAULT 0,
+    cluster_name         TEXT NOT NULL DEFAULT '',
+    incident_key         TEXT NOT NULL,
+    reporter_instance_id TEXT NOT NULL,
+    component            TEXT NOT NULL CHECK (component IN ('webhook', 'operator', 'gateway')),
+    reason               TEXT NOT NULL,
+    started_at           TIMESTAMPTZ NOT NULL,
+    last_seen_at         TIMESTAMPTZ NOT NULL,
+    affected_count       BIGINT NOT NULL CHECK (affected_count > 0),
+    sample_event_ids     TEXT[] NOT NULL DEFAULT '{}',
+    detail               TEXT NOT NULL DEFAULT '',
+    closed               BOOLEAN NOT NULL DEFAULT FALSE,
+    first_received_at    TIMESTAMPTZ NOT NULL,
+    last_received_at     TIMESTAMPTZ NOT NULL,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX admission_observation_buckets_key
-    ON admission_observation_buckets (bucket_started_at, cluster_id, component);
-CREATE INDEX admission_observation_buckets_time_idx
-    ON admission_observation_buckets (bucket_started_at DESC);
-CREATE INDEX admission_observation_buckets_cluster_time_idx
-    ON admission_observation_buckets (cluster_id, bucket_started_at DESC);
-CREATE INDEX admission_observation_buckets_last_observed_idx
-    ON admission_observation_buckets (cluster_id, component, last_observed_at DESC);
-
-CREATE TABLE observation_report_cursors (
-    id               BIGINT PRIMARY KEY,
-    cluster_id       BIGINT NOT NULL DEFAULT 0,
-    series_id        TEXT NOT NULL,
-    component        TEXT NOT NULL CHECK (component IN ('webhook', 'operator')),
-    last_sequence    BIGINT NOT NULL,
-    counter_snapshot JSONB NOT NULL DEFAULT '{}',
-    last_active_at   TIMESTAMPTZ NOT NULL,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE UNIQUE INDEX observation_report_cursors_key
-    ON observation_report_cursors (cluster_id, series_id);
-CREATE INDEX observation_report_cursors_idle_idx
-    ON observation_report_cursors (last_active_at);
+CREATE UNIQUE INDEX admission_link_incidents_key
+    ON admission_link_incidents (cluster_id, incident_key);
+CREATE INDEX admission_link_incidents_recent
+    ON admission_link_incidents (last_seen_at DESC);
+CREATE INDEX admission_link_incidents_open
+    ON admission_link_incidents (last_received_at DESC) WHERE NOT closed;
 
 -- Seed data below: 37 built-in policies, the "default" PolicyGroup and
 -- PolicyDistribution that reference them, their initial v1 PolicyVersion

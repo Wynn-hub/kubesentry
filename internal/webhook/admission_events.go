@@ -56,7 +56,6 @@ func NewHTTPAdmissionEventReporter(endpoint, token string) *HTTPAdmissionEventRe
 		client:   client,
 	}
 	r.observations = newWebhookObservationReporter(endpoint, token, client)
-	r.observations.gauge.Observe(0, int64(cap(r.queue)))
 	go r.run()
 	return r
 }
@@ -79,56 +78,37 @@ func (r *HTTPAdmissionEventReporter) Report(req *admissionv1.AdmissionRequest, r
 	_ = json.Unmarshal(req.Object.Raw, &raw)
 	policies, groups := AdmissionEventReferences(violations)
 	event := &gatewaypb.AdmissionEvent{EventId: newAdmissionEventULID(), RequestUid: string(req.UID), OccurredAt: timestamppb.Now(), Verdict: verdict, ApiGroup: req.Resource.Group, ApiVersion: req.Resource.Version, Resource: req.Resource.Resource, Operation: string(req.Operation), Namespace: req.Namespace, ResourceName: req.Name, Username: req.UserInfo.Username, UserGroups: req.UserInfo.Groups, PolicyNames: policies, PolicyGroupNames: groups, Violations: violations, MetadataSnapshot: raw["metadata"], SpecSnapshot: raw["spec"]}
-	r.observations.counters.Add(admissionobs.Counters{Generated: 1})
 	select {
 	case r.queue <- &queuedEvent{event: event}:
-		r.observations.gauge.Observe(int64(len(r.queue)), int64(cap(r.queue)))
 	default:
-		r.recordDropped(admissionobs.ReasonWebhookQueueFull)
+		r.recordIncident(admissionobs.ReasonQueueFull, event.EventId, "webhook admission event queue is full")
 		slog.Warn("admission event dropped", "event", event.EventId, "reason", "webhook_queue_full")
 	}
 }
 
 func (r *HTTPAdmissionEventReporter) run() {
 	for queued := range r.queue {
-		r.observations.gauge.Observe(int64(len(r.queue)), int64(cap(r.queue)))
 		queued.attempts++
 		result := r.deliver(queued.event)
 		if result.terminal {
-			if result.reachedOperator {
-				r.observations.counters.Add(admissionobs.Counters{Forwarded: 1})
-			}
-			if result.reason == admissionobs.ReasonStoragePolicyNoRetain {
-				r.observations.counters.Add(admissionobs.Counters{PolicyFiltered: 1})
-				r.observations.counters.AddReason(admissionobs.ReasonFilter, result.reason, 1)
-			}
 			if result.dropped {
-				r.recordDropped(result.reason)
+				r.recordIncident(admissionobs.ReasonBatchFailure, queued.event.EventId, result.reason)
 			}
 			continue
 		}
-		if result.reason == admissionobs.ReasonOperatorEventQueueFull {
-			r.observations.counters.Add(admissionobs.Counters{QueueRejected: 1})
-			r.observations.counters.AddReason(admissionobs.ReasonPressure, result.reason, 1)
-		} else if result.reason == admissionobs.ReasonOperatorRetryable {
-			r.observations.counters.AddReason(admissionobs.ReasonPressure, result.reason, 1)
-		}
 		if queued.attempts >= maxWebhookDeliveryAttempts {
-			r.observations.counters.Add(admissionobs.Counters{Dropped: 1, RetryExhausted: 1})
-			r.observations.counters.AddReason(admissionobs.ReasonFault, admissionobs.ReasonRetryExhausted, 1)
+			r.recordIncident(admissionobs.ReasonRetryExhausted, queued.event.EventId, result.reason)
 			slog.Warn("admission event delivery dropped",
 				"event", queued.event.EventId, "attempts", queued.attempts, "reason", result.reason)
 			continue
 		}
-		r.observations.counters.Add(admissionobs.Counters{Retry: 1})
 		slog.Warn("admission event delivery will retry",
 			"event", queued.event.EventId, "attempt", queued.attempts, "max_attempts", maxWebhookDeliveryAttempts, "reason", result.reason)
 		time.AfterFunc(retryDelay, func() {
 			select {
 			case r.queue <- queued:
-				r.observations.gauge.Observe(int64(len(r.queue)), int64(cap(r.queue)))
 			default:
-				r.recordDropped(admissionobs.ReasonWebhookQueueFull)
+				r.recordIncident(admissionobs.ReasonQueueFull, queued.event.EventId, "webhook admission event queue is full")
 				slog.Warn("admission event dropped", "event", queued.event.EventId, "reason", "webhook_queue_full")
 			}
 		})
@@ -185,13 +165,8 @@ func (r *HTTPAdmissionEventReporter) deliver(event *gatewaypb.AdmissionEvent) ev
 	return eventDeliveryResult{reason: admissionobs.ReasonOperatorRetryable}
 }
 
-func (r *HTTPAdmissionEventReporter) recordDropped(reason string) {
-	r.observations.counters.Add(admissionobs.Counters{Dropped: 1})
-	r.observations.counters.AddReason(admissionobs.ReasonFault, reason, 1)
-}
-
-func (r *HTTPAdmissionEventReporter) ObservationSnapshot() (admissionobs.Snapshot, admissionobs.GaugeSnapshot) {
-	return r.observations.counters.Snapshot(), r.observations.gauge.SnapshotAndReset()
+func (r *HTTPAdmissionEventReporter) recordIncident(reason, eventID, detail string) {
+	r.observations.tracker.Record(reason, 1, eventID, detail, time.Now().UTC())
 }
 
 const crockford32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

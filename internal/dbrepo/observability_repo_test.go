@@ -2,6 +2,8 @@ package dbrepo_test
 
 import (
 	"context"
+	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,230 +11,125 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
-func observationReport(series string, sequence uint64, observedAt time.Time, generated int64) admissionobs.Report {
-	return admissionobs.Report{
-		ReportID:   admissionobs.ReportID(series, sequence),
-		SeriesID:   series,
-		Sequence:   sequence,
-		ObservedAt: observedAt,
-		Component:  admissionobs.ComponentWebhook,
-		Snapshot: admissionobs.Snapshot{
-			Counters:             admissionobs.Counters{Generated: generated},
-			FaultReasonCounts:    map[string]int64{},
-			PressureReasonCounts: map[string]int64{},
-			FilterReasonCounts:   map[string]int64{},
-		},
-		QueueDepthMax: 3,
-		QueueCapacity: 256,
-	}
-}
-
-func TestObservabilityRepoAppliesCumulativeReportsAndSequenceGap(t *testing.T) {
+func TestIncidentRepoConcurrentFirstReportsConverge(t *testing.T) {
 	db := newTestDB(t)
-	ctx := context.Background()
-	cluster := &dbrepo.Cluster{Name: "observed-cluster", Phase: "Online"}
-	if err := dbrepo.NewClusterRepo(db).Create(ctx, cluster); err != nil {
-		t.Fatal(err)
+	repo := dbrepo.NewIncidentRepo(db)
+	now := time.Date(2026, 8, 3, 1, 0, 0, 0, time.UTC)
+	var wg sync.WaitGroup
+	errors := make(chan error, 12)
+	for revision := 1; revision <= 12; revision++ {
+		revision := revision
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			incident := testIncident("concurrent-key", "webhook-a", now)
+			incident.Revision = uint64(revision)
+			incident.AffectedCount = int64(revision)
+			incident.LastSeenAt = now.Add(time.Duration(revision) * time.Second)
+			errors <- repo.Upsert(context.Background(), 42, "member", incident, incident.LastSeenAt)
+		}()
 	}
-	repo := dbrepo.NewObservabilityRepo(db)
-	now := time.Now().UTC().Truncate(time.Second)
-
-	first := observationReport("series-a", 1, now, 4)
-	first.Snapshot.FaultReasonCounts[admissionobs.ReasonPostFailed] = 1
-	result, err := repo.ApplyMemberReport(ctx, cluster.ID, cluster.Name, first, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.BaselineReset || result.Duplicate || result.SequenceGap != 0 {
-		t.Fatalf("unexpected first result: %+v", result)
-	}
-
-	third := observationReport("series-a", 3, now.Add(10*time.Second), 9)
-	third.Snapshot.FaultReasonCounts[admissionobs.ReasonPostFailed] = 2
-	result, err = repo.ApplyMemberReport(ctx, cluster.ID, cluster.Name, third, now.Add(10*time.Second))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.SequenceGap != 1 {
-		t.Fatalf("sequence gap = %d, want 1", result.SequenceGap)
-	}
-
-	aggregates, err := repo.Aggregate(ctx, &cluster.ID, now.Add(-time.Minute), now.Add(time.Minute))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(aggregates) != 1 {
-		t.Fatalf("aggregates = %d, want 1", len(aggregates))
-	}
-	got := aggregates[0]
-	if got.Generated != 9 || got.SequenceGapCount != 1 || got.SeriesStartedCount != 1 {
-		t.Fatalf("aggregate = %+v", got)
-	}
-	if got.FaultReasonCounts[admissionobs.ReasonPostFailed] != 2 {
-		t.Fatalf("fault reasons = %+v", got.FaultReasonCounts)
-	}
-	var reloaded dbrepo.Cluster
-	if err := db.First(&reloaded, cluster.ID).Error; err != nil {
-		t.Fatal(err)
-	}
-	if reloaded.ObservabilityOnboardedAt == nil {
-		t.Fatal("cluster was not marked observability-onboarded")
-	}
-}
-
-func TestObservabilityRepoTreatsDuplicateAsNoOp(t *testing.T) {
-	db := newTestDB(t)
-	ctx := context.Background()
-	cluster := &dbrepo.Cluster{Name: "duplicate-cluster", Phase: "Online"}
-	if err := dbrepo.NewClusterRepo(db).Create(ctx, cluster); err != nil {
-		t.Fatal(err)
-	}
-	repo := dbrepo.NewObservabilityRepo(db)
-	now := time.Now().UTC()
-	report := observationReport("series-duplicate", 1, now, 5)
-	if _, err := repo.ApplyMemberReport(ctx, cluster.ID, cluster.Name, report, now); err != nil {
-		t.Fatal(err)
-	}
-	result, err := repo.ApplyMemberReport(ctx, cluster.ID, cluster.Name, report, now.Add(time.Second))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !result.Duplicate {
-		t.Fatalf("duplicate result = %+v", result)
-	}
-	aggregates, err := repo.Aggregate(ctx, &cluster.ID, now.Add(-time.Minute), now.Add(time.Minute))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(aggregates) != 1 || aggregates[0].Generated != 5 {
-		t.Fatalf("aggregates = %+v", aggregates)
-	}
-}
-
-func TestObservabilityRepoMissingCursorBuildsDiagnosticBaseline(t *testing.T) {
-	db := newTestDB(t)
-	ctx := context.Background()
-	cluster := &dbrepo.Cluster{Name: "baseline-cluster", Phase: "Online"}
-	if err := dbrepo.NewClusterRepo(db).Create(ctx, cluster); err != nil {
-		t.Fatal(err)
-	}
-	repo := dbrepo.NewObservabilityRepo(db)
-	now := time.Now().UTC()
-	result, err := repo.ApplyMemberReport(ctx, cluster.ID, cluster.Name, observationReport("late-series", 8, now, 1000), now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !result.BaselineReset {
-		t.Fatalf("result = %+v", result)
-	}
-	aggregates, err := repo.Aggregate(ctx, &cluster.ID, now.Add(-time.Minute), now.Add(time.Minute))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(aggregates) != 1 || aggregates[0].Generated != 0 || aggregates[0].BaselineResetCount != 1 || aggregates[0].SeriesStartedCount != 0 {
-		t.Fatalf("aggregates = %+v", aggregates)
-	}
-}
-
-func TestObservabilityRepoSeriesIdentityIsScopedByCluster(t *testing.T) {
-	db := newTestDB(t)
-	ctx := context.Background()
-	clusters := dbrepo.NewClusterRepo(db)
-	left := &dbrepo.Cluster{Name: "left-cluster", Phase: "Online"}
-	right := &dbrepo.Cluster{Name: "right-cluster", Phase: "Online"}
-	if err := clusters.Create(ctx, left); err != nil {
-		t.Fatal(err)
-	}
-	if err := clusters.Create(ctx, right); err != nil {
-		t.Fatal(err)
-	}
-	repo := dbrepo.NewObservabilityRepo(db)
-	now := time.Now().UTC()
-	for _, cluster := range []*dbrepo.Cluster{left, right} {
-		if _, err := repo.ApplyMemberReport(ctx, cluster.ID, cluster.Name, observationReport("same-series", 1, now, 2), now); err != nil {
+	wg.Wait()
+	close(errors)
+	for err := range errors {
+		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	var count int64
-	if err := db.Model(&dbrepo.ObservationReportCursor{}).Where("series_id = ?", "same-series").Count(&count).Error; err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Fatalf("cursor count = %d, want 2", count)
+	items, total, err := repo.ListPage(context.Background(), dbrepo.IncidentPageOptions{
+		PageOptions: dbrepo.PageOptions{Limit: 20, SortBy: "lastSeenAt", Desc: true}, Now: now.Add(time.Minute),
+	})
+	if err != nil || total != 1 || len(items) != 1 || items[0].AffectedCount != 12 {
+		t.Fatalf("items=%v total=%d err=%v", items, total, err)
 	}
 }
 
-func TestObservabilityRepoCleanupSeparatesBucketAndCursorRetention(t *testing.T) {
-	db := newTestDB(t)
-	ctx := context.Background()
-	repo := dbrepo.NewObservabilityRepo(db)
-	now := time.Now().UTC()
-	oldBucket := dbrepo.ObservationBucketDelta{
-		BucketStartedAt: now.Add(-31 * 24 * time.Hour),
-		ClusterID:       0,
-		Component:       admissionobs.ComponentCleanup,
-		LastObservedAt:  now.Add(-31 * 24 * time.Hour),
+func testIncident(key, instance string, now time.Time) admissionobs.Incident {
+	return admissionobs.Incident{
+		IncidentKey: key, ReporterInstanceID: instance, Revision: 1,
+		Component: admissionobs.ComponentWebhook, Reason: admissionobs.ReasonQueueFull,
+		StartedAt: now, LastSeenAt: now, AffectedCount: 2,
+		SampleEventIDs: []string{"event-a"}, Detail: "first",
 	}
-	if err := repo.UpsertBucket(ctx, oldBucket); err != nil {
-		t.Fatal(err)
-	}
-	cluster := &dbrepo.Cluster{Name: "cursor-cleanup-cluster", Phase: "Online"}
-	if err := dbrepo.NewClusterRepo(db).Create(ctx, cluster); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := repo.ApplyMemberReport(ctx, cluster.ID, cluster.Name, observationReport("idle-series", 1, now.Add(-25*time.Hour), 1), now.Add(-25*time.Hour)); err != nil {
-		t.Fatal(err)
-	}
+}
 
-	buckets, cursors, err := repo.Cleanup(ctx, now)
+func TestIncidentRepoUpsertIsIdempotentAndMergesSamples(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewIncidentRepo(db)
+	now := time.Date(2026, 8, 3, 1, 0, 0, 0, time.UTC)
+	incident := testIncident("random-key", "webhook-a", now)
+	if err := repo.Upsert(context.Background(), 42, "member", incident, now); err != nil {
+		t.Fatal(err)
+	}
+	incident.Revision = 2
+	incident.LastSeenAt = now.Add(time.Minute)
+	incident.AffectedCount = 5
+	incident.SampleEventIDs = []string{"event-b", "event-c"}
+	incident.Detail = "latest"
+	incident.Closed = true
+	if err := repo.Upsert(context.Background(), 42, "member", incident, now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	// A stale open heartbeat cannot reopen the row or replace the latest detail.
+	stale := testIncident("random-key", "webhook-a", now)
+	if err := repo.Upsert(context.Background(), 42, "member", stale, now.Add(2*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	items, total, err := repo.ListPage(context.Background(), dbrepo.IncidentPageOptions{PageOptions: dbrepo.PageOptions{Limit: 20, SortBy: "lastSeenAt", Desc: true}, Now: now.Add(2 * time.Minute)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if buckets != 1 || cursors != 1 {
-		t.Fatalf("cleanup = (%d, %d), want (1, 1)", buckets, cursors)
+	if total != 1 || len(items) != 1 || items[0].AffectedCount != 5 || !items[0].Closed || items[0].Detail != "latest" {
+		t.Fatalf("stored = %#v", items)
+	}
+	if !reflect.DeepEqual([]string(items[0].SampleEventIDs), []string{"event-a", "event-b", "event-c"}) {
+		t.Fatalf("samples = %v", items[0].SampleEventIDs)
 	}
 }
 
-func TestObservabilityRepoRequiresConsecutiveMinutesForSustainedPressure(t *testing.T) {
+func TestIncidentRepoSeparatesSameSecondReplicaKeysAndFiltersStates(t *testing.T) {
 	db := newTestDB(t)
-	ctx := context.Background()
-	repo := dbrepo.NewObservabilityRepo(db)
-	cluster := &dbrepo.Cluster{Name: "pressure-cluster", Phase: "Online"}
-	if err := dbrepo.NewClusterRepo(db).Create(ctx, cluster); err != nil {
-		t.Fatal(err)
-	}
-	now := time.Now().UTC().Truncate(time.Minute)
-	write := func(bucket time.Time) {
-		t.Helper()
-		if err := repo.UpsertBucket(ctx, dbrepo.ObservationBucketDelta{
-			BucketStartedAt: bucket,
-			ClusterID:       cluster.ID,
-			ClusterName:     cluster.Name,
-			Component:       admissionobs.ComponentOperator,
-			Snapshot: admissionobs.Snapshot{Counters: admissionobs.Counters{
-				QueueRejected: 1,
-			}},
-			QueueDepthMax:  85,
-			QueueCapacity:  100,
-			LastObservedAt: bucket,
-		}); err != nil {
+	repo := dbrepo.NewIncidentRepo(db)
+	now := time.Date(2026, 8, 3, 1, 0, 0, 0, time.UTC)
+	active := testIncident("key-a", "webhook-a", now.Add(-time.Minute))
+	interrupted := testIncident("key-b", "webhook-b", now.Add(-time.Hour))
+	closed := testIncident("key-c", "webhook-c", now.Add(-30*time.Minute))
+	closed.Closed = true
+	for _, value := range []struct {
+		incident admissionobs.Incident
+		received time.Time
+	}{{active, now}, {interrupted, now.Add(-time.Hour)}, {closed, now.Add(-30 * time.Minute)}} {
+		if err := repo.Upsert(context.Background(), 42, "member", value.incident, value.received); err != nil {
 			t.Fatal(err)
 		}
 	}
-	write(now)
-	pressure, err := repo.SustainedPressure(ctx, now, now.Add(time.Minute))
-	if err != nil {
+	for status, want := range map[string]string{"active": "key-a", "interrupted": "key-b", "closed": "key-c"} {
+		items, _, err := repo.ListPage(context.Background(), dbrepo.IncidentPageOptions{PageOptions: dbrepo.PageOptions{Limit: 20, SortBy: "lastSeenAt", Desc: true}, Statuses: []string{status}, Now: now})
+		if err != nil || len(items) != 1 || items[0].IncidentKey != want {
+			t.Fatalf("status %s: items=%v err=%v", status, items, err)
+		}
+	}
+}
+
+func TestIncidentRepoCleanupUsesGatewayReceiveTime(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewIncidentRepo(db)
+	now := time.Date(2026, 8, 3, 1, 0, 0, 0, time.UTC)
+	oldOpen := testIncident("old-open", "webhook-a", now.Add(-30*24*time.Hour))
+	recentLong := testIncident("recent-long", "webhook-a", now.Add(-30*24*time.Hour))
+	recentLong.Closed = true
+	if err := repo.Upsert(context.Background(), 42, "member", oldOpen, now.Add(-8*24*time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	if pressure[cluster.ID] {
-		t.Fatal("one pressure minute was treated as sustained")
-	}
-	write(now.Add(-time.Minute))
-	pressure, err = repo.SustainedPressure(ctx, now.Add(-time.Minute), now.Add(time.Minute))
-	if err != nil {
+	if err := repo.Upsert(context.Background(), 42, "member", recentLong, now); err != nil {
 		t.Fatal(err)
 	}
-	if !pressure[cluster.ID] {
-		t.Fatal("two consecutive pressure minutes were not detected")
+	deleted, err := repo.Cleanup(context.Background(), now, 7)
+	if err != nil || deleted != 1 {
+		t.Fatalf("deleted=%d err=%v", deleted, err)
+	}
+	items, total, err := repo.ListPage(context.Background(), dbrepo.IncidentPageOptions{PageOptions: dbrepo.PageOptions{Limit: 20, SortBy: "lastSeenAt", Desc: true}, Now: now})
+	if err != nil || total != 1 || items[0].IncidentKey != "recent-long" {
+		t.Fatalf("items=%v total=%d err=%v", items, total, err)
 	}
 }

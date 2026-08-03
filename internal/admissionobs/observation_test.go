@@ -1,124 +1,96 @@
 package admissionobs
 
 import (
+	"sync"
 	"testing"
+	"time"
 )
 
-func TestAtomicCountersNormalizeUnknownReasons(t *testing.T) {
-	counters := NewAtomicCounters()
-	counters.Add(Counters{Generated: 2, Dropped: 1})
-	counters.AddReason(ReasonFault, "future_fault", 3)
-	counters.AddReason(ReasonPressure, "future_pressure", 4)
-	counters.AddReason(ReasonFilter, "future_filter", 5)
+func TestTrackerAggregatesClosesAndAcknowledgesByRevision(t *testing.T) {
+	now := time.Date(2026, 8, 3, 1, 0, 0, 0, time.UTC)
+	tracker := NewTracker(ComponentWebhook, "webhook-a")
+	tracker.Record(ReasonQueueFull, 2, "event-a", "full", now)
+	tracker.Record(ReasonQueueFull, 3, "event-b", "still full", now.Add(30*time.Second))
 
-	snapshot := counters.Snapshot()
-	if snapshot.Counters.Generated != 2 || snapshot.Counters.Dropped != 1 {
-		t.Fatalf("unexpected counters: %+v", snapshot.Counters)
+	open := tracker.Snapshot(now.Add(30 * time.Second))
+	if len(open) != 1 || open[0].AffectedCount != 5 || open[0].Closed || open[0].Revision != 2 {
+		t.Fatalf("open incident = %#v", open)
 	}
-	if snapshot.FaultReasonCounts[ReasonUnknown] != 3 {
-		t.Fatalf("fault unknown = %d", snapshot.FaultReasonCounts[ReasonUnknown])
+	closed := tracker.Snapshot(now.Add(91 * time.Second))
+	if len(closed) != 1 || !closed[0].Closed || closed[0].Revision != 3 {
+		t.Fatalf("closed incident = %#v", closed)
 	}
-	if snapshot.PressureReasonCounts[ReasonUnknown] != 4 {
-		t.Fatalf("pressure unknown = %d", snapshot.PressureReasonCounts[ReasonUnknown])
+	tracker.Acknowledge(closed[0].IncidentKey, 2, true)
+	if tracker.PendingCount() != 1 {
+		t.Fatal("stale acknowledgement removed a newer revision")
 	}
-	if snapshot.FilterReasonCounts[ReasonUnknown] != 5 {
-		t.Fatalf("filter unknown = %d", snapshot.FilterReasonCounts[ReasonUnknown])
+	tracker.Acknowledge(closed[0].IncidentKey, 3, true)
+	if tracker.PendingCount() != 0 {
+		t.Fatal("terminal acknowledgement did not remove closed incident")
 	}
 }
 
-func TestSnapshotDelta(t *testing.T) {
-	previous := Snapshot{
-		Counters:             Counters{Generated: 2, Retry: 1},
-		FaultReasonCounts:    map[string]int64{ReasonPostFailed: 1},
-		PressureReasonCounts: map[string]int64{},
-		FilterReasonCounts:   map[string]int64{},
+func TestTrackerUsesRandomKeysForSameSecondAndCapsSamples(t *testing.T) {
+	now := time.Date(2026, 8, 3, 1, 0, 0, 0, time.UTC)
+	first := NewTracker(ComponentWebhook, "replica-a")
+	second := NewTracker(ComponentWebhook, "replica-b")
+	for index, sample := range []string{"a", "b", "c", "d", "e", "f", "a"} {
+		first.Record(ReasonQueueFull, 1, sample, "", now.Add(time.Duration(index)*time.Millisecond))
 	}
-	current := Snapshot{
-		Counters:             Counters{Generated: 7, Retry: 3},
-		FaultReasonCounts:    map[string]int64{ReasonPostFailed: 2},
-		PressureReasonCounts: map[string]int64{ReasonOperatorRetryable: 4},
-		FilterReasonCounts:   map[string]int64{},
+	second.Record(ReasonQueueFull, 1, "z", "", now)
+	left, right := first.Snapshot(now), second.Snapshot(now)
+	if left[0].IncidentKey == right[0].IncidentKey {
+		t.Fatal("same-second replicas generated the same incident key")
 	}
-	delta, err := current.Delta(previous)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if delta.Counters.Generated != 5 || delta.Counters.Retry != 2 {
-		t.Fatalf("unexpected delta: %+v", delta.Counters)
-	}
-	if delta.FaultReasonCounts[ReasonPostFailed] != 1 {
-		t.Fatalf("post_failed delta = %d", delta.FaultReasonCounts[ReasonPostFailed])
-	}
-	if delta.PressureReasonCounts[ReasonOperatorRetryable] != 4 {
-		t.Fatalf("operator_retryable delta = %d", delta.PressureReasonCounts[ReasonOperatorRetryable])
+	if len(left[0].SampleEventIDs) != MaxSampleEventIDs {
+		t.Fatalf("samples = %v", left[0].SampleEventIDs)
 	}
 }
 
-func TestSnapshotDeltaRejectsRollback(t *testing.T) {
-	_, err := (Snapshot{
-		Counters:             Counters{Generated: 1},
-		FaultReasonCounts:    map[string]int64{},
-		PressureReasonCounts: map[string]int64{},
-		FilterReasonCounts:   map[string]int64{},
-	}).Delta(Snapshot{
-		Counters:             Counters{Generated: 2},
-		FaultReasonCounts:    map[string]int64{},
-		PressureReasonCounts: map[string]int64{},
-		FilterReasonCounts:   map[string]int64{},
-	})
-	if err == nil {
-		t.Fatal("expected rollback error")
+func TestTrackerPendingCapacityRecordsNonRecursiveDrop(t *testing.T) {
+	now := time.Date(2026, 8, 3, 1, 0, 0, 0, time.UTC)
+	tracker := NewTracker(ComponentOperator, "operator-a")
+	tracker.SetPendingLimitForTest(1)
+	tracker.Record(ReasonQueueFull, 1, "", "", now)
+	tracker.Snapshot(now.Add(61 * time.Second))
+	tracker.Record(ReasonACKTimeout, 1, "", "", now.Add(62*time.Second))
+	items := tracker.Snapshot(now.Add(123 * time.Second))
+	if tracker.PendingCount() != 1 {
+		t.Fatalf("pending = %d, want bounded at one", tracker.PendingCount())
+	}
+	foundDrop := false
+	for _, item := range items {
+		foundDrop = foundDrop || item.Reason == ReasonReportDropped
+	}
+	if !foundDrop {
+		t.Fatal("pending overflow did not record report_dropped")
 	}
 }
 
-func TestQueueGaugeSnapshotResetsPeakToCurrentDepth(t *testing.T) {
-	var gauge QueueGauge
-	gauge.Observe(9, 256)
-	gauge.Observe(2, 256)
-	if got := gauge.SnapshotAndReset(); got.DepthPeak != 9 || got.Capacity != 256 {
-		t.Fatalf("snapshot = %#v, want peak 9 and capacity 256", got)
+func TestTrackerConcurrentRecord(t *testing.T) {
+	tracker := NewTracker(ComponentWebhook, "webhook-a")
+	now := time.Now().UTC()
+	var wg sync.WaitGroup
+	for range 100 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tracker.Record(ReasonQueueFull, 1, "event", "full", now)
+		}()
 	}
-	if got := gauge.SnapshotAndReset().DepthPeak; got != 2 {
-		t.Fatalf("peak = %d, want current depth 2", got)
-	}
-}
-
-func TestQueueGaugeNewPeakAppearsInNextSnapshot(t *testing.T) {
-	var gauge QueueGauge
-	gauge.Observe(4, 256)
-	if got := gauge.SnapshotAndReset().DepthPeak; got != 4 {
-		t.Fatalf("first peak = %d, want 4", got)
-	}
-	gauge.Observe(9, 256)
-	if got := gauge.SnapshotAndReset().DepthPeak; got != 9 {
-		t.Fatalf("next peak = %d, want 9", got)
+	wg.Wait()
+	items := tracker.Snapshot(now)
+	if len(items) != 1 || items[0].AffectedCount != 100 {
+		t.Fatalf("incident = %#v", items)
 	}
 }
 
-func TestHTTPFailureReasonIsBounded(t *testing.T) {
-	for status, want := range map[int]string{
-		400: ReasonHTTP4xx,
-		429: ReasonHTTP4xx,
-		500: ReasonHTTP5xx,
-		503: ReasonHTTP5xx,
-		302: ReasonUnknown,
-	} {
-		if got := HTTPFailureReason(status); got != want {
-			t.Fatalf("status %d: got %q, want %q", status, got, want)
+func TestMergeSampleEventIDsUsesStableUnion(t *testing.T) {
+	got := MergeSampleEventIDs([]string{"a", "b"}, []string{"b", "c", "d", "e", "f"})
+	want := []string{"a", "b", "c", "d", "e"}
+	for index := range want {
+		if got[index] != want[index] {
+			t.Fatalf("samples = %v", got)
 		}
-	}
-}
-
-func TestNewSeriesIDHasSixteenBytesOfEntropy(t *testing.T) {
-	first, err := NewSeriesID()
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, err := NewSeriesID()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(first) != 32 || first == second {
-		t.Fatalf("unexpected series IDs %q and %q", first, second)
 	}
 }

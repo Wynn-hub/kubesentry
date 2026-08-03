@@ -1,107 +1,87 @@
 package webhook
 
 import (
-	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func TestWebhookObservationReportUsesCumulativeCountersAndWindowGauge(t *testing.T) {
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
+
+func TestWebhookIncidentReporterKeepsLastConfigOnPollingFailure(t *testing.T) {
+	tracker := admissionobs.NewTracker(admissionobs.ComponentWebhook, "webhook-a")
+	tracker.Record(admissionobs.ReasonQueueFull, 1, "event-a", "full", time.Now().UTC())
+	canceled := false
 	reporter := &webhookObservationReporter{
-		counters: admissionobs.NewAtomicCounters(),
-		seriesID: "0123456789abcdef0123456789abcdef",
+		configURL: "http://operator/config", token: "token", tracker: tracker,
+		client: &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: http.StatusServiceUnavailable, Body: io.NopCloser(strings.NewReader("temporarily unavailable"))}, nil
+		})},
+		workersCancel: func() { canceled = true },
 	}
-	reporter.counters.Add(admissionobs.Counters{Generated: 2})
-	reporter.gauge.Observe(9, 256)
-	reporter.gauge.Observe(2, 256)
-
-	first := reporter.newReport()
-	if first.Sequence != 1 || first.ReportId != reporter.seriesID+"-1" {
-		t.Fatalf("first report identity = (%d, %q)", first.Sequence, first.ReportId)
+	reporter.refreshEnabled()
+	if canceled || reporter.workersCancel == nil {
+		t.Fatal("transient config failure disabled an already-enabled reporter")
 	}
-	if first.Counters.Generated != 2 || first.QueueDepthMax != 9 || first.QueueCapacity != 256 {
-		t.Fatalf("first report = %#v", first)
-	}
-
-	reporter.counters.Add(admissionobs.Counters{Generated: 1})
-	second := reporter.newReport()
-	if second.Counters.Generated != 3 {
-		t.Fatalf("second generated = %d, want cumulative value 3", second.Counters.Generated)
-	}
-	if second.QueueDepthMax != 2 {
-		t.Fatalf("second peak = %d, want current queue depth 2", second.QueueDepthMax)
+	if len(tracker.Snapshot(time.Now().UTC())) != 1 {
+		t.Fatal("transient config failure discarded pending incidents")
 	}
 }
 
-func TestWebhookObservationQueueDropsOldestReport(t *testing.T) {
-	reporter := &webhookObservationReporter{
-		counters: admissionobs.NewAtomicCounters(),
-		queue:    make([]*queuedObservation, 0, webhookObservationQueueSize),
-		limit:    webhookObservationQueueSize,
-		wake:     make(chan struct{}, 1),
-	}
-	for sequence := uint64(1); sequence <= webhookObservationQueueSize; sequence++ {
-		reporter.enqueue(&gatewaypb.ObservationReport{ReportId: admissionobs.ReportID("series", sequence)})
-	}
-	reporter.enqueue(&gatewaypb.ObservationReport{ReportId: "newest"})
-
-	if got := reporter.queue[0].report.ReportId; got != admissionobs.ReportID("series", 2) {
-		t.Fatalf("oldest report = %q, want sequence 2", got)
-	}
-	snapshot := reporter.counters.Snapshot()
-	if snapshot.Counters.ReportDropped != 1 ||
-		snapshot.FaultReasonCounts[admissionobs.ReasonObservationQueueFull] != 1 {
-		t.Fatalf("snapshot = %#v, want one observation queue drop", snapshot)
-	}
-}
-
-func TestWebhookObservationQueueKeepsInFlightReportAndDropsOldestPending(t *testing.T) {
-	reporter := &webhookObservationReporter{
-		counters: admissionobs.NewAtomicCounters(),
-		queue:    make([]*queuedObservation, 0, 2),
-		limit:    2,
-		wake:     make(chan struct{}, 1),
-	}
-	reporter.enqueue(&gatewaypb.ObservationReport{ReportId: "active"})
-	reporter.enqueue(&gatewaypb.ObservationReport{ReportId: "pending"})
-	if queued := reporter.front(); queued == nil || queued.report.ReportId != "active" {
-		t.Fatalf("front = %#v, want active report", queued)
-	}
-
-	reporter.enqueue(&gatewaypb.ObservationReport{ReportId: "newest"})
-
-	if len(reporter.queue) != 2 {
-		t.Fatalf("queue length = %d, want 2", len(reporter.queue))
-	}
-	if got := reporter.queue[0].report.ReportId; got != "active" {
-		t.Fatalf("in-flight report = %q, want active", got)
-	}
-	if got := reporter.queue[1].report.ReportId; got != "newest" {
-		t.Fatalf("pending report = %q, want newest", got)
-	}
-}
-
-func TestWebhookObservationQueueLimitSurvivesRepeatedDelivery(t *testing.T) {
-	reporter := &webhookObservationReporter{
-		counters: admissionobs.NewAtomicCounters(),
-		queue:    make([]*queuedObservation, 0, 2),
-		limit:    2,
-		wake:     make(chan struct{}, 1),
-	}
-	for sequence := 1; sequence <= 100; sequence++ {
-		id := fmt.Sprintf("series/%d", sequence)
-		reporter.enqueue(&gatewaypb.ObservationReport{ReportId: id})
-		if got := reporter.front(); got == nil || got.report.ReportId != id {
-			t.Fatalf("front at sequence %d = %+v", sequence, got)
+func TestWebhookIncidentReporterPostsAndAcknowledgesClosedIncident(t *testing.T) {
+	now := time.Date(2026, 8, 3, 1, 0, 0, 0, time.UTC)
+	var received *gatewaypb.LinkIncidentBatch
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var batch gatewaypb.LinkIncidentBatch
+		data, _ := io.ReadAll(r.Body)
+		if err := protojson.Unmarshal(data, &batch); err != nil {
+			t.Errorf("decode batch: %v", err)
 		}
-		reporter.remove(id)
+		received = &batch
+		ack := &gatewaypb.LinkIncidentBatchAck{}
+		for _, incident := range batch.Incidents {
+			ack.Results = append(ack.Results, &gatewaypb.LinkIncidentBatchAck_Result{IncidentKey: incident.IncidentKey, Revision: incident.Revision, Status: gatewaypb.LinkIncidentBatchAck_Result_ACCEPTED})
+		}
+		encoded, _ := protojson.Marshal(ack)
+		_, _ = w.Write(encoded)
+	}))
+	defer server.Close()
+	tracker := admissionobs.NewTracker(admissionobs.ComponentWebhook, "webhook-a")
+	reporter := &webhookObservationReporter{endpoint: server.URL, client: server.Client(), tracker: tracker}
+	tracker.Record(admissionobs.ReasonQueueFull, 2, "event-a", "full", now)
+	tracker.Snapshot(now.Add(61 * time.Second))
+	reporter.flush(now.Add(61 * time.Second))
+	if received == nil || len(received.Incidents) != 1 || !received.Incidents[0].Closed {
+		t.Fatalf("received = %#v", received)
 	}
-	if len(reporter.queue) != 0 || cap(reporter.queue) != 2 {
-		t.Fatalf("queue len/cap = %d/%d, want 0/2", len(reporter.queue), cap(reporter.queue))
+	if tracker.PendingCount() != 0 {
+		t.Fatal("closed incident was not acknowledged")
 	}
-	if got := reporter.counters.Snapshot().Counters.ReportDropped; got != 0 {
-		t.Fatalf("report dropped = %d, want 0", got)
+}
+
+func TestWebhookIncidentReporterRecordsDeliveryFailureWithoutRecursion(t *testing.T) {
+	now := time.Now().UTC()
+	tracker := admissionobs.NewTracker(admissionobs.ComponentWebhook, "webhook-a")
+	reporter := &webhookObservationReporter{endpoint: "http://127.0.0.1:1", client: &http.Client{Timeout: time.Millisecond}, tracker: tracker}
+	tracker.Record(admissionobs.ReasonQueueFull, 1, "event-a", "full", now)
+	reporter.flush(now)
+	items := tracker.Snapshot(now)
+	found := false
+	for _, item := range items {
+		found = found || item.Reason == admissionobs.ReasonReportDropped
+	}
+	if !found {
+		t.Fatalf("incidents = %#v", items)
 	}
 }

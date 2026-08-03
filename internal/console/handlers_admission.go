@@ -28,21 +28,23 @@ type admissionStoragePolicyInput struct {
 	MatchMode  string   `json:"matchMode"`
 }
 type admissionSettingsRequest struct {
-	DefaultRetentionDays int                           `json:"defaultRetentionDays"`
-	RetryEnabled         bool                          `json:"retryEnabled"`
-	MaxRetryAttempts     int                           `json:"maxRetryAttempts"`
-	QueueCapacity        int                           `json:"queueCapacity"`
-	ObservationEnabled   bool                          `json:"observationEnabled"`
-	StoragePolicies      []admissionStoragePolicyInput `json:"storagePolicies"`
+	DefaultRetentionDays  int                           `json:"defaultRetentionDays"`
+	RetryEnabled          bool                          `json:"retryEnabled"`
+	MaxRetryAttempts      int                           `json:"maxRetryAttempts"`
+	QueueCapacity         int                           `json:"queueCapacity"`
+	IncidentRetentionDays int                           `json:"incidentRetentionDays"`
+	ObservationEnabled    bool                          `json:"observationEnabled"`
+	StoragePolicies       []admissionStoragePolicyInput `json:"storagePolicies"`
 }
 type admissionSettingsResponse struct {
-	DefaultRetentionDays int                           `json:"defaultRetentionDays"`
-	RetryEnabled         bool                          `json:"retryEnabled"`
-	MaxRetryAttempts     int                           `json:"maxRetryAttempts"`
-	QueueCapacity        int                           `json:"queueCapacity"`
-	ObservationEnabled   bool                          `json:"observationEnabled"`
-	StoragePolicyVersion int64                         `json:"storagePolicyVersion"`
-	StoragePolicies      []admissionStoragePolicyInput `json:"storagePolicies"`
+	DefaultRetentionDays  int                           `json:"defaultRetentionDays"`
+	RetryEnabled          bool                          `json:"retryEnabled"`
+	MaxRetryAttempts      int                           `json:"maxRetryAttempts"`
+	QueueCapacity         int                           `json:"queueCapacity"`
+	IncidentRetentionDays int                           `json:"incidentRetentionDays"`
+	ObservationEnabled    bool                          `json:"observationEnabled"`
+	StoragePolicyVersion  int64                         `json:"storagePolicyVersion"`
+	StoragePolicies       []admissionStoragePolicyInput `json:"storagePolicies"`
 }
 
 func (h *Handlers) getAdmissionEventSettings(w http.ResponseWriter, r *http.Request) {
@@ -61,13 +63,14 @@ func (h *Handlers) getAdmissionEventSettings(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	writeOK(w, admissionSettingsResponse{
-		DefaultRetentionDays: settings.DefaultRetentionDays,
-		RetryEnabled:         settings.RetryEnabled,
-		MaxRetryAttempts:     settings.MaxRetryAttempts,
-		QueueCapacity:        settings.QueueCapacity,
-		ObservationEnabled:   settings.ObservationEnabled,
-		StoragePolicyVersion: settings.StoragePolicyVersion,
-		StoragePolicies:      storagePolicyInputs(policies),
+		DefaultRetentionDays:  settings.DefaultRetentionDays,
+		RetryEnabled:          settings.RetryEnabled,
+		MaxRetryAttempts:      settings.MaxRetryAttempts,
+		QueueCapacity:         settings.QueueCapacity,
+		IncidentRetentionDays: settings.IncidentRetentionDays,
+		ObservationEnabled:    settings.ObservationEnabled,
+		StoragePolicyVersion:  settings.StoragePolicyVersion,
+		StoragePolicies:       storagePolicyInputs(policies),
 	})
 }
 
@@ -77,8 +80,9 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 		return
 	}
 	req := admissionSettingsRequest{
-		MaxRetryAttempts: 3,
-		QueueCapacity:    1024,
+		MaxRetryAttempts:      3,
+		QueueCapacity:         1024,
+		IncidentRetentionDays: 7,
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid request body")
@@ -94,6 +98,10 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 	}
 	if req.QueueCapacity < 1 || req.QueueCapacity > 10000 {
 		writeErr(w, 400, "queueCapacity must be between 1 and 10000")
+		return
+	}
+	if req.IncidentRetentionDays < 1 || req.IncidentRetentionDays > 365 {
+		writeErr(w, 400, "incidentRetentionDays must be between 1 and 365")
 		return
 	}
 	policies := make([]dbrepo.AdmissionStoragePolicy, 0, len(req.StoragePolicies))
@@ -120,12 +128,13 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 		policies = append(policies, dbrepo.AdmissionStoragePolicy{Priority: i + 1, MatchMode: input.MatchMode, Verdicts: pq.StringArray(input.Verdicts), Clusters: pq.StringArray(input.Clusters), GVKs: pq.StringArray(input.GVKs), Namespaces: pq.StringArray(input.Namespaces)})
 	}
 	if err := h.Repos.Admission.UpdateSettingsAndPolicies(r.Context(), &dbrepo.AdmissionEventSettings{
-		ID:                   1,
-		DefaultRetentionDays: req.DefaultRetentionDays,
-		RetryEnabled:         req.RetryEnabled,
-		MaxRetryAttempts:     req.MaxRetryAttempts,
-		QueueCapacity:        req.QueueCapacity,
-		ObservationEnabled:   req.ObservationEnabled,
+		ID:                    1,
+		DefaultRetentionDays:  req.DefaultRetentionDays,
+		RetryEnabled:          req.RetryEnabled,
+		MaxRetryAttempts:      req.MaxRetryAttempts,
+		QueueCapacity:         req.QueueCapacity,
+		IncidentRetentionDays: req.IncidentRetentionDays,
+		ObservationEnabled:    req.ObservationEnabled,
 	}, policies); err != nil {
 		writeErr(w, 500, "update admission event settings: "+err.Error())
 		return
@@ -137,7 +146,6 @@ func (h *Handlers) updateAdmissionEventSettings(w http.ResponseWriter, r *http.R
 	// The observation switch lives in these settings, and the overview responses
 	// are cached for a few seconds. Without dropping the cache, toggling the
 	// switch leaves the page showing the previous state for up to one TTL.
-	h.clearObservationCache()
 	h.notifyChange(r, gateway.AdmissionEventSettingsTopic)
 	h.getAdmissionEventSettings(w, r)
 }

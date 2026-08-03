@@ -103,13 +103,10 @@ type Link struct {
 	configMu    sync.RWMutex
 	eventConfig *gatewaypb.AdmissionEventConfig
 
-	observationsMu      sync.Mutex
-	observations        map[string]*queuedObservationReport
-	observationsWake    chan struct{}
-	observationStats    *admissionobs.AtomicCounters
-	eventQueueGauge     admissionobs.QueueGauge
-	observationSeries   string
-	observationSequence atomic.Uint64
+	incidentsMu         sync.Mutex
+	incidents           map[string]*queuedLinkIncident
+	incidentsWake       chan struct{}
+	incidentTracker     *admissionobs.Tracker
 	platformSamples     chan *gatewaypb.ComponentSample
 	platformCollector   *platformobs.Collector
 	platformObservation atomic.Bool
@@ -127,26 +124,21 @@ func New(cfg Config) *Link {
 	if cfg.HeartbeatEvery == 0 {
 		cfg.HeartbeatEvery = 15 * time.Second
 	}
-	seriesID, err := admissionobs.NewSeriesID()
-	if err != nil {
-		panic("generate operator observation series id: " + err.Error())
-	}
-	link := &Link{
-		cfg:               cfg,
-		events:            map[string]*queuedAdmissionEvent{},
-		eventsWake:        make(chan struct{}, 1),
-		observations:      map[string]*queuedObservationReport{},
-		observationsWake:  make(chan struct{}, 1),
-		observationStats:  admissionobs.NewAtomicCounters(),
-		observationSeries: seriesID,
-		platformSamples:   make(chan *gatewaypb.ComponentSample, 256),
-	}
 	instance := cfg.Instance
 	if instance == "" {
 		instance = os.Getenv("POD_NAME")
 	}
 	if instance == "" {
 		instance = cfg.ClusterName + "-operator"
+	}
+	link := &Link{
+		cfg:             cfg,
+		events:          map[string]*queuedAdmissionEvent{},
+		eventsWake:      make(chan struct{}, 1),
+		incidents:       map[string]*queuedLinkIncident{},
+		incidentsWake:   make(chan struct{}, 1),
+		incidentTracker: admissionobs.NewTracker(admissionobs.ComponentOperator, instance),
+		platformSamples: make(chan *gatewaypb.ComponentSample, 256),
 	}
 	link.platformCollector = platformobs.NewCollector(platformobs.Identity{
 		Component:   platformobs.ComponentOperator,
@@ -156,7 +148,6 @@ func New(cfg Config) *Link {
 			return platformobs.Role(link.currentRole())
 		},
 	})
-	link.eventQueueGauge.Observe(0, defaultEventQueueCapacity)
 	return link
 }
 
@@ -177,14 +168,11 @@ func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*g
 	l.eventsMu.Lock()
 	defer l.eventsMu.Unlock()
 	_, _, queueCapacity := l.admissionDeliveryConfig()
-	l.observationStats.Add(admissionobs.Counters{Received: int64(len(batch.Events))})
 	for _, event := range batch.Events {
 		if event == nil || event.EventId == "" {
 			continue
 		}
 		if l.shouldDiscardAdmissionEvent(event) {
-			l.observationStats.Add(admissionobs.Counters{PolicyFiltered: 1})
-			l.observationStats.AddReason(admissionobs.ReasonFilter, admissionobs.ReasonStoragePolicyNoRetain, 1)
 			results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_DISCARDED, Reason: "storage_policy_no_retain"})
 			continue
 		}
@@ -202,13 +190,11 @@ func (l *Link) SubmitAdmissionEvents(batch *gatewaypb.AdmissionEventBatch) ([]*g
 			continue
 		}
 		if len(l.events) >= queueCapacity {
-			l.observationStats.Add(admissionobs.Counters{QueueRejected: 1})
-			l.observationStats.AddReason(admissionobs.ReasonPressure, admissionobs.ReasonOperatorEventQueueFull, 1)
+			l.incidentTracker.Record(admissionobs.ReasonQueueFull, 1, event.EventId, "operator admission event queue is full", time.Now().UTC())
 			results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE, Reason: "operator_event_queue_full"})
 			continue
 		}
 		l.events[stored.EventId] = &queuedAdmissionEvent{event: stored}
-		l.eventQueueGauge.Observe(int64(len(l.events)), int64(queueCapacity))
 		results = append(results, &gatewaypb.AdmissionEventBatchAck_Result{EventId: event.EventId, Status: gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED})
 	}
 	select {
@@ -234,7 +220,7 @@ func (l *Link) Start(ctx context.Context) error {
 			}
 		}()
 	}
-	go l.generateOperatorObservations(ctx)
+	go l.generateOperatorIncidents(ctx)
 	go l.generatePlatformSamples(ctx)
 	if uid, err := l.clusterUID(ctx); err == nil && len(uid) >= 8 {
 		l.prefix = uid[:8]
@@ -369,7 +355,7 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 	defer func() {
 		cancelSession()
 		l.failInFlightAdmissionEvents("sync_stream_closed")
-		l.failInFlightObservationReports(admissionobs.ReasonSyncStreamClosed)
+		l.failInFlightLinkIncidents()
 	}()
 	go l.sendAdmissionEvents(sessionCtx, send)
 
@@ -444,8 +430,8 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 			l.SetPlatformObservationEnabled(m.Ack.GetPlatformObservationEnabled())
 		case *gatewaypb.HubMessage_AdmissionEventBatchAck:
 			l.ackAdmissionEvents(m.AdmissionEventBatchAck)
-		case *gatewaypb.HubMessage_ObservationReportBatchAck:
-			l.ackObservationReports(m.ObservationReportBatchAck)
+		case *gatewaypb.HubMessage_LinkIncidentBatchAck:
+			l.ackLinkIncidents(m.LinkIncidentBatchAck)
 		case *gatewaypb.HubMessage_DesiredState:
 			if !l.IsLeader() {
 				slog.Warn("ignored desired state on standby operator", "instance", instance)
@@ -516,12 +502,12 @@ func (l *Link) sendAdmissionEvents(ctx context.Context, send func(*gatewaypb.Mem
 		case <-ctx.Done():
 			return
 		case <-l.eventsWake:
-		case <-l.observationsWake:
+		case <-l.incidentsWake:
 		case <-ticker.C:
 		}
 
 		now := time.Now()
-		if !l.sendObservationReports(now, send) {
+		if !l.sendLinkIncidents(now, send) {
 			return
 		}
 		if !l.sendPlatformSamples(send) {
@@ -530,7 +516,7 @@ func (l *Link) sendAdmissionEvents(ctx context.Context, send func(*gatewaypb.Mem
 		l.eventsMu.Lock()
 		for id, queued := range l.events {
 			if queued.inFlight && !queued.ackDeadline.After(now) {
-				l.failAdmissionEventLocked(id, "gateway_ack_timeout")
+				l.failAdmissionEventLocked(id, admissionobs.ReasonGatewayACKTimeout)
 			}
 		}
 		events := make([]*gatewaypb.AdmissionEvent, 0, len(l.events))
@@ -561,7 +547,6 @@ func (l *Link) sendAdmissionEvents(ctx context.Context, send func(*gatewaypb.Mem
 			l.eventsMu.Unlock()
 			return
 		}
-		l.observationStats.Add(admissionobs.Counters{Forwarded: int64(len(events))})
 	}
 }
 
@@ -602,7 +587,7 @@ func (l *Link) enqueuePlatformSample(sample *gatewaypb.ComponentSample) {
 		}
 	}
 	select {
-	case l.observationsWake <- struct{}{}:
+	case l.incidentsWake <- struct{}{}:
 	default:
 	}
 }
@@ -660,8 +645,6 @@ func (l *Link) ackAdmissionEvents(ack *gatewaypb.AdmissionEventBatchAck) {
 		switch result.Status {
 		case gatewaypb.AdmissionEventBatchAck_Result_ACCEPTED, gatewaypb.AdmissionEventBatchAck_Result_DISCARDED:
 			delete(l.events, result.EventId)
-			_, _, capacity := l.admissionDeliveryConfig()
-			l.eventQueueGauge.Observe(int64(len(l.events)), int64(capacity))
 		case gatewaypb.AdmissionEventBatchAck_Result_RETRYABLE:
 			l.failAdmissionEventLocked(result.EventId, result.Reason)
 		}
@@ -691,25 +674,20 @@ func (l *Link) failAdmissionEventLocked(eventID, reason string) {
 	if queued == nil {
 		return
 	}
+	if reason == admissionobs.ReasonGatewayACKTimeout {
+		l.incidentTracker.Record(admissionobs.ReasonACKTimeout, 1, eventID, reason, time.Now().UTC())
+	}
 	retryEnabled, maxRetryAttempts, _ := l.admissionDeliveryConfig()
 	attempts := queued.retryCount + 1
-	l.observationStats.AddReason(admissionobs.ReasonFault, reason, 1)
-	if reason == admissionobs.ReasonGatewayACKTimeout {
-		l.observationStats.Add(admissionobs.Counters{ACKTimeout: 1})
-	}
 	if !retryEnabled || queued.retryCount >= maxRetryAttempts {
 		delete(l.events, eventID)
-		l.observationStats.Add(admissionobs.Counters{Dropped: 1, RetryExhausted: 1})
-		l.observationStats.AddReason(admissionobs.ReasonFault, admissionobs.ReasonRetryExhausted, 1)
-		_, _, capacity := l.admissionDeliveryConfig()
-		l.eventQueueGauge.Observe(int64(len(l.events)), int64(capacity))
+		l.incidentTracker.Record(admissionobs.ReasonRetryExhausted, 1, eventID, reason, time.Now().UTC())
 		slog.Warn("admission event delivery dropped", "event", eventID, "attempts", attempts, "reason", reason, "retry_enabled", retryEnabled)
 		return
 	}
 	queued.retryCount++
 	queued.inFlight = false
 	queued.ackDeadline = time.Time{}
-	l.observationStats.Add(admissionobs.Counters{Retry: 1})
 	slog.Warn("admission event delivery will retry", "event", eventID, "retry", queued.retryCount, "max_retries", maxRetryAttempts, "reason", reason)
 	select {
 	case l.eventsWake <- struct{}{}:

@@ -13,14 +13,15 @@ import (
 )
 
 type PlatformReporter struct {
-	repo       *dbrepo.PlatformObservabilityRepo
-	db         *gorm.DB
-	collector  *platformobs.Collector
-	instance   string
-	isLeader   func() bool
-	interval   time.Duration
-	startedAt  time.Time
-	cleanupErr atomic.Int32
+	repo               *dbrepo.PlatformObservabilityRepo
+	db                 *gorm.DB
+	collector          *platformobs.Collector
+	instance           string
+	isLeader           func() bool
+	interval           time.Duration
+	startedAt          time.Time
+	cleanupErr         atomic.Int32
+	incidentCleanupErr atomic.Int32
 }
 
 // platformLeadershipGrace bounds how long the first sample waits for leader
@@ -119,6 +120,10 @@ func (r *PlatformReporter) collect(ctx context.Context) {
 		sample.Health = platformobs.HealthDegraded
 		sample.HealthReason = "platform_observation_cleanup_failed"
 	}
+	if r.incidentCleanupErr.Load() >= 2 {
+		sample.Health = platformobs.HealthDegraded
+		sample.HealthReason = "admission_incident_cleanup_failed"
+	}
 	if _, err := r.repo.UpsertSample(ctx, sample, time.Now()); err != nil {
 		slog.Warn("store gateway platform sample", "error", err)
 	}
@@ -135,6 +140,14 @@ func (r *PlatformReporter) collect(ctx context.Context) {
 			slog.Warn("store postgres platform sample", "error", err)
 		}
 	}
+}
+
+func (r *PlatformReporter) RecordIncidentCleanupResult(err error) {
+	if err != nil {
+		r.incidentCleanupErr.Add(1)
+		return
+	}
+	r.incidentCleanupErr.Store(0)
 }
 
 func (r *PlatformReporter) cleanup(ctx context.Context) {

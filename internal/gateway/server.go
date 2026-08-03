@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -50,7 +51,7 @@ type Repos struct {
 	Distributions  *dbrepo.DistributionRepo
 	Exceptions     *dbrepo.ExceptionRepo
 	Admission      *dbrepo.AdmissionRepo
-	Observability  *dbrepo.ObservabilityRepo
+	Incidents      *dbrepo.IncidentRepo
 	Platform       *dbrepo.PlatformObservabilityRepo
 	InstallRecords *dbrepo.InstallRecordRepo
 	UninstallTasks *dbrepo.UninstallTaskRepo
@@ -70,21 +71,22 @@ type Server struct {
 	// admission-event-settings NotifyChange. Left nil by every non-leader
 	// path and by tests, both of which have no cleanup loop running.
 	cleaner                     *AdmissionCleaner
-	observationCollector        *GatewayObservationCollector
 	admissionObservationEnabled atomic.Bool
 	platformObservationEnabled  atomic.Bool
-	observabilityCleaner        *ObservabilityCleaner
+	incidentCleaner             *IncidentCleaner
+	gatewayIncidentTracker      *admissionobs.Tracker
 }
 
 func NewServer(repos Repos, namespace string, hb *HeartbeatTracker, changes *Notifier, sharedToken string) *Server {
 	return &Server{
-		repos:       repos,
-		namespace:   namespace,
-		hb:          hb,
-		changes:     changes,
-		sessions:    newSessionRegistry(),
-		connected:   newConnectRegistry(),
-		sharedToken: sharedToken,
+		repos:                  repos,
+		namespace:              namespace,
+		hb:                     hb,
+		changes:                changes,
+		sessions:               newSessionRegistry(),
+		connected:              newConnectRegistry(),
+		sharedToken:            sharedToken,
+		gatewayIncidentTracker: admissionobs.NewTracker(admissionobs.ComponentGateway, os.Getenv("POD_NAME")),
 	}
 }
 
@@ -94,22 +96,15 @@ func NewServer(repos Repos, namespace string, hb *HeartbeatTracker, changes *Not
 // same callback.
 func (s *Server) SetAdmissionCleaner(cleaner *AdmissionCleaner) { s.cleaner = cleaner }
 
-func (s *Server) SetObservationCollector(collector *GatewayObservationCollector) {
-	s.observationCollector = collector
-	if collector != nil {
-		collector.SetEnabled(s.admissionObservationEnabled.Load())
-	}
-}
-
 func (s *Server) SetAdmissionObservationEnabled(enabled bool) {
 	s.admissionObservationEnabled.Store(enabled)
-	if s.observationCollector != nil {
-		s.observationCollector.SetEnabled(enabled)
+	if !enabled {
+		s.gatewayIncidentTracker.Reset()
 	}
 }
 
-func (s *Server) SetObservabilityCleaner(cleaner *ObservabilityCleaner) {
-	s.observabilityCleaner = cleaner
+func (s *Server) SetIncidentCleaner(cleaner *IncidentCleaner) {
+	s.incidentCleaner = cleaner
 }
 
 // SetPlatformObservationEnabled gates component sampling. Rejecting samples at
@@ -148,10 +143,7 @@ func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (
 
 	// 校验一次性注册 token：gateway 只存哈希。
 	if subtle.ConstantTimeCompare([]byte(cl.RegTokenHash), []byte(HashToken(req.RegistrationToken))) != 1 {
-		s.recordGatewayObservation(nil, admissionobs.Snapshot{
-			Counters:          admissionobs.Counters{AuthFailure: 1},
-			FaultReasonCounts: map[string]int64{admissionobs.ReasonRegisterAuthFailed: 1},
-		})
+		s.recordGatewayIncident(admissionobs.ReasonAuthFailure, 1, admissionobs.ReasonRegisterAuthFailed, time.Now().UTC())
 		return nil, status.Error(codes.PermissionDenied, "invalid registration token")
 	}
 
@@ -495,10 +487,7 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 		return status.Error(codes.Unauthenticated, "missing cluster identity metadata")
 	}
 	if err := s.validateSyncAuth(stream.Context(), cluster, token); err != nil {
-		s.recordGatewayObservation(nil, admissionobs.Snapshot{
-			Counters:          admissionobs.Counters{AuthFailure: 1},
-			FaultReasonCounts: map[string]int64{admissionobs.ReasonSyncAuthFailed: 1},
-		})
+		s.recordGatewayIncident(admissionobs.ReasonAuthFailure, 1, admissionobs.ReasonSyncAuthFailed, time.Now().UTC())
 		return status.Error(codes.Unauthenticated, err.Error())
 	}
 
@@ -597,9 +586,9 @@ func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 				return err
 			}
 			continue
-		case *gatewaypb.MemberMessage_ObservationReportBatch:
-			ack := s.handleObservationReportBatch(stream.Context(), cluster, m.ObservationReportBatch)
-			if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_ObservationReportBatchAck{ObservationReportBatchAck: ack}}); err != nil {
+		case *gatewaypb.MemberMessage_LinkIncidentBatch:
+			ack := s.handleLinkIncidentBatch(stream.Context(), cluster, m.LinkIncidentBatch)
+			if err := sess.send(&gatewaypb.HubMessage{Msg: &gatewaypb.HubMessage_LinkIncidentBatchAck{LinkIncidentBatchAck: ack}}); err != nil {
 				return err
 			}
 			continue
@@ -685,6 +674,9 @@ func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRe
 	// committed, and the daily pass is the fallback if this is dropped.
 	if req.Topic == AdmissionEventSettingsTopic {
 		s.cleaner.TriggerFullCleanup()
+		if s.incidentCleaner != nil {
+			s.incidentCleaner.Trigger()
+		}
 		// The pipeline observation flag lives in the admission settings, so a
 		// write there is what toggles it. Reload eagerly rather than waiting for
 		// the next render, which is what gates the gateway's own instrumentation.
@@ -703,9 +695,6 @@ func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRe
 			} else {
 				s.SetPlatformObservationEnabled(settings.Enabled)
 			}
-		}
-		if s.observabilityCleaner != nil {
-			s.observabilityCleaner.Trigger()
 		}
 	}
 	return &gatewaypb.NotifyChangeResponse{}, nil
@@ -749,10 +738,7 @@ func (s *Server) Connect(stream gatewaypb.Hub_ConnectServer) error {
 		return status.Error(codes.FailedPrecondition, "gateway shared token not configured")
 	}
 	if subtle.ConstantTimeCompare([]byte(req.SharedToken), []byte(s.sharedToken)) != 1 {
-		s.recordGatewayObservation(nil, admissionobs.Snapshot{
-			Counters:          admissionobs.Counters{AuthFailure: 1},
-			FaultReasonCounts: map[string]int64{admissionobs.ReasonAuthFailed: 1},
-		})
+		s.recordGatewayIncident(admissionobs.ReasonAuthFailure, 1, "shared token authentication failed", time.Now().UTC())
 		return status.Error(codes.Unauthenticated, "invalid shared token")
 	}
 

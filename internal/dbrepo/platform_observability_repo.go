@@ -49,7 +49,7 @@ func (r *PlatformObservabilityRepo) UpsertSample(
 		return PlatformSampleResult{}, errors.New("cluster id must not be negative")
 	}
 	receivedAt = receivedAt.UTC()
-	bucketStartedAt := observationBucketTime(sample.ObservedAt, receivedAt)
+	bucketStartedAt := platformObservationBucketTime(sample.ObservedAt, receivedAt)
 	result := PlatformSampleResult{}
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -129,6 +129,16 @@ func (r *PlatformObservabilityRepo) UpsertSample(
 		return nil
 	})
 	return result, err
+}
+
+func platformObservationBucketTime(observedAt, receivedAt time.Time) time.Time {
+	observedAt = observedAt.UTC()
+	receivedAt = receivedAt.UTC()
+	delta := observedAt.Sub(receivedAt)
+	if delta < -5*time.Minute || delta > 5*time.Minute {
+		return receivedAt.Truncate(time.Minute)
+	}
+	return observedAt.Truncate(time.Minute)
 }
 
 func platformSampleRow(sample platformobs.Sample, bucket, receivedAt time.Time, restartCount int64) PlatformComponentSample {

@@ -5,27 +5,27 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 const PlatformObservabilitySettingsTopic = "platform-observability-settings"
 
-type ObservabilityCleaner struct {
-	repo      *dbrepo.ObservabilityRepo
-	collector *GatewayObservationCollector
-	interval  time.Duration
-	trigger   chan struct{}
+type IncidentCleaner struct {
+	repo     *dbrepo.IncidentRepo
+	settings *dbrepo.AdmissionRepo
+	interval time.Duration
+	trigger  chan struct{}
+	onResult func(error)
 }
 
-func NewObservabilityCleaner(repo *dbrepo.ObservabilityRepo, collector *GatewayObservationCollector, interval time.Duration) *ObservabilityCleaner {
+func NewIncidentCleaner(repo *dbrepo.IncidentRepo, settings *dbrepo.AdmissionRepo, interval time.Duration, onResult func(error)) *IncidentCleaner {
 	if interval <= 0 {
 		interval = time.Hour
 	}
-	return &ObservabilityCleaner{repo: repo, collector: collector, interval: interval, trigger: make(chan struct{}, 1)}
+	return &IncidentCleaner{repo: repo, settings: settings, interval: interval, trigger: make(chan struct{}, 1), onResult: onResult}
 }
 
-func (c *ObservabilityCleaner) Trigger() {
+func (c *IncidentCleaner) Trigger() {
 	if c == nil || c.trigger == nil {
 		return
 	}
@@ -35,8 +35,8 @@ func (c *ObservabilityCleaner) Trigger() {
 	}
 }
 
-func (c *ObservabilityCleaner) Start(ctx context.Context) error {
-	if c == nil || c.repo == nil {
+func (c *IncidentCleaner) Start(ctx context.Context) error {
+	if c == nil || c.repo == nil || c.settings == nil {
 		return nil
 	}
 	c.run(ctx)
@@ -54,23 +54,19 @@ func (c *ObservabilityCleaner) Start(ctx context.Context) error {
 	}
 }
 
-func (c *ObservabilityCleaner) run(ctx context.Context) {
-	now := time.Now().UTC()
-	counters := admissionobs.Counters{CleanupRun: 1}
-	buckets, cursors, err := c.repo.Cleanup(ctx, now)
-	if err != nil {
-		counters.CleanupFailure = 1
-		slog.Error("cleanup platform observations", "error", err)
-	} else {
-		counters.CleanupDeleted = buckets + cursors
-		if counters.CleanupDeleted > 0 {
-			slog.Info("cleaned platform observations", "buckets", buckets, "cursors", cursors)
+func (c *IncidentCleaner) run(ctx context.Context) {
+	settings, err := c.settings.GetSettings(ctx)
+	if err == nil {
+		var deleted int64
+		deleted, err = c.repo.Cleanup(ctx, time.Now().UTC(), settings.IncidentRetentionDays)
+		if err == nil && deleted > 0 {
+			slog.Info("cleaned admission link incidents", "incidents", deleted)
 		}
 	}
-	c.collector.Record(dbrepo.ObservationBucketDelta{
-		BucketStartedAt: now,
-		Component:       admissionobs.ComponentCleanup,
-		Snapshot:        admissionobs.Snapshot{Counters: counters},
-		LastObservedAt:  now,
-	})
+	if err != nil {
+		slog.Error("cleanup admission link incidents", "error", err)
+	}
+	if c.onResult != nil {
+		c.onResult(err)
+	}
 }

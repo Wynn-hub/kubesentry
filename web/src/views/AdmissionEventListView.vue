@@ -1,10 +1,6 @@
 <template>
   <section>
-    <PageHeader v-if="!embedded" :title="$t('admissionEvent.title')" :subtitle="$t('admissionEvent.subtitle')">
-      <el-button @click="openSettings">
-        <el-icon style="margin-right:4px"><Setting /></el-icon>{{ $t('admissionEvent.storageSettings') }}
-      </el-button>
-    </PageHeader>
+    <PageHeader v-if="!embedded" :title="$t('admissionEvent.title')" :subtitle="$t('admissionEvent.subtitle')" />
 
     <div class="list-toolbar">
       <el-select v-model="verdicts" multiple collapse-tags clearable :placeholder="$t('admissionEvent.verdict')" style="width:170px">
@@ -82,123 +78,23 @@
         </template>
       </el-skeleton>
     </el-drawer>
-    <el-drawer v-model="settingsOpen" :title="$t('admissionEvent.settingsTitle')" size="min(920px, 92vw)">
-      <el-form v-if="settings" label-position="top">
-        <h3 class="section-title">{{ $t('admissionEvent.deliverySettings') }}</h3>
-        <div class="settings-grid">
-          <el-form-item :label="$t('admissionEvent.retryEnabled')">
-            <el-switch v-model="settings.retryEnabled" />
-          </el-form-item>
-          <el-form-item :label="$t('admissionEvent.maxRetryAttempts')">
-            <el-input-number v-model="settings.maxRetryAttempts" :min="1" :max="100" :disabled="!settings.retryEnabled" />
-          </el-form-item>
-          <el-form-item :label="$t('admissionEvent.queueCapacity')">
-            <el-input-number v-model="settings.queueCapacity" :min="1" :max="10000" />
-          </el-form-item>
-          <el-form-item :label="$t('admissionEvent.defaultRetentionDays')">
-            <el-input-number v-model="settings.defaultRetentionDays" :min="1" :max="365" />
-          </el-form-item>
-        </div>
-
-        <h3 class="section-title">{{ $t('admissionEvent.observationSettings') }}</h3>
-        <el-form-item :label="$t('admissionEvent.observationEnabled')">
-          <el-switch
-            v-model="settings.observationEnabled"
-            :active-text="$t('common.enabled')"
-            :inactive-text="$t('common.disabled')"
-            :before-change="confirmObservation"
-          />
-        </el-form-item>
-        <div class="muted observation-hint">{{ $t('admissionEvent.observationHint') }}</div>
-
-        <div class="rules-heading">
-          <div>
-            <h3 class="section-title">{{ $t('admissionEvent.storageRules') }}</h3>
-            <div class="muted">{{ $t('admissionEvent.ruleOrderHint') }}</div>
-          </div>
-          <el-button type="primary" plain @click="addStorageRule">{{ $t('admissionEvent.addRule') }}</el-button>
-        </div>
-
-        <el-empty v-if="settings.storagePolicies.length === 0" :description="$t('admissionEvent.noRules')" :image-size="72" />
-        <el-card v-for="(rule, index) in settings.storagePolicies" :key="index" class="storage-rule" shadow="never">
-          <template #header>
-            <div class="rule-header">
-              <strong>{{ $t('admissionEvent.ruleNumber', { n: index + 1 }) }}</strong>
-              <div class="rule-actions">
-                <el-button link :disabled="index === 0" @click="moveStorageRule(index, -1)">↑</el-button>
-                <el-button link :disabled="index === settings.storagePolicies.length - 1" @click="moveStorageRule(index, 1)">↓</el-button>
-                <el-button link type="danger" @click="removeStorageRule(index)">{{ $t('common.delete') }}</el-button>
-              </div>
-            </div>
-          </template>
-
-          <el-form-item :label="$t('admissionEvent.matchMode')">
-            <el-switch
-              v-model="rule.matchMode"
-              active-value="exclude"
-              inactive-value="include"
-              :active-text="$t('admissionEvent.exclude')"
-              :inactive-text="$t('admissionEvent.include')"
-            />
-            <span class="mode-hint">{{ $t(rule.matchMode === 'exclude' ? 'admissionEvent.excludeHint' : 'admissionEvent.includeHint') }}</span>
-          </el-form-item>
-
-          <div class="rule-grid">
-            <el-form-item :label="$t('admissionEvent.verdict')">
-              <el-select v-model="rule.verdicts" multiple clearable :placeholder="$t('admissionEvent.allValues')">
-                <el-option :label="$t('admissionEvent.audit')" value="audit" />
-                <el-option :label="$t('admissionEvent.deny')" value="deny" />
-              </el-select>
-            </el-form-item>
-            <el-form-item :label="$t('admissionEvent.cluster')">
-              <el-select v-model="rule.clusters" multiple filterable clearable allow-create default-first-option :placeholder="$t('admissionEvent.allClusters')">
-                <el-option v-for="name in clusterOptions" :key="name" :label="name" :value="name" />
-              </el-select>
-            </el-form-item>
-            <el-form-item :label="$t('admissionEvent.namespace')">
-              <TagInput v-model="rule.namespaces" :placeholder="$t('admissionEvent.allNamespaces')" />
-            </el-form-item>
-            <el-form-item :label="$t('admissionEvent.resource')">
-              <ResourceGVRSelect v-model="rule.gvks" :placeholder="$t('admissionEvent.allResources')" />
-            </el-form-item>
-          </div>
-
-          <el-alert
-            v-if="rule.matchMode === 'exclude' && ruleIsEmpty(rule)"
-            type="warning"
-            :closable="false"
-            :title="$t('admissionEvent.emptyExcludeWarning')"
-            class="rule-warning"
-          />
-        </el-card>
-
-        <el-alert type="info" :closable="false" :title="$t('admissionEvent.settingsHint')" />
-        <el-button type="primary" class="save" :loading="settingsSaving" @click="saveSettings">{{ $t('common.save') }}</el-button>
-      </el-form>
-    </el-drawer>
   </section>
 </template>
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '../components/PageHeader.vue'
 import PaginationBar from '../components/PaginationBar.vue'
 import TagInput from '../components/TagInput.vue'
 import ResourceGVRSelect from '../components/ResourceGVRSelect.vue'
-import { getAdmissionEvent, getAdmissionSettings, listAdmissionEvents, updateAdmissionSettings, type AdmissionEvent, type AdmissionEventDetail, type AdmissionSettings } from '../api/admissionEvent'
-import { listClusters } from '../api/cluster'
-import { collectAllPages } from '../api/pagination'
+import { getAdmissionEvent, listAdmissionEvents, type AdmissionEvent, type AdmissionEventDetail } from '../api/admissionEvent'
 
 // How many policy tags to show inline in the list before collapsing the rest
 // into a "+N" badge; the detail drawer always shows the full set.
 const POLICY_PREVIEW = 2
 defineProps<{ embedded?: boolean }>()
-// The tab host renders the page header, so it owns the settings action and
-// opens this drawer through the exposed handle.
-defineExpose({ openSettings: () => openSettings() })
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
@@ -206,9 +102,7 @@ const events=ref<AdmissionEvent[]>([]), total=ref(0), loading=ref(false), page=r
 const verdicts=ref<string[]>([]), clusters=ref<string[]>([]), namespaces=ref<string[]>([])
 const resources=ref<string[]>([])
 const rangeKey=ref('24h'), customRange=ref<[Date,Date]|null>(null)
-const settingsOpen=ref(false), settings=ref<AdmissionSettings>(), settingsSaving=ref(false)
 const detailOpen=ref(false), detailLoading=ref(false), detail=ref<AdmissionEventDetail>()
-const clusterOptions=ref<string[]>([])
 
 // Grafana-style range: relative shortcuts resolve to [from,to] at query time;
 // "custom" uses the absolute datetimerange picker.
@@ -245,45 +139,6 @@ async function load(){
 function reloadFromFirstPage(){ page.value=1; load() }
 watch([verdicts, clusters, namespaces, resources, rangeKey, customRange], reloadFromFirstPage, { deep: true })
 
-async function openSettings(){ settings.value=await getAdmissionSettings(); settingsOpen.value=true }
-// Pipeline observability costs about 18 reports per cluster per minute plus a
-// cursor transaction per report, so the cost is stated before it is accepted.
-async function confirmObservation(){
-  if(settings.value?.observationEnabled) return true
-  try{
-    await ElMessageBox.confirm(
-      t('admissionEvent.observationWarning'),
-      t('admissionEvent.observationWarningTitle'),
-      { type:'warning', confirmButtonText:t('common.confirm'), cancelButtonText:t('common.cancel') },
-    )
-    return true
-  }catch{ return false }
-}
-async function saveSettings(){
-  if(!settings.value)return
-  settingsSaving.value=true
-  try {
-    settings.value=await updateAdmissionSettings(settings.value)
-    ElMessage.success(t('common.saved'))
-  } catch(e) {
-    ElMessage.error((e as Error).message)
-  } finally { settingsSaving.value=false }
-}
-function addStorageRule(){
-  if(!settings.value)return
-  settings.value.storagePolicies.push({ matchMode:'include', verdicts:[], clusters:[], namespaces:[], gvks:[] })
-}
-function removeStorageRule(index:number){ settings.value?.storagePolicies.splice(index,1) }
-function moveStorageRule(index:number, delta:number){
-  if(!settings.value)return
-  const target=index+delta
-  if(target<0||target>=settings.value.storagePolicies.length)return
-  const [rule]=settings.value.storagePolicies.splice(index,1)
-  settings.value.storagePolicies.splice(target,0,rule)
-}
-function ruleIsEmpty(rule: AdmissionSettings['storagePolicies'][number]){
-  return !rule.verdicts.length&&!rule.clusters.length&&!rule.namespaces.length&&!rule.gvks.length
-}
 // Normalized GVR: core group renders as bare resource ("pods"), matching the filter/canonical format.
 function resourceType(event: AdmissionEvent){ return event.apiGroup ? `${event.apiGroup}/${event.resource}` : event.resource }
 // deny = blocked (danger red), audit = warned (warning amber).
@@ -339,7 +194,6 @@ async function syncDetailFromRoute(){
 watch(() => route.query.event, syncDetailFromRoute)
 
 onMounted(async () => {
-  try { clusterOptions.value=(await collectAllPages(listClusters)).filter(c=>c.phase!=='Uninstalled').map(c=>c.name) } catch { /* allow-create keeps cluster rules editable */ }
   await load()
   // Deep link / restored history entry may already carry ?event=<id>.
   await syncDetailFromRoute()
@@ -348,16 +202,6 @@ onMounted(async () => {
 <style scoped>
 .list-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:12px }
 .list-toolbar > * { flex-shrink:0 }
-.save{margin-top:24px}
-.section-title{margin:0 0 12px}
-.settings-grid,.rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
-.rules-heading{display:flex;align-items:flex-start;justify-content:space-between;margin:16px 0 12px}
-.storage-rule{margin-bottom:12px}
-.rule-header,.rule-actions{display:flex;align-items:center}
-.rule-header{justify-content:space-between}
-.rule-actions{gap:4px}
-.mode-hint{margin-left:12px;color:var(--el-text-color-secondary);font-size:12px}
-.rule-warning{margin-bottom:12px}
 .muted{color:var(--el-text-color-secondary);font-size:12px}
 .policy-tags{display:flex;gap:4px;flex-wrap:wrap}
 .policy-link{cursor:pointer;transition:opacity .15s}
@@ -377,5 +221,4 @@ onMounted(async () => {
 .violation-deny{border-left-color:var(--el-color-danger);background:var(--el-color-danger-light-9)}
 .violation-audit{border-left-color:var(--el-color-warning);background:var(--el-color-warning-light-9)}
 .violations .violation-view:last-child{margin-bottom:20px}
-@media (max-width: 760px){.settings-grid,.rule-grid{grid-template-columns:1fr}}
 </style>

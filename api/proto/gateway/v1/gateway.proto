@@ -46,7 +46,7 @@ message MemberMessage {
     Envelope envelope = 3; // reply path for Dispatch's request/reply correlation
     UninstallTaskReport uninstall_task_report = 4;
     AdmissionEventBatch admission_event_batch = 5;
-    ObservationReportBatch observation_report_batch = 6;
+    LinkIncidentBatch link_incident_batch = 6;
     MemberIdentity identity = 7;
     ComponentSampleBatch component_sample_batch = 8;
   }
@@ -86,7 +86,7 @@ message HubMessage {
     DesiredState desired_state = 2;
     Envelope envelope = 3; // carries Dispatch traffic over the existing Sync stream
     AdmissionEventBatchAck admission_event_batch_ack = 4;
-    ObservationReportBatchAck observation_report_batch_ack = 5;
+    LinkIncidentBatchAck link_incident_batch_ack = 5;
   }
 }
 
@@ -201,56 +201,36 @@ message AdmissionEventBatchAck {
   repeated Result results = 1;
 }
 
-message ObservationCounters {
-  int64 generated = 1;
-  int64 received = 2;
-  int64 forwarded = 3;
-  int64 written = 4;
-  int64 duplicate = 5;
-  int64 policy_filtered = 6;
-  int64 retention_elapsed = 7;
-  int64 queue_rejected = 8;
-  int64 retry = 9;
-  int64 dropped = 10;
-  int64 retry_exhausted = 11;
-  int64 batch_failure = 12;
-  int64 auth_failure = 13;
-  int64 ack_timeout = 14;
-  int64 report_dropped = 15;
-  int64 cleanup_run = 16;
-  int64 cleanup_deleted = 17;
-  int64 cleanup_failure = 18;
+message LinkIncident {
+  string incident_key = 1;
+  string reporter_instance_id = 2;
+  uint64 revision = 3;
+  string component = 4;
+  string reason = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp last_seen_at = 7;
+  int64 affected_count = 8;
+  repeated string sample_event_ids = 9;
+  string detail = 10;
+  bool closed = 11;
 }
 
-message ObservationReport {
-  string report_id = 1;
-  string series_id = 2;
-  uint64 sequence = 3;
-  google.protobuf.Timestamp observed_at = 4;
-  string component = 5;
-  ObservationCounters counters = 6;
-  int64 queue_depth_max = 7;
-  int64 queue_capacity = 8;
-  map<string, int64> fault_reason_counts = 9;
-  map<string, int64> pressure_reason_counts = 10;
-  map<string, int64> filter_reason_counts = 11;
+message LinkIncidentBatch {
+  repeated LinkIncident incidents = 1;
 }
 
-message ObservationReportBatch {
-  repeated ObservationReport reports = 1;
-}
-
-message ObservationReportBatchAck {
+message LinkIncidentBatchAck {
   message Result {
-    string report_id = 1;
+    string incident_key = 1;
+    uint64 revision = 2;
     enum Status {
       STATUS_UNSPECIFIED = 0;
       ACCEPTED = 1;
       DISCARDED = 2;
       RETRYABLE = 3;
     }
-    Status status = 2;
-    string reason = 3;
+    Status status = 3;
+    string reason = 4;
   }
   repeated Result results = 1;
 }

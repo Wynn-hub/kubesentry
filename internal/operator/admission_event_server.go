@@ -18,11 +18,11 @@ import (
 type AdmissionEventSink interface {
 	IsLeader() bool
 	SubmitAdmissionEvents(*gatewaypb.AdmissionEventBatch) ([]*gatewaypb.AdmissionEventBatchAck_Result, bool)
-	SubmitObservationReports(*gatewaypb.ObservationReportBatch) []*gatewaypb.ObservationReportBatchAck_Result
+	SubmitLinkIncidents(*gatewaypb.LinkIncidentBatch) []*gatewaypb.LinkIncidentBatchAck_Result
 	SubmitComponentSamples(*gatewaypb.ComponentSampleBatch) bool
 	AdmissionObservationEnabled() bool
 	PlatformObservationEnabled() bool
-	RecordAdmissionObservationFailure(admissionobs.ReasonClass, string)
+	RecordLinkIncident(reason string, affected int64, detail string)
 }
 type AdmissionEventServer struct {
 	Address, Token string
@@ -32,7 +32,7 @@ type AdmissionEventServer struct {
 func (s *AdmissionEventServer) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /internal/v1/admission-events", s.handle)
-	mux.HandleFunc("POST /internal/v1/admission-events/observations", s.handleObservations)
+	mux.HandleFunc("POST /internal/v1/admission-events/incidents", s.handleIncidents)
 	mux.HandleFunc("POST /internal/v1/platform-samples", s.handlePlatformSamples)
 	mux.HandleFunc("GET /internal/v1/admission-events/observations/config", s.handleObservationConfig)
 	server := &http.Server{Addr: s.Address, Handler: mux}
@@ -90,14 +90,14 @@ func (s *AdmissionEventServer) handlePlatformSamples(w http.ResponseWriter, r *h
 func (s *AdmissionEventServer) handle(w http.ResponseWriter, r *http.Request) {
 	if s.Token == "" || strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ") != s.Token {
 		if s.Sink != nil {
-			s.Sink.RecordAdmissionObservationFailure(admissionobs.ReasonFault, admissionobs.ReasonAuthFailed)
+			s.Sink.RecordLinkIncident(admissionobs.ReasonAuthFailure, 1, "webhook event endpoint authentication failed")
 		}
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	if s.Sink == nil || !s.Sink.IsLeader() {
 		if s.Sink != nil {
-			s.Sink.RecordAdmissionObservationFailure(admissionobs.ReasonFault, admissionobs.ReasonNotLeader)
+			s.Sink.RecordLinkIncident(admissionobs.ReasonBatchFailure, 1, admissionobs.ReasonNotLeader)
 		}
 		http.Error(w, "event leader unavailable", http.StatusServiceUnavailable)
 		return
@@ -122,35 +122,35 @@ func (s *AdmissionEventServer) handle(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(encoded)
 }
 
-func (s *AdmissionEventServer) handleObservations(w http.ResponseWriter, r *http.Request) {
+func (s *AdmissionEventServer) handleIncidents(w http.ResponseWriter, r *http.Request) {
 	if s.Token == "" || strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ") != s.Token {
 		if s.Sink != nil {
-			s.Sink.RecordAdmissionObservationFailure(admissionobs.ReasonFault, admissionobs.ReasonAuthFailed)
+			s.Sink.RecordLinkIncident(admissionobs.ReasonAuthFailure, 1, "webhook incident endpoint authentication failed")
 		}
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	if s.Sink == nil || !s.Sink.IsLeader() {
 		if s.Sink != nil {
-			s.Sink.RecordAdmissionObservationFailure(admissionobs.ReasonFault, admissionobs.ReasonNotLeader)
+			s.Sink.RecordLinkIncident(admissionobs.ReasonBatchFailure, 1, admissionobs.ReasonNotLeader)
 		}
 		http.Error(w, "observation leader unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	var batch gatewaypb.ObservationReportBatch
+	var batch gatewaypb.LinkIncidentBatch
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		s.Sink.RecordAdmissionObservationFailure(admissionobs.ReasonFault, admissionobs.ReasonInvalidReport)
+		s.Sink.RecordLinkIncident(admissionobs.ReasonBatchFailure, 1, admissionobs.ReasonInvalidReport)
 		http.Error(w, "read observation batch", http.StatusBadRequest)
 		return
 	}
 	if err = (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, &batch); err != nil {
-		s.Sink.RecordAdmissionObservationFailure(admissionobs.ReasonFault, admissionobs.ReasonInvalidReport)
+		s.Sink.RecordLinkIncident(admissionobs.ReasonBatchFailure, 1, admissionobs.ReasonInvalidReport)
 		http.Error(w, "invalid observation batch", http.StatusBadRequest)
 		return
 	}
-	results := s.Sink.SubmitObservationReports(&batch)
+	results := s.Sink.SubmitLinkIncidents(&batch)
 	w.Header().Set("Content-Type", "application/json")
-	encoded, _ := protojson.Marshal(&gatewaypb.ObservationReportBatchAck{Results: results})
+	encoded, _ := protojson.Marshal(&gatewaypb.LinkIncidentBatchAck{Results: results})
 	_, _ = w.Write(encoded)
 }

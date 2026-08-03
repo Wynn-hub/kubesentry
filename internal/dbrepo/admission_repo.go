@@ -51,14 +51,21 @@ func (r *AdmissionRepo) CreatePolicy(ctx context.Context, policy *AdmissionStora
 
 func (r *AdmissionRepo) UpdateSettingsAndPolicies(ctx context.Context, settings *AdmissionEventSettings, policies []AdmissionStoragePolicy) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&AdmissionEventSettings{}).Where("id = ?", settings.ID).Updates(map[string]any{
+		updates := map[string]any{
 			"default_retention_days": settings.DefaultRetentionDays,
 			"retry_enabled":          settings.RetryEnabled,
 			"max_retry_attempts":     settings.MaxRetryAttempts,
 			"queue_capacity":         settings.QueueCapacity,
 			"observation_enabled":    settings.ObservationEnabled,
 			"storage_policy_version": gorm.Expr("storage_policy_version + 1"),
-		}).Error; err != nil {
+		}
+		// Preserve the existing value for in-process callers built against the
+		// earlier settings shape. The HTTP handler always supplies this field,
+		// while a zero value here means "not specified", never a valid retention.
+		if settings.IncidentRetentionDays > 0 {
+			updates["incident_retention_days"] = settings.IncidentRetentionDays
+		}
+		if err := tx.Model(&AdmissionEventSettings{}).Where("id = ?", settings.ID).Updates(updates).Error; err != nil {
 			return err
 		}
 		if err := tx.Where("1 = 1").Delete(&AdmissionStoragePolicy{}).Error; err != nil {
@@ -103,6 +110,25 @@ func (r *AdmissionRepo) GetEvent(ctx context.Context, id int64) (*AdmissionEvent
 		return nil, fmt.Errorf("get admission event %d: %w", id, err)
 	}
 	return &event, nil
+}
+
+func (r *AdmissionRepo) EventDatabaseIDs(ctx context.Context, eventIDs []string) (map[string]int64, error) {
+	result := make(map[string]int64, len(eventIDs))
+	if len(eventIDs) == 0 {
+		return result, nil
+	}
+	var rows []struct {
+		ID      int64
+		EventID string
+	}
+	if err := r.db.WithContext(ctx).Model(&AdmissionEvent{}).
+		Select("id, event_id").Where("event_id IN ?", eventIDs).Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("resolve admission event ids: %w", err)
+	}
+	for _, row := range rows {
+		result[row.EventID] = row.ID
+	}
+	return result, nil
 }
 
 func (r *AdmissionRepo) ListEventsPage(ctx context.Context, options AdmissionEventPageOptions) ([]AdmissionEvent, int64, error) {

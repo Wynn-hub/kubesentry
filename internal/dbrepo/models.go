@@ -141,12 +141,13 @@ func (UninstallTask) TableName() string { return "kubesentry.cluster_uninstall_t
 // configuration. Its version changes atomically with every mutation so member
 // clusters can report which configuration they used for a local decision.
 type AdmissionEventSettings struct {
-	ID                   int64 `gorm:"primaryKey;autoIncrement:false"`
-	DefaultRetentionDays int
-	RetryEnabled         bool
-	MaxRetryAttempts     int
-	QueueCapacity        int
-	StoragePolicyVersion int64
+	ID                    int64 `gorm:"primaryKey;autoIncrement:false"`
+	DefaultRetentionDays  int
+	RetryEnabled          bool
+	MaxRetryAttempts      int
+	QueueCapacity         int
+	IncidentRetentionDays int
+	StoragePolicyVersion  int64
 	// ObservationEnabled gates the pipeline funnel observability. It lives here
 	// rather than in PlatformObservabilitySettings because it instruments the
 	// admission event path, and the operator configures it from the same screen.
@@ -260,60 +261,26 @@ func (PlatformLeadershipEvent) TableName() string {
 	return "kubesentry.platform_leadership_events"
 }
 
-type AdmissionObservationBucket struct {
-	ID                     int64 `gorm:"primaryKey;autoIncrement:false"`
-	BucketStartedAt        time.Time
-	ClusterID              int64
-	ClusterName            string
-	Component              string
-	GeneratedCount         int64
-	ReceivedCount          int64
-	ForwardedCount         int64
-	WrittenCount           int64
-	DuplicateCount         int64
-	PolicyFilteredCount    int64
-	RetentionElapsedCount  int64
-	QueueRejectedCount     int64
-	RetryCount             int64
-	DroppedCount           int64
-	RetryExhaustedCount    int64
-	BatchFailureCount      int64
-	AuthFailureCount       int64
-	ACKTimeoutCount        int64 `gorm:"column:ack_timeout_count"`
-	ReportDroppedCount     int64
-	ObservationWriteFailed int64
-	SequenceGapCount       int64
-	BaselineResetCount     int64
-	SeriesStartedCount     int64
-	CleanupRunCount        int64
-	CleanupDeletedCount    int64
-	CleanupFailureCount    int64
-	QueueDepthMax          int64
-	QueueCapacity          int64
-	FaultReasonCounts      datatypes.JSONType[map[string]int64]
-	PressureReasonCounts   datatypes.JSONType[map[string]int64]
-	FilterReasonCounts     datatypes.JSONType[map[string]int64]
-	LastObservedAt         time.Time
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+type AdmissionLinkIncident struct {
+	ID                 int64 `gorm:"primaryKey;autoIncrement:false"`
+	ClusterID          int64
+	ClusterName        string
+	IncidentKey        string
+	ReporterInstanceID string
+	Component          string
+	Reason             string
+	StartedAt          time.Time
+	LastSeenAt         time.Time
+	AffectedCount      int64
+	SampleEventIDs     pq.StringArray `gorm:"type:text[]"`
+	Detail             string
+	Closed             bool
+	FirstReceivedAt    time.Time
+	LastReceivedAt     time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
-func (AdmissionObservationBucket) TableName() string {
-	return "kubesentry.admission_observation_buckets"
-}
-
-type ObservationReportCursor struct {
-	ID              int64 `gorm:"primaryKey;autoIncrement:false"`
-	ClusterID       int64
-	SeriesID        string
-	Component       string
-	LastSequence    int64
-	CounterSnapshot datatypes.JSON
-	LastActiveAt    time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-}
-
-func (ObservationReportCursor) TableName() string {
-	return "kubesentry.observation_report_cursors"
+func (AdmissionLinkIncident) TableName() string {
+	return "kubesentry.admission_link_incidents"
 }

@@ -30,10 +30,11 @@ func TestAdmissionEventItemFallsBackToViolationPolicyReferences(t *testing.T) {
 func TestAdmissionEventSettingsRoundTrip(t *testing.T) {
 	server, _ := newDBTestServer(t)
 	body := map[string]any{
-		"defaultRetentionDays": 21,
-		"retryEnabled":         true,
-		"maxRetryAttempts":     5,
-		"queueCapacity":        2048,
+		"defaultRetentionDays":  21,
+		"incidentRetentionDays": 11,
+		"retryEnabled":          true,
+		"maxRetryAttempts":      5,
+		"queueCapacity":         2048,
 		"storagePolicies": []map[string]any{{
 			"matchMode":  "exclude",
 			"verdicts":   []string{"deny"},
@@ -47,7 +48,7 @@ func TestAdmissionEventSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("update settings = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	got := mustUnmarshal[admissionSettingsResponse](t, env.Data)
-	if got.DefaultRetentionDays != 21 || !got.RetryEnabled || got.MaxRetryAttempts != 5 || got.QueueCapacity != 2048 {
+	if got.DefaultRetentionDays != 21 || got.IncidentRetentionDays != 11 || !got.RetryEnabled || got.MaxRetryAttempts != 5 || got.QueueCapacity != 2048 {
 		t.Fatalf("settings = %+v", got)
 	}
 	if len(got.StoragePolicies) != 1 || got.StoragePolicies[0].MatchMode != dbrepo.AdmissionMatchModeExclude {

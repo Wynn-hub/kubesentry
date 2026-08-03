@@ -66,7 +66,7 @@ func main() {
 		Distributions:  dbrepo.NewDistributionRepo(db),
 		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
 		Admission:      dbrepo.NewAdmissionRepo(db),
-		Observability:  dbrepo.NewObservabilityRepo(db),
+		Incidents:      dbrepo.NewIncidentRepo(db),
 		Platform:       dbrepo.NewPlatformObservabilityRepo(db),
 	}
 

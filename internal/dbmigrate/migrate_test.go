@@ -46,7 +46,7 @@ func TestMigrateCreatesAllTables(t *testing.T) {
 		"policy_exceptions", "policy_distributions", "distribution_cluster_status",
 		"cluster_install_records", "cluster_uninstall_tasks",
 		"admission_event_settings", "admission_storage_policies", "admission_events",
-		"platform_observability_settings", "admission_observation_buckets", "observation_report_cursors",
+		"platform_observability_settings", "admission_link_incidents",
 		"platform_component_samples", "platform_leadership_events",
 	}
 	for _, name := range wantTables {
@@ -61,13 +61,13 @@ func TestMigrateCreatesAllTables(t *testing.T) {
 	}
 
 	var retryEnabled bool
-	var maxRetryAttempts, queueCapacity int
-	if err := db.QueryRow(`SELECT retry_enabled, max_retry_attempts, queue_capacity FROM kubesentry.admission_event_settings WHERE id = 1`).
-		Scan(&retryEnabled, &maxRetryAttempts, &queueCapacity); err != nil {
+	var maxRetryAttempts, queueCapacity, incidentRetentionDays int
+	if err := db.QueryRow(`SELECT retry_enabled, max_retry_attempts, queue_capacity, incident_retention_days FROM kubesentry.admission_event_settings WHERE id = 1`).
+		Scan(&retryEnabled, &maxRetryAttempts, &queueCapacity, &incidentRetentionDays); err != nil {
 		t.Fatalf("query admission event settings defaults: %v", err)
 	}
-	if retryEnabled || maxRetryAttempts != 3 || queueCapacity != 1024 {
-		t.Errorf("admission delivery defaults = (%v, %d, %d), want (false, 3, 1024)", retryEnabled, maxRetryAttempts, queueCapacity)
+	if retryEnabled || maxRetryAttempts != 3 || queueCapacity != 1024 || incidentRetentionDays != 7 {
+		t.Errorf("admission delivery defaults = (%v, %d, %d, %d), want (false, 3, 1024, 7)", retryEnabled, maxRetryAttempts, queueCapacity, incidentRetentionDays)
 	}
 
 	// Both observability switches default off, and each lives with the thing it

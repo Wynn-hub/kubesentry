@@ -12,6 +12,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/platformobs"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type admissionEventSinkStub struct {
@@ -28,11 +29,12 @@ func (s *admissionEventSinkStub) SubmitAdmissionEvents(*gatewaypb.AdmissionEvent
 	return nil, true
 }
 
-func (s *admissionEventSinkStub) SubmitObservationReports(batch *gatewaypb.ObservationReportBatch) []*gatewaypb.ObservationReportBatchAck_Result {
-	s.observed += len(batch.Reports)
-	return []*gatewaypb.ObservationReportBatchAck_Result{{
-		ReportId: batch.Reports[0].ReportId,
-		Status:   gatewaypb.ObservationReportBatchAck_Result_ACCEPTED,
+func (s *admissionEventSinkStub) SubmitLinkIncidents(batch *gatewaypb.LinkIncidentBatch) []*gatewaypb.LinkIncidentBatchAck_Result {
+	s.observed += len(batch.Incidents)
+	return []*gatewaypb.LinkIncidentBatchAck_Result{{
+		IncidentKey: batch.Incidents[0].IncidentKey,
+		Revision:    batch.Incidents[0].Revision,
+		Status:      gatewaypb.LinkIncidentBatchAck_Result_ACCEPTED,
 	}}
 }
 
@@ -44,19 +46,24 @@ func (s *admissionEventSinkStub) AdmissionObservationEnabled() bool { return s.l
 
 func (s *admissionEventSinkStub) PlatformObservationEnabled() bool { return s.platformEnabled }
 
-func (s *admissionEventSinkStub) RecordAdmissionObservationFailure(_ admissionobs.ReasonClass, reason string) {
+func (s *admissionEventSinkStub) RecordLinkIncident(reason string, _ int64, _ string) {
 	s.faultReason = reason
 }
 
 func TestAdmissionObservationEndpointAuthenticatesAndAcknowledges(t *testing.T) {
 	sink := &admissionEventSinkStub{leader: true}
 	server := &AdmissionEventServer{Token: "secret", Sink: sink}
-	request := httptest.NewRequest(http.MethodPost, "/internal/v1/admission-events/observations",
-		strings.NewReader(`{"reports":[{"reportId":"r1"}]}`))
+	now := timestamppb.Now()
+	body, _ := protojson.Marshal(&gatewaypb.LinkIncidentBatch{Incidents: []*gatewaypb.LinkIncident{{
+		IncidentKey: "r1", ReporterInstanceId: "webhook-a", Revision: 1,
+		Component: "webhook", Reason: admissionobs.ReasonQueueFull,
+		StartedAt: now, LastSeenAt: now, AffectedCount: 1,
+	}}})
+	request := httptest.NewRequest(http.MethodPost, "/internal/v1/admission-events/incidents", strings.NewReader(string(body)))
 	request.Header.Set("Authorization", "Bearer secret")
 	response := httptest.NewRecorder()
 
-	server.handleObservations(response, request)
+	server.handleIncidents(response, request)
 	if response.Code != http.StatusOK || sink.observed != 1 ||
 		!strings.Contains(response.Body.String(), `"status":"ACCEPTED"`) {
 		t.Fatalf("response = (%d, %q), observed = %d", response.Code, response.Body.String(), sink.observed)
@@ -68,9 +75,9 @@ func TestAdmissionObservationEndpointRecordsAuthenticationFailure(t *testing.T) 
 	server := &AdmissionEventServer{Token: "secret", Sink: sink}
 	response := httptest.NewRecorder()
 
-	server.handleObservations(response,
-		httptest.NewRequest(http.MethodPost, "/internal/v1/admission-events/observations", strings.NewReader(`{}`)))
-	if response.Code != http.StatusUnauthorized || sink.faultReason != admissionobs.ReasonAuthFailed {
+	server.handleIncidents(response,
+		httptest.NewRequest(http.MethodPost, "/internal/v1/admission-events/incidents", strings.NewReader(`{}`)))
+	if response.Code != http.StatusUnauthorized || sink.faultReason != admissionobs.ReasonAuthFailure {
 		t.Fatalf("response = %d, fault = %q", response.Code, sink.faultReason)
 	}
 }
