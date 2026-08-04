@@ -101,6 +101,7 @@ import PaginationBar from '../components/PaginationBar.vue'
 import { getLinkIncident, listLinkIncidents, type LinkIncident, type LinkIncidentComponent, type LinkIncidentDetail, type LinkIncidentReason, type LinkIncidentStatus } from '../api/observability'
 import { listClusters } from '../api/cluster'
 import { collectAllPages } from '../api/pagination'
+import { createObservationPoller } from './observationPolling'
 import { eventDetailTarget } from './admissionEventsTabs'
 
 defineProps<{ embedded?: boolean }>()
@@ -112,7 +113,11 @@ const clusters=ref<string[]>([]), components=ref<LinkIncidentComponent[]>([]), r
 const clusterOptions=ref<string[]>([]), rangeKey=ref('1h'), customRange=ref<[Date,Date]|null>(null)
 const activeIncidents=ref<LinkIncident[]>([]), incidents=ref<LinkIncident[]>([]), total=ref(0), page=ref(1), pageSize=ref(20), loading=ref(false)
 const detailOpen=ref(false), detailLoading=ref(false), detail=ref<LinkIncidentDetail>(), now=ref(new Date().toISOString())
-let activeTimer:number|undefined, historyTimer:number|undefined, clockTimer:number|undefined
+const poller=createObservationPoller([
+  {interval:10000,run:()=>{void loadActive()}},
+  {interval:60000,run:()=>{void loadHistory()}},
+  {interval:1000,run:()=>{now.value=new Date().toISOString()}},
+])
 
 function range(): Record<string,string>{
   if(rangeKey.value==='custom') return customRange.value?{from:customRange.value[0].toISOString(),to:customRange.value[1].toISOString()}:{}
@@ -124,12 +129,10 @@ function filters(): Record<string,string>{ return {
   ...(reasons.value.length?{reason:reasons.value.join(',')}:{}),
 } }
 async function loadActive(){
-  if(document.hidden)return
   try{ const result=await listLinkIncidents({...filters(),status:'active',page:'1',pageSize:'100'}); activeIncidents.value=result.items }
   catch(error){ console.warn('load active link incidents',error) }
 }
 async function loadHistory(){
-  if(document.hidden)return
   loading.value=true
   try{
     const result=await listLinkIncidents({...filters(),...(statuses.value.length?{status:statuses.value.join(',')}:{}),...range(),page:String(page.value),pageSize:String(pageSize.value)})
@@ -143,9 +146,11 @@ function openEvent(id?:string){if(id)void router.push(eventDetailTarget(id))}
 function statusTag(status:LinkIncidentStatus){return status==='active'?'danger':status==='interrupted'?'warning':'success'}
 function formatTime(value:string){return new Date(value).toLocaleString()}
 function duration(start:string,end:string){const seconds=Math.max(0,Math.floor((new Date(end).getTime()-new Date(start).getTime())/1000));if(seconds<60)return `${seconds}s`;if(seconds<3600)return `${Math.floor(seconds/60)}m`;if(seconds<86400)return `${Math.floor(seconds/3600)}h ${Math.floor(seconds%3600/60)}m`;return `${Math.floor(seconds/86400)}d ${Math.floor(seconds%86400/3600)}h`}
-function onVisibility(){if(!document.hidden)reload()}
-onMounted(async()=>{try{clusterOptions.value=Array.from(new Set(['platform',...(await collectAllPages(listClusters)).map(value=>value.name)]))}catch{clusterOptions.value=['platform']}reload();activeTimer=window.setInterval(loadActive,10000);historyTimer=window.setInterval(loadHistory,60000);clockTimer=window.setInterval(()=>{now.value=new Date().toISOString()},1000);document.addEventListener('visibilitychange',onVisibility)})
-onBeforeUnmount(()=>{if(activeTimer)clearInterval(activeTimer);if(historyTimer)clearInterval(historyTimer);if(clockTimer)clearInterval(clockTimer);document.removeEventListener('visibilitychange',onVisibility)})
+// Hiding the page stops the timers outright rather than letting them fire into
+// an early return, so a backgrounded tab costs nothing.
+function onVisibility(){poller.start(document.hidden);if(!document.hidden)reload()}
+onMounted(async()=>{try{clusterOptions.value=Array.from(new Set(['platform',...(await collectAllPages(listClusters)).map(value=>value.name)]))}catch{clusterOptions.value=['platform']}reload();poller.start(document.hidden);document.addEventListener('visibilitychange',onVisibility)})
+onBeforeUnmount(()=>{poller.stop();document.removeEventListener('visibilitychange',onVisibility)})
 </script>
 
 <style scoped>

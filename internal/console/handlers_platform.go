@@ -537,3 +537,26 @@ func platformWindow(
 	}
 	return from, to, true
 }
+
+// observationTrendStep keeps the sample count per trend response roughly
+// constant as the requested span widens.
+func observationTrendStep(span time.Duration) time.Duration {
+	switch {
+	case span <= time.Hour:
+		return time.Minute
+	case span <= 6*time.Hour:
+		return 2 * time.Minute
+	case span <= 24*time.Hour:
+		return 5 * time.Minute
+	case span <= 3*24*time.Hour:
+		return 15 * time.Minute
+	case span <= 7*24*time.Hour:
+		return time.Hour
+	case span <= 30*24*time.Hour:
+		return 6 * time.Hour
+	case span <= 90*24*time.Hour:
+		return 24 * time.Hour
+	default:
+		return 3 * 24 * time.Hour
+	}
+}
