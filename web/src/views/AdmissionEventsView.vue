@@ -35,13 +35,19 @@ import AdmissionEventSettingsDrawer from '../components/AdmissionEventSettingsDr
 import AdmissionEventListView from './AdmissionEventListView.vue'
 import AdmissionObservabilityView from './AdmissionObservabilityView.vue'
 import { getAdmissionSettings, type AdmissionSettings } from '../api/admissionEvent'
+import { resolveEventsTab, type AdmissionEventsTab } from './admissionEventsTabs'
 
 const route = useRoute()
 const router = useRouter()
 const settings = ref<AdmissionSettings>()
-const activeTab = ref(route.query.tab === 'health' ? 'health' : 'events')
+const activeTab = ref<AdmissionEventsTab>(resolveEventsTab(route.query.tab))
 const settingsDrawer = ref<{ open: () => void }>()
 const observationEnabled = computed(() => settings.value?.observationEnabled ?? false)
+
+// The incident drawer links to a sample event, which pushes ?tab=events on this
+// same route. Without this the tab ref keeps its setup-time value and the event
+// drawer opens on top of the health tab instead of beside its list.
+watch(() => route.query.tab, tab => { activeTab.value = resolveEventsTab(tab) })
 
 watch(activeTab, tab => {
   void router.replace({ query: { ...route.query, tab: tab === 'events' ? undefined : tab } })

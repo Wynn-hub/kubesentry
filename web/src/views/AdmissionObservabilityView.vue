@@ -101,6 +101,7 @@ import PaginationBar from '../components/PaginationBar.vue'
 import { getLinkIncident, listLinkIncidents, type LinkIncident, type LinkIncidentComponent, type LinkIncidentDetail, type LinkIncidentReason, type LinkIncidentStatus } from '../api/observability'
 import { listClusters } from '../api/cluster'
 import { collectAllPages } from '../api/pagination'
+import { eventDetailTarget } from './admissionEventsTabs'
 
 defineProps<{ embedded?: boolean }>()
 const router = useRouter()
@@ -138,7 +139,7 @@ async function loadHistory(){
 function reload(){page.value=1;void loadActive();void loadHistory()}
 watch([clusters,components,reasons,statuses,rangeKey,customRange],reload,{deep:true})
 async function openDetail(row:LinkIncident){detailOpen.value=true;detailLoading.value=true;detail.value=undefined;try{detail.value=await getLinkIncident(row.id)}catch(error){ElMessage.error((error as Error).message)}finally{detailLoading.value=false}}
-function openEvent(id?:string){if(id)void router.push({path:'/admission-events',query:{tab:'events',event:id}})}
+function openEvent(id?:string){if(id)void router.push(eventDetailTarget(id))}
 function statusTag(status:LinkIncidentStatus){return status==='active'?'danger':status==='interrupted'?'warning':'success'}
 function formatTime(value:string){return new Date(value).toLocaleString()}
 function duration(start:string,end:string){const seconds=Math.max(0,Math.floor((new Date(end).getTime()-new Date(start).getTime())/1000));if(seconds<60)return `${seconds}s`;if(seconds<3600)return `${Math.floor(seconds/60)}m`;if(seconds<86400)return `${Math.floor(seconds/3600)}h ${Math.floor(seconds%3600/60)}m`;return `${Math.floor(seconds/86400)}d ${Math.floor(seconds%86400/3600)}h`}
