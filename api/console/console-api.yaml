@@ -1,0 +1,161 @@
+openapi: 3.1.0
+info:
+  title: KubeSentry Console API
+  version: 1.0.0
+  description: |
+    KubeSentry 控制台的 HTTP API。本文件是这些接口的唯一事实来源：
+    Go 服务端接口由 ogen 从本文件生成，前端 TypeScript 类型由
+    openapi-typescript 从本文件生成。
+
+    另有两类契约不在本文件内：
+    - gateway 的内部 gRPC 接口，见 api/proto/gateway/v1/gateway.proto
+    - 成员集群的 CRD，见 charts/kubesentry/crds/
+
+servers:
+  - url: /api/v1
+    description: 控制台 API 根路径
+
+tags:
+  - name: Policy
+    description: 策略的增删改查、Rego 校验、版本与回滚
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        平台当前未启用认证，此声明为将来接入预留。
+        任何 operation 都没有通过 security 引用它，因此所有接口当前均可匿名访问。
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      description: 页码，从 1 开始。省略时为 1
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+        description: 页码
+        example: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: 每页记录数。仅接受 10、20、50、100。省略时为 20
+      schema:
+        type: integer
+        enum: [10, 20, 50, 100]
+        default: 20
+        description: 每页记录数
+        example: 20
+
+  responses:
+    BadRequest:
+      description: 请求参数非法。code 为 40000
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
+    InternalError:
+      description: 服务端错误。code 为 50000
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
+
+paths:
+  /policies:
+    get:
+      tags: [Policy]
+      operationId: listPolicies
+      summary: 分页查询策略列表
+      description: |
+        按名称、来源、执行模式、编译状态筛选并分页返回策略。
+        phase、mode、source 三个参数支持逗号分隔的多值，同字段内取 OR。
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sortBy
+          in: query
+          required: false
+          description: 排序字段。省略时按 name 升序
+          schema:
+            type: string
+            enum: [name, source, enforcementMode, phase, createdAt, updatedAt]
+            default: name
+            description: 排序字段
+            example: name
+        - name: sortOrder
+          in: query
+          required: false
+          description: 排序方向
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+            description: 排序方向
+            example: asc
+        - name: phase
+          in: query
+          required: false
+          description: 按编译状态筛选。逗号分隔多值，取 OR
+          style: form
+          explode: false
+          schema:
+            type: array
+            description: 编译状态列表
+            items:
+              type: string
+              enum: [Ready, Invalid]
+              description: 单个编译状态
+              example: Ready
+        - name: mode
+          in: query
+          required: false
+          description: 按执行模式筛选。逗号分隔多值，取 OR
+          style: form
+          explode: false
+          schema:
+            type: array
+            description: 执行模式列表
+            items:
+              type: string
+              enum: [enforce, audit]
+              description: 单个执行模式
+              example: enforce
+        - name: source
+          in: query
+          required: false
+          description: 按来源筛选。逗号分隔多值，取 OR
+          style: form
+          explode: false
+          schema:
+            type: array
+            description: 来源列表
+            items:
+              type: string
+              enum: [builtin, custom]
+              description: 单个来源
+              example: builtin
+        - name: keyword
+          in: query
+          required: false
+          description: 按名称或描述模糊匹配
+          schema:
+            type: string
+            description: 搜索关键词
+            example: privileged
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/policy.yaml#/components/schemas/PolicyListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'

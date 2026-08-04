@@ -1,0 +1,57 @@
+# 跨资源域复用的 schema。所有域的响应都通过 allOf 组合 Envelope。
+components:
+  schemas:
+    Envelope:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          description: 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100
+          example: 0
+        message:
+          type: string
+          description: 结果描述。成功时固定为 success
+          example: success
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            details:
+              type: array
+              description: 错误明细列表。参数校验失败时逐条列出问题字段
+              items:
+                type: string
+                description: 单条错误明细
+                example: "invalid pageSize: must be one of 10, 20, 50, 100"
+            data:
+              type: object
+              additionalProperties: true
+              description: 失败时附带的结构化数据。例如删除被引用资源时的 referencedBy 列表
+              example: { referencedBy: ["baseline-group"] }
+
+    PageMeta:
+      type: object
+      required: [total, page, pageSize]
+      properties:
+        total:
+          type: integer
+          description: 符合筛选条件的记录总数，不受分页限制
+          example: 137
+        page:
+          type: integer
+          description: 当前页码，从 1 开始
+          example: 1
+        pageSize:
+          type: integer
+          description: 每页记录数。仅接受 10、20、50、100
+          enum: [10, 20, 50, 100]
+          example: 20
+
+    ResourceID:
+      type: string
+      pattern: '^[0-9]+$'
+      description: Snowflake 生成的 64 位整数 ID，以字符串传输避免 JavaScript 数字精度丢失
+      example: "7234567890123456789"

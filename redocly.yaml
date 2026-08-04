@@ -1,0 +1,16 @@
+extends:
+  - recommended
+rules:
+  # 本仓库不做外部发布，无需 contact/license
+  info-contact: off
+  info-license: off
+  # tag description 由 console-api.yaml 的 tags 段统一提供
+  tag-description: warn
+  # bearerAuth 仅为将来预留（见 console-api.yaml securitySchemes 注释），
+  # 当前所有接口匿名访问，故不要求每 operation 声明 security
+  security-defined: off
+  # 每个字段必须有 description 与 example（Global Constraints）
+  no-schema-type-mismatch: error
+  operation-4xx-response: error
+  operation-operationId: error
+  operation-summary: error

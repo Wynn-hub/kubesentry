@@ -1,0 +1,59 @@
+components:
+  schemas:
+    PolicyListItem:
+      type: object
+      required: [name, source, enforcementMode, phase, description, createdAt, updatedAt]
+      properties:
+        name:
+          type: string
+          description: 策略名称，集群内唯一
+          example: deny-privileged-pod
+        source:
+          type: string
+          description: 策略来源。builtin 为平台内置，custom 为用户创建
+          enum: [builtin, custom]
+          example: builtin
+        enforcementMode:
+          type: string
+          description: 策略执行模式。enforce 拦截违规请求，audit 放行但记录告警
+          enum: [enforce, audit]
+          example: enforce
+        phase:
+          type: string
+          description: 策略编译状态。Ready 表示 Rego 编译通过，Invalid 表示编译失败
+          enum: [Ready, Invalid]
+          example: Ready
+        description:
+          type: string
+          description: 策略用途说明
+          example: 禁止创建特权容器
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+          example: "2026-08-03T10:15:30Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最后更新时间
+          example: "2026-08-03T11:20:45Z"
+
+    PolicyListData:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              description: 当前页的策略列表
+              items:
+                $ref: '#/components/schemas/PolicyListItem'
+
+    PolicyListResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PolicyListData'

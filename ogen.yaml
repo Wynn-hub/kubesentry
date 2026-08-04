@@ -1,0 +1,4 @@
+# ogen 配置。allow_remote 开启跨文件 $ref 解析（file:// 与 http(s)），
+# api/schemas/*.yaml 的拆分依赖此能力。
+parser:
+  allow_remote: true

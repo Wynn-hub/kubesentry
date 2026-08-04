@@ -2,7 +2,8 @@ export GOROOT := /opt/homebrew/opt/go/libexec
 
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
         test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \
-        build-image-local deploy-local undeploy-local web-build test-web dev-local
+        build-image-local deploy-local undeploy-local web-build test-web dev-local \
+        proto api-gen api-lint
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -100,6 +101,18 @@ proto:
 	  --go_out=. --go_opt=module=github.com/Wynn-hub/kubesentry \
 	  --go-grpc_out=. --go-grpc_opt=module=github.com/Wynn-hub/kubesentry \
 	  api/proto/gateway/v1/gateway.proto
+
+# ── OpenAPI codegen ───────────────────────────────────────────────────────────
+# Generated files are COMMITTED; day-to-day builds never need ogen.
+# Requires: ogen on PATH (go install github.com/ogen-go/ogen/cmd/ogen@latest).
+OGEN = $(shell go env GOPATH)/bin/ogen
+
+$(OGEN):
+	go install github.com/ogen-go/ogen/cmd/ogen@latest
+
+api-gen: $(OGEN)
+	$(OGEN) --target internal/console/dto --package dto --clean \
+	  api/console/console-api.yaml
 
 # ── Test & Lint ───────────────────────────────────────────────────────────────
 # Quick run for local development — no report files produced.
