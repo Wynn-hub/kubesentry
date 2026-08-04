@@ -67,6 +67,37 @@ func TestTrackerPendingCapacityRecordsNonRecursiveDrop(t *testing.T) {
 	}
 }
 
+// A drop happens when the snapshot evicts, so it must be stamped with the
+// snapshot time. Stamping it with the closing incident's older last_seen made it
+// born already past the silence period, so the very next scan closed it and the
+// overflow after that minted a second incident_key instead of aggregating.
+func TestTrackerOverflowDropIsStampedAtSnapshotTime(t *testing.T) {
+	now := time.Date(2026, 8, 3, 1, 0, 0, 0, time.UTC)
+	tracker := NewTracker(ComponentOperator, "operator-a")
+	tracker.SetPendingLimitForTest(1)
+	tracker.Record(ReasonQueueFull, 1, "", "", now)
+	tracker.Snapshot(now.Add(61 * time.Second))
+	tracker.Record(ReasonACKTimeout, 1, "", "", now.Add(2*time.Minute))
+
+	// This scan closes ack_timeout, which overflows pending and drops queue_full.
+	evictedAt := now.Add(2*time.Minute + 61*time.Second)
+	var drop *Incident
+	for _, item := range tracker.Snapshot(evictedAt) {
+		if item.Reason == ReasonReportDropped {
+			drop = &item
+		}
+	}
+	if drop == nil {
+		t.Fatal("pending overflow did not record report_dropped")
+	}
+	if !drop.StartedAt.Equal(evictedAt) || !drop.LastSeenAt.Equal(evictedAt) {
+		t.Fatalf("drop stamped %s/%s, want the snapshot time %s", drop.StartedAt, drop.LastSeenAt, evictedAt)
+	}
+	if drop.Closed {
+		t.Fatal("drop was born already closed; it can never aggregate a later overflow")
+	}
+}
+
 func TestTrackerConcurrentRecord(t *testing.T) {
 	tracker := NewTracker(ComponentWebhook, "webhook-a")
 	now := time.Now().UTC()

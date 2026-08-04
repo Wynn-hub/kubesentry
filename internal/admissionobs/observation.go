@@ -183,7 +183,7 @@ func (t *Tracker) Record(reason string, affected int64, sampleEventID, detail st
 	defer t.mu.Unlock()
 	current := t.active[reason]
 	if current != nil && now.Sub(current.LastSeenAt) > t.silence {
-		t.closeLocked(reason, current)
+		t.closeLocked(reason, current, now)
 		current = nil
 	}
 	if current == nil {
@@ -210,10 +210,17 @@ func (t *Tracker) Snapshot(now time.Time) []Incident {
 	now = now.UTC()
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	// Collect first, close after: closeLocked may insert a report_dropped
+	// incident into t.active, and an entry created while ranging over a map is
+	// produced or skipped at the runtime's discretion.
+	expired := make([]string, 0, len(t.active))
 	for reason, incident := range t.active {
 		if now.Sub(incident.LastSeenAt) > t.silence {
-			t.closeLocked(reason, incident)
+			expired = append(expired, reason)
 		}
+	}
+	for _, reason := range expired {
+		t.closeLocked(reason, t.active[reason], now)
 	}
 	result := make([]Incident, 0, len(t.active)+len(t.pending))
 	for _, incident := range t.active {
@@ -274,7 +281,7 @@ func (t *Tracker) SetPendingLimitForTest(limit int) {
 	}
 }
 
-func (t *Tracker) closeLocked(reason string, incident *Incident) {
+func (t *Tracker) closeLocked(reason string, incident *Incident, now time.Time) {
 	delete(t.active, reason)
 	incident.Closed = true
 	incident.Revision++
@@ -284,7 +291,7 @@ func (t *Tracker) closeLocked(reason string, incident *Incident) {
 		delete(t.pending, droppedKey)
 		t.order = t.order[1:]
 		if dropped != nil && dropped.Reason != ReasonReportDropped && reason != ReasonReportDropped {
-			t.recordDropLocked(incident.LastSeenAt)
+			t.recordDropLocked(now)
 		}
 	}
 	t.pending[incident.IncidentKey] = incident
