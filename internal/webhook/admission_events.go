@@ -166,7 +166,7 @@ func (r *HTTPAdmissionEventReporter) deliver(event *gatewaypb.AdmissionEvent) ev
 }
 
 func (r *HTTPAdmissionEventReporter) recordIncident(reason, eventID, detail string) {
-	r.observations.tracker.Record(reason, 1, eventID, detail, time.Now().UTC())
+	r.observations.record(reason, eventID, detail, time.Now().UTC())
 }
 
 const crockford32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

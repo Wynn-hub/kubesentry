@@ -70,10 +70,26 @@ func TestWebhookIncidentReporterPostsAndAcknowledgesClosedIncident(t *testing.T)
 	}
 }
 
+func TestWebhookIncidentReporterDropsRecordsWhileObservationDisabled(t *testing.T) {
+	now := time.Now().UTC()
+	tracker := admissionobs.NewTracker(admissionobs.ComponentWebhook, "webhook-a")
+	reporter := &webhookObservationReporter{tracker: tracker}
+	reporter.record(admissionobs.ReasonQueueFull, "event-a", "full", now)
+	if len(tracker.Snapshot(now)) != 0 {
+		t.Fatal("recorded an incident while observation was disabled")
+	}
+	reporter.enabled.Store(true)
+	reporter.record(admissionobs.ReasonQueueFull, "event-a", "full", now)
+	if len(tracker.Snapshot(now)) != 1 {
+		t.Fatal("enabled reporter did not record an incident")
+	}
+}
+
 func TestWebhookIncidentReporterRecordsDeliveryFailureWithoutRecursion(t *testing.T) {
 	now := time.Now().UTC()
 	tracker := admissionobs.NewTracker(admissionobs.ComponentWebhook, "webhook-a")
 	reporter := &webhookObservationReporter{endpoint: "http://127.0.0.1:1", client: &http.Client{Timeout: time.Millisecond}, tracker: tracker}
+	reporter.enabled.Store(true)
 	tracker.Record(admissionobs.ReasonQueueFull, 1, "event-a", "full", now)
 	reporter.flush(now)
 	items := tracker.Snapshot(now)

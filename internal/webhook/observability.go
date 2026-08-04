@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
@@ -27,6 +28,10 @@ type webhookObservationReporter struct {
 	token     string
 	client    *http.Client
 	tracker   *admissionobs.Tracker
+	// Gates recording, not just reporting. Relying on the periodic Reset() alone
+	// left the tracker accumulating while observation was off, and a config
+	// endpoint that stops answering never delivers that Reset at all.
+	enabled atomic.Bool
 
 	workersMu     sync.Mutex
 	workersCancel context.CancelFunc
@@ -78,6 +83,7 @@ func (r *webhookObservationReporter) refreshEnabled() {
 func (r *webhookObservationReporter) setEnabled(enabled bool) {
 	r.workersMu.Lock()
 	defer r.workersMu.Unlock()
+	r.enabled.Store(enabled)
 	if enabled {
 		if r.workersCancel != nil {
 			return
@@ -92,6 +98,13 @@ func (r *webhookObservationReporter) setEnabled(enabled bool) {
 		r.workersCancel = nil
 	}
 	r.tracker.Reset()
+}
+
+func (r *webhookObservationReporter) record(reason, eventID, detail string, now time.Time) {
+	if !r.enabled.Load() {
+		return
+	}
+	r.tracker.Record(reason, 1, eventID, detail, now)
 }
 
 func (r *webhookObservationReporter) run(ctx context.Context) {
@@ -117,7 +130,7 @@ func (r *webhookObservationReporter) flush(now time.Time) {
 		}
 		ack, err := r.post(batch)
 		if err != nil {
-			r.tracker.Record(admissionobs.ReasonReportDropped, 1, "", err.Error(), now)
+			r.record(admissionobs.ReasonReportDropped, "", err.Error(), now)
 			slog.Warn("webhook incident report failed", "error", err)
 			return
 		}
