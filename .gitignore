@@ -39,7 +39,9 @@ docs/superpowers/
 rules.xlsx
 
 # Web frontend artifacts
-web/node_modules/
+# Unanchored so it also covers a repo-root node_modules/, which appears whenever
+# npm or vitest is run outside web/ and was otherwise trackable.
+node_modules/
 web/dist/*
 !web/dist/.gitkeep
 .gstack/
