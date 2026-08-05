@@ -44,7 +44,7 @@ func TestAdmissionEventSettingsRoundTrip(t *testing.T) {
 		}},
 	}
 	rec, env := doRequest(t, server, "PUT", "/api/v1/admission-event-settings", body)
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("update settings = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	got := mustUnmarshal[admissionSettingsResponse](t, env.Data)
@@ -110,7 +110,7 @@ func TestAdmissionEventSettingsNotifyGatewayWithCleanupTopic(t *testing.T) {
 		"maxRetryAttempts":     3,
 		"queueCapacity":        1024,
 	})
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("update settings = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	topics, _ := fake.calls()

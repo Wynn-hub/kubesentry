@@ -47,7 +47,7 @@ func TestPlatformOverviewSeparatesGatewayAndMemberHealth(t *testing.T) {
 	write(sample(platformobs.ComponentOperator, "operator-0", cluster.ID, platformobs.RoleStandby))
 
 	rec, env := doRequest(t, server, "GET", "/api/v1/platform/overview?page=1&pageSize=20", nil)
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("overview = %d: %s", rec.Code, rec.Body.String())
 	}
 	overview := mustUnmarshal[platformOverviewResponse](t, env.Data)
@@ -87,7 +87,7 @@ func TestPlatformSettingsAndTrend(t *testing.T) {
 	to := url.QueryEscape(now.Add(2 * time.Minute).Format(time.RFC3339))
 	rec, env := doRequest(t, server, "GET",
 		"/api/v1/platform/instances/gateway/gateway-0/trend?from="+from+"&to="+to, nil)
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("trend = %d: %s", rec.Code, rec.Body.String())
 	}
 	trend := mustUnmarshal[struct {
@@ -100,7 +100,7 @@ func TestPlatformSettingsAndTrend(t *testing.T) {
 
 	rec, env = doRequest(t, server, "PUT", "/api/v1/platform/settings",
 		map[string]any{"enabled": true, "retentionDays": 3})
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("settings = %d: %s", rec.Code, rec.Body.String())
 	}
 	settings := mustUnmarshal[platformSettingsResponse](t, env.Data)
@@ -118,7 +118,7 @@ func TestPlatformSettingsAndTrend(t *testing.T) {
 func TestPlatformOverviewReportsDisabledState(t *testing.T) {
 	server, _ := newDBTestServer(t)
 	rec, env := doRequest(t, server, "GET", "/api/v1/platform/overview?page=1&pageSize=20", nil)
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("overview = %d: %s", rec.Code, rec.Body.String())
 	}
 	overview := mustUnmarshal[platformOverviewResponse](t, env.Data)

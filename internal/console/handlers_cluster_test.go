@@ -125,8 +125,8 @@ func TestCreateClusterDuplicateNameConflict(t *testing.T) {
 	if rec.Code != 409 {
 		t.Fatalf("code = %d, want 409, body = %s", rec.Code, rec.Body.String())
 	}
-	if env.Error == nil || !strings.Contains(*env.Error, "dup") {
-		t.Errorf("error = %v, want it to mention the cluster name", env.Error)
+	if env.Code == 0 || !strings.Contains(env.Message, "dup") {
+		t.Errorf("message = %q (code %d), want it to mention the cluster name", env.Message, env.Code)
 	}
 }
 
@@ -383,8 +383,8 @@ func TestGetLatestInstallParamsNoneExists(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d, want 200", rec.Code)
 	}
-	if string(env.Data) != "null" {
-		t.Errorf("data = %s, want null for a cluster with no history", env.Data)
+	if string(env.Data) != "" {
+		t.Errorf("data = %s, want omitted for a cluster with no history", env.Data)
 	}
 }
 

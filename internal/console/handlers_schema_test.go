@@ -20,7 +20,7 @@ func (f *fakeSchemaFetcher) FieldsFor(group, version, resource string) ([]FieldN
 func TestGetFieldSchema_MissingParams(t *testing.T) {
 	h := newTestServer(t)
 	rec, env := doRequest(t, h, "GET", "/api/v1/schema/fields?group=apps", nil)
-	if rec.Code != 400 || env.Success {
+	if rec.Code != 400 || env.Code == 0 {
 		t.Fatalf("code=%d env=%+v, want 400", rec.Code, env)
 	}
 }
@@ -31,7 +31,7 @@ func TestGetFieldSchema_CachesUntilRefresh(t *testing.T) {
 	h.SchemaFetcher = fetcher
 
 	rec, env := doRequest(t, handler, "GET", "/api/v1/schema/fields?group=&version=v1&resource=pods", nil)
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 	doRequest(t, handler, "GET", "/api/v1/schema/fields?group=&version=v1&resource=pods", nil)
@@ -50,7 +50,7 @@ func TestGetFieldSchema_FetcherError(t *testing.T) {
 	h.SchemaFetcher = &fakeSchemaFetcher{err: errors.New("boom")}
 
 	rec, env := doRequest(t, handler, "GET", "/api/v1/schema/fields?group=&version=v1&resource=pods", nil)
-	if rec.Code != http.StatusBadGateway || env.Success {
+	if rec.Code != http.StatusBadGateway || env.Code == 0 {
 		t.Fatalf("code=%d env=%+v, want 502", rec.Code, env)
 	}
 }

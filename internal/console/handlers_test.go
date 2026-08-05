@@ -17,9 +17,10 @@ deny[msg] {
 }`
 
 type testEnvelope struct {
-	Success bool            `json:"success"`
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
 	Data    json.RawMessage `json:"data"`
-	Error   *string         `json:"error"`
+	Details []string        `json:"details"`
 }
 
 // newTestServer builds a console server around a bare *Handlers, for tests

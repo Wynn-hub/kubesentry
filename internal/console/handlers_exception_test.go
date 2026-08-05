@@ -134,7 +134,7 @@ func TestCreateExceptionBadDurationRejected(t *testing.T) {
 	req := validExceptionReq()
 	req.Duration = "not-a-duration"
 	rec, env := doRequest(t, h, "POST", "/api/v1/exceptions", req)
-	if rec.Code != 400 || env.Error == nil {
+	if rec.Code != 400 || env.Code == 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 }

@@ -42,7 +42,7 @@ func TestAdmissionLinkIncidentListAndDetailResolveSamples(t *testing.T) {
 		"to":   {now.Add(time.Minute).Format(time.RFC3339)},
 	}.Encode()
 	rec, env := doRequest(t, server, "GET", "/api/v1/admission-link-incidents?"+query, nil)
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("list incidents = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	page := mustUnmarshal[struct {
@@ -54,7 +54,7 @@ func TestAdmissionLinkIncidentListAndDetailResolveSamples(t *testing.T) {
 	}
 
 	rec, env = doRequest(t, server, "GET", "/api/v1/admission-link-incidents/"+page.Items[0].ID, nil)
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("get incident = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	detail := mustUnmarshal[linkIncidentDetail](t, env.Data)

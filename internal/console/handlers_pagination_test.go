@@ -28,7 +28,7 @@ func TestListEndpointsRejectInvalidPagination(t *testing.T) {
 	for _, path := range paths {
 		t.Run(path, func(t *testing.T) {
 			rec, env := doRequest(t, h, "GET", path, nil)
-			if rec.Code != 400 || env.Error == nil {
+			if rec.Code != 400 || env.Code == 0 {
 				t.Fatalf("code=%d env=%+v, want pagination validation error", rec.Code, env)
 			}
 		})
@@ -81,7 +81,7 @@ func TestListEndpointsSupportPagesAndSortFields(t *testing.T) {
 		t.Run(endpoint.path, func(t *testing.T) {
 			for _, sortField := range endpoint.sortFields {
 				rec, env := doRequest(t, h, "GET", endpoint.path+"?pageSize=10&sortBy="+sortField+"&sortOrder=desc", nil)
-				if rec.Code != 200 || !env.Success {
+				if rec.Code != 200 || env.Code != 0 {
 					t.Fatalf("sortBy=%s code=%d env=%+v", sortField, rec.Code, env)
 				}
 				page := mustUnmarshal[pageResult[json.RawMessage]](t, env.Data)

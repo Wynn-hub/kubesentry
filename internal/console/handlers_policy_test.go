@@ -92,7 +92,7 @@ func TestListPoliciesFiltered(t *testing.T) {
 	}
 
 	rec, env := doRequest(t, h, "GET", "/api/v1/policies?mode=audit&keyword="+zzTestKeyword, nil)
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 	page := mustUnmarshal[pageResult[policyListItem]](t, env.Data)
@@ -175,7 +175,7 @@ func TestGetPolicyNotFound(t *testing.T) {
 func TestCreatePolicy(t *testing.T) {
 	h, repos := newDBTestServer(t)
 	rec, env := doRequest(t, h, "POST", "/api/v1/policies", validReq())
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 	p, err := repos.Policies.GetByName(t.Context(), "my-policy")
@@ -199,7 +199,7 @@ func TestCreatePolicyNotifiesGatewayOnSuccess(t *testing.T) {
 	handlers.Gateway = fake
 
 	rec, env := doRequest(t, h, "POST", "/api/v1/policies", validReq())
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 	topics, _ := fake.calls()
@@ -217,7 +217,7 @@ func TestCreatePolicySucceedsWhenGatewayNotifyFails(t *testing.T) {
 	handlers.Gateway = &fakeHubClient{notifyChangeErr: context.DeadlineExceeded}
 
 	rec, env := doRequest(t, h, "POST", "/api/v1/policies", validReq())
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v, want a successful response despite gateway failure", rec.Code, env)
 	}
 	if _, err := repos.Policies.GetByName(t.Context(), "my-policy"); err != nil {
@@ -239,7 +239,7 @@ func TestCreatePolicyBadRego(t *testing.T) {
 	req := validReq()
 	req.Rego = "package kubesentry\ndeny[msg] {"
 	rec, env := doRequest(t, h, "POST", "/api/v1/policies", req)
-	if rec.Code != 400 || env.Error == nil {
+	if rec.Code != 400 || env.Code == 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 }
@@ -293,7 +293,7 @@ func TestUpdatePolicyBadRego(t *testing.T) {
 	req.Name = ""
 	req.Rego = "package kubesentry\ndeny[msg] {"
 	rec, env := doRequest(t, h, "PUT", "/api/v1/policies/p1", req)
-	if rec.Code != 400 || env.Error == nil {
+	if rec.Code != 400 || env.Code == 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 }
@@ -305,7 +305,7 @@ func TestValidateEndpoint(t *testing.T) {
 		t.Fatalf("valid rego: code = %d", rec.Code)
 	}
 	rec, env := doRequest(t, h, "POST", "/api/v1/policies/validate", map[string]string{"rego": "package kubesentry\ndeny[msg] {"})
-	if rec.Code != 400 || env.Error == nil {
+	if rec.Code != 400 || env.Code == 0 {
 		t.Fatalf("bad rego: code=%d env=%+v", rec.Code, env)
 	}
 }
@@ -568,7 +568,7 @@ func TestResourceSuggestions(t *testing.T) {
 	}
 
 	rec, env := doRequest(t, h, "GET", "/api/v1/policies/resource-suggestions", nil)
-	if rec.Code != 200 || !env.Success {
+	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
 	got := mustUnmarshal[resourceSuggestionsResponse](t, env.Data)

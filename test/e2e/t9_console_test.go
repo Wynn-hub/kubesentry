@@ -43,9 +43,9 @@ func startPortForward(t *testing.T) func() {
 }
 
 type apiEnvelope struct {
-	Success bool            `json:"success"`
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
 	Data    json.RawMessage `json:"data"`
-	Error   *string         `json:"error"`
 }
 
 func consoleDo(t *testing.T, method, path string, body any) (int, apiEnvelope) {
@@ -76,7 +76,7 @@ func TestT9_ConsoleListsBuiltinPolicies(t *testing.T) {
 	defer stop()
 
 	code, env := consoleDo(t, "GET", "/api/v1/policies?pageSize=100", nil)
-	if code != 200 || !env.Success {
+	if code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", code, env)
 	}
 	var page struct {
@@ -207,7 +207,7 @@ func TestT9_ResourceSuggestions(t *testing.T) {
 	defer stop()
 
 	code, env := consoleDo(t, "GET", "/api/v1/policies/resource-suggestions", nil)
-	if code != 200 || !env.Success {
+	if code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", code, env)
 	}
 	var resp struct {
@@ -229,7 +229,7 @@ func TestT9_SchemaFields(t *testing.T) {
 	defer stop()
 
 	code, env := consoleDo(t, "GET", "/api/v1/schema/fields?group=&version=v1&resource=pods", nil)
-	if code != 200 || !env.Success {
+	if code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", code, env)
 	}
 	var fields []struct {
