@@ -10,6 +10,21 @@ import (
 	"github.com/ogen-go/ogen/uri"
 )
 
+var (
+	rn1AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn8AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn3AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn7AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+)
+
 func (s *Server) cutPrefix(path string) (string, bool) {
 	prefix := s.cfg.Prefix
 	if prefix == "" {
@@ -40,6 +55,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
+	args := [1]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -57,20 +73,191 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if len(elem) == 0 {
-				// Leaf node.
 				switch r.Method {
 				case "GET":
 					s.handleListPoliciesRequest([0]string{}, elemIsEscaped, w, r)
+				case "POST":
+					s.handleCreatePolicyRequest([0]string{}, elemIsEscaped, w, r)
 				default:
 					s.notAllowed(w, r, notAllowedParams{
-						allowedMethods: "GET",
-						allowedHeaders: nil,
-						acceptPost:     "",
+						allowedMethods: "GET,POST",
+						allowedHeaders: rn1AllowedHeaders,
+						acceptPost:     "application/json",
 						acceptPatch:    "",
 					})
 				}
 
 				return
+			}
+			switch elem[0] {
+			case '/': // Prefix: "/"
+
+				if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case 'r': // Prefix: "resource-suggestions"
+					origElem := elem
+					if l := len("resource-suggestions"); len(elem) >= l && elem[0:l] == "resource-suggestions" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "GET":
+							s.handleGetResourceSuggestionsRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "GET",
+								allowedHeaders: nil,
+								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+					elem = origElem
+				case 'v': // Prefix: "validate"
+					origElem := elem
+					if l := len("validate"); len(elem) >= l && elem[0:l] == "validate" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleValidatePolicyRegoRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "POST",
+								allowedHeaders: rn8AllowedHeaders,
+								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+					elem = origElem
+				}
+				// Param: "name"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					switch r.Method {
+					case "DELETE":
+						s.handleDeletePolicyRequest([1]string{
+							args[0],
+						}, elemIsEscaped, w, r)
+					case "GET":
+						s.handleGetPolicyRequest([1]string{
+							args[0],
+						}, elemIsEscaped, w, r)
+					case "PUT":
+						s.handleUpdatePolicyRequest([1]string{
+							args[0],
+						}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, notAllowedParams{
+							allowedMethods: "DELETE,GET,PUT",
+							allowedHeaders: rn3AllowedHeaders,
+							acceptPost:     "",
+							acceptPatch:    "",
+						})
+					}
+
+					return
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case 'r': // Prefix: "rollback"
+
+						if l := len("rollback"); len(elem) >= l && elem[0:l] == "rollback" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleRollbackPolicyRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "POST",
+									allowedHeaders: rn7AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
+					case 'v': // Prefix: "versions"
+
+						if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "GET":
+								s.handleListPolicyVersionsRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET",
+									allowedHeaders: nil,
+									acceptPost:     "",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
+					}
+				}
 			}
 		}
 	}
@@ -85,7 +272,7 @@ type Route struct {
 	operationGroup string
 	pathPattern    string
 	count          int
-	args           [0]string
+	args           [1]string
 }
 
 // Name returns ogen operation name.
@@ -167,7 +354,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 			}
 
 			if len(elem) == 0 {
-				// Leaf node.
 				switch method {
 				case "GET":
 					r.name = ListPoliciesOperation
@@ -178,8 +364,191 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					r.args = args
 					r.count = 0
 					return r, true
+				case "POST":
+					r.name = CreatePolicyOperation
+					r.summary = "创建策略"
+					r.operationID = "createPolicy"
+					r.operationGroup = ""
+					r.pathPattern = "/policies"
+					r.args = args
+					r.count = 0
+					return r, true
 				default:
 					return
+				}
+			}
+			switch elem[0] {
+			case '/': // Prefix: "/"
+
+				if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case 'r': // Prefix: "resource-suggestions"
+					origElem := elem
+					if l := len("resource-suggestions"); len(elem) >= l && elem[0:l] == "resource-suggestions" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "GET":
+							r.name = GetResourceSuggestionsOperation
+							r.summary = "查询资源建议"
+							r.operationID = "getResourceSuggestions"
+							r.operationGroup = ""
+							r.pathPattern = "/policies/resource-suggestions"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+					elem = origElem
+				case 'v': // Prefix: "validate"
+					origElem := elem
+					if l := len("validate"); len(elem) >= l && elem[0:l] == "validate" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = ValidatePolicyRegoOperation
+							r.summary = "校验 Rego 源码"
+							r.operationID = "validatePolicyRego"
+							r.operationGroup = ""
+							r.pathPattern = "/policies/validate"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+					elem = origElem
+				}
+				// Param: "name"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					switch method {
+					case "DELETE":
+						r.name = DeletePolicyOperation
+						r.summary = "删除策略"
+						r.operationID = "deletePolicy"
+						r.operationGroup = ""
+						r.pathPattern = "/policies/{name}"
+						r.args = args
+						r.count = 1
+						return r, true
+					case "GET":
+						r.name = GetPolicyOperation
+						r.summary = "查询策略详情"
+						r.operationID = "getPolicy"
+						r.operationGroup = ""
+						r.pathPattern = "/policies/{name}"
+						r.args = args
+						r.count = 1
+						return r, true
+					case "PUT":
+						r.name = UpdatePolicyOperation
+						r.summary = "更新策略"
+						r.operationID = "updatePolicy"
+						r.operationGroup = ""
+						r.pathPattern = "/policies/{name}"
+						r.args = args
+						r.count = 1
+						return r, true
+					default:
+						return
+					}
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case 'r': // Prefix: "rollback"
+
+						if l := len("rollback"); len(elem) >= l && elem[0:l] == "rollback" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = RollbackPolicyOperation
+								r.summary = "回滚策略到上一版本"
+								r.operationID = "rollbackPolicy"
+								r.operationGroup = ""
+								r.pathPattern = "/policies/{name}/rollback"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
+					case 'v': // Prefix: "versions"
+
+						if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "GET":
+								r.name = ListPolicyVersionsOperation
+								r.summary = "查询策略版本历史"
+								r.operationID = "listPolicyVersions"
+								r.operationGroup = ""
+								r.pathPattern = "/policies/{name}/versions"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
+					}
 				}
 			}
 		}

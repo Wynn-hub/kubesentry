@@ -9,6 +9,61 @@ import (
 	"github.com/go-faster/jx"
 )
 
+type CreatePolicyBadRequest ErrorResponse
+
+func (*CreatePolicyBadRequest) createPolicyRes() {}
+
+type CreatePolicyConflict ErrorResponse
+
+func (*CreatePolicyConflict) createPolicyRes() {}
+
+type CreatePolicyInternalServerError ErrorResponse
+
+func (*CreatePolicyInternalServerError) createPolicyRes() {}
+
+type DeletePolicyConflict ErrorResponse
+
+func (*DeletePolicyConflict) deletePolicyRes() {}
+
+type DeletePolicyInternalServerError ErrorResponse
+
+func (*DeletePolicyInternalServerError) deletePolicyRes() {}
+
+type DeletePolicyNotFound ErrorResponse
+
+func (*DeletePolicyNotFound) deletePolicyRes() {}
+
+// Ref: #/components/schemas/Envelope
+type Envelope struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string `json:"message"`
+}
+
+// GetCode returns the value of Code.
+func (s *Envelope) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *Envelope) GetMessage() string {
+	return s.Message
+}
+
+// SetCode sets the value of Code.
+func (s *Envelope) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *Envelope) SetMessage(val string) {
+	s.Message = val
+}
+
+func (*Envelope) deletePolicyRes()       {}
+func (*Envelope) validatePolicyRegoRes() {}
+
 // Merged schema.
 // Ref: #/components/schemas/ErrorResponse
 type ErrorResponse struct {
@@ -62,6 +117,8 @@ func (s *ErrorResponse) SetData(val OptErrorResponseData) {
 	s.Data = val
 }
 
+func (*ErrorResponse) validatePolicyRegoRes() {}
+
 // 失败时附带的结构化数据。例如删除被引用资源时的 referencedBy 列表.
 type ErrorResponseData map[string]jx.Raw
 
@@ -73,6 +130,22 @@ func (s *ErrorResponseData) init() ErrorResponseData {
 	}
 	return m
 }
+
+type GetPolicyInternalServerError ErrorResponse
+
+func (*GetPolicyInternalServerError) getPolicyRes() {}
+
+type GetPolicyNotFound ErrorResponse
+
+func (*GetPolicyNotFound) getPolicyRes() {}
+
+type GetResourceSuggestionsBadRequest ErrorResponse
+
+func (*GetResourceSuggestionsBadRequest) getResourceSuggestionsRes() {}
+
+type GetResourceSuggestionsInternalServerError ErrorResponse
+
+func (*GetResourceSuggestionsInternalServerError) getResourceSuggestionsRes() {}
 
 type ListPoliciesBadRequest ErrorResponse
 
@@ -320,6 +393,102 @@ func (s *ListPoliciesSourceItem) UnmarshalText(data []byte) error {
 	}
 }
 
+type ListPolicyVersionsInternalServerError ErrorResponse
+
+func (*ListPolicyVersionsInternalServerError) listPolicyVersionsRes() {}
+
+type ListPolicyVersionsNotFound ErrorResponse
+
+func (*ListPolicyVersionsNotFound) listPolicyVersionsRes() {}
+
+// Ref: #/components/schemas/MatchResource
+type MatchResource struct {
+	// 匹配的 API 组。核心组用空字符串表示，星号 * 匹配全部组 （见
+	// internal/webhook/cache.go:190）.
+	ApiGroups []string `json:"apiGroups"`
+	// 匹配的 API 版本.
+	ApiVersions []string `json:"apiVersions"`
+	// 匹配的资源类型，使用复数形式。星号 * 匹配全部资源 （见
+	// internal/webhook/cache.go:189）.
+	Resources []string `json:"resources"`
+}
+
+// GetApiGroups returns the value of ApiGroups.
+func (s *MatchResource) GetApiGroups() []string {
+	return s.ApiGroups
+}
+
+// GetApiVersions returns the value of ApiVersions.
+func (s *MatchResource) GetApiVersions() []string {
+	return s.ApiVersions
+}
+
+// GetResources returns the value of Resources.
+func (s *MatchResource) GetResources() []string {
+	return s.Resources
+}
+
+// SetApiGroups sets the value of ApiGroups.
+func (s *MatchResource) SetApiGroups(val []string) {
+	s.ApiGroups = val
+}
+
+// SetApiVersions sets the value of ApiVersions.
+func (s *MatchResource) SetApiVersions(val []string) {
+	s.ApiVersions = val
+}
+
+// SetResources sets the value of Resources.
+func (s *MatchResource) SetResources(val []string) {
+	s.Resources = val
+}
+
+// NewOptBool returns new OptBool with value set to v.
+func NewOptBool(v bool) OptBool {
+	return OptBool{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBool is optional bool.
+type OptBool struct {
+	Value bool
+	Set   bool
+}
+
+// IsSet returns true if OptBool was set.
+func (o OptBool) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBool) Reset() {
+	var v bool
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBool) SetTo(v bool) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBool) Get() (v bool, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptErrorResponseData returns new OptErrorResponseData with value set to v.
 func NewOptErrorResponseData(v ErrorResponseData) OptErrorResponseData {
 	return OptErrorResponseData{
@@ -550,6 +719,52 @@ func (o OptPageSize) Or(d PageSize) PageSize {
 	return d
 }
 
+// NewOptPolicyDetail returns new OptPolicyDetail with value set to v.
+func NewOptPolicyDetail(v PolicyDetail) OptPolicyDetail {
+	return OptPolicyDetail{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyDetail is optional PolicyDetail.
+type OptPolicyDetail struct {
+	Value PolicyDetail
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyDetail was set.
+func (o OptPolicyDetail) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyDetail) Reset() {
+	var v PolicyDetail
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyDetail) SetTo(v PolicyDetail) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyDetail) Get() (v PolicyDetail, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyDetail) Or(d PolicyDetail) PolicyDetail {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptPolicyListData returns new OptPolicyListData with value set to v.
 func NewOptPolicyListData(v PolicyListData) OptPolicyListData {
 	return OptPolicyListData{
@@ -590,6 +805,282 @@ func (o OptPolicyListData) Get() (v PolicyListData, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptPolicyListData) Or(d PolicyListData) PolicyListData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPolicyNameData returns new OptPolicyNameData with value set to v.
+func NewOptPolicyNameData(v PolicyNameData) OptPolicyNameData {
+	return OptPolicyNameData{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyNameData is optional PolicyNameData.
+type OptPolicyNameData struct {
+	Value PolicyNameData
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyNameData was set.
+func (o OptPolicyNameData) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyNameData) Reset() {
+	var v PolicyNameData
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyNameData) SetTo(v PolicyNameData) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyNameData) Get() (v PolicyNameData, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyNameData) Or(d PolicyNameData) PolicyNameData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPolicyRequestAnnotations returns new OptPolicyRequestAnnotations with value set to v.
+func NewOptPolicyRequestAnnotations(v PolicyRequestAnnotations) OptPolicyRequestAnnotations {
+	return OptPolicyRequestAnnotations{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyRequestAnnotations is optional PolicyRequestAnnotations.
+type OptPolicyRequestAnnotations struct {
+	Value PolicyRequestAnnotations
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyRequestAnnotations was set.
+func (o OptPolicyRequestAnnotations) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyRequestAnnotations) Reset() {
+	var v PolicyRequestAnnotations
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyRequestAnnotations) SetTo(v PolicyRequestAnnotations) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyRequestAnnotations) Get() (v PolicyRequestAnnotations, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyRequestAnnotations) Or(d PolicyRequestAnnotations) PolicyRequestAnnotations {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPolicyRequestLabels returns new OptPolicyRequestLabels with value set to v.
+func NewOptPolicyRequestLabels(v PolicyRequestLabels) OptPolicyRequestLabels {
+	return OptPolicyRequestLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyRequestLabels is optional PolicyRequestLabels.
+type OptPolicyRequestLabels struct {
+	Value PolicyRequestLabels
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyRequestLabels was set.
+func (o OptPolicyRequestLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyRequestLabels) Reset() {
+	var v PolicyRequestLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyRequestLabels) SetTo(v PolicyRequestLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyRequestLabels) Get() (v PolicyRequestLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyRequestLabels) Or(d PolicyRequestLabels) PolicyRequestLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPolicyVersionList returns new OptPolicyVersionList with value set to v.
+func NewOptPolicyVersionList(v PolicyVersionList) OptPolicyVersionList {
+	return OptPolicyVersionList{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyVersionList is optional PolicyVersionList.
+type OptPolicyVersionList struct {
+	Value PolicyVersionList
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyVersionList was set.
+func (o OptPolicyVersionList) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyVersionList) Reset() {
+	var v PolicyVersionList
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyVersionList) SetTo(v PolicyVersionList) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyVersionList) Get() (v PolicyVersionList, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyVersionList) Or(d PolicyVersionList) PolicyVersionList {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptResourceSuggestions returns new OptResourceSuggestions with value set to v.
+func NewOptResourceSuggestions(v ResourceSuggestions) OptResourceSuggestions {
+	return OptResourceSuggestions{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptResourceSuggestions is optional ResourceSuggestions.
+type OptResourceSuggestions struct {
+	Value ResourceSuggestions
+	Set   bool
+}
+
+// IsSet returns true if OptResourceSuggestions was set.
+func (o OptResourceSuggestions) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptResourceSuggestions) Reset() {
+	var v ResourceSuggestions
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptResourceSuggestions) SetTo(v ResourceSuggestions) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptResourceSuggestions) Get() (v ResourceSuggestions, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptResourceSuggestions) Or(d ResourceSuggestions) ResourceSuggestions {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptRollbackResult returns new OptRollbackResult with value set to v.
+func NewOptRollbackResult(v RollbackResult) OptRollbackResult {
+	return OptRollbackResult{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptRollbackResult is optional RollbackResult.
+type OptRollbackResult struct {
+	Value RollbackResult
+	Set   bool
+}
+
+// IsSet returns true if OptRollbackResult was set.
+func (o OptRollbackResult) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptRollbackResult) Reset() {
+	var v RollbackResult
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptRollbackResult) SetTo(v RollbackResult) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptRollbackResult) Get() (v RollbackResult, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptRollbackResult) Or(d RollbackResult) RollbackResult {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -659,6 +1150,369 @@ func (PageSize) AllValues() []PageSize {
 		PageSize20,
 		PageSize50,
 		PageSize100,
+	}
+}
+
+// Ref: #/components/schemas/PolicyDetail
+type PolicyDetail struct {
+	// 策略名称，集群内唯一.
+	Name string `json:"name"`
+	// 策略来源。builtin 为平台内置，custom 为用户创建.
+	Source PolicyDetailSource `json:"source"`
+	// 策略用途说明.
+	Description string `json:"description"`
+	// 用户标签。策略组的 bySelector 成员匹配依据.
+	Labels PolicyDetailLabels `json:"labels"`
+	// 用户注解。可视化编辑器状态存于 kubesentry.io/visual-builder-spec.
+	Annotations PolicyDetailAnnotations `json:"annotations"`
+	// 策略执行模式。enforce 拦截违规请求，audit 放行但记录告警.
+	EnforcementMode PolicyDetailEnforcementMode `json:"enforcementMode"`
+	Match           PolicyMatch                 `json:"match"`
+	// OPA Rego 策略源码。必须使用 package kubesentry 并暴露 deny 集合.
+	Rego string `json:"rego"`
+	// 策略编译状态。Ready 表示 Rego 编译通过，Invalid 表示编译失败.
+	Phase PolicyDetailPhase `json:"phase"`
+	// Rego 编译错误原文。仅 phase 为 Invalid 时出现.
+	CompileError OptString `json:"compileError"`
+	// 将本策略解析为有效成员的策略组名称列表，已排序.
+	ReferencedBy []string `json:"referencedBy"`
+	// 乐观并发令牌，由行的 updated_at 纳秒值派生。更新时回传以检测并发修改.
+	ResourceVersion string `json:"resourceVersion"`
+	// 创建时间.
+	CreatedAt time.Time `json:"createdAt"`
+	// 最后更新时间.
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// GetName returns the value of Name.
+func (s *PolicyDetail) GetName() string {
+	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *PolicyDetail) GetSource() PolicyDetailSource {
+	return s.Source
+}
+
+// GetDescription returns the value of Description.
+func (s *PolicyDetail) GetDescription() string {
+	return s.Description
+}
+
+// GetLabels returns the value of Labels.
+func (s *PolicyDetail) GetLabels() PolicyDetailLabels {
+	return s.Labels
+}
+
+// GetAnnotations returns the value of Annotations.
+func (s *PolicyDetail) GetAnnotations() PolicyDetailAnnotations {
+	return s.Annotations
+}
+
+// GetEnforcementMode returns the value of EnforcementMode.
+func (s *PolicyDetail) GetEnforcementMode() PolicyDetailEnforcementMode {
+	return s.EnforcementMode
+}
+
+// GetMatch returns the value of Match.
+func (s *PolicyDetail) GetMatch() PolicyMatch {
+	return s.Match
+}
+
+// GetRego returns the value of Rego.
+func (s *PolicyDetail) GetRego() string {
+	return s.Rego
+}
+
+// GetPhase returns the value of Phase.
+func (s *PolicyDetail) GetPhase() PolicyDetailPhase {
+	return s.Phase
+}
+
+// GetCompileError returns the value of CompileError.
+func (s *PolicyDetail) GetCompileError() OptString {
+	return s.CompileError
+}
+
+// GetReferencedBy returns the value of ReferencedBy.
+func (s *PolicyDetail) GetReferencedBy() []string {
+	return s.ReferencedBy
+}
+
+// GetResourceVersion returns the value of ResourceVersion.
+func (s *PolicyDetail) GetResourceVersion() string {
+	return s.ResourceVersion
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *PolicyDetail) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *PolicyDetail) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetName sets the value of Name.
+func (s *PolicyDetail) SetName(val string) {
+	s.Name = val
+}
+
+// SetSource sets the value of Source.
+func (s *PolicyDetail) SetSource(val PolicyDetailSource) {
+	s.Source = val
+}
+
+// SetDescription sets the value of Description.
+func (s *PolicyDetail) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *PolicyDetail) SetLabels(val PolicyDetailLabels) {
+	s.Labels = val
+}
+
+// SetAnnotations sets the value of Annotations.
+func (s *PolicyDetail) SetAnnotations(val PolicyDetailAnnotations) {
+	s.Annotations = val
+}
+
+// SetEnforcementMode sets the value of EnforcementMode.
+func (s *PolicyDetail) SetEnforcementMode(val PolicyDetailEnforcementMode) {
+	s.EnforcementMode = val
+}
+
+// SetMatch sets the value of Match.
+func (s *PolicyDetail) SetMatch(val PolicyMatch) {
+	s.Match = val
+}
+
+// SetRego sets the value of Rego.
+func (s *PolicyDetail) SetRego(val string) {
+	s.Rego = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *PolicyDetail) SetPhase(val PolicyDetailPhase) {
+	s.Phase = val
+}
+
+// SetCompileError sets the value of CompileError.
+func (s *PolicyDetail) SetCompileError(val OptString) {
+	s.CompileError = val
+}
+
+// SetReferencedBy sets the value of ReferencedBy.
+func (s *PolicyDetail) SetReferencedBy(val []string) {
+	s.ReferencedBy = val
+}
+
+// SetResourceVersion sets the value of ResourceVersion.
+func (s *PolicyDetail) SetResourceVersion(val string) {
+	s.ResourceVersion = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *PolicyDetail) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *PolicyDetail) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// 用户注解。可视化编辑器状态存于 kubesentry.io/visual-builder-spec.
+type PolicyDetailAnnotations map[string]string
+
+func (s *PolicyDetailAnnotations) init() PolicyDetailAnnotations {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// 策略执行模式。enforce 拦截违规请求，audit 放行但记录告警.
+type PolicyDetailEnforcementMode string
+
+const (
+	PolicyDetailEnforcementModeEnforce PolicyDetailEnforcementMode = "enforce"
+	PolicyDetailEnforcementModeAudit   PolicyDetailEnforcementMode = "audit"
+)
+
+// AllValues returns all PolicyDetailEnforcementMode values.
+func (PolicyDetailEnforcementMode) AllValues() []PolicyDetailEnforcementMode {
+	return []PolicyDetailEnforcementMode{
+		PolicyDetailEnforcementModeEnforce,
+		PolicyDetailEnforcementModeAudit,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PolicyDetailEnforcementMode) MarshalText() ([]byte, error) {
+	switch s {
+	case PolicyDetailEnforcementModeEnforce:
+		return []byte(s), nil
+	case PolicyDetailEnforcementModeAudit:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PolicyDetailEnforcementMode) UnmarshalText(data []byte) error {
+	switch PolicyDetailEnforcementMode(data) {
+	case PolicyDetailEnforcementModeEnforce:
+		*s = PolicyDetailEnforcementModeEnforce
+		return nil
+	case PolicyDetailEnforcementModeAudit:
+		*s = PolicyDetailEnforcementModeAudit
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// 用户标签。策略组的 bySelector 成员匹配依据.
+type PolicyDetailLabels map[string]string
+
+func (s *PolicyDetailLabels) init() PolicyDetailLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// 策略编译状态。Ready 表示 Rego 编译通过，Invalid 表示编译失败.
+type PolicyDetailPhase string
+
+const (
+	PolicyDetailPhaseReady   PolicyDetailPhase = "Ready"
+	PolicyDetailPhaseInvalid PolicyDetailPhase = "Invalid"
+)
+
+// AllValues returns all PolicyDetailPhase values.
+func (PolicyDetailPhase) AllValues() []PolicyDetailPhase {
+	return []PolicyDetailPhase{
+		PolicyDetailPhaseReady,
+		PolicyDetailPhaseInvalid,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PolicyDetailPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case PolicyDetailPhaseReady:
+		return []byte(s), nil
+	case PolicyDetailPhaseInvalid:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PolicyDetailPhase) UnmarshalText(data []byte) error {
+	switch PolicyDetailPhase(data) {
+	case PolicyDetailPhaseReady:
+		*s = PolicyDetailPhaseReady
+		return nil
+	case PolicyDetailPhaseInvalid:
+		*s = PolicyDetailPhaseInvalid
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/PolicyDetailResponse
+type PolicyDetailResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string          `json:"message"`
+	Data    OptPolicyDetail `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *PolicyDetailResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *PolicyDetailResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *PolicyDetailResponse) GetData() OptPolicyDetail {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *PolicyDetailResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *PolicyDetailResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *PolicyDetailResponse) SetData(val OptPolicyDetail) {
+	s.Data = val
+}
+
+func (*PolicyDetailResponse) getPolicyRes() {}
+
+// 策略来源。builtin 为平台内置，custom 为用户创建.
+type PolicyDetailSource string
+
+const (
+	PolicyDetailSourceBuiltin PolicyDetailSource = "builtin"
+	PolicyDetailSourceCustom  PolicyDetailSource = "custom"
+)
+
+// AllValues returns all PolicyDetailSource values.
+func (PolicyDetailSource) AllValues() []PolicyDetailSource {
+	return []PolicyDetailSource{
+		PolicyDetailSourceBuiltin,
+		PolicyDetailSourceCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PolicyDetailSource) MarshalText() ([]byte, error) {
+	switch s {
+	case PolicyDetailSourceBuiltin:
+		return []byte(s), nil
+	case PolicyDetailSourceCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PolicyDetailSource) UnmarshalText(data []byte) error {
+	switch PolicyDetailSource(data) {
+	case PolicyDetailSourceBuiltin:
+		*s = PolicyDetailSourceBuiltin
+		return nil
+	case PolicyDetailSourceCustom:
+		*s = PolicyDetailSourceCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
@@ -990,3 +1844,788 @@ func (s *PolicyListResponse) SetData(val OptPolicyListData) {
 }
 
 func (*PolicyListResponse) listPoliciesRes() {}
+
+// Ref: #/components/schemas/PolicyMatch
+type PolicyMatch struct {
+	// 匹配的准入操作类型.
+	Operations []PolicyMatchOperationsItem `json:"operations"`
+	// 匹配的资源规则列表，任一规则命中即匹配.
+	Resources []MatchResource `json:"resources"`
+}
+
+// GetOperations returns the value of Operations.
+func (s *PolicyMatch) GetOperations() []PolicyMatchOperationsItem {
+	return s.Operations
+}
+
+// GetResources returns the value of Resources.
+func (s *PolicyMatch) GetResources() []MatchResource {
+	return s.Resources
+}
+
+// SetOperations sets the value of Operations.
+func (s *PolicyMatch) SetOperations(val []PolicyMatchOperationsItem) {
+	s.Operations = val
+}
+
+// SetResources sets the value of Resources.
+func (s *PolicyMatch) SetResources(val []MatchResource) {
+	s.Resources = val
+}
+
+// 单个操作类型.
+type PolicyMatchOperationsItem string
+
+const (
+	PolicyMatchOperationsItemCREATE  PolicyMatchOperationsItem = "CREATE"
+	PolicyMatchOperationsItemUPDATE  PolicyMatchOperationsItem = "UPDATE"
+	PolicyMatchOperationsItemDELETE  PolicyMatchOperationsItem = "DELETE"
+	PolicyMatchOperationsItemCONNECT PolicyMatchOperationsItem = "CONNECT"
+)
+
+// AllValues returns all PolicyMatchOperationsItem values.
+func (PolicyMatchOperationsItem) AllValues() []PolicyMatchOperationsItem {
+	return []PolicyMatchOperationsItem{
+		PolicyMatchOperationsItemCREATE,
+		PolicyMatchOperationsItemUPDATE,
+		PolicyMatchOperationsItemDELETE,
+		PolicyMatchOperationsItemCONNECT,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PolicyMatchOperationsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case PolicyMatchOperationsItemCREATE:
+		return []byte(s), nil
+	case PolicyMatchOperationsItemUPDATE:
+		return []byte(s), nil
+	case PolicyMatchOperationsItemDELETE:
+		return []byte(s), nil
+	case PolicyMatchOperationsItemCONNECT:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PolicyMatchOperationsItem) UnmarshalText(data []byte) error {
+	switch PolicyMatchOperationsItem(data) {
+	case PolicyMatchOperationsItemCREATE:
+		*s = PolicyMatchOperationsItemCREATE
+		return nil
+	case PolicyMatchOperationsItemUPDATE:
+		*s = PolicyMatchOperationsItemUPDATE
+		return nil
+	case PolicyMatchOperationsItemDELETE:
+		*s = PolicyMatchOperationsItemDELETE
+		return nil
+	case PolicyMatchOperationsItemCONNECT:
+		*s = PolicyMatchOperationsItemCONNECT
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/PolicyNameData
+type PolicyNameData struct {
+	// 受影响策略的名称.
+	Name string `json:"name"`
+}
+
+// GetName returns the value of Name.
+func (s *PolicyNameData) GetName() string {
+	return s.Name
+}
+
+// SetName sets the value of Name.
+func (s *PolicyNameData) SetName(val string) {
+	s.Name = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/PolicyNameResponse
+type PolicyNameResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string            `json:"message"`
+	Data    OptPolicyNameData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *PolicyNameResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *PolicyNameResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *PolicyNameResponse) GetData() OptPolicyNameData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *PolicyNameResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *PolicyNameResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *PolicyNameResponse) SetData(val OptPolicyNameData) {
+	s.Data = val
+}
+
+func (*PolicyNameResponse) createPolicyRes() {}
+func (*PolicyNameResponse) updatePolicyRes() {}
+
+// Ref: #/components/schemas/PolicyRequest
+type PolicyRequest struct {
+	// 策略名称，必须是合法的 DNS1123 子域名。仅创建时必需且生效；
+	// 更新时忽略此字段，名称取自路径参数.
+	Name OptString `json:"name"`
+	// 策略用途说明.
+	Description OptString `json:"description"`
+	// 策略执行模式.
+	EnforcementMode PolicyRequestEnforcementMode `json:"enforcementMode"`
+	Match           PolicyMatch                  `json:"match"`
+	// OPA Rego 策略源码。服务端同步编译校验，编译失败返回 40000.
+	Rego string `json:"rego"`
+	// 用户标签。更新时与现有标签合并而非替换.
+	Labels OptPolicyRequestLabels `json:"labels"`
+	// 用户注解。值为空字符串表示删除该键.
+	Annotations OptPolicyRequestAnnotations `json:"annotations"`
+	// 乐观并发令牌。更新时若提供且与服务端当前值不符，返回 40900。
+	// 省略则跳过并发检查.
+	ResourceVersion OptString `json:"resourceVersion"`
+}
+
+// GetName returns the value of Name.
+func (s *PolicyRequest) GetName() OptString {
+	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *PolicyRequest) GetDescription() OptString {
+	return s.Description
+}
+
+// GetEnforcementMode returns the value of EnforcementMode.
+func (s *PolicyRequest) GetEnforcementMode() PolicyRequestEnforcementMode {
+	return s.EnforcementMode
+}
+
+// GetMatch returns the value of Match.
+func (s *PolicyRequest) GetMatch() PolicyMatch {
+	return s.Match
+}
+
+// GetRego returns the value of Rego.
+func (s *PolicyRequest) GetRego() string {
+	return s.Rego
+}
+
+// GetLabels returns the value of Labels.
+func (s *PolicyRequest) GetLabels() OptPolicyRequestLabels {
+	return s.Labels
+}
+
+// GetAnnotations returns the value of Annotations.
+func (s *PolicyRequest) GetAnnotations() OptPolicyRequestAnnotations {
+	return s.Annotations
+}
+
+// GetResourceVersion returns the value of ResourceVersion.
+func (s *PolicyRequest) GetResourceVersion() OptString {
+	return s.ResourceVersion
+}
+
+// SetName sets the value of Name.
+func (s *PolicyRequest) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *PolicyRequest) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetEnforcementMode sets the value of EnforcementMode.
+func (s *PolicyRequest) SetEnforcementMode(val PolicyRequestEnforcementMode) {
+	s.EnforcementMode = val
+}
+
+// SetMatch sets the value of Match.
+func (s *PolicyRequest) SetMatch(val PolicyMatch) {
+	s.Match = val
+}
+
+// SetRego sets the value of Rego.
+func (s *PolicyRequest) SetRego(val string) {
+	s.Rego = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *PolicyRequest) SetLabels(val OptPolicyRequestLabels) {
+	s.Labels = val
+}
+
+// SetAnnotations sets the value of Annotations.
+func (s *PolicyRequest) SetAnnotations(val OptPolicyRequestAnnotations) {
+	s.Annotations = val
+}
+
+// SetResourceVersion sets the value of ResourceVersion.
+func (s *PolicyRequest) SetResourceVersion(val OptString) {
+	s.ResourceVersion = val
+}
+
+// 用户注解。值为空字符串表示删除该键.
+type PolicyRequestAnnotations map[string]string
+
+func (s *PolicyRequestAnnotations) init() PolicyRequestAnnotations {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// 策略执行模式.
+type PolicyRequestEnforcementMode string
+
+const (
+	PolicyRequestEnforcementModeEnforce PolicyRequestEnforcementMode = "enforce"
+	PolicyRequestEnforcementModeAudit   PolicyRequestEnforcementMode = "audit"
+)
+
+// AllValues returns all PolicyRequestEnforcementMode values.
+func (PolicyRequestEnforcementMode) AllValues() []PolicyRequestEnforcementMode {
+	return []PolicyRequestEnforcementMode{
+		PolicyRequestEnforcementModeEnforce,
+		PolicyRequestEnforcementModeAudit,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PolicyRequestEnforcementMode) MarshalText() ([]byte, error) {
+	switch s {
+	case PolicyRequestEnforcementModeEnforce:
+		return []byte(s), nil
+	case PolicyRequestEnforcementModeAudit:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PolicyRequestEnforcementMode) UnmarshalText(data []byte) error {
+	switch PolicyRequestEnforcementMode(data) {
+	case PolicyRequestEnforcementModeEnforce:
+		*s = PolicyRequestEnforcementModeEnforce
+		return nil
+	case PolicyRequestEnforcementModeAudit:
+		*s = PolicyRequestEnforcementModeAudit
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// 用户标签。更新时与现有标签合并而非替换.
+type PolicyRequestLabels map[string]string
+
+func (s *PolicyRequestLabels) init() PolicyRequestLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/PolicyVersionEntry
+type PolicyVersionEntry struct {
+	// 版本号，从 1 递增.
+	Version int `json:"version"`
+	// 该版本快照的创建时间.
+	CreatedAt time.Time `json:"createdAt"`
+	// 该版本的 Rego 源码.
+	Rego  string      `json:"rego"`
+	Match PolicyMatch `json:"match"`
+	// 该版本的执行模式.
+	EnforcementMode PolicyVersionEntryEnforcementMode `json:"enforcementMode"`
+	// 是否为当前生效版本.
+	IsCurrent bool `json:"isCurrent"`
+}
+
+// GetVersion returns the value of Version.
+func (s *PolicyVersionEntry) GetVersion() int {
+	return s.Version
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *PolicyVersionEntry) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetRego returns the value of Rego.
+func (s *PolicyVersionEntry) GetRego() string {
+	return s.Rego
+}
+
+// GetMatch returns the value of Match.
+func (s *PolicyVersionEntry) GetMatch() PolicyMatch {
+	return s.Match
+}
+
+// GetEnforcementMode returns the value of EnforcementMode.
+func (s *PolicyVersionEntry) GetEnforcementMode() PolicyVersionEntryEnforcementMode {
+	return s.EnforcementMode
+}
+
+// GetIsCurrent returns the value of IsCurrent.
+func (s *PolicyVersionEntry) GetIsCurrent() bool {
+	return s.IsCurrent
+}
+
+// SetVersion sets the value of Version.
+func (s *PolicyVersionEntry) SetVersion(val int) {
+	s.Version = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *PolicyVersionEntry) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetRego sets the value of Rego.
+func (s *PolicyVersionEntry) SetRego(val string) {
+	s.Rego = val
+}
+
+// SetMatch sets the value of Match.
+func (s *PolicyVersionEntry) SetMatch(val PolicyMatch) {
+	s.Match = val
+}
+
+// SetEnforcementMode sets the value of EnforcementMode.
+func (s *PolicyVersionEntry) SetEnforcementMode(val PolicyVersionEntryEnforcementMode) {
+	s.EnforcementMode = val
+}
+
+// SetIsCurrent sets the value of IsCurrent.
+func (s *PolicyVersionEntry) SetIsCurrent(val bool) {
+	s.IsCurrent = val
+}
+
+// 该版本的执行模式.
+type PolicyVersionEntryEnforcementMode string
+
+const (
+	PolicyVersionEntryEnforcementModeEnforce PolicyVersionEntryEnforcementMode = "enforce"
+	PolicyVersionEntryEnforcementModeAudit   PolicyVersionEntryEnforcementMode = "audit"
+)
+
+// AllValues returns all PolicyVersionEntryEnforcementMode values.
+func (PolicyVersionEntryEnforcementMode) AllValues() []PolicyVersionEntryEnforcementMode {
+	return []PolicyVersionEntryEnforcementMode{
+		PolicyVersionEntryEnforcementModeEnforce,
+		PolicyVersionEntryEnforcementModeAudit,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PolicyVersionEntryEnforcementMode) MarshalText() ([]byte, error) {
+	switch s {
+	case PolicyVersionEntryEnforcementModeEnforce:
+		return []byte(s), nil
+	case PolicyVersionEntryEnforcementModeAudit:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PolicyVersionEntryEnforcementMode) UnmarshalText(data []byte) error {
+	switch PolicyVersionEntryEnforcementMode(data) {
+	case PolicyVersionEntryEnforcementModeEnforce:
+		*s = PolicyVersionEntryEnforcementModeEnforce
+		return nil
+	case PolicyVersionEntryEnforcementModeAudit:
+		*s = PolicyVersionEntryEnforcementModeAudit
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/PolicyVersionList
+type PolicyVersionList struct {
+	// 当前生效的版本号。无版本记录时为 0.
+	CurrentVersion int `json:"currentVersion"`
+	// 版本快照列表，按版本号倒序.
+	Versions []PolicyVersionEntry `json:"versions"`
+}
+
+// GetCurrentVersion returns the value of CurrentVersion.
+func (s *PolicyVersionList) GetCurrentVersion() int {
+	return s.CurrentVersion
+}
+
+// GetVersions returns the value of Versions.
+func (s *PolicyVersionList) GetVersions() []PolicyVersionEntry {
+	return s.Versions
+}
+
+// SetCurrentVersion sets the value of CurrentVersion.
+func (s *PolicyVersionList) SetCurrentVersion(val int) {
+	s.CurrentVersion = val
+}
+
+// SetVersions sets the value of Versions.
+func (s *PolicyVersionList) SetVersions(val []PolicyVersionEntry) {
+	s.Versions = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/PolicyVersionListResponse
+type PolicyVersionListResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string               `json:"message"`
+	Data    OptPolicyVersionList `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *PolicyVersionListResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *PolicyVersionListResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *PolicyVersionListResponse) GetData() OptPolicyVersionList {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *PolicyVersionListResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *PolicyVersionListResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *PolicyVersionListResponse) SetData(val OptPolicyVersionList) {
+	s.Data = val
+}
+
+func (*PolicyVersionListResponse) listPolicyVersionsRes() {}
+
+// Ref: #/components/schemas/ResourceSuggestions
+type ResourceSuggestions struct {
+	// 所有策略用过的 API 组去重排序结果.
+	ApiGroups []string `json:"apiGroups"`
+	// 所有策略用过的 API 版本去重排序结果.
+	ApiVersions []string `json:"apiVersions"`
+	// 所有策略用过的资源类型去重排序结果.
+	Resources []string `json:"resources"`
+	// 按 API 组归类的资源类型，供前端级联下拉使用.
+	ResourcesByGroup ResourceSuggestionsResourcesByGroup `json:"resourcesByGroup"`
+}
+
+// GetApiGroups returns the value of ApiGroups.
+func (s *ResourceSuggestions) GetApiGroups() []string {
+	return s.ApiGroups
+}
+
+// GetApiVersions returns the value of ApiVersions.
+func (s *ResourceSuggestions) GetApiVersions() []string {
+	return s.ApiVersions
+}
+
+// GetResources returns the value of Resources.
+func (s *ResourceSuggestions) GetResources() []string {
+	return s.Resources
+}
+
+// GetResourcesByGroup returns the value of ResourcesByGroup.
+func (s *ResourceSuggestions) GetResourcesByGroup() ResourceSuggestionsResourcesByGroup {
+	return s.ResourcesByGroup
+}
+
+// SetApiGroups sets the value of ApiGroups.
+func (s *ResourceSuggestions) SetApiGroups(val []string) {
+	s.ApiGroups = val
+}
+
+// SetApiVersions sets the value of ApiVersions.
+func (s *ResourceSuggestions) SetApiVersions(val []string) {
+	s.ApiVersions = val
+}
+
+// SetResources sets the value of Resources.
+func (s *ResourceSuggestions) SetResources(val []string) {
+	s.Resources = val
+}
+
+// SetResourcesByGroup sets the value of ResourcesByGroup.
+func (s *ResourceSuggestions) SetResourcesByGroup(val ResourceSuggestionsResourcesByGroup) {
+	s.ResourcesByGroup = val
+}
+
+// 按 API 组归类的资源类型，供前端级联下拉使用.
+type ResourceSuggestionsResourcesByGroup map[string][]string
+
+func (s *ResourceSuggestionsResourcesByGroup) init() ResourceSuggestionsResourcesByGroup {
+	m := *s
+	if m == nil {
+		m = map[string][]string{}
+		*s = m
+	}
+	return m
+}
+
+// Merged schema.
+// Ref: #/components/schemas/ResourceSuggestionsResponse
+type ResourceSuggestionsResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                 `json:"message"`
+	Data    OptResourceSuggestions `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *ResourceSuggestionsResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ResourceSuggestionsResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *ResourceSuggestionsResponse) GetData() OptResourceSuggestions {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *ResourceSuggestionsResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ResourceSuggestionsResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *ResourceSuggestionsResponse) SetData(val OptResourceSuggestions) {
+	s.Data = val
+}
+
+func (*ResourceSuggestionsResponse) getResourceSuggestionsRes() {}
+
+type RollbackPolicyBadRequest ErrorResponse
+
+func (*RollbackPolicyBadRequest) rollbackPolicyRes() {}
+
+type RollbackPolicyConflict ErrorResponse
+
+func (*RollbackPolicyConflict) rollbackPolicyRes() {}
+
+type RollbackPolicyGone ErrorResponse
+
+func (*RollbackPolicyGone) rollbackPolicyRes() {}
+
+type RollbackPolicyInternalServerError ErrorResponse
+
+func (*RollbackPolicyInternalServerError) rollbackPolicyRes() {}
+
+type RollbackPolicyNotFound ErrorResponse
+
+func (*RollbackPolicyNotFound) rollbackPolicyRes() {}
+
+// Ref: #/components/schemas/RollbackRequest
+type RollbackRequest struct {
+	// 回滚方向。prev 回退到上一版本（以追加新版本的方式，类似 git revert）。
+	// next 恒被拒绝并返回 40000——当前版本始终是最新版本，没有可前进的目标.
+	Direction RollbackRequestDirection `json:"direction"`
+}
+
+// GetDirection returns the value of Direction.
+func (s *RollbackRequest) GetDirection() RollbackRequestDirection {
+	return s.Direction
+}
+
+// SetDirection sets the value of Direction.
+func (s *RollbackRequest) SetDirection(val RollbackRequestDirection) {
+	s.Direction = val
+}
+
+// 回滚方向。prev 回退到上一版本（以追加新版本的方式，类似 git revert）。
+// next 恒被拒绝并返回 40000——当前版本始终是最新版本，没有可前进的目标.
+type RollbackRequestDirection string
+
+const (
+	RollbackRequestDirectionPrev RollbackRequestDirection = "prev"
+	RollbackRequestDirectionNext RollbackRequestDirection = "next"
+)
+
+// AllValues returns all RollbackRequestDirection values.
+func (RollbackRequestDirection) AllValues() []RollbackRequestDirection {
+	return []RollbackRequestDirection{
+		RollbackRequestDirectionPrev,
+		RollbackRequestDirectionNext,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RollbackRequestDirection) MarshalText() ([]byte, error) {
+	switch s {
+	case RollbackRequestDirectionPrev:
+		return []byte(s), nil
+	case RollbackRequestDirectionNext:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RollbackRequestDirection) UnmarshalText(data []byte) error {
+	switch RollbackRequestDirection(data) {
+	case RollbackRequestDirectionPrev:
+		*s = RollbackRequestDirectionPrev
+		return nil
+	case RollbackRequestDirectionNext:
+		*s = RollbackRequestDirectionNext
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/RollbackResponse
+type RollbackResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string            `json:"message"`
+	Data    OptRollbackResult `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *RollbackResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *RollbackResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *RollbackResponse) GetData() OptRollbackResult {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *RollbackResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *RollbackResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *RollbackResponse) SetData(val OptRollbackResult) {
+	s.Data = val
+}
+
+func (*RollbackResponse) rollbackPolicyRes() {}
+
+// Ref: #/components/schemas/RollbackResult
+type RollbackResult struct {
+	// 内容来源的版本号.
+	RestoredFromVersion int `json:"restoredFromVersion"`
+	// 本次回滚追加的新版本号.
+	NewVersion int `json:"newVersion"`
+}
+
+// GetRestoredFromVersion returns the value of RestoredFromVersion.
+func (s *RollbackResult) GetRestoredFromVersion() int {
+	return s.RestoredFromVersion
+}
+
+// GetNewVersion returns the value of NewVersion.
+func (s *RollbackResult) GetNewVersion() int {
+	return s.NewVersion
+}
+
+// SetRestoredFromVersion sets the value of RestoredFromVersion.
+func (s *RollbackResult) SetRestoredFromVersion(val int) {
+	s.RestoredFromVersion = val
+}
+
+// SetNewVersion sets the value of NewVersion.
+func (s *RollbackResult) SetNewVersion(val int) {
+	s.NewVersion = val
+}
+
+type UpdatePolicyBadRequest ErrorResponse
+
+func (*UpdatePolicyBadRequest) updatePolicyRes() {}
+
+type UpdatePolicyConflict ErrorResponse
+
+func (*UpdatePolicyConflict) updatePolicyRes() {}
+
+type UpdatePolicyInternalServerError ErrorResponse
+
+func (*UpdatePolicyInternalServerError) updatePolicyRes() {}
+
+type UpdatePolicyNotFound ErrorResponse
+
+func (*UpdatePolicyNotFound) updatePolicyRes() {}
+
+// Ref: #/components/schemas/ValidateRegoRequest
+type ValidateRegoRequest struct {
+	// 待校验的 Rego 源码.
+	Rego string `json:"rego"`
+}
+
+// GetRego returns the value of Rego.
+func (s *ValidateRegoRequest) GetRego() string {
+	return s.Rego
+}
+
+// SetRego sets the value of Rego.
+func (s *ValidateRegoRequest) SetRego(val string) {
+	s.Rego = val
+}

@@ -13,6 +13,45 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// CreatePolicy implements createPolicy operation.
+//
+// 创建策略并同时写入 v1 版本快照，两者在同一事务内提交。 Rego
+// 在写库前同步编译校验，编译失败返回 40000 且不落库。.
+//
+// POST /policies
+func (UnimplementedHandler) CreatePolicy(ctx context.Context, req *PolicyRequest) (r CreatePolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DeletePolicy implements deletePolicy operation.
+//
+// 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy
+// 列出引用方。 force=true 跳过该检查强制删除。.
+//
+// DELETE /policies/{name}
+func (UnimplementedHandler) DeletePolicy(ctx context.Context, params DeletePolicyParams) (r DeletePolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetPolicy implements getPolicy operation.
+//
+// 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.
+//
+// GET /policies/{name}
+func (UnimplementedHandler) GetPolicy(ctx context.Context, params GetPolicyParams) (r GetPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetResourceSuggestions implements getResourceSuggestions operation.
+//
+// 聚合所有策略 match 中用过的 apiGroups / apiVersions / resources 并去重排序，
+// 供前端可视化编辑器的下拉建议使用。不读取 rego 字段以避免传输大字段。.
+//
+// GET /policies/resource-suggestions
+func (UnimplementedHandler) GetResourceSuggestions(ctx context.Context) (r GetResourceSuggestionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListPolicies implements listPolicies operation.
 //
 // 按名称、来源、执行模式、编译状态筛选并分页返回策略。 phase、mode、source
@@ -20,5 +59,46 @@ var _ Handler = UnimplementedHandler{}
 //
 // GET /policies
 func (UnimplementedHandler) ListPolicies(ctx context.Context, params ListPoliciesParams) (r ListPoliciesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListPolicyVersions implements listPolicyVersions operation.
+//
+// 返回版本快照列表，按版本号倒序，并标记当前生效版本。.
+//
+// GET /policies/{name}/versions
+func (UnimplementedHandler) ListPolicyVersions(ctx context.Context, params ListPolicyVersionsParams) (r ListPolicyVersionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RollbackPolicy implements rollbackPolicy operation.
+//
+// 以追加新版本的方式回滚（roll-forward），类似 git revert，不修改历史。
+// direction 为 next 恒返回 40000。已在最早版本时返回 40000。
+// 目标版本快照已被保留策略清理时返回 41000。.
+//
+// POST /policies/{name}/rollback
+func (UnimplementedHandler) RollbackPolicy(ctx context.Context, req *RollbackRequest, params RollbackPolicyParams) (r RollbackPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdatePolicy implements updatePolicy operation.
+//
+// 更新策略并追加新版本快照，两者在同一事务内提交。 labels
+// 与现有值合并；annotations 中值为空字符串的键表示删除。 提供 resourceVersion
+// 时做比较并交换，不匹配返回 40900。.
+//
+// PUT /policies/{name}
+func (UnimplementedHandler) UpdatePolicy(ctx context.Context, req *PolicyRequest, params UpdatePolicyParams) (r UpdatePolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ValidatePolicyRego implements validatePolicyRego operation.
+//
+// 只做 Rego 编译校验，不落库、不校验其他字段。 编译通过返回 code 0 且无
+// data，失败返回 40000 并在 message 中给出编译器原文。.
+//
+// POST /policies/validate
+func (UnimplementedHandler) ValidatePolicyRego(ctx context.Context, req *ValidateRegoRequest) (r ValidatePolicyRegoRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
