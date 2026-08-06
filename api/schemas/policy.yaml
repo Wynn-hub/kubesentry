@@ -155,7 +155,7 @@ components:
 
     PolicyRequest:
       type: object
-      required: [enforcementMode, match, rego, description]
+      required: [enforcementMode, match, rego]
       properties:
         name:
           type: string
