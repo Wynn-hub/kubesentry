@@ -57,3 +57,307 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/PolicyListData'
+
+    PolicyDetail:
+      type: object
+      required:
+        - name
+        - source
+        - description
+        - labels
+        - annotations
+        - enforcementMode
+        - match
+        - rego
+        - phase
+        - referencedBy
+        - resourceVersion
+        - createdAt
+        - updatedAt
+      properties:
+        name:
+          type: string
+          description: 策略名称，集群内唯一
+          example: deny-privileged-pod
+        source:
+          type: string
+          description: 策略来源。builtin 为平台内置，custom 为用户创建
+          enum: [builtin, custom]
+          example: builtin
+        description:
+          type: string
+          description: 策略用途说明
+          example: 禁止创建特权容器
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+            description: 标签值
+          description: 用户标签。策略组的 bySelector 成员匹配依据
+          example: { "kubesentry.io/builtin": "true" }
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+            description: 注解值
+          description: 用户注解。可视化编辑器状态存于 kubesentry.io/visual-builder-spec
+          example: { "kubesentry.io/visual-builder-spec": "{}" }
+        enforcementMode:
+          type: string
+          description: 策略执行模式。enforce 拦截违规请求，audit 放行但记录告警
+          enum: [enforce, audit]
+          example: enforce
+        match:
+          $ref: './common.yaml#/components/schemas/PolicyMatch'
+        rego:
+          type: string
+          description: OPA Rego 策略源码。必须使用 package kubesentry 并暴露 deny 集合
+          example: "package kubesentry\n\ndeny[msg] {\n\tinput.request.object.spec.hostNetwork == true\n\tmsg := \"hostNetwork not allowed\"\n}"
+        phase:
+          type: string
+          description: 策略编译状态。Ready 表示 Rego 编译通过，Invalid 表示编译失败
+          enum: [Ready, Invalid]
+          example: Ready
+        compileError:
+          type: string
+          description: Rego 编译错误原文。仅 phase 为 Invalid 时出现
+          example: "rego_parse_error: unexpected eof token"
+        referencedBy:
+          type: array
+          description: 将本策略解析为有效成员的策略组名称列表，已排序
+          items:
+            type: string
+            description: 策略组名称
+            example: baseline-group
+          example: ["baseline-group"]
+        resourceVersion:
+          type: string
+          description: 乐观并发令牌，由行的 updated_at 纳秒值派生。更新时回传以检测并发修改
+          example: "1785920264123456789"
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+          example: "2026-08-03T10:15:30Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最后更新时间
+          example: "2026-08-03T11:20:45Z"
+
+    PolicyDetailResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PolicyDetail'
+
+    PolicyRequest:
+      type: object
+      required: [enforcementMode, match, rego, description]
+      properties:
+        name:
+          type: string
+          description: |
+            策略名称，必须是合法的 DNS1123 子域名。仅创建时必需且生效；
+            更新时忽略此字段，名称取自路径参数
+          example: deny-privileged-pod
+        description:
+          type: string
+          description: 策略用途说明
+          example: 禁止创建特权容器
+        enforcementMode:
+          type: string
+          description: 策略执行模式
+          enum: [enforce, audit]
+          example: enforce
+        match:
+          $ref: './common.yaml#/components/schemas/PolicyMatch'
+        rego:
+          type: string
+          description: OPA Rego 策略源码。服务端同步编译校验，编译失败返回 40000
+          example: "package kubesentry\n\ndeny[msg] {\n\tinput.request.object.spec.hostNetwork == true\n\tmsg := \"hostNetwork not allowed\"\n}"
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+            description: 标签值
+          description: 用户标签。更新时与现有标签合并而非替换
+          example: { "team": "platform" }
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+            description: 注解值
+          description: 用户注解。值为空字符串表示删除该键
+          example: { "kubesentry.io/visual-builder-spec": "{}" }
+        resourceVersion:
+          type: string
+          description: |
+            乐观并发令牌。更新时若提供且与服务端当前值不符，返回 40900。
+            省略则跳过并发检查
+          example: "1785920264123456789"
+
+    PolicyNameData:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: 受影响策略的名称
+          example: deny-privileged-pod
+
+    PolicyNameResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PolicyNameData'
+
+    PolicyVersionEntry:
+      type: object
+      required: [version, createdAt, rego, match, enforcementMode, isCurrent]
+      properties:
+        version:
+          type: integer
+          description: 版本号，从 1 递增
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+          description: 该版本快照的创建时间
+          example: "2026-08-03T10:15:30Z"
+        rego:
+          type: string
+          description: 该版本的 Rego 源码
+          example: "package kubesentry\n\ndeny[msg] { false }"
+        match:
+          $ref: './common.yaml#/components/schemas/PolicyMatch'
+        enforcementMode:
+          type: string
+          description: 该版本的执行模式
+          enum: [enforce, audit]
+          example: enforce
+        isCurrent:
+          type: boolean
+          description: 是否为当前生效版本
+          example: true
+
+    PolicyVersionList:
+      type: object
+      required: [currentVersion, versions]
+      properties:
+        currentVersion:
+          type: integer
+          description: 当前生效的版本号。无版本记录时为 0
+          example: 3
+        versions:
+          type: array
+          description: 版本快照列表，按版本号倒序
+          items:
+            $ref: '#/components/schemas/PolicyVersionEntry'
+
+    PolicyVersionListResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PolicyVersionList'
+
+    ResourceSuggestions:
+      type: object
+      required: [apiGroups, apiVersions, resources, resourcesByGroup]
+      properties:
+        apiGroups:
+          type: array
+          description: 所有策略用过的 API 组去重排序结果
+          items:
+            type: string
+            description: API 组
+            example: apps
+          example: ["", "apps"]
+        apiVersions:
+          type: array
+          description: 所有策略用过的 API 版本去重排序结果
+          items:
+            type: string
+            description: API 版本
+            example: v1
+          example: ["v1"]
+        resources:
+          type: array
+          description: 所有策略用过的资源类型去重排序结果
+          items:
+            type: string
+            description: 资源类型
+            example: pods
+          example: ["deployments", "pods"]
+        resourcesByGroup:
+          type: object
+          additionalProperties:
+            type: array
+            description: 该组下的资源类型列表
+            items:
+              type: string
+              description: 资源类型
+              example: deployments
+          description: 按 API 组归类的资源类型，供前端级联下拉使用
+          example: { "": ["pods"], "apps": ["deployments"] }
+
+    ResourceSuggestionsResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ResourceSuggestions'
+
+    RollbackRequest:
+      type: object
+      required: [direction]
+      properties:
+        direction:
+          type: string
+          description: |
+            回滚方向。prev 回退到上一版本（以追加新版本的方式，类似 git revert）。
+            next 恒被拒绝并返回 40000——当前版本始终是最新版本，没有可前进的目标
+          enum: [prev, next]
+          example: prev
+
+    RollbackResult:
+      type: object
+      required: [restoredFromVersion, newVersion]
+      properties:
+        restoredFromVersion:
+          type: integer
+          description: 内容来源的版本号
+          example: 2
+        newVersion:
+          type: integer
+          description: 本次回滚追加的新版本号
+          example: 4
+
+    RollbackResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/RollbackResult'
+
+    EmptyResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+      description: 无数据体的成功响应。data 字段被省略
+
+    ValidateRegoRequest:
+      type: object
+      required: [rego]
+      properties:
+        rego:
+          type: string
+          description: 待校验的 Rego 源码
+          example: "package kubesentry\n\ndeny[msg] { false }"

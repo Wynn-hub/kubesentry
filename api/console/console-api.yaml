@@ -51,6 +51,15 @@ components:
         default: 20
         description: 每页记录数
         example: 20
+    PolicyName:
+      name: name
+      in: path
+      required: true
+      description: 策略名称
+      schema:
+        type: string
+        description: 策略名称
+        example: deny-privileged-pod
 
   responses:
     BadRequest:
@@ -61,6 +70,26 @@ components:
             $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
     InternalError:
       description: 服务端错误。code 为 50000
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
+    NotFound:
+      description: 资源不存在。code 为 40400
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
+    Conflict:
+      description: |
+        冲突。code 为 40900。三种情形：名称已存在、resourceVersion 过期（并发修改）、
+        资源被其他对象引用（此时 data.referencedBy 列出引用方）
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
+    Gone:
+      description: 目标版本快照已被保留策略清理。code 为 41000
       content:
         application/json:
           schema:
@@ -157,5 +186,212 @@ paths:
                 $ref: '../schemas/policy.yaml#/components/schemas/PolicyListResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Policy]
+      operationId: createPolicy
+      summary: 创建策略
+      description: |
+        创建策略并同时写入 v1 版本快照，两者在同一事务内提交。
+        Rego 在写库前同步编译校验，编译失败返回 40000 且不落库。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/policy.yaml#/components/schemas/PolicyRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/policy.yaml#/components/schemas/PolicyNameResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /policies/resource-suggestions:
+    get:
+      tags: [Policy]
+      operationId: getResourceSuggestions
+      summary: 查询资源建议
+      description: |
+        聚合所有策略 match 中用过的 apiGroups / apiVersions / resources 并去重排序，
+        供前端可视化编辑器的下拉建议使用。不读取 rego 字段以避免传输大字段。
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/policy.yaml#/components/schemas/ResourceSuggestionsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /policies/validate:
+    post:
+      tags: [Policy]
+      operationId: validatePolicyRego
+      summary: 校验 Rego 源码
+      description: |
+        只做 Rego 编译校验，不落库、不校验其他字段。
+        编译通过返回 code 0 且无 data，失败返回 40000 并在 message 中给出编译器原文。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/policy.yaml#/components/schemas/ValidateRegoRequest'
+      responses:
+        '200':
+          description: 编译通过
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/policy.yaml#/components/schemas/EmptyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /policies/{name}:
+    get:
+      tags: [Policy]
+      operationId: getPolicy
+      summary: 查询策略详情
+      description: 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。
+      parameters:
+        - $ref: '#/components/parameters/PolicyName'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/policy.yaml#/components/schemas/PolicyDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Policy]
+      operationId: updatePolicy
+      summary: 更新策略
+      description: |
+        更新策略并追加新版本快照，两者在同一事务内提交。
+        labels 与现有值合并；annotations 中值为空字符串的键表示删除。
+        提供 resourceVersion 时做比较并交换，不匹配返回 40900。
+      parameters:
+        - $ref: '#/components/parameters/PolicyName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/policy.yaml#/components/schemas/PolicyRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/policy.yaml#/components/schemas/PolicyNameResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Policy]
+      operationId: deletePolicy
+      summary: 删除策略
+      description: |
+        默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy 列出引用方。
+        force=true 跳过该检查强制删除。
+      parameters:
+        - $ref: '#/components/parameters/PolicyName'
+        - name: force
+          in: query
+          required: false
+          description: 为 true 时跳过引用检查强制删除
+          schema:
+            type: boolean
+            default: false
+            description: 是否强制删除
+            example: false
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/policy.yaml#/components/schemas/EmptyResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /policies/{name}/versions:
+    get:
+      tags: [Policy]
+      operationId: listPolicyVersions
+      summary: 查询策略版本历史
+      description: 返回版本快照列表，按版本号倒序，并标记当前生效版本。
+      parameters:
+        - $ref: '#/components/parameters/PolicyName'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/policy.yaml#/components/schemas/PolicyVersionListResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /policies/{name}/rollback:
+    post:
+      tags: [Policy]
+      operationId: rollbackPolicy
+      summary: 回滚策略到上一版本
+      description: |
+        以追加新版本的方式回滚（roll-forward），类似 git revert，不修改历史。
+        direction 为 next 恒返回 40000。已在最早版本时返回 40000。
+        目标版本快照已被保留策略清理时返回 41000。
+      parameters:
+        - $ref: '#/components/parameters/PolicyName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/policy.yaml#/components/schemas/RollbackRequest'
+      responses:
+        '200':
+          description: 回滚成功
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/policy.yaml#/components/schemas/RollbackResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
         '500':
           $ref: '#/components/responses/InternalError'

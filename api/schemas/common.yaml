@@ -55,3 +55,55 @@ components:
       pattern: '^[0-9]+$'
       description: Snowflake 生成的 64 位整数 ID，以字符串传输避免 JavaScript 数字精度丢失
       example: "7234567890123456789"
+
+    MatchResource:
+      type: object
+      required: [apiGroups, apiVersions, resources]
+      properties:
+        apiGroups:
+          type: array
+          description: |
+            匹配的 API 组。核心组用空字符串表示，星号 * 匹配全部组
+            （见 internal/webhook/cache.go:190）
+          items:
+            type: string
+            description: 单个 API 组，或 * 表示全部
+            example: apps
+          example: ["apps"]
+        apiVersions:
+          type: array
+          description: 匹配的 API 版本
+          items:
+            type: string
+            description: 单个 API 版本
+            example: v1
+          example: ["v1"]
+        resources:
+          type: array
+          description: |
+            匹配的资源类型，使用复数形式。星号 * 匹配全部资源
+            （见 internal/webhook/cache.go:189）
+          items:
+            type: string
+            description: 单个资源类型，或 * 表示全部
+            example: deployments
+          example: ["deployments"]
+
+    PolicyMatch:
+      type: object
+      required: [operations, resources]
+      properties:
+        operations:
+          type: array
+          description: 匹配的准入操作类型
+          items:
+            type: string
+            enum: [CREATE, UPDATE, DELETE, CONNECT]
+            description: 单个操作类型
+            example: CREATE
+          example: ["CREATE", "UPDATE"]
+        resources:
+          type: array
+          description: 匹配的资源规则列表，任一规则命中即匹配
+          items:
+            $ref: '#/components/schemas/MatchResource'
