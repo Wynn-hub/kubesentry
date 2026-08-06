@@ -7,6 +7,7 @@ import "github.com/Wynn-hub/kubesentry/internal/gateway"
 // gateway.Repos directly from the legacy handlers.
 type Repositories struct {
 	Policies PolicyRepository
+	Groups   GroupRepository
 }
 
 // FromGatewayRepos narrows the shared gateway.Repos bundle down to the
@@ -16,5 +17,6 @@ type Repositories struct {
 func FromGatewayRepos(r gateway.Repos) Repositories {
 	return Repositories{
 		Policies: r.Policies,
+		Groups:   r.Groups,
 	}
 }

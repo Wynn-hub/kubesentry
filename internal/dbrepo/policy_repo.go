@@ -170,6 +170,43 @@ func (r *PolicyRepo) ListVersions(ctx context.Context, policyID int64) ([]Policy
 	return out, err
 }
 
+// CreateWithVersion inserts a policy and its first version snapshot in one
+// transaction. The snapshot's PolicyID is back-filled from the freshly
+// assigned row ID — callers must not set it. Introduced so the console's
+// service layer can get row+snapshot atomicity through an interface instead
+// of receiving a concrete *PolicyRepo via WithTx (see repository.PolicyRepository,
+// which deliberately does not declare WithTx).
+func (r *PolicyRepo) CreateWithVersion(ctx context.Context, p *Policy, v *PolicyVersion) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txRepo := &PolicyRepo{db: tx}
+		if err := txRepo.Create(ctx, p); err != nil {
+			return err
+		}
+		v.PolicyID = p.ID
+		return txRepo.CreateVersion(ctx, v)
+	})
+}
+
+// UpdateWithVersion compare-and-swaps a policy row and appends a version
+// snapshot in one transaction. Returns ErrConflict when expectedUpdatedAt no
+// longer matches the stored row; in that case no snapshot is appended.
+func (r *PolicyRepo) UpdateWithVersion(
+	ctx context.Context,
+	id int64,
+	expectedUpdatedAt time.Time,
+	fields map[string]any,
+	v *PolicyVersion,
+) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txRepo := &PolicyRepo{db: tx}
+		if err := txRepo.UpdateCAS(ctx, id, expectedUpdatedAt, fields); err != nil {
+			return err
+		}
+		v.PolicyID = id
+		return txRepo.CreateVersion(ctx, v)
+	})
+}
+
 // PruneVersions deletes versions beyond keepLast (oldest first), matching
 // the existing PolicyReconciler history-limit behavior.
 func (r *PolicyRepo) PruneVersions(ctx context.Context, policyID int64, keepLast int) error {
