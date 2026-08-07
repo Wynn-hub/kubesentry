@@ -1,16 +1,13 @@
 package console
 
-import (
-	"errors"
+import "github.com/Wynn-hub/kubesentry/internal/dbrepo"
 
-	"github.com/jackc/pgx/v5/pgconn"
-)
-
-// isUniqueViolation reports whether err is a Postgres unique-constraint
-// violation (SQLSTATE 23505) — the GORM-era equivalent of
-// apierrors.IsAlreadyExists on a Create call against a uniqueIndex column
-// (e.g. policies.name, policy_groups.name, policy_exceptions.name).
-func isUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23505"
-}
+// isUniqueViolation delegates to dbrepo.IsUniqueViolation. The implementation
+// moved down to dbrepo so internal/console/service can share it: console root
+// imports service (ogen server assembly in Task 7), so service importing
+// console back for this helper would be an import cycle. dbrepo is the
+// downstream dependency both packages already have.
+//
+// Kept as an unexported alias rather than rewriting the five call sites in the
+// legacy handlers — those files are deleted wholesale in Task 9.
+func isUniqueViolation(err error) bool { return dbrepo.IsUniqueViolation(err) }

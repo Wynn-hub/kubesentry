@@ -2,7 +2,10 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"strings"
+
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 // ErrNotFound marks a missing resource; the handler maps it to the 404 variant.
@@ -22,4 +25,19 @@ type ReferencedByError struct{ Groups []string }
 
 func (e *ReferencedByError) Error() string {
 	return "policy is referenced by policy groups: " + strings.Join(e.Groups, ", ")
+}
+
+// conflictError carries a caller-facing message while still matching
+// errors.Is(err, dbrepo.ErrConflict) — the handler layer maps on the sentinel,
+// the user reads the message. Wrapping the sentinel with %w instead would
+// append its internal text ("dbrepo: row was modified since it was read") to
+// every conflict message the API returns.
+type conflictError struct{ msg string }
+
+func (e *conflictError) Error() string        { return e.msg }
+func (e *conflictError) Is(target error) bool { return target == dbrepo.ErrConflict }
+func (e *conflictError) Unwrap() error        { return dbrepo.ErrConflict }
+
+func newConflict(format string, args ...any) error {
+	return &conflictError{msg: fmt.Sprintf(format, args...)}
 }

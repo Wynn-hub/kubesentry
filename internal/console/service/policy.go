@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -125,8 +124,8 @@ func (s *PolicyService) Create(ctx context.Context, req *dto.PolicyRequest) erro
 		SpecSnapshot: datatypes.NewJSONType(dto.PolicySpecSnapshot(p)),
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
-			return fmt.Errorf("policy %s already exists: %w", req.Name.Or(""), dbrepo.ErrConflict)
+		if dbrepo.IsUniqueViolation(err) {
+			return newConflict("policy %s already exists", req.Name.Or(""))
 		}
 		return fmt.Errorf("create policy: %w", err)
 	}
@@ -151,7 +150,7 @@ func (s *PolicyService) Update(ctx context.Context, name string, req *dto.Policy
 	}
 
 	if rv, ok := req.ResourceVersion.Get(); ok && rv != "" && rv != dto.PolicyResourceVersion(p) {
-		return fmt.Errorf("policy has been modified, refresh and retry: %w", dbrepo.ErrConflict)
+		return newConflict("policy has been modified, refresh and retry")
 	}
 
 	expectedUpdatedAt := p.UpdatedAt
@@ -209,7 +208,7 @@ func (s *PolicyService) Update(ctx context.Context, name string, req *dto.Policy
 	})
 	if err != nil {
 		if errors.Is(err, dbrepo.ErrConflict) {
-			return fmt.Errorf("policy has been modified, refresh and retry: %w", dbrepo.ErrConflict)
+			return newConflict("policy has been modified, refresh and retry")
 		}
 		return fmt.Errorf("update policy: %w", err)
 	}
@@ -365,7 +364,7 @@ func (s *PolicyService) Rollback(ctx context.Context, name string, direction str
 	})
 	if err != nil {
 		if errors.Is(err, dbrepo.ErrConflict) {
-			return nil, fmt.Errorf("policy has been modified, refresh and retry: %w", dbrepo.ErrConflict)
+			return nil, newConflict("policy has been modified, refresh and retry")
 		}
 		return nil, fmt.Errorf("update policy: %w", err)
 	}
@@ -511,19 +510,9 @@ func (s *PolicyService) referencingGroups(ctx context.Context, policyName string
 	return refs, nil
 }
 
-// isUniqueViolation reports whether err is a Postgres unique-constraint
-// violation (SQLSTATE 23505) — same check as the legacy console.isUniqueViolation.
-func isUniqueViolation(err error) bool {
-	if err == nil {
-		return false
-	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505"
-	}
-	// ponytail: fakes and non-pgx drivers only surface the code in the message.
-	return strings.Contains(err.Error(), "SQLSTATE 23505")
-}
+// isUniqueViolation moved to dbrepo.IsUniqueViolation so the legacy console
+// handlers and this package can share one implementation without an import
+// cycle — see internal/console/dberrors.go.
 
 func sortedKeys(m map[string]struct{}) []string {
 	out := make([]string, 0, len(m))
