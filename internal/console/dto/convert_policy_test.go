@@ -70,6 +70,7 @@ func TestPolicyToDetailCompileError(t *testing.T) {
 	}
 	// CompileOK=true must leave compileError unset (omitempty semantics).
 	ok := policyFixture()
+	ok.CompileOK = true // explicit — don't rely on fixture default
 	if d2 := PolicyToDetail(ok, []string{}); d2.CompileError.IsSet() {
 		t.Fatalf("compileError should be unset, got %+v", d2.CompileError)
 	}
@@ -84,6 +85,62 @@ func TestPolicyToDetailReferencedByNeverNil(t *testing.T) {
 	}
 	if len(d.ReferencedBy) != 0 {
 		t.Fatalf("referencedBy = %v, want empty", d.ReferencedBy)
+	}
+}
+
+// The enforcement mode is the only enum that reaches the DTO as a bare cast of
+// a database column — Source and Phase both funnel through helpers that can
+// only emit two values. So both modes need a case here, not just the fixture's.
+func TestPolicyToListItemModeAndSource(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     string
+		labels   map[string]string
+		wantMode PolicyListItemEnforcementMode
+		wantSrc  PolicyListItemSource
+	}{
+		{
+			name:     "builtin enforce",
+			mode:     "enforce",
+			labels:   map[string]string{builtinLabel: "true"},
+			wantMode: PolicyListItemEnforcementModeEnforce,
+			wantSrc:  PolicyListItemSourceBuiltin,
+		},
+		{
+			name:     "custom audit",
+			mode:     "audit",
+			labels:   map[string]string{"team": "platform"},
+			wantMode: PolicyListItemEnforcementModeAudit,
+			wantSrc:  PolicyListItemSourceCustom,
+		},
+		{
+			name:     "custom when builtin label is not exactly true",
+			mode:     "audit",
+			labels:   map[string]string{builtinLabel: "false"},
+			wantMode: PolicyListItemEnforcementModeAudit,
+			wantSrc:  PolicyListItemSourceCustom,
+		},
+		{
+			name:     "custom when labels are empty",
+			mode:     "enforce",
+			labels:   map[string]string{},
+			wantMode: PolicyListItemEnforcementModeEnforce,
+			wantSrc:  PolicyListItemSourceCustom,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := policyFixture()
+			p.EnforcementMode = tt.mode
+			p.Labels = datatypes.NewJSONType(tt.labels)
+			item := PolicyToListItem(p)
+			if item.EnforcementMode != tt.wantMode {
+				t.Errorf("enforcementMode = %q, want %q", item.EnforcementMode, tt.wantMode)
+			}
+			if item.Source != tt.wantSrc {
+				t.Errorf("source = %q, want %q", item.Source, tt.wantSrc)
+			}
+		})
 	}
 }
 
