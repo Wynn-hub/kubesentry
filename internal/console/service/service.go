@@ -11,9 +11,11 @@ type Services struct {
 	Policy *PolicyService
 }
 
-// New wires every service from the repository bundle.
-func New(repos repository.Repositories) Services {
+// New wires every service from the repository bundle and an optional Notifier.
+// notifier may be nil (no gateway configured), in which case all NotifyChange
+// calls are silently skipped.
+func New(repos repository.Repositories, notifier Notifier) Services {
 	return Services{
-		Policy: NewPolicyService(repos.Policies),
+		Policy: NewPolicyService(repos.Policies, repos.Groups, notifier),
 	}
 }
