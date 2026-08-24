@@ -35,6 +35,12 @@ type Invoker interface {
 	//
 	// POST /policies
 	CreatePolicy(ctx context.Context, request *PolicyRequest) (CreatePolicyRes, error)
+	// CreatePolicyGroup invokes createPolicyGroup operation.
+	//
+	// 创建策略组.
+	//
+	// POST /policygroups
+	CreatePolicyGroup(ctx context.Context, request *PolicyGroupRequest) (CreatePolicyGroupRes, error)
 	// DeletePolicy invokes deletePolicy operation.
 	//
 	// 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy
@@ -42,12 +48,24 @@ type Invoker interface {
 	//
 	// DELETE /policies/{name}
 	DeletePolicy(ctx context.Context, params DeletePolicyParams) (DeletePolicyRes, error)
+	// DeletePolicyGroup invokes deletePolicyGroup operation.
+	//
+	// 删除策略组.
+	//
+	// DELETE /policygroups/{name}
+	DeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (DeletePolicyGroupRes, error)
 	// GetPolicy invokes getPolicy operation.
 	//
 	// 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.
 	//
 	// GET /policies/{name}
 	GetPolicy(ctx context.Context, params GetPolicyParams) (GetPolicyRes, error)
+	// GetPolicyGroup invokes getPolicyGroup operation.
+	//
+	// 查询策略组详情.
+	//
+	// GET /policygroups/{name}
+	GetPolicyGroup(ctx context.Context, params GetPolicyGroupParams) (GetPolicyGroupRes, error)
 	// GetResourceSuggestions invokes getResourceSuggestions operation.
 	//
 	// 聚合所有策略 match 中用过的 apiGroups / apiVersions / resources 并去重排序，
@@ -62,6 +80,12 @@ type Invoker interface {
 	//
 	// GET /policies
 	ListPolicies(ctx context.Context, params ListPoliciesParams) (ListPoliciesRes, error)
+	// ListPolicyGroups invokes listPolicyGroups operation.
+	//
+	// 分页查询策略组列表.
+	//
+	// GET /policygroups
+	ListPolicyGroups(ctx context.Context, params ListPolicyGroupsParams) (ListPolicyGroupsRes, error)
 	// ListPolicyVersions invokes listPolicyVersions operation.
 	//
 	// 返回版本快照列表，按版本号倒序，并标记当前生效版本。.
@@ -76,6 +100,12 @@ type Invoker interface {
 	//
 	// POST /policies/{name}/rollback
 	RollbackPolicy(ctx context.Context, request *RollbackRequest, params RollbackPolicyParams) (RollbackPolicyRes, error)
+	// SetPolicyGroupEnabled invokes setPolicyGroupEnabled operation.
+	//
+	// 设置策略组启用状态.
+	//
+	// PUT /policygroups/{name}/enabled
+	SetPolicyGroupEnabled(ctx context.Context, request *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (SetPolicyGroupEnabledRes, error)
 	// UpdatePolicy invokes updatePolicy operation.
 	//
 	// 更新策略并追加新版本快照，两者在同一事务内提交。 labels
@@ -84,6 +114,12 @@ type Invoker interface {
 	//
 	// PUT /policies/{name}
 	UpdatePolicy(ctx context.Context, request *PolicyRequest, params UpdatePolicyParams) (UpdatePolicyRes, error)
+	// UpdatePolicyGroup invokes updatePolicyGroup operation.
+	//
+	// 更新策略组.
+	//
+	// PUT /policygroups/{name}
+	UpdatePolicyGroup(ctx context.Context, request *PolicyGroupRequest, params UpdatePolicyGroupParams) (UpdatePolicyGroupRes, error)
 	// ValidatePolicyRego invokes validatePolicyRego operation.
 	//
 	// 只做 Rego 编译校验，不落库、不校验其他字段。 编译通过返回 code 0 且无
@@ -216,6 +252,89 @@ func (c *Client) sendCreatePolicy(ctx context.Context, request *PolicyRequest) (
 	return result, nil
 }
 
+// CreatePolicyGroup invokes createPolicyGroup operation.
+//
+// 创建策略组.
+//
+// POST /policygroups
+func (c *Client) CreatePolicyGroup(ctx context.Context, request *PolicyGroupRequest) (CreatePolicyGroupRes, error) {
+	res, err := c.sendCreatePolicyGroup(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendCreatePolicyGroup(ctx context.Context, request *PolicyGroupRequest) (res CreatePolicyGroupRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("createPolicyGroup"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/policygroups"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, CreatePolicyGroupOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/policygroups"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeCreatePolicyGroupRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeCreatePolicyGroupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // DeletePolicy invokes deletePolicy operation.
 //
 // 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy
@@ -336,6 +455,104 @@ func (c *Client) sendDeletePolicy(ctx context.Context, params DeletePolicyParams
 	return result, nil
 }
 
+// DeletePolicyGroup invokes deletePolicyGroup operation.
+//
+// 删除策略组.
+//
+// DELETE /policygroups/{name}
+func (c *Client) DeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (DeletePolicyGroupRes, error) {
+	res, err := c.sendDeletePolicyGroup(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendDeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (res DeletePolicyGroupRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deletePolicyGroup"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/policygroups/{name}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeletePolicyGroupOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/policygroups/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Name))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeletePolicyGroupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetPolicy invokes getPolicy operation.
 //
 // 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.
@@ -427,6 +644,104 @@ func (c *Client) sendGetPolicy(ctx context.Context, params GetPolicyParams) (res
 
 	stage = "DecodeResponse"
 	result, err := decodeGetPolicyResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetPolicyGroup invokes getPolicyGroup operation.
+//
+// 查询策略组详情.
+//
+// GET /policygroups/{name}
+func (c *Client) GetPolicyGroup(ctx context.Context, params GetPolicyGroupParams) (GetPolicyGroupRes, error) {
+	res, err := c.sendGetPolicyGroup(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetPolicyGroup(ctx context.Context, params GetPolicyGroupParams) (res GetPolicyGroupRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getPolicyGroup"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/policygroups/{name}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetPolicyGroupOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/policygroups/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Name))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetPolicyGroupResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -763,6 +1078,158 @@ func (c *Client) sendListPolicies(ctx context.Context, params ListPoliciesParams
 	return result, nil
 }
 
+// ListPolicyGroups invokes listPolicyGroups operation.
+//
+// 分页查询策略组列表.
+//
+// GET /policygroups
+func (c *Client) ListPolicyGroups(ctx context.Context, params ListPolicyGroupsParams) (ListPolicyGroupsRes, error) {
+	res, err := c.sendListPolicyGroups(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendListPolicyGroups(ctx context.Context, params ListPolicyGroupsParams) (res ListPolicyGroupsRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listPolicyGroups"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/policygroups"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ListPolicyGroupsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/policygroups"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "page" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "page",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Page.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "pageSize" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "pageSize",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.PageSize.Get(); ok {
+				return e.EncodeValue(conv.IntToString(int(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "sortBy" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sortBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortBy.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "sortOrder" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sortOrder",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortOrder.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeListPolicyGroupsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // ListPolicyVersions invokes listPolicyVersions operation.
 //
 // 返回版本快照列表，按版本号倒序，并标记当前生效版本。.
@@ -966,6 +1433,108 @@ func (c *Client) sendRollbackPolicy(ctx context.Context, request *RollbackReques
 	return result, nil
 }
 
+// SetPolicyGroupEnabled invokes setPolicyGroupEnabled operation.
+//
+// 设置策略组启用状态.
+//
+// PUT /policygroups/{name}/enabled
+func (c *Client) SetPolicyGroupEnabled(ctx context.Context, request *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (SetPolicyGroupEnabledRes, error) {
+	res, err := c.sendSetPolicyGroupEnabled(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendSetPolicyGroupEnabled(ctx context.Context, request *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (res SetPolicyGroupEnabledRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("setPolicyGroupEnabled"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/policygroups/{name}/enabled"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, SetPolicyGroupEnabledOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/policygroups/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Name))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/enabled"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeSetPolicyGroupEnabledRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeSetPolicyGroupEnabledResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // UpdatePolicy invokes updatePolicy operation.
 //
 // 更新策略并追加新版本快照，两者在同一事务内提交。 labels
@@ -1062,6 +1631,107 @@ func (c *Client) sendUpdatePolicy(ctx context.Context, request *PolicyRequest, p
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdatePolicyResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// UpdatePolicyGroup invokes updatePolicyGroup operation.
+//
+// 更新策略组.
+//
+// PUT /policygroups/{name}
+func (c *Client) UpdatePolicyGroup(ctx context.Context, request *PolicyGroupRequest, params UpdatePolicyGroupParams) (UpdatePolicyGroupRes, error) {
+	res, err := c.sendUpdatePolicyGroup(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendUpdatePolicyGroup(ctx context.Context, request *PolicyGroupRequest, params UpdatePolicyGroupParams) (res UpdatePolicyGroupRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updatePolicyGroup"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/policygroups/{name}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, UpdatePolicyGroupOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/policygroups/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Name))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeUpdatePolicyGroupRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeUpdatePolicyGroupResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

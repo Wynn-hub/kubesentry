@@ -15,6 +15,12 @@ type Handler interface {
 	//
 	// POST /policies
 	CreatePolicy(ctx context.Context, req *PolicyRequest) (CreatePolicyRes, error)
+	// CreatePolicyGroup implements createPolicyGroup operation.
+	//
+	// 创建策略组.
+	//
+	// POST /policygroups
+	CreatePolicyGroup(ctx context.Context, req *PolicyGroupRequest) (CreatePolicyGroupRes, error)
 	// DeletePolicy implements deletePolicy operation.
 	//
 	// 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy
@@ -22,12 +28,24 @@ type Handler interface {
 	//
 	// DELETE /policies/{name}
 	DeletePolicy(ctx context.Context, params DeletePolicyParams) (DeletePolicyRes, error)
+	// DeletePolicyGroup implements deletePolicyGroup operation.
+	//
+	// 删除策略组.
+	//
+	// DELETE /policygroups/{name}
+	DeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (DeletePolicyGroupRes, error)
 	// GetPolicy implements getPolicy operation.
 	//
 	// 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.
 	//
 	// GET /policies/{name}
 	GetPolicy(ctx context.Context, params GetPolicyParams) (GetPolicyRes, error)
+	// GetPolicyGroup implements getPolicyGroup operation.
+	//
+	// 查询策略组详情.
+	//
+	// GET /policygroups/{name}
+	GetPolicyGroup(ctx context.Context, params GetPolicyGroupParams) (GetPolicyGroupRes, error)
 	// GetResourceSuggestions implements getResourceSuggestions operation.
 	//
 	// 聚合所有策略 match 中用过的 apiGroups / apiVersions / resources 并去重排序，
@@ -42,6 +60,12 @@ type Handler interface {
 	//
 	// GET /policies
 	ListPolicies(ctx context.Context, params ListPoliciesParams) (ListPoliciesRes, error)
+	// ListPolicyGroups implements listPolicyGroups operation.
+	//
+	// 分页查询策略组列表.
+	//
+	// GET /policygroups
+	ListPolicyGroups(ctx context.Context, params ListPolicyGroupsParams) (ListPolicyGroupsRes, error)
 	// ListPolicyVersions implements listPolicyVersions operation.
 	//
 	// 返回版本快照列表，按版本号倒序，并标记当前生效版本。.
@@ -56,6 +80,12 @@ type Handler interface {
 	//
 	// POST /policies/{name}/rollback
 	RollbackPolicy(ctx context.Context, req *RollbackRequest, params RollbackPolicyParams) (RollbackPolicyRes, error)
+	// SetPolicyGroupEnabled implements setPolicyGroupEnabled operation.
+	//
+	// 设置策略组启用状态.
+	//
+	// PUT /policygroups/{name}/enabled
+	SetPolicyGroupEnabled(ctx context.Context, req *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (SetPolicyGroupEnabledRes, error)
 	// UpdatePolicy implements updatePolicy operation.
 	//
 	// 更新策略并追加新版本快照，两者在同一事务内提交。 labels
@@ -64,6 +94,12 @@ type Handler interface {
 	//
 	// PUT /policies/{name}
 	UpdatePolicy(ctx context.Context, req *PolicyRequest, params UpdatePolicyParams) (UpdatePolicyRes, error)
+	// UpdatePolicyGroup implements updatePolicyGroup operation.
+	//
+	// 更新策略组.
+	//
+	// PUT /policygroups/{name}
+	UpdatePolicyGroup(ctx context.Context, req *PolicyGroupRequest, params UpdatePolicyGroupParams) (UpdatePolicyGroupRes, error)
 	// ValidatePolicyRego implements validatePolicyRego operation.
 	//
 	// 只做 Rego 编译校验，不落库、不校验其他字段。 编译通过返回 code 0 且无

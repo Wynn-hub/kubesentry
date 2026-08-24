@@ -24,6 +24,20 @@ func encodeCreatePolicyRequest(
 	return nil
 }
 
+func encodeCreatePolicyGroupRequest(
+	req *PolicyGroupRequest,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeRollbackPolicyRequest(
 	req *RollbackRequest,
 	r *http.Request,
@@ -38,8 +52,36 @@ func encodeRollbackPolicyRequest(
 	return nil
 }
 
+func encodeSetPolicyGroupEnabledRequest(
+	req *PolicyGroupEnabledRequest,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeUpdatePolicyRequest(
 	req *PolicyRequest,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeUpdatePolicyGroupRequest(
+	req *PolicyGroupRequest,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

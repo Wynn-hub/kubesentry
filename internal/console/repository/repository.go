@@ -1,13 +1,31 @@
 package repository
 
-import "github.com/Wynn-hub/kubesentry/internal/gateway"
+import (
+	"context"
+
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gateway"
+)
+
+type DistributionRepository interface {
+	List(context.Context) ([]dbrepo.PolicyDistribution, error)
+	Create(context.Context, *dbrepo.PolicyDistribution) error
+	Update(context.Context, *dbrepo.PolicyDistribution) error
+	Delete(context.Context, int64) error
+}
+type ClusterRepository interface {
+	GetByName(context.Context, string) (*dbrepo.Cluster, error)
+}
 
 // Repositories is the console's data-access bundle. It grows one field per
 // migrated resource domain; batches that haven't migrated yet keep using
 // gateway.Repos directly from the legacy handlers.
 type Repositories struct {
-	Policies PolicyRepository
-	Groups   GroupRepository
+	Policies      PolicyRepository
+	Groups        GroupRepository
+	PolicyGroups  PolicyGroupRepository
+	Distributions DistributionRepository
+	Clusters      ClusterRepository
 }
 
 // FromGatewayRepos narrows the shared gateway.Repos bundle down to the
@@ -16,7 +34,10 @@ type Repositories struct {
 // point rather than threading concrete repo types through the service layer.
 func FromGatewayRepos(r gateway.Repos) Repositories {
 	return Repositories{
-		Policies: r.Policies,
-		Groups:   r.Groups,
+		Policies:      r.Policies,
+		Groups:        r.Groups,
+		PolicyGroups:  r.Groups,
+		Distributions: r.Distributions,
+		Clusters:      r.Clusters,
 	}
 }

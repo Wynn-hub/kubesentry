@@ -23,6 +23,15 @@ func (UnimplementedHandler) CreatePolicy(ctx context.Context, req *PolicyRequest
 	return r, ht.ErrNotImplemented
 }
 
+// CreatePolicyGroup implements createPolicyGroup operation.
+//
+// 创建策略组.
+//
+// POST /policygroups
+func (UnimplementedHandler) CreatePolicyGroup(ctx context.Context, req *PolicyGroupRequest) (r CreatePolicyGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // DeletePolicy implements deletePolicy operation.
 //
 // 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy
@@ -33,12 +42,30 @@ func (UnimplementedHandler) DeletePolicy(ctx context.Context, params DeletePolic
 	return r, ht.ErrNotImplemented
 }
 
+// DeletePolicyGroup implements deletePolicyGroup operation.
+//
+// 删除策略组.
+//
+// DELETE /policygroups/{name}
+func (UnimplementedHandler) DeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (r DeletePolicyGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetPolicy implements getPolicy operation.
 //
 // 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.
 //
 // GET /policies/{name}
 func (UnimplementedHandler) GetPolicy(ctx context.Context, params GetPolicyParams) (r GetPolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetPolicyGroup implements getPolicyGroup operation.
+//
+// 查询策略组详情.
+//
+// GET /policygroups/{name}
+func (UnimplementedHandler) GetPolicyGroup(ctx context.Context, params GetPolicyGroupParams) (r GetPolicyGroupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -62,6 +89,15 @@ func (UnimplementedHandler) ListPolicies(ctx context.Context, params ListPolicie
 	return r, ht.ErrNotImplemented
 }
 
+// ListPolicyGroups implements listPolicyGroups operation.
+//
+// 分页查询策略组列表.
+//
+// GET /policygroups
+func (UnimplementedHandler) ListPolicyGroups(ctx context.Context, params ListPolicyGroupsParams) (r ListPolicyGroupsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListPolicyVersions implements listPolicyVersions operation.
 //
 // 返回版本快照列表，按版本号倒序，并标记当前生效版本。.
@@ -82,6 +118,15 @@ func (UnimplementedHandler) RollbackPolicy(ctx context.Context, req *RollbackReq
 	return r, ht.ErrNotImplemented
 }
 
+// SetPolicyGroupEnabled implements setPolicyGroupEnabled operation.
+//
+// 设置策略组启用状态.
+//
+// PUT /policygroups/{name}/enabled
+func (UnimplementedHandler) SetPolicyGroupEnabled(ctx context.Context, req *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (r SetPolicyGroupEnabledRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UpdatePolicy implements updatePolicy operation.
 //
 // 更新策略并追加新版本快照，两者在同一事务内提交。 labels
@@ -90,6 +135,15 @@ func (UnimplementedHandler) RollbackPolicy(ctx context.Context, req *RollbackReq
 //
 // PUT /policies/{name}
 func (UnimplementedHandler) UpdatePolicy(ctx context.Context, req *PolicyRequest, params UpdatePolicyParams) (r UpdatePolicyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdatePolicyGroup implements updatePolicyGroup operation.
+//
+// 更新策略组.
+//
+// PUT /policygroups/{name}
+func (UnimplementedHandler) UpdatePolicyGroup(ctx context.Context, req *PolicyGroupRequest, params UpdatePolicyGroupParams) (r UpdatePolicyGroupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

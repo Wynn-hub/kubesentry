@@ -7,12 +7,18 @@ type OperationName = string
 
 const (
 	CreatePolicyOperation           OperationName = "CreatePolicy"
+	CreatePolicyGroupOperation      OperationName = "CreatePolicyGroup"
 	DeletePolicyOperation           OperationName = "DeletePolicy"
+	DeletePolicyGroupOperation      OperationName = "DeletePolicyGroup"
 	GetPolicyOperation              OperationName = "GetPolicy"
+	GetPolicyGroupOperation         OperationName = "GetPolicyGroup"
 	GetResourceSuggestionsOperation OperationName = "GetResourceSuggestions"
 	ListPoliciesOperation           OperationName = "ListPolicies"
+	ListPolicyGroupsOperation       OperationName = "ListPolicyGroups"
 	ListPolicyVersionsOperation     OperationName = "ListPolicyVersions"
 	RollbackPolicyOperation         OperationName = "RollbackPolicy"
+	SetPolicyGroupEnabledOperation  OperationName = "SetPolicyGroupEnabled"
 	UpdatePolicyOperation           OperationName = "UpdatePolicy"
+	UpdatePolicyGroupOperation      OperationName = "UpdatePolicyGroup"
 	ValidatePolicyRegoOperation     OperationName = "ValidatePolicyRego"
 )

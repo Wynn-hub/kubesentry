@@ -8,7 +8,8 @@ import "github.com/Wynn-hub/kubesentry/internal/console/repository"
 // Services is the bundle handlers receive. It grows one field per migrated
 // resource domain.
 type Services struct {
-	Policy *PolicyService
+	Policy      *PolicyService
+	PolicyGroup *PolicyGroupService
 }
 
 // New wires every service from the repository bundle and an optional Notifier.
@@ -16,6 +17,7 @@ type Services struct {
 // calls are silently skipped.
 func New(repos repository.Repositories, notifier Notifier) Services {
 	return Services{
-		Policy: NewPolicyService(repos.Policies, repos.Groups, notifier),
+		Policy:      NewPolicyService(repos.Policies, repos.Groups, notifier),
+		PolicyGroup: NewPolicyGroupService(repos, notifier),
 	}
 }

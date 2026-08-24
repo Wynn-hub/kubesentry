@@ -139,6 +139,72 @@ func decodeDeletePolicyParams(args [1]string, argsEscaped bool, r *http.Request)
 	return params, nil
 }
 
+// DeletePolicyGroupParams is parameters of deletePolicyGroup operation.
+type DeletePolicyGroupParams struct {
+	// 策略组名称.
+	Name string
+}
+
+func unpackDeletePolicyGroupParams(packed middleware.Parameters) (params DeletePolicyGroupParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "name",
+			In:   "path",
+		}
+		params.Name = packed[key].(string)
+	}
+	return params
+}
+
+func decodeDeletePolicyGroupParams(args [1]string, argsEscaped bool, r *http.Request) (params DeletePolicyGroupParams, _ error) {
+	// Decode path: name.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "name",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Name = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "name",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetPolicyParams is parameters of getPolicy operation.
 type GetPolicyParams struct {
 	// 策略名称.
@@ -157,6 +223,72 @@ func unpackGetPolicyParams(packed middleware.Parameters) (params GetPolicyParams
 }
 
 func decodeGetPolicyParams(args [1]string, argsEscaped bool, r *http.Request) (params GetPolicyParams, _ error) {
+	// Decode path: name.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "name",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Name = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "name",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// GetPolicyGroupParams is parameters of getPolicyGroup operation.
+type GetPolicyGroupParams struct {
+	// 策略组名称.
+	Name string
+}
+
+func unpackGetPolicyGroupParams(packed middleware.Parameters) (params GetPolicyGroupParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "name",
+			In:   "path",
+		}
+		params.Name = packed[key].(string)
+	}
+	return params
+}
+
+func decodeGetPolicyGroupParams(args [1]string, argsEscaped bool, r *http.Request) (params GetPolicyGroupParams, _ error) {
 	// Decode path: name.
 	if err := func() error {
 		param := args[0]
@@ -799,6 +931,317 @@ func decodeListPoliciesParams(args [0]string, argsEscaped bool, r *http.Request)
 	return params, nil
 }
 
+// ListPolicyGroupsParams is parameters of listPolicyGroups operation.
+type ListPolicyGroupsParams struct {
+	// 页码，从 1 开始。省略时为 1.
+	Page OptInt `json:",omitempty,omitzero"`
+	// 每页记录数。仅接受 10、20、50、100。省略时为 20.
+	PageSize OptPageSize `json:",omitempty,omitzero"`
+	// 排序字段.
+	SortBy OptListPolicyGroupsSortBy `json:",omitempty,omitzero"`
+	// 排序方向.
+	SortOrder OptListPolicyGroupsSortOrder `json:",omitempty,omitzero"`
+}
+
+func unpackListPolicyGroupsParams(packed middleware.Parameters) (params ListPolicyGroupsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "page",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Page = v.(OptInt)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "pageSize",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.PageSize = v.(OptPageSize)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "sortBy",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.SortBy = v.(OptListPolicyGroupsSortBy)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "sortOrder",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.SortOrder = v.(OptListPolicyGroupsSortOrder)
+		}
+	}
+	return params
+}
+
+func decodeListPolicyGroupsParams(args [0]string, argsEscaped bool, r *http.Request) (params ListPolicyGroupsParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Set default value for query: page.
+	{
+		val := int(1)
+		params.Page.SetTo(val)
+	}
+	// Decode query: page.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "page",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotPageVal int
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToInt(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotPageVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Page.SetTo(paramsDotPageVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Page.Get(); ok {
+					if err := func() error {
+						if err := (validate.Int{
+							MinSet:        true,
+							Min:           1,
+							MaxSet:        false,
+							Max:           0,
+							MinExclusive:  false,
+							MaxExclusive:  false,
+							MultipleOfSet: false,
+							MultipleOf:    0,
+							Pattern:       nil,
+						}).Validate(int64(value)); err != nil {
+							return errors.Wrap(err, "int")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "page",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: pageSize.
+	{
+		val := PageSize(20)
+		params.PageSize.SetTo(val)
+	}
+	// Decode query: pageSize.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "pageSize",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotPageSizeVal PageSize
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToInt(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotPageSizeVal = PageSize(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.PageSize.SetTo(paramsDotPageSizeVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.PageSize.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "pageSize",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: sortBy.
+	{
+		val := ListPolicyGroupsSortBy("name")
+		params.SortBy.SetTo(val)
+	}
+	// Decode query: sortBy.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "sortBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSortByVal ListPolicyGroupsSortBy
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSortByVal = ListPolicyGroupsSortBy(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SortBy.SetTo(paramsDotSortByVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.SortBy.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "sortBy",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: sortOrder.
+	{
+		val := ListPolicyGroupsSortOrder("asc")
+		params.SortOrder.SetTo(val)
+	}
+	// Decode query: sortOrder.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "sortOrder",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSortOrderVal ListPolicyGroupsSortOrder
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSortOrderVal = ListPolicyGroupsSortOrder(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SortOrder.SetTo(paramsDotSortOrderVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.SortOrder.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "sortOrder",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ListPolicyVersionsParams is parameters of listPolicyVersions operation.
 type ListPolicyVersionsParams struct {
 	// 策略名称.
@@ -931,6 +1374,72 @@ func decodeRollbackPolicyParams(args [1]string, argsEscaped bool, r *http.Reques
 	return params, nil
 }
 
+// SetPolicyGroupEnabledParams is parameters of setPolicyGroupEnabled operation.
+type SetPolicyGroupEnabledParams struct {
+	// 策略组名称.
+	Name string
+}
+
+func unpackSetPolicyGroupEnabledParams(packed middleware.Parameters) (params SetPolicyGroupEnabledParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "name",
+			In:   "path",
+		}
+		params.Name = packed[key].(string)
+	}
+	return params
+}
+
+func decodeSetPolicyGroupEnabledParams(args [1]string, argsEscaped bool, r *http.Request) (params SetPolicyGroupEnabledParams, _ error) {
+	// Decode path: name.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "name",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Name = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "name",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // UpdatePolicyParams is parameters of updatePolicy operation.
 type UpdatePolicyParams struct {
 	// 策略名称.
@@ -949,6 +1458,72 @@ func unpackUpdatePolicyParams(packed middleware.Parameters) (params UpdatePolicy
 }
 
 func decodeUpdatePolicyParams(args [1]string, argsEscaped bool, r *http.Request) (params UpdatePolicyParams, _ error) {
+	// Decode path: name.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "name",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Name = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "name",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// UpdatePolicyGroupParams is parameters of updatePolicyGroup operation.
+type UpdatePolicyGroupParams struct {
+	// 策略组名称.
+	Name string
+}
+
+func unpackUpdatePolicyGroupParams(packed middleware.Parameters) (params UpdatePolicyGroupParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "name",
+			In:   "path",
+		}
+		params.Name = packed[key].(string)
+	}
+	return params
+}
+
+func decodeUpdatePolicyGroupParams(args [1]string, argsEscaped bool, r *http.Request) (params UpdatePolicyGroupParams, _ error) {
 	// Decode path: name.
 	if err := func() error {
 		param := args[0]
