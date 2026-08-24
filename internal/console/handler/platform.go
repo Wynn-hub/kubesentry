@@ -15,10 +15,7 @@ func (h *Handler) platformInvoke(ctx context.Context, method, path string, body 
 		return nil, 503, nil
 	}
 	status, raw := h.svcs.LegacyInvoke(ctx, method, path, body)
-	var values map[string]jx.Raw
-	if err := json.Unmarshal(raw, &values); err != nil {
-		return nil, status, err
-	}
+	values := rawObject(raw)
 	return values, status, nil
 }
 
