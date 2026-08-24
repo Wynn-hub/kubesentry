@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { apiClient } from '../generated/client'
 import type { components } from '../generated/console-api'
-import { ApiError, unwrap } from '../http'
+import { ApiError, extract, unwrap } from '../http'
 
 // An arbitrary API path must never cross the browser transport boundary.
 function assertReviewedPathsOnly() {
@@ -31,6 +31,27 @@ describe('unwrap', () => {
       expect(err.message).toBe('referenced')
       expect(err.data).toEqual({ referencedBy: ['g'] })
     }
+  })
+
+  it('preserves a non-2xx generated-client error envelope', async () => {
+    const result = apiClient.DELETE('/policies/{name}', {
+      params: { path: { name: 'deny-privileged' } },
+      baseUrl: 'https://console.test/api/v1',
+      fetch: async () => new Response(JSON.stringify({
+        code: 40900,
+        message: 'referenced',
+        details: ['remove the group reference first'],
+        data: { referencedBy: ['baseline'] },
+      }), { status: 409, headers: { 'Content-Type': 'application/json' } }),
+    })
+
+    await expect(extract<'deletePolicy'>(result)).rejects.toMatchObject({
+      status: 409,
+      code: 40900,
+      message: 'referenced',
+      details: ['remove the group reference first'],
+      data: { referencedBy: ['baseline'] },
+    })
   })
 
   it('treats a non-zero code as failure even on HTTP 200', () => {

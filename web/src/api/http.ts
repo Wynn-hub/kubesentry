@@ -12,6 +12,12 @@ type GeneratedEnvelope =
   { [Operation in keyof operations]: OperationResponse<Operation> }[keyof operations]
   | components['schemas']['ErrorResponse']
 
+type GeneratedClientResult = {
+  response: Response
+  data?: GeneratedEnvelope
+  error?: components['schemas']['ErrorResponse']
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -40,11 +46,11 @@ export function unwrap<Operation extends keyof operations>(
 }
 
 export async function extract<Operation extends keyof operations>(
-  result: Promise<{ response: Response; data?: GeneratedEnvelope }>,
+  result: Promise<GeneratedClientResult>,
 ): Promise<OperationData<Operation>> {
   try {
     const response = await result
-    return unwrap<Operation>(response.response.status, response.data, `HTTP ${response.response.status}`)
+    return unwrap<Operation>(response.response.status, response.data ?? response.error, `HTTP ${response.response.status}`)
   } catch (e) {
     if (e instanceof ApiError) throw e
     const err = e as Error

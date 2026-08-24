@@ -6,6 +6,9 @@ import type { paths } from './console-api'
 export const apiClient = createClient<paths>({
   baseUrl: '/api/v1',
   headers: { Accept: 'application/json' },
+  querySerializer: {
+    array: { style: 'form', explode: false },
+  },
 })
 
 export type { paths } from './console-api'
