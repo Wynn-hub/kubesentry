@@ -16,6 +16,7 @@ const (
 	GetPolicyOperation              OperationName = "GetPolicy"
 	GetPolicyGroupOperation         OperationName = "GetPolicyGroup"
 	GetResourceSuggestionsOperation OperationName = "GetResourceSuggestions"
+	GetSummaryOperation             OperationName = "GetSummary"
 	ListExceptionsOperation         OperationName = "ListExceptions"
 	ListPoliciesOperation           OperationName = "ListPolicies"
 	ListPolicyGroupsOperation       OperationName = "ListPolicyGroups"

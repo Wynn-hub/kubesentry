@@ -287,6 +287,7 @@ func (s *ErrorResponse) SetData(val OptErrorResponseData) {
 	s.Data = val
 }
 
+func (*ErrorResponse) getSummaryRes()         {}
 func (*ErrorResponse) validatePolicyRegoRes() {}
 
 // 失败时附带的结构化数据。例如删除被引用资源时的 referencedBy 列表.
@@ -3363,6 +3364,52 @@ func (o OptString) Or(d string) string {
 	return d
 }
 
+// NewOptSummaryData returns new OptSummaryData with value set to v.
+func NewOptSummaryData(v SummaryData) OptSummaryData {
+	return OptSummaryData{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSummaryData is optional SummaryData.
+type OptSummaryData struct {
+	Value SummaryData
+	Set   bool
+}
+
+// IsSet returns true if OptSummaryData was set.
+func (o OptSummaryData) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSummaryData) Reset() {
+	var v SummaryData
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSummaryData) SetTo(v SummaryData) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSummaryData) Get() (v SummaryData, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSummaryData) Or(d SummaryData) SummaryData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // 每页记录数.
 type PageSize int
 
@@ -5947,6 +5994,214 @@ func (*SetPolicyGroupEnabledInternalServerError) setPolicyGroupEnabledRes() {}
 type SetPolicyGroupEnabledNotFound ErrorResponse
 
 func (*SetPolicyGroupEnabledNotFound) setPolicyGroupEnabledRes() {}
+
+// Ref: #/components/schemas/SummaryData
+type SummaryData struct {
+	// 平台资源总数.
+	Totals        SummaryDataTotals        `json:"totals"`
+	ClusterPhases SummaryDataClusterPhases `json:"clusterPhases"`
+	// 策略组摘要.
+	Groups []SummaryGroup `json:"groups"`
+}
+
+// GetTotals returns the value of Totals.
+func (s *SummaryData) GetTotals() SummaryDataTotals {
+	return s.Totals
+}
+
+// GetClusterPhases returns the value of ClusterPhases.
+func (s *SummaryData) GetClusterPhases() SummaryDataClusterPhases {
+	return s.ClusterPhases
+}
+
+// GetGroups returns the value of Groups.
+func (s *SummaryData) GetGroups() []SummaryGroup {
+	return s.Groups
+}
+
+// SetTotals sets the value of Totals.
+func (s *SummaryData) SetTotals(val SummaryDataTotals) {
+	s.Totals = val
+}
+
+// SetClusterPhases sets the value of ClusterPhases.
+func (s *SummaryData) SetClusterPhases(val SummaryDataClusterPhases) {
+	s.ClusterPhases = val
+}
+
+// SetGroups sets the value of Groups.
+func (s *SummaryData) SetGroups(val []SummaryGroup) {
+	s.Groups = val
+}
+
+type SummaryDataClusterPhases struct {
+	// 在线集群数.
+	Online int `json:"online"`
+	// 离线集群数.
+	Offline int `json:"offline"`
+	// 注册中集群数.
+	Registering int `json:"registering"`
+}
+
+// GetOnline returns the value of Online.
+func (s *SummaryDataClusterPhases) GetOnline() int {
+	return s.Online
+}
+
+// GetOffline returns the value of Offline.
+func (s *SummaryDataClusterPhases) GetOffline() int {
+	return s.Offline
+}
+
+// GetRegistering returns the value of Registering.
+func (s *SummaryDataClusterPhases) GetRegistering() int {
+	return s.Registering
+}
+
+// SetOnline sets the value of Online.
+func (s *SummaryDataClusterPhases) SetOnline(val int) {
+	s.Online = val
+}
+
+// SetOffline sets the value of Offline.
+func (s *SummaryDataClusterPhases) SetOffline(val int) {
+	s.Offline = val
+}
+
+// SetRegistering sets the value of Registering.
+func (s *SummaryDataClusterPhases) SetRegistering(val int) {
+	s.Registering = val
+}
+
+// 平台资源总数.
+type SummaryDataTotals map[string]int
+
+func (s *SummaryDataTotals) init() SummaryDataTotals {
+	m := *s
+	if m == nil {
+		m = map[string]int{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/SummaryGroup
+type SummaryGroup struct {
+	// 策略组名称.
+	Name string `json:"name"`
+	// 显示名称.
+	DisplayName string `json:"displayName"`
+	// 是否启用.
+	Enabled bool `json:"enabled"`
+	// 生效策略数量.
+	ResolvedCount int `json:"resolvedCount"`
+	// 强制策略数量.
+	EnforceCount int `json:"enforceCount"`
+	// 审计策略数量.
+	AuditCount int `json:"auditCount"`
+}
+
+// GetName returns the value of Name.
+func (s *SummaryGroup) GetName() string {
+	return s.Name
+}
+
+// GetDisplayName returns the value of DisplayName.
+func (s *SummaryGroup) GetDisplayName() string {
+	return s.DisplayName
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *SummaryGroup) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetResolvedCount returns the value of ResolvedCount.
+func (s *SummaryGroup) GetResolvedCount() int {
+	return s.ResolvedCount
+}
+
+// GetEnforceCount returns the value of EnforceCount.
+func (s *SummaryGroup) GetEnforceCount() int {
+	return s.EnforceCount
+}
+
+// GetAuditCount returns the value of AuditCount.
+func (s *SummaryGroup) GetAuditCount() int {
+	return s.AuditCount
+}
+
+// SetName sets the value of Name.
+func (s *SummaryGroup) SetName(val string) {
+	s.Name = val
+}
+
+// SetDisplayName sets the value of DisplayName.
+func (s *SummaryGroup) SetDisplayName(val string) {
+	s.DisplayName = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *SummaryGroup) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetResolvedCount sets the value of ResolvedCount.
+func (s *SummaryGroup) SetResolvedCount(val int) {
+	s.ResolvedCount = val
+}
+
+// SetEnforceCount sets the value of EnforceCount.
+func (s *SummaryGroup) SetEnforceCount(val int) {
+	s.EnforceCount = val
+}
+
+// SetAuditCount sets the value of AuditCount.
+func (s *SummaryGroup) SetAuditCount(val int) {
+	s.AuditCount = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/SummaryResponse
+type SummaryResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string         `json:"message"`
+	Data    OptSummaryData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *SummaryResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *SummaryResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *SummaryResponse) GetData() OptSummaryData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *SummaryResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *SummaryResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *SummaryResponse) SetData(val OptSummaryData) {
+	s.Data = val
+}
+
+func (*SummaryResponse) getSummaryRes() {}
 
 type UpdateExceptionBadRequest ErrorResponse
 

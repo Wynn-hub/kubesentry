@@ -37,7 +37,6 @@ type Handlers struct {
 
 // RegisterLegacy wires routes that have not yet moved to ogen.
 func (h *Handlers) RegisterLegacy(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/summary", h.summary)
 	mux.HandleFunc("GET /api/v1/admission-events", h.listAdmissionEvents)
 	mux.HandleFunc("GET /api/v1/admission-events/{id}", h.getAdmissionEvent)
 	mux.HandleFunc("GET /api/v1/admission-events/trend", h.admissionEventTrend)
@@ -110,6 +109,7 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		mux.Handle("/api/v1/policygroups/", ogenServer)
 		mux.Handle("/api/v1/exceptions", ogenServer)
 		mux.Handle("/api/v1/exceptions/", ogenServer)
+		mux.Handle("/api/v1/summary", ogenServer)
 	}
 	h.RegisterLegacy(mux)
 

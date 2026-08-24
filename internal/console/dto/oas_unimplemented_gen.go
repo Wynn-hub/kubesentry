@@ -106,6 +106,15 @@ func (UnimplementedHandler) GetResourceSuggestions(ctx context.Context) (r GetRe
 	return r, ht.ErrNotImplemented
 }
 
+// GetSummary implements getSummary operation.
+//
+// 获取平台资源摘要.
+//
+// GET /summary
+func (UnimplementedHandler) GetSummary(ctx context.Context) (r GetSummaryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListExceptions implements listExceptions operation.
 //
 // 分页查询策略例外.

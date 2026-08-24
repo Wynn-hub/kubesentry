@@ -22,6 +22,8 @@ tags:
     description: 策略组的增删改查与启用状态管理
   - name: Exception
     description: 策略例外的增删改查
+  - name: Summary
+    description: 平台资源摘要
 
 components:
   securitySchemes:
@@ -118,6 +120,19 @@ components:
             $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
 
 paths:
+  /summary:
+    get:
+      tags: [Summary]
+      operationId: getSummary
+      summary: 获取平台资源摘要
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema: {$ref: '../schemas/summary.yaml#/components/schemas/SummaryResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
   /policies:
     get:
       tags: [Policy]

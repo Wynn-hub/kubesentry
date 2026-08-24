@@ -1,0 +1,37 @@
+components:
+  schemas:
+    SummaryGroup:
+      type: object
+      required: [name, displayName, enabled, resolvedCount, enforceCount, auditCount]
+      properties:
+        name: {type: string, description: 策略组名称, example: default}
+        displayName: {type: string, description: 显示名称, example: Default policies}
+        enabled: {type: boolean, description: 是否启用, example: true}
+        resolvedCount: {type: integer, description: 生效策略数量, example: 12}
+        enforceCount: {type: integer, description: 强制策略数量, example: 8}
+        auditCount: {type: integer, description: 审计策略数量, example: 4}
+    SummaryData:
+      type: object
+      required: [totals, clusterPhases, groups]
+      properties:
+        totals:
+          type: object
+          additionalProperties: {type: integer}
+          description: 平台资源总数
+          example: {clusters: 3, policies: 12, policygroups: 2, exceptions: 1}
+        clusterPhases:
+          type: object
+          required: [online, offline, registering]
+          properties:
+            online: {type: integer, description: 在线集群数, example: 2}
+            offline: {type: integer, description: 离线集群数, example: 1}
+            registering: {type: integer, description: 注册中集群数, example: 0}
+        groups:
+          type: array
+          description: 策略组摘要
+          items: {$ref: '#/components/schemas/SummaryGroup'}
+    SummaryResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties: {data: {$ref: '#/components/schemas/SummaryData'}}

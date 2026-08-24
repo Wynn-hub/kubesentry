@@ -11,6 +11,7 @@ type Services struct {
 	Policy      *PolicyService
 	PolicyGroup *PolicyGroupService
 	Exception   *ExceptionService
+	Summary     *SummaryService
 }
 
 // New wires every service from the repository bundle and an optional Notifier.
@@ -21,5 +22,6 @@ func New(repos repository.Repositories, notifier Notifier) Services {
 		Policy:      NewPolicyService(repos.Policies, repos.Groups, notifier),
 		PolicyGroup: NewPolicyGroupService(repos, notifier),
 		Exception:   NewExceptionService(repos, notifier),
+		Summary:     NewSummaryService(repos),
 	}
 }

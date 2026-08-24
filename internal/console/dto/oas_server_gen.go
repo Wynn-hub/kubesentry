@@ -71,6 +71,12 @@ type Handler interface {
 	//
 	// GET /policies/resource-suggestions
 	GetResourceSuggestions(ctx context.Context) (GetResourceSuggestionsRes, error)
+	// GetSummary implements getSummary operation.
+	//
+	// 获取平台资源摘要.
+	//
+	// GET /summary
+	GetSummary(ctx context.Context) (GetSummaryRes, error)
 	// ListExceptions implements listExceptions operation.
 	//
 	// 分页查询策略例外.

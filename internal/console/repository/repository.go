@@ -15,6 +15,7 @@ type DistributionRepository interface {
 }
 type ClusterRepository interface {
 	GetByName(context.Context, string) (*dbrepo.Cluster, error)
+	CountByPhase(context.Context) (dbrepo.ClusterPhaseCounts, error)
 }
 
 // Repositories is the console's data-access bundle. It grows one field per

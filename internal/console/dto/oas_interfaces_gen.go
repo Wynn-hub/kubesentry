@@ -41,6 +41,10 @@ type GetResourceSuggestionsRes interface {
 	getResourceSuggestionsRes()
 }
 
+type GetSummaryRes interface {
+	getSummaryRes()
+}
+
 type ListExceptionsRes interface {
 	listExceptionsRes()
 }
