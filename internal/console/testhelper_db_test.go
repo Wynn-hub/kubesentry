@@ -81,7 +81,10 @@ func newDBTestServer(t *testing.T) (http.Handler, gateway.Repos) {
 	t.Helper()
 	repos := dbRepos(t)
 	h := &Handlers{Repos: repos}
-	srv := NewServer(h, func() bool { return true })
+	srv, err := NewServer(h, func() bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
 	return srv.Handler, repos
 }
 
@@ -93,7 +96,10 @@ func newDBTestServerWithHandlers(t *testing.T) (http.Handler, gateway.Repos, *Ha
 	t.Helper()
 	repos := dbRepos(t)
 	h := &Handlers{Repos: repos}
-	srv := NewServer(h, func() bool { return true })
+	srv, err := NewServer(h, func() bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
 	return srv.Handler, repos, h
 }
 

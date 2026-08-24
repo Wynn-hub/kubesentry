@@ -1,10 +1,15 @@
 package console
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
 
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
+	"github.com/Wynn-hub/kubesentry/internal/console/handler"
+	"github.com/Wynn-hub/kubesentry/internal/console/repository"
+	"github.com/Wynn-hub/kubesentry/internal/console/service"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
@@ -30,17 +35,8 @@ type Handlers struct {
 	schemaCacheMap  *sync.Map
 }
 
-// Register wires all /api/v1 routes. Later tasks append routes here.
-func (h *Handlers) Register(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/policies", h.listPolicies)
-	mux.HandleFunc("GET /api/v1/policies/resource-suggestions", h.resourceSuggestions)
-	mux.HandleFunc("GET /api/v1/policies/{name}", h.getPolicy)
-	mux.HandleFunc("POST /api/v1/policies", h.createPolicy)
-	mux.HandleFunc("PUT /api/v1/policies/{name}", h.updatePolicy)
-	mux.HandleFunc("POST /api/v1/policies/validate", h.validatePolicy)
-	mux.HandleFunc("DELETE /api/v1/policies/{name}", h.deletePolicy)
-	mux.HandleFunc("GET /api/v1/policies/{name}/versions", h.listPolicyVersions)
-	mux.HandleFunc("POST /api/v1/policies/{name}/rollback", h.rollbackPolicy)
+// RegisterLegacy wires routes that have not yet moved to ogen.
+func (h *Handlers) RegisterLegacy(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/policygroups", h.listGroups)
 	mux.HandleFunc("POST /api/v1/policygroups", h.createGroup)
 	mux.HandleFunc("GET /api/v1/policygroups/{name}", h.getGroup)
@@ -95,7 +91,7 @@ type Server struct {
 // container (see Dockerfile.console-web and the gateway chart's nginx ConfigMap).
 // ready reports whether console-api's dependencies (currently: the database)
 // are reachable; nil always reports ready.
-func NewServer(h *Handlers, ready func() bool) *Server {
+func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -109,7 +105,20 @@ func NewServer(h *Handlers, ready func() bool) *Server {
 		http.Error(w, "not ready", http.StatusServiceUnavailable)
 	})
 
-	h.Register(mux)
+	if h.Repos.Policies != nil {
+		svcs := service.New(repository.FromGatewayRepos(h.Repos), h.notifier())
+		ogenServer, err := dto.NewServer(
+			handler.New(svcs),
+			dto.WithPathPrefix("/api/v1"),
+			dto.WithMiddleware(TraceIDMiddleware()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("construct policy ogen server: %w", err)
+		}
+		mux.Handle("/api/v1/policies", ogenServer)
+		mux.Handle("/api/v1/policies/", ogenServer)
+	}
+	h.RegisterLegacy(mux)
 
 	// The nginx `web` container only proxies /healthz and /api/* here (see
 	// charts/kubesentry-gateway/templates/console/nginx-configmap.yaml); anything else served by
@@ -124,5 +133,5 @@ func NewServer(h *Handlers, ready func() bool) *Server {
 		http.NotFound(w, r)
 	})
 
-	return &Server{Handler: mux}
+	return &Server{Handler: mux}, nil
 }

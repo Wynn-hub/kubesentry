@@ -148,7 +148,11 @@ func main() {
 	}
 
 	h := &console.Handlers{Repos: repos, Discovery: disc, Gateway: gatewayClient}
-	srv := console.NewServer(h, ready)
+	srv, err := console.NewServer(h, ready)
+	if err != nil {
+		slog.Error("build console server", "error", err)
+		os.Exit(1)
+	}
 
 	slog.Info("console listening", "addr", addr)
 	if err := http.ListenAndServe(addr, srv.Handler); err != nil {

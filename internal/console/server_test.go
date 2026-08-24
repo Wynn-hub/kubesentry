@@ -7,7 +7,11 @@ import (
 )
 
 func newBareServer(ready func() bool) http.Handler {
-	return NewServer(&Handlers{}, ready).Handler
+	srv, err := NewServer(&Handlers{}, ready)
+	if err != nil {
+		panic(err)
+	}
+	return srv.Handler
 }
 
 func TestHealthz(t *testing.T) {

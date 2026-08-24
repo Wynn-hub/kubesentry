@@ -28,7 +28,10 @@ type testEnvelope struct {
 // swapped for a fake in tests rather than backed by Repos/Discovery).
 func newTestServer(t *testing.T) http.Handler {
 	t.Helper()
-	srv := NewServer(&Handlers{}, func() bool { return true })
+	srv, err := NewServer(&Handlers{}, func() bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
 	return srv.Handler
 }
 
@@ -38,7 +41,10 @@ func newTestServer(t *testing.T) http.Handler {
 func newTestServerWithHandlers(t *testing.T) (http.Handler, *Handlers) {
 	t.Helper()
 	h := &Handlers{}
-	srv := NewServer(h, func() bool { return true })
+	srv, err := NewServer(h, func() bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
 	return srv.Handler, h
 }
 
@@ -51,6 +57,9 @@ func doRequest(t *testing.T, h http.Handler, method, path string, body any) (*ht
 		}
 	}
 	req := httptest.NewRequest(method, path, &buf)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	var env testEnvelope
