@@ -9,6 +9,18 @@ import (
 	"github.com/go-faster/jx"
 )
 
+type CreateExceptionBadRequest ErrorResponse
+
+func (*CreateExceptionBadRequest) createExceptionRes() {}
+
+type CreateExceptionConflict ErrorResponse
+
+func (*CreateExceptionConflict) createExceptionRes() {}
+
+type CreateExceptionInternalServerError ErrorResponse
+
+func (*CreateExceptionInternalServerError) createExceptionRes() {}
+
 type CreatePolicyBadRequest ErrorResponse
 
 func (*CreatePolicyBadRequest) createPolicyRes() {}
@@ -32,6 +44,14 @@ func (*CreatePolicyGroupInternalServerError) createPolicyGroupRes() {}
 type CreatePolicyInternalServerError ErrorResponse
 
 func (*CreatePolicyInternalServerError) createPolicyRes() {}
+
+type DeleteExceptionInternalServerError ErrorResponse
+
+func (*DeleteExceptionInternalServerError) deleteExceptionRes() {}
+
+type DeleteExceptionNotFound ErrorResponse
+
+func (*DeleteExceptionNotFound) deleteExceptionRes() {}
 
 type DeletePolicyConflict ErrorResponse
 
@@ -59,11 +79,11 @@ func (*DeletePolicyNotFound) deletePolicyRes() {}
 
 // Ref: #/components/schemas/EffectiveMember
 type EffectiveMember struct {
-	// 已解析的策略名称.
+	// 生效策略名称.
 	Name string `json:"name"`
-	// 策略在本组中的最终执行模式.
+	// 生效执行模式.
 	EnforcementMode EffectiveMemberEnforcementMode `json:"enforcementMode"`
-	// 成员来源.
+	// 策略来源.
 	Source EffectiveMemberSource `json:"source"`
 }
 
@@ -97,7 +117,7 @@ func (s *EffectiveMember) SetSource(val EffectiveMemberSource) {
 	s.Source = val
 }
 
-// 策略在本组中的最终执行模式.
+// 生效执行模式.
 type EffectiveMemberEnforcementMode string
 
 const (
@@ -139,28 +159,28 @@ func (s *EffectiveMemberEnforcementMode) UnmarshalText(data []byte) error {
 	}
 }
 
-// 成员来源.
+// 策略来源.
 type EffectiveMemberSource string
 
 const (
-	EffectiveMemberSourceByName     EffectiveMemberSource = "byName"
-	EffectiveMemberSourceBySelector EffectiveMemberSource = "bySelector"
+	EffectiveMemberSourceBuiltin EffectiveMemberSource = "builtin"
+	EffectiveMemberSourceCustom  EffectiveMemberSource = "custom"
 )
 
 // AllValues returns all EffectiveMemberSource values.
 func (EffectiveMemberSource) AllValues() []EffectiveMemberSource {
 	return []EffectiveMemberSource{
-		EffectiveMemberSourceByName,
-		EffectiveMemberSourceBySelector,
+		EffectiveMemberSourceBuiltin,
+		EffectiveMemberSourceCustom,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s EffectiveMemberSource) MarshalText() ([]byte, error) {
 	switch s {
-	case EffectiveMemberSourceByName:
+	case EffectiveMemberSourceBuiltin:
 		return []byte(s), nil
-	case EffectiveMemberSourceBySelector:
+	case EffectiveMemberSourceCustom:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -170,11 +190,11 @@ func (s EffectiveMemberSource) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *EffectiveMemberSource) UnmarshalText(data []byte) error {
 	switch EffectiveMemberSource(data) {
-	case EffectiveMemberSourceByName:
-		*s = EffectiveMemberSourceByName
+	case EffectiveMemberSourceBuiltin:
+		*s = EffectiveMemberSourceBuiltin
 		return nil
-	case EffectiveMemberSourceBySelector:
-		*s = EffectiveMemberSourceBySelector
+	case EffectiveMemberSourceCustom:
+		*s = EffectiveMemberSourceCustom
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -209,6 +229,7 @@ func (s *Envelope) SetMessage(val string) {
 	s.Message = val
 }
 
+func (*Envelope) deleteExceptionRes()    {}
 func (*Envelope) deletePolicyGroupRes()  {}
 func (*Envelope) deletePolicyRes()       {}
 func (*Envelope) validatePolicyRegoRes() {}
@@ -280,6 +301,779 @@ func (s *ErrorResponseData) init() ErrorResponseData {
 	return m
 }
 
+// Ref: #/components/schemas/ExceptionDetail
+type ExceptionDetail struct {
+	// 例外名称.
+	Name string `json:"name"`
+	// 乐观并发版本.
+	ResourceVersion string          `json:"resourceVersion"`
+	Spec            ExceptionSpec   `json:"spec"`
+	Status          ExceptionStatus `json:"status"`
+	Scope           ExceptionScope  `json:"scope"`
+}
+
+// GetName returns the value of Name.
+func (s *ExceptionDetail) GetName() string {
+	return s.Name
+}
+
+// GetResourceVersion returns the value of ResourceVersion.
+func (s *ExceptionDetail) GetResourceVersion() string {
+	return s.ResourceVersion
+}
+
+// GetSpec returns the value of Spec.
+func (s *ExceptionDetail) GetSpec() ExceptionSpec {
+	return s.Spec
+}
+
+// GetStatus returns the value of Status.
+func (s *ExceptionDetail) GetStatus() ExceptionStatus {
+	return s.Status
+}
+
+// GetScope returns the value of Scope.
+func (s *ExceptionDetail) GetScope() ExceptionScope {
+	return s.Scope
+}
+
+// SetName sets the value of Name.
+func (s *ExceptionDetail) SetName(val string) {
+	s.Name = val
+}
+
+// SetResourceVersion sets the value of ResourceVersion.
+func (s *ExceptionDetail) SetResourceVersion(val string) {
+	s.ResourceVersion = val
+}
+
+// SetSpec sets the value of Spec.
+func (s *ExceptionDetail) SetSpec(val ExceptionSpec) {
+	s.Spec = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExceptionDetail) SetStatus(val ExceptionStatus) {
+	s.Status = val
+}
+
+// SetScope sets the value of Scope.
+func (s *ExceptionDetail) SetScope(val ExceptionScope) {
+	s.Scope = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/ExceptionDetailResponse
+type ExceptionDetailResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string             `json:"message"`
+	Data    OptExceptionDetail `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *ExceptionDetailResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ExceptionDetailResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *ExceptionDetailResponse) GetData() OptExceptionDetail {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *ExceptionDetailResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExceptionDetailResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *ExceptionDetailResponse) SetData(val OptExceptionDetail) {
+	s.Data = val
+}
+
+func (*ExceptionDetailResponse) getExceptionRes() {}
+
+// Merged schema.
+// Ref: #/components/schemas/ExceptionListData
+type ExceptionListData struct {
+	// 符合筛选条件的记录总数，不受分页限制.
+	Total int `json:"total"`
+	// 当前页码，从 1 开始.
+	Page int `json:"page"`
+	// 每页记录数。仅接受 10、20、50、100.
+	PageSize ExceptionListDataPageSize `json:"pageSize"`
+	// 例外列表.
+	Items []ExceptionListItem `json:"items"`
+}
+
+// GetTotal returns the value of Total.
+func (s *ExceptionListData) GetTotal() int {
+	return s.Total
+}
+
+// GetPage returns the value of Page.
+func (s *ExceptionListData) GetPage() int {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *ExceptionListData) GetPageSize() ExceptionListDataPageSize {
+	return s.PageSize
+}
+
+// GetItems returns the value of Items.
+func (s *ExceptionListData) GetItems() []ExceptionListItem {
+	return s.Items
+}
+
+// SetTotal sets the value of Total.
+func (s *ExceptionListData) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetPage sets the value of Page.
+func (s *ExceptionListData) SetPage(val int) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *ExceptionListData) SetPageSize(val ExceptionListDataPageSize) {
+	s.PageSize = val
+}
+
+// SetItems sets the value of Items.
+func (s *ExceptionListData) SetItems(val []ExceptionListItem) {
+	s.Items = val
+}
+
+// 每页记录数。仅接受 10、20、50、100.
+type ExceptionListDataPageSize int
+
+const (
+	ExceptionListDataPageSize10  ExceptionListDataPageSize = 10
+	ExceptionListDataPageSize20  ExceptionListDataPageSize = 20
+	ExceptionListDataPageSize50  ExceptionListDataPageSize = 50
+	ExceptionListDataPageSize100 ExceptionListDataPageSize = 100
+)
+
+// AllValues returns all ExceptionListDataPageSize values.
+func (ExceptionListDataPageSize) AllValues() []ExceptionListDataPageSize {
+	return []ExceptionListDataPageSize{
+		ExceptionListDataPageSize10,
+		ExceptionListDataPageSize20,
+		ExceptionListDataPageSize50,
+		ExceptionListDataPageSize100,
+	}
+}
+
+// Ref: #/components/schemas/ExceptionListItem
+type ExceptionListItem struct {
+	// 例外名称.
+	Name string `json:"name"`
+	// 当前状态.
+	Phase ExceptionListItemPhase `json:"phase"`
+	// 例外原因.
+	Reason string `json:"reason"`
+	// 有效时长.
+	Duration string `json:"duration"`
+	// 目标摘要.
+	TargetSummary string `json:"targetSummary"`
+	// 过期时间.
+	ExpiresAt OptDateTime `json:"expiresAt"`
+}
+
+// GetName returns the value of Name.
+func (s *ExceptionListItem) GetName() string {
+	return s.Name
+}
+
+// GetPhase returns the value of Phase.
+func (s *ExceptionListItem) GetPhase() ExceptionListItemPhase {
+	return s.Phase
+}
+
+// GetReason returns the value of Reason.
+func (s *ExceptionListItem) GetReason() string {
+	return s.Reason
+}
+
+// GetDuration returns the value of Duration.
+func (s *ExceptionListItem) GetDuration() string {
+	return s.Duration
+}
+
+// GetTargetSummary returns the value of TargetSummary.
+func (s *ExceptionListItem) GetTargetSummary() string {
+	return s.TargetSummary
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExceptionListItem) GetExpiresAt() OptDateTime {
+	return s.ExpiresAt
+}
+
+// SetName sets the value of Name.
+func (s *ExceptionListItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ExceptionListItem) SetPhase(val ExceptionListItemPhase) {
+	s.Phase = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ExceptionListItem) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetDuration sets the value of Duration.
+func (s *ExceptionListItem) SetDuration(val string) {
+	s.Duration = val
+}
+
+// SetTargetSummary sets the value of TargetSummary.
+func (s *ExceptionListItem) SetTargetSummary(val string) {
+	s.TargetSummary = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExceptionListItem) SetExpiresAt(val OptDateTime) {
+	s.ExpiresAt = val
+}
+
+// 当前状态.
+type ExceptionListItemPhase string
+
+const (
+	ExceptionListItemPhaseActive  ExceptionListItemPhase = "Active"
+	ExceptionListItemPhaseExpired ExceptionListItemPhase = "Expired"
+)
+
+// AllValues returns all ExceptionListItemPhase values.
+func (ExceptionListItemPhase) AllValues() []ExceptionListItemPhase {
+	return []ExceptionListItemPhase{
+		ExceptionListItemPhaseActive,
+		ExceptionListItemPhaseExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExceptionListItemPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ExceptionListItemPhaseActive:
+		return []byte(s), nil
+	case ExceptionListItemPhaseExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExceptionListItemPhase) UnmarshalText(data []byte) error {
+	switch ExceptionListItemPhase(data) {
+	case ExceptionListItemPhaseActive:
+		*s = ExceptionListItemPhaseActive
+		return nil
+	case ExceptionListItemPhaseExpired:
+		*s = ExceptionListItemPhaseExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/ExceptionListResponse
+type ExceptionListResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string               `json:"message"`
+	Data    OptExceptionListData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *ExceptionListResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ExceptionListResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *ExceptionListResponse) GetData() OptExceptionListData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *ExceptionListResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExceptionListResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *ExceptionListResponse) SetData(val OptExceptionListData) {
+	s.Data = val
+}
+
+func (*ExceptionListResponse) listExceptionsRes() {}
+
+// Ref: #/components/schemas/ExceptionMatch
+type ExceptionMatch struct {
+	// 精确匹配的命名空间.
+	Namespaces        []string         `json:"namespaces"`
+	NamespaceSelector OptLabelSelector `json:"namespaceSelector"`
+	ResourceSelector  OptLabelSelector `json:"resourceSelector"`
+}
+
+// GetNamespaces returns the value of Namespaces.
+func (s *ExceptionMatch) GetNamespaces() []string {
+	return s.Namespaces
+}
+
+// GetNamespaceSelector returns the value of NamespaceSelector.
+func (s *ExceptionMatch) GetNamespaceSelector() OptLabelSelector {
+	return s.NamespaceSelector
+}
+
+// GetResourceSelector returns the value of ResourceSelector.
+func (s *ExceptionMatch) GetResourceSelector() OptLabelSelector {
+	return s.ResourceSelector
+}
+
+// SetNamespaces sets the value of Namespaces.
+func (s *ExceptionMatch) SetNamespaces(val []string) {
+	s.Namespaces = val
+}
+
+// SetNamespaceSelector sets the value of NamespaceSelector.
+func (s *ExceptionMatch) SetNamespaceSelector(val OptLabelSelector) {
+	s.NamespaceSelector = val
+}
+
+// SetResourceSelector sets the value of ResourceSelector.
+func (s *ExceptionMatch) SetResourceSelector(val OptLabelSelector) {
+	s.ResourceSelector = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/ExceptionNameResponse
+type ExceptionNameResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                       `json:"message"`
+	Data    OptExceptionNameResponseData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *ExceptionNameResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ExceptionNameResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *ExceptionNameResponse) GetData() OptExceptionNameResponseData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *ExceptionNameResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExceptionNameResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *ExceptionNameResponse) SetData(val OptExceptionNameResponseData) {
+	s.Data = val
+}
+
+func (*ExceptionNameResponse) createExceptionRes() {}
+func (*ExceptionNameResponse) updateExceptionRes() {}
+
+type ExceptionNameResponseData struct {
+	// 例外名称.
+	Name string `json:"name"`
+}
+
+// GetName returns the value of Name.
+func (s *ExceptionNameResponseData) GetName() string {
+	return s.Name
+}
+
+// SetName sets the value of Name.
+func (s *ExceptionNameResponseData) SetName(val string) {
+	s.Name = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/ExceptionRequest
+type ExceptionRequest struct {
+	// 目标策略.
+	PolicyRefs []string `json:"policyRefs"`
+	// 目标策略组.
+	PolicyGroupRefs []string `json:"policyGroupRefs"`
+	// 是否匹配全部策略.
+	AllPolicies OptBool        `json:"allPolicies"`
+	Match       ExceptionMatch `json:"match"`
+	// 例外有效时长.
+	Duration string `json:"duration"`
+	// 过期后保留时长.
+	RetainAfterExpiry OptString `json:"retainAfterExpiry"`
+	// 例外原因.
+	Reason string `json:"reason"`
+	// 创建时的例外名称.
+	Name OptString `json:"name"`
+	// 乐观并发版本.
+	ResourceVersion OptString `json:"resourceVersion"`
+	// 是否作用于全部在线集群.
+	AllClusters OptBool `json:"allClusters"`
+	// 指定集群.
+	ClusterNames []string `json:"clusterNames"`
+}
+
+// GetPolicyRefs returns the value of PolicyRefs.
+func (s *ExceptionRequest) GetPolicyRefs() []string {
+	return s.PolicyRefs
+}
+
+// GetPolicyGroupRefs returns the value of PolicyGroupRefs.
+func (s *ExceptionRequest) GetPolicyGroupRefs() []string {
+	return s.PolicyGroupRefs
+}
+
+// GetAllPolicies returns the value of AllPolicies.
+func (s *ExceptionRequest) GetAllPolicies() OptBool {
+	return s.AllPolicies
+}
+
+// GetMatch returns the value of Match.
+func (s *ExceptionRequest) GetMatch() ExceptionMatch {
+	return s.Match
+}
+
+// GetDuration returns the value of Duration.
+func (s *ExceptionRequest) GetDuration() string {
+	return s.Duration
+}
+
+// GetRetainAfterExpiry returns the value of RetainAfterExpiry.
+func (s *ExceptionRequest) GetRetainAfterExpiry() OptString {
+	return s.RetainAfterExpiry
+}
+
+// GetReason returns the value of Reason.
+func (s *ExceptionRequest) GetReason() string {
+	return s.Reason
+}
+
+// GetName returns the value of Name.
+func (s *ExceptionRequest) GetName() OptString {
+	return s.Name
+}
+
+// GetResourceVersion returns the value of ResourceVersion.
+func (s *ExceptionRequest) GetResourceVersion() OptString {
+	return s.ResourceVersion
+}
+
+// GetAllClusters returns the value of AllClusters.
+func (s *ExceptionRequest) GetAllClusters() OptBool {
+	return s.AllClusters
+}
+
+// GetClusterNames returns the value of ClusterNames.
+func (s *ExceptionRequest) GetClusterNames() []string {
+	return s.ClusterNames
+}
+
+// SetPolicyRefs sets the value of PolicyRefs.
+func (s *ExceptionRequest) SetPolicyRefs(val []string) {
+	s.PolicyRefs = val
+}
+
+// SetPolicyGroupRefs sets the value of PolicyGroupRefs.
+func (s *ExceptionRequest) SetPolicyGroupRefs(val []string) {
+	s.PolicyGroupRefs = val
+}
+
+// SetAllPolicies sets the value of AllPolicies.
+func (s *ExceptionRequest) SetAllPolicies(val OptBool) {
+	s.AllPolicies = val
+}
+
+// SetMatch sets the value of Match.
+func (s *ExceptionRequest) SetMatch(val ExceptionMatch) {
+	s.Match = val
+}
+
+// SetDuration sets the value of Duration.
+func (s *ExceptionRequest) SetDuration(val string) {
+	s.Duration = val
+}
+
+// SetRetainAfterExpiry sets the value of RetainAfterExpiry.
+func (s *ExceptionRequest) SetRetainAfterExpiry(val OptString) {
+	s.RetainAfterExpiry = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ExceptionRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetName sets the value of Name.
+func (s *ExceptionRequest) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetResourceVersion sets the value of ResourceVersion.
+func (s *ExceptionRequest) SetResourceVersion(val OptString) {
+	s.ResourceVersion = val
+}
+
+// SetAllClusters sets the value of AllClusters.
+func (s *ExceptionRequest) SetAllClusters(val OptBool) {
+	s.AllClusters = val
+}
+
+// SetClusterNames sets the value of ClusterNames.
+func (s *ExceptionRequest) SetClusterNames(val []string) {
+	s.ClusterNames = val
+}
+
+// Ref: #/components/schemas/ExceptionScope
+type ExceptionScope struct {
+	// 是否作用于全部在线集群.
+	AllClusters bool `json:"allClusters"`
+	// 指定集群.
+	ClusterNames []string `json:"clusterNames"`
+}
+
+// GetAllClusters returns the value of AllClusters.
+func (s *ExceptionScope) GetAllClusters() bool {
+	return s.AllClusters
+}
+
+// GetClusterNames returns the value of ClusterNames.
+func (s *ExceptionScope) GetClusterNames() []string {
+	return s.ClusterNames
+}
+
+// SetAllClusters sets the value of AllClusters.
+func (s *ExceptionScope) SetAllClusters(val bool) {
+	s.AllClusters = val
+}
+
+// SetClusterNames sets the value of ClusterNames.
+func (s *ExceptionScope) SetClusterNames(val []string) {
+	s.ClusterNames = val
+}
+
+// Ref: #/components/schemas/ExceptionSpec
+type ExceptionSpec struct {
+	// 目标策略.
+	PolicyRefs []string `json:"policyRefs"`
+	// 目标策略组.
+	PolicyGroupRefs []string `json:"policyGroupRefs"`
+	// 是否匹配全部策略.
+	AllPolicies OptBool        `json:"allPolicies"`
+	Match       ExceptionMatch `json:"match"`
+	// 例外有效时长.
+	Duration string `json:"duration"`
+	// 过期后保留时长.
+	RetainAfterExpiry OptString `json:"retainAfterExpiry"`
+	// 例外原因.
+	Reason string `json:"reason"`
+}
+
+// GetPolicyRefs returns the value of PolicyRefs.
+func (s *ExceptionSpec) GetPolicyRefs() []string {
+	return s.PolicyRefs
+}
+
+// GetPolicyGroupRefs returns the value of PolicyGroupRefs.
+func (s *ExceptionSpec) GetPolicyGroupRefs() []string {
+	return s.PolicyGroupRefs
+}
+
+// GetAllPolicies returns the value of AllPolicies.
+func (s *ExceptionSpec) GetAllPolicies() OptBool {
+	return s.AllPolicies
+}
+
+// GetMatch returns the value of Match.
+func (s *ExceptionSpec) GetMatch() ExceptionMatch {
+	return s.Match
+}
+
+// GetDuration returns the value of Duration.
+func (s *ExceptionSpec) GetDuration() string {
+	return s.Duration
+}
+
+// GetRetainAfterExpiry returns the value of RetainAfterExpiry.
+func (s *ExceptionSpec) GetRetainAfterExpiry() OptString {
+	return s.RetainAfterExpiry
+}
+
+// GetReason returns the value of Reason.
+func (s *ExceptionSpec) GetReason() string {
+	return s.Reason
+}
+
+// SetPolicyRefs sets the value of PolicyRefs.
+func (s *ExceptionSpec) SetPolicyRefs(val []string) {
+	s.PolicyRefs = val
+}
+
+// SetPolicyGroupRefs sets the value of PolicyGroupRefs.
+func (s *ExceptionSpec) SetPolicyGroupRefs(val []string) {
+	s.PolicyGroupRefs = val
+}
+
+// SetAllPolicies sets the value of AllPolicies.
+func (s *ExceptionSpec) SetAllPolicies(val OptBool) {
+	s.AllPolicies = val
+}
+
+// SetMatch sets the value of Match.
+func (s *ExceptionSpec) SetMatch(val ExceptionMatch) {
+	s.Match = val
+}
+
+// SetDuration sets the value of Duration.
+func (s *ExceptionSpec) SetDuration(val string) {
+	s.Duration = val
+}
+
+// SetRetainAfterExpiry sets the value of RetainAfterExpiry.
+func (s *ExceptionSpec) SetRetainAfterExpiry(val OptString) {
+	s.RetainAfterExpiry = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ExceptionSpec) SetReason(val string) {
+	s.Reason = val
+}
+
+// Ref: #/components/schemas/ExceptionStatus
+type ExceptionStatus struct {
+	// 当前状态.
+	Phase ExceptionStatusPhase `json:"phase"`
+	// 生效时间.
+	EffectiveAt time.Time `json:"effectiveAt"`
+	// 过期时间.
+	ExpiresAt OptDateTime `json:"expiresAt"`
+}
+
+// GetPhase returns the value of Phase.
+func (s *ExceptionStatus) GetPhase() ExceptionStatusPhase {
+	return s.Phase
+}
+
+// GetEffectiveAt returns the value of EffectiveAt.
+func (s *ExceptionStatus) GetEffectiveAt() time.Time {
+	return s.EffectiveAt
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExceptionStatus) GetExpiresAt() OptDateTime {
+	return s.ExpiresAt
+}
+
+// SetPhase sets the value of Phase.
+func (s *ExceptionStatus) SetPhase(val ExceptionStatusPhase) {
+	s.Phase = val
+}
+
+// SetEffectiveAt sets the value of EffectiveAt.
+func (s *ExceptionStatus) SetEffectiveAt(val time.Time) {
+	s.EffectiveAt = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExceptionStatus) SetExpiresAt(val OptDateTime) {
+	s.ExpiresAt = val
+}
+
+// 当前状态.
+type ExceptionStatusPhase string
+
+const (
+	ExceptionStatusPhaseActive  ExceptionStatusPhase = "Active"
+	ExceptionStatusPhaseExpired ExceptionStatusPhase = "Expired"
+)
+
+// AllValues returns all ExceptionStatusPhase values.
+func (ExceptionStatusPhase) AllValues() []ExceptionStatusPhase {
+	return []ExceptionStatusPhase{
+		ExceptionStatusPhaseActive,
+		ExceptionStatusPhaseExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExceptionStatusPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ExceptionStatusPhaseActive:
+		return []byte(s), nil
+	case ExceptionStatusPhaseExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExceptionStatusPhase) UnmarshalText(data []byte) error {
+	switch ExceptionStatusPhase(data) {
+	case ExceptionStatusPhaseActive:
+		*s = ExceptionStatusPhaseActive
+		return nil
+	case ExceptionStatusPhaseExpired:
+		*s = ExceptionStatusPhaseExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type GetExceptionInternalServerError ErrorResponse
+
+func (*GetExceptionInternalServerError) getExceptionRes() {}
+
+type GetExceptionNotFound ErrorResponse
+
+func (*GetExceptionNotFound) getExceptionRes() {}
+
 type GetPolicyGroupInternalServerError ErrorResponse
 
 func (*GetPolicyGroupInternalServerError) getPolicyGroupRes() {}
@@ -304,80 +1098,12 @@ type GetResourceSuggestionsInternalServerError ErrorResponse
 
 func (*GetResourceSuggestionsInternalServerError) getResourceSuggestionsRes() {}
 
-// Ref: #/components/schemas/GroupPolicies
-type GroupPolicies struct {
-	// 按名称显式引用策略.
-	ByName []PolicyRef `json:"byName"`
-	// 按标签选择策略.
-	BySelector OptLabelSelector `json:"bySelector"`
-	// 排除的策略名称，优先级高于 byName 和 bySelector.
-	Exclude []string `json:"exclude"`
-}
-
-// GetByName returns the value of ByName.
-func (s *GroupPolicies) GetByName() []PolicyRef {
-	return s.ByName
-}
-
-// GetBySelector returns the value of BySelector.
-func (s *GroupPolicies) GetBySelector() OptLabelSelector {
-	return s.BySelector
-}
-
-// GetExclude returns the value of Exclude.
-func (s *GroupPolicies) GetExclude() []string {
-	return s.Exclude
-}
-
-// SetByName sets the value of ByName.
-func (s *GroupPolicies) SetByName(val []PolicyRef) {
-	s.ByName = val
-}
-
-// SetBySelector sets the value of BySelector.
-func (s *GroupPolicies) SetBySelector(val OptLabelSelector) {
-	s.BySelector = val
-}
-
-// SetExclude sets the value of Exclude.
-func (s *GroupPolicies) SetExclude(val []string) {
-	s.Exclude = val
-}
-
-// Ref: #/components/schemas/GroupScope
-type GroupScope struct {
-	// 是否作用于全部在线集群.
-	AllClusters bool `json:"allClusters"`
-	// 指定作用的集群名称。allClusters 为 false 时使用.
-	ClusterNames []string `json:"clusterNames"`
-}
-
-// GetAllClusters returns the value of AllClusters.
-func (s *GroupScope) GetAllClusters() bool {
-	return s.AllClusters
-}
-
-// GetClusterNames returns the value of ClusterNames.
-func (s *GroupScope) GetClusterNames() []string {
-	return s.ClusterNames
-}
-
-// SetAllClusters sets the value of AllClusters.
-func (s *GroupScope) SetAllClusters(val bool) {
-	s.AllClusters = val
-}
-
-// SetClusterNames sets the value of ClusterNames.
-func (s *GroupScope) SetClusterNames(val []string) {
-	s.ClusterNames = val
-}
-
 // Ref: #/components/schemas/LabelSelector
 type LabelSelector struct {
-	// 必须全部匹配的标签.
+	// 标签键值匹配.
 	MatchLabels OptLabelSelectorMatchLabels `json:"matchLabels"`
 	// 标签表达式.
-	MatchExpressions []LabelSelectorRequirement `json:"matchExpressions"`
+	MatchExpressions []LabelSelectorMatchExpressionsItem `json:"matchExpressions"`
 }
 
 // GetMatchLabels returns the value of MatchLabels.
@@ -386,7 +1112,7 @@ func (s *LabelSelector) GetMatchLabels() OptLabelSelectorMatchLabels {
 }
 
 // GetMatchExpressions returns the value of MatchExpressions.
-func (s *LabelSelector) GetMatchExpressions() []LabelSelectorRequirement {
+func (s *LabelSelector) GetMatchExpressions() []LabelSelectorMatchExpressionsItem {
 	return s.MatchExpressions
 }
 
@@ -396,11 +1122,106 @@ func (s *LabelSelector) SetMatchLabels(val OptLabelSelectorMatchLabels) {
 }
 
 // SetMatchExpressions sets the value of MatchExpressions.
-func (s *LabelSelector) SetMatchExpressions(val []LabelSelectorRequirement) {
+func (s *LabelSelector) SetMatchExpressions(val []LabelSelectorMatchExpressionsItem) {
 	s.MatchExpressions = val
 }
 
-// 必须全部匹配的标签.
+type LabelSelectorMatchExpressionsItem struct {
+	// 标签键.
+	Key string `json:"key"`
+	// 匹配操作符.
+	Operator LabelSelectorMatchExpressionsItemOperator `json:"operator"`
+	// 候选值.
+	Values []string `json:"values"`
+}
+
+// GetKey returns the value of Key.
+func (s *LabelSelectorMatchExpressionsItem) GetKey() string {
+	return s.Key
+}
+
+// GetOperator returns the value of Operator.
+func (s *LabelSelectorMatchExpressionsItem) GetOperator() LabelSelectorMatchExpressionsItemOperator {
+	return s.Operator
+}
+
+// GetValues returns the value of Values.
+func (s *LabelSelectorMatchExpressionsItem) GetValues() []string {
+	return s.Values
+}
+
+// SetKey sets the value of Key.
+func (s *LabelSelectorMatchExpressionsItem) SetKey(val string) {
+	s.Key = val
+}
+
+// SetOperator sets the value of Operator.
+func (s *LabelSelectorMatchExpressionsItem) SetOperator(val LabelSelectorMatchExpressionsItemOperator) {
+	s.Operator = val
+}
+
+// SetValues sets the value of Values.
+func (s *LabelSelectorMatchExpressionsItem) SetValues(val []string) {
+	s.Values = val
+}
+
+// 匹配操作符.
+type LabelSelectorMatchExpressionsItemOperator string
+
+const (
+	LabelSelectorMatchExpressionsItemOperatorIn           LabelSelectorMatchExpressionsItemOperator = "In"
+	LabelSelectorMatchExpressionsItemOperatorNotIn        LabelSelectorMatchExpressionsItemOperator = "NotIn"
+	LabelSelectorMatchExpressionsItemOperatorExists       LabelSelectorMatchExpressionsItemOperator = "Exists"
+	LabelSelectorMatchExpressionsItemOperatorDoesNotExist LabelSelectorMatchExpressionsItemOperator = "DoesNotExist"
+)
+
+// AllValues returns all LabelSelectorMatchExpressionsItemOperator values.
+func (LabelSelectorMatchExpressionsItemOperator) AllValues() []LabelSelectorMatchExpressionsItemOperator {
+	return []LabelSelectorMatchExpressionsItemOperator{
+		LabelSelectorMatchExpressionsItemOperatorIn,
+		LabelSelectorMatchExpressionsItemOperatorNotIn,
+		LabelSelectorMatchExpressionsItemOperatorExists,
+		LabelSelectorMatchExpressionsItemOperatorDoesNotExist,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LabelSelectorMatchExpressionsItemOperator) MarshalText() ([]byte, error) {
+	switch s {
+	case LabelSelectorMatchExpressionsItemOperatorIn:
+		return []byte(s), nil
+	case LabelSelectorMatchExpressionsItemOperatorNotIn:
+		return []byte(s), nil
+	case LabelSelectorMatchExpressionsItemOperatorExists:
+		return []byte(s), nil
+	case LabelSelectorMatchExpressionsItemOperatorDoesNotExist:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LabelSelectorMatchExpressionsItemOperator) UnmarshalText(data []byte) error {
+	switch LabelSelectorMatchExpressionsItemOperator(data) {
+	case LabelSelectorMatchExpressionsItemOperatorIn:
+		*s = LabelSelectorMatchExpressionsItemOperatorIn
+		return nil
+	case LabelSelectorMatchExpressionsItemOperatorNotIn:
+		*s = LabelSelectorMatchExpressionsItemOperatorNotIn
+		return nil
+	case LabelSelectorMatchExpressionsItemOperatorExists:
+		*s = LabelSelectorMatchExpressionsItemOperatorExists
+		return nil
+	case LabelSelectorMatchExpressionsItemOperatorDoesNotExist:
+		*s = LabelSelectorMatchExpressionsItemOperatorDoesNotExist
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// 标签键值匹配.
 type LabelSelectorMatchLabels map[string]string
 
 func (s *LabelSelectorMatchLabels) init() LabelSelectorMatchLabels {
@@ -412,76 +1233,48 @@ func (s *LabelSelectorMatchLabels) init() LabelSelectorMatchLabels {
 	return m
 }
 
-// Ref: #/components/schemas/LabelSelectorRequirement
-type LabelSelectorRequirement struct {
-	// 标签键.
-	Key string `json:"key"`
-	// 标签选择运算符.
-	Operator LabelSelectorRequirementOperator `json:"operator"`
-	// 运算符的候选值。Exists 和 DoesNotExist 时应为空.
-	Values []string `json:"values"`
-}
+type ListExceptionsBadRequest ErrorResponse
 
-// GetKey returns the value of Key.
-func (s *LabelSelectorRequirement) GetKey() string {
-	return s.Key
-}
+func (*ListExceptionsBadRequest) listExceptionsRes() {}
 
-// GetOperator returns the value of Operator.
-func (s *LabelSelectorRequirement) GetOperator() LabelSelectorRequirementOperator {
-	return s.Operator
-}
+type ListExceptionsInternalServerError ErrorResponse
 
-// GetValues returns the value of Values.
-func (s *LabelSelectorRequirement) GetValues() []string {
-	return s.Values
-}
+func (*ListExceptionsInternalServerError) listExceptionsRes() {}
 
-// SetKey sets the value of Key.
-func (s *LabelSelectorRequirement) SetKey(val string) {
-	s.Key = val
-}
-
-// SetOperator sets the value of Operator.
-func (s *LabelSelectorRequirement) SetOperator(val LabelSelectorRequirementOperator) {
-	s.Operator = val
-}
-
-// SetValues sets the value of Values.
-func (s *LabelSelectorRequirement) SetValues(val []string) {
-	s.Values = val
-}
-
-// 标签选择运算符.
-type LabelSelectorRequirementOperator string
+// 排序字段.
+type ListExceptionsSortBy string
 
 const (
-	LabelSelectorRequirementOperatorIn           LabelSelectorRequirementOperator = "In"
-	LabelSelectorRequirementOperatorNotIn        LabelSelectorRequirementOperator = "NotIn"
-	LabelSelectorRequirementOperatorExists       LabelSelectorRequirementOperator = "Exists"
-	LabelSelectorRequirementOperatorDoesNotExist LabelSelectorRequirementOperator = "DoesNotExist"
+	ListExceptionsSortByName          ListExceptionsSortBy = "name"
+	ListExceptionsSortByPhase         ListExceptionsSortBy = "phase"
+	ListExceptionsSortByTargetSummary ListExceptionsSortBy = "targetSummary"
+	ListExceptionsSortByDuration      ListExceptionsSortBy = "duration"
+	ListExceptionsSortByExpiresAt     ListExceptionsSortBy = "expiresAt"
 )
 
-// AllValues returns all LabelSelectorRequirementOperator values.
-func (LabelSelectorRequirementOperator) AllValues() []LabelSelectorRequirementOperator {
-	return []LabelSelectorRequirementOperator{
-		LabelSelectorRequirementOperatorIn,
-		LabelSelectorRequirementOperatorNotIn,
-		LabelSelectorRequirementOperatorExists,
-		LabelSelectorRequirementOperatorDoesNotExist,
+// AllValues returns all ListExceptionsSortBy values.
+func (ListExceptionsSortBy) AllValues() []ListExceptionsSortBy {
+	return []ListExceptionsSortBy{
+		ListExceptionsSortByName,
+		ListExceptionsSortByPhase,
+		ListExceptionsSortByTargetSummary,
+		ListExceptionsSortByDuration,
+		ListExceptionsSortByExpiresAt,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s LabelSelectorRequirementOperator) MarshalText() ([]byte, error) {
+func (s ListExceptionsSortBy) MarshalText() ([]byte, error) {
 	switch s {
-	case LabelSelectorRequirementOperatorIn:
+	case ListExceptionsSortByName:
 		return []byte(s), nil
-	case LabelSelectorRequirementOperatorNotIn:
+	case ListExceptionsSortByPhase:
 		return []byte(s), nil
-	case LabelSelectorRequirementOperatorExists:
+	case ListExceptionsSortByTargetSummary:
 		return []byte(s), nil
-	case LabelSelectorRequirementOperatorDoesNotExist:
+	case ListExceptionsSortByDuration:
+		return []byte(s), nil
+	case ListExceptionsSortByExpiresAt:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -489,19 +1282,64 @@ func (s LabelSelectorRequirementOperator) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *LabelSelectorRequirementOperator) UnmarshalText(data []byte) error {
-	switch LabelSelectorRequirementOperator(data) {
-	case LabelSelectorRequirementOperatorIn:
-		*s = LabelSelectorRequirementOperatorIn
+func (s *ListExceptionsSortBy) UnmarshalText(data []byte) error {
+	switch ListExceptionsSortBy(data) {
+	case ListExceptionsSortByName:
+		*s = ListExceptionsSortByName
 		return nil
-	case LabelSelectorRequirementOperatorNotIn:
-		*s = LabelSelectorRequirementOperatorNotIn
+	case ListExceptionsSortByPhase:
+		*s = ListExceptionsSortByPhase
 		return nil
-	case LabelSelectorRequirementOperatorExists:
-		*s = LabelSelectorRequirementOperatorExists
+	case ListExceptionsSortByTargetSummary:
+		*s = ListExceptionsSortByTargetSummary
 		return nil
-	case LabelSelectorRequirementOperatorDoesNotExist:
-		*s = LabelSelectorRequirementOperatorDoesNotExist
+	case ListExceptionsSortByDuration:
+		*s = ListExceptionsSortByDuration
+		return nil
+	case ListExceptionsSortByExpiresAt:
+		*s = ListExceptionsSortByExpiresAt
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// 排序方向.
+type ListExceptionsSortOrder string
+
+const (
+	ListExceptionsSortOrderAsc  ListExceptionsSortOrder = "asc"
+	ListExceptionsSortOrderDesc ListExceptionsSortOrder = "desc"
+)
+
+// AllValues returns all ListExceptionsSortOrder values.
+func (ListExceptionsSortOrder) AllValues() []ListExceptionsSortOrder {
+	return []ListExceptionsSortOrder{
+		ListExceptionsSortOrderAsc,
+		ListExceptionsSortOrderDesc,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListExceptionsSortOrder) MarshalText() ([]byte, error) {
+	switch s {
+	case ListExceptionsSortOrderAsc:
+		return []byte(s), nil
+	case ListExceptionsSortOrderDesc:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListExceptionsSortOrder) UnmarshalText(data []byte) error {
+	switch ListExceptionsSortOrder(data) {
+	case ListExceptionsSortOrderAsc:
+		*s = ListExceptionsSortOrderAsc
+		return nil
+	case ListExceptionsSortOrderDesc:
+		*s = ListExceptionsSortOrderDesc
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -961,6 +1799,52 @@ func (o OptBool) Or(d bool) bool {
 	return d
 }
 
+// NewOptDateTime returns new OptDateTime with value set to v.
+func NewOptDateTime(v time.Time) OptDateTime {
+	return OptDateTime{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDateTime is optional time.Time.
+type OptDateTime struct {
+	Value time.Time
+	Set   bool
+}
+
+// IsSet returns true if OptDateTime was set.
+func (o OptDateTime) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDateTime) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDateTime) SetTo(v time.Time) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDateTime) Get() (v time.Time, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptErrorResponseData returns new OptErrorResponseData with value set to v.
 func NewOptErrorResponseData(v ErrorResponseData) OptErrorResponseData {
 	return OptErrorResponseData{
@@ -1001,6 +1885,144 @@ func (o OptErrorResponseData) Get() (v ErrorResponseData, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptErrorResponseData) Or(d ErrorResponseData) ErrorResponseData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExceptionDetail returns new OptExceptionDetail with value set to v.
+func NewOptExceptionDetail(v ExceptionDetail) OptExceptionDetail {
+	return OptExceptionDetail{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExceptionDetail is optional ExceptionDetail.
+type OptExceptionDetail struct {
+	Value ExceptionDetail
+	Set   bool
+}
+
+// IsSet returns true if OptExceptionDetail was set.
+func (o OptExceptionDetail) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExceptionDetail) Reset() {
+	var v ExceptionDetail
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExceptionDetail) SetTo(v ExceptionDetail) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExceptionDetail) Get() (v ExceptionDetail, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExceptionDetail) Or(d ExceptionDetail) ExceptionDetail {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExceptionListData returns new OptExceptionListData with value set to v.
+func NewOptExceptionListData(v ExceptionListData) OptExceptionListData {
+	return OptExceptionListData{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExceptionListData is optional ExceptionListData.
+type OptExceptionListData struct {
+	Value ExceptionListData
+	Set   bool
+}
+
+// IsSet returns true if OptExceptionListData was set.
+func (o OptExceptionListData) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExceptionListData) Reset() {
+	var v ExceptionListData
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExceptionListData) SetTo(v ExceptionListData) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExceptionListData) Get() (v ExceptionListData, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExceptionListData) Or(d ExceptionListData) ExceptionListData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExceptionNameResponseData returns new OptExceptionNameResponseData with value set to v.
+func NewOptExceptionNameResponseData(v ExceptionNameResponseData) OptExceptionNameResponseData {
+	return OptExceptionNameResponseData{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExceptionNameResponseData is optional ExceptionNameResponseData.
+type OptExceptionNameResponseData struct {
+	Value ExceptionNameResponseData
+	Set   bool
+}
+
+// IsSet returns true if OptExceptionNameResponseData was set.
+func (o OptExceptionNameResponseData) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExceptionNameResponseData) Reset() {
+	var v ExceptionNameResponseData
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExceptionNameResponseData) SetTo(v ExceptionNameResponseData) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExceptionNameResponseData) Get() (v ExceptionNameResponseData, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExceptionNameResponseData) Or(d ExceptionNameResponseData) ExceptionNameResponseData {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1139,6 +2161,98 @@ func (o OptLabelSelectorMatchLabels) Get() (v LabelSelectorMatchLabels, ok bool)
 
 // Or returns value if set, or given parameter if does not.
 func (o OptLabelSelectorMatchLabels) Or(d LabelSelectorMatchLabels) LabelSelectorMatchLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListExceptionsSortBy returns new OptListExceptionsSortBy with value set to v.
+func NewOptListExceptionsSortBy(v ListExceptionsSortBy) OptListExceptionsSortBy {
+	return OptListExceptionsSortBy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListExceptionsSortBy is optional ListExceptionsSortBy.
+type OptListExceptionsSortBy struct {
+	Value ListExceptionsSortBy
+	Set   bool
+}
+
+// IsSet returns true if OptListExceptionsSortBy was set.
+func (o OptListExceptionsSortBy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListExceptionsSortBy) Reset() {
+	var v ListExceptionsSortBy
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListExceptionsSortBy) SetTo(v ListExceptionsSortBy) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListExceptionsSortBy) Get() (v ListExceptionsSortBy, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListExceptionsSortBy) Or(d ListExceptionsSortBy) ListExceptionsSortBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListExceptionsSortOrder returns new OptListExceptionsSortOrder with value set to v.
+func NewOptListExceptionsSortOrder(v ListExceptionsSortOrder) OptListExceptionsSortOrder {
+	return OptListExceptionsSortOrder{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListExceptionsSortOrder is optional ListExceptionsSortOrder.
+type OptListExceptionsSortOrder struct {
+	Value ListExceptionsSortOrder
+	Set   bool
+}
+
+// IsSet returns true if OptListExceptionsSortOrder was set.
+func (o OptListExceptionsSortOrder) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListExceptionsSortOrder) Reset() {
+	var v ListExceptionsSortOrder
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListExceptionsSortOrder) SetTo(v ListExceptionsSortOrder) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListExceptionsSortOrder) Get() (v ListExceptionsSortOrder, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListExceptionsSortOrder) Or(d ListExceptionsSortOrder) ListExceptionsSortOrder {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1605,6 +2719,98 @@ func (o OptPolicyGroupNameData) Or(d PolicyGroupNameData) PolicyGroupNameData {
 	return d
 }
 
+// NewOptPolicyGroupPoliciesBySelector returns new OptPolicyGroupPoliciesBySelector with value set to v.
+func NewOptPolicyGroupPoliciesBySelector(v PolicyGroupPoliciesBySelector) OptPolicyGroupPoliciesBySelector {
+	return OptPolicyGroupPoliciesBySelector{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyGroupPoliciesBySelector is optional PolicyGroupPoliciesBySelector.
+type OptPolicyGroupPoliciesBySelector struct {
+	Value PolicyGroupPoliciesBySelector
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyGroupPoliciesBySelector was set.
+func (o OptPolicyGroupPoliciesBySelector) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyGroupPoliciesBySelector) Reset() {
+	var v PolicyGroupPoliciesBySelector
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyGroupPoliciesBySelector) SetTo(v PolicyGroupPoliciesBySelector) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyGroupPoliciesBySelector) Get() (v PolicyGroupPoliciesBySelector, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyGroupPoliciesBySelector) Or(d PolicyGroupPoliciesBySelector) PolicyGroupPoliciesBySelector {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPolicyGroupRequestNamespaceSelector returns new OptPolicyGroupRequestNamespaceSelector with value set to v.
+func NewOptPolicyGroupRequestNamespaceSelector(v PolicyGroupRequestNamespaceSelector) OptPolicyGroupRequestNamespaceSelector {
+	return OptPolicyGroupRequestNamespaceSelector{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyGroupRequestNamespaceSelector is optional PolicyGroupRequestNamespaceSelector.
+type OptPolicyGroupRequestNamespaceSelector struct {
+	Value PolicyGroupRequestNamespaceSelector
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyGroupRequestNamespaceSelector was set.
+func (o OptPolicyGroupRequestNamespaceSelector) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyGroupRequestNamespaceSelector) Reset() {
+	var v PolicyGroupRequestNamespaceSelector
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyGroupRequestNamespaceSelector) SetTo(v PolicyGroupRequestNamespaceSelector) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyGroupRequestNamespaceSelector) Get() (v PolicyGroupRequestNamespaceSelector, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyGroupRequestNamespaceSelector) Or(d PolicyGroupRequestNamespaceSelector) PolicyGroupRequestNamespaceSelector {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptPolicyGroupRequestSelectorEnforcementMode returns new OptPolicyGroupRequestSelectorEnforcementMode with value set to v.
 func NewOptPolicyGroupRequestSelectorEnforcementMode(v PolicyGroupRequestSelectorEnforcementMode) OptPolicyGroupRequestSelectorEnforcementMode {
 	return OptPolicyGroupRequestSelectorEnforcementMode{
@@ -1645,6 +2851,52 @@ func (o OptPolicyGroupRequestSelectorEnforcementMode) Get() (v PolicyGroupReques
 
 // Or returns value if set, or given parameter if does not.
 func (o OptPolicyGroupRequestSelectorEnforcementMode) Or(d PolicyGroupRequestSelectorEnforcementMode) PolicyGroupRequestSelectorEnforcementMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPolicyGroupSpecNamespaceSelector returns new OptPolicyGroupSpecNamespaceSelector with value set to v.
+func NewOptPolicyGroupSpecNamespaceSelector(v PolicyGroupSpecNamespaceSelector) OptPolicyGroupSpecNamespaceSelector {
+	return OptPolicyGroupSpecNamespaceSelector{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPolicyGroupSpecNamespaceSelector is optional PolicyGroupSpecNamespaceSelector.
+type OptPolicyGroupSpecNamespaceSelector struct {
+	Value PolicyGroupSpecNamespaceSelector
+	Set   bool
+}
+
+// IsSet returns true if OptPolicyGroupSpecNamespaceSelector was set.
+func (o OptPolicyGroupSpecNamespaceSelector) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPolicyGroupSpecNamespaceSelector) Reset() {
+	var v PolicyGroupSpecNamespaceSelector
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPolicyGroupSpecNamespaceSelector) SetTo(v PolicyGroupSpecNamespaceSelector) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPolicyGroupSpecNamespaceSelector) Get() (v PolicyGroupSpecNamespaceSelector, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPolicyGroupSpecNamespaceSelector) Or(d PolicyGroupSpecNamespaceSelector) PolicyGroupSpecNamespaceSelector {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2500,11 +3752,11 @@ type PolicyGroupDetail struct {
 	Name string `json:"name"`
 	// 策略组来源.
 	Source PolicyGroupDetailSource `json:"source"`
-	// 乐观并发令牌.
+	// 乐观并发版本.
 	ResourceVersion string            `json:"resourceVersion"`
 	Spec            PolicyGroupSpec   `json:"spec"`
 	Status          PolicyGroupStatus `json:"status"`
-	Scope           GroupScope        `json:"scope"`
+	Scope           PolicyGroupScope  `json:"scope"`
 }
 
 // GetName returns the value of Name.
@@ -2533,7 +3785,7 @@ func (s *PolicyGroupDetail) GetStatus() PolicyGroupStatus {
 }
 
 // GetScope returns the value of Scope.
-func (s *PolicyGroupDetail) GetScope() GroupScope {
+func (s *PolicyGroupDetail) GetScope() PolicyGroupScope {
 	return s.Scope
 }
 
@@ -2563,7 +3815,7 @@ func (s *PolicyGroupDetail) SetStatus(val PolicyGroupStatus) {
 }
 
 // SetScope sets the value of Scope.
-func (s *PolicyGroupDetail) SetScope(val GroupScope) {
+func (s *PolicyGroupDetail) SetScope(val PolicyGroupScope) {
 	s.Scope = val
 }
 
@@ -2734,7 +3986,7 @@ type PolicyGroupListData struct {
 	Page int `json:"page"`
 	// 每页记录数。仅接受 10、20、50、100.
 	PageSize PolicyGroupListDataPageSize `json:"pageSize"`
-	// 当前页的策略组列表.
+	// 策略组列表.
 	Items []PolicyGroupListItem `json:"items"`
 }
 
@@ -2804,13 +4056,13 @@ type PolicyGroupListItem struct {
 	Name string `json:"name"`
 	// 策略组来源.
 	Source PolicyGroupListItemSource `json:"source"`
-	// 展示名称.
+	// 显示名称.
 	DisplayName string `json:"displayName"`
 	// 是否启用.
 	Enabled bool `json:"enabled"`
 	// 解析状态.
 	Phase PolicyGroupListItemPhase `json:"phase"`
-	// 已解析的策略数量.
+	// 解析策略数量.
 	ResolvedCount int `json:"resolvedCount"`
 }
 
@@ -3002,7 +4254,7 @@ func (*PolicyGroupListResponse) listPolicyGroupsRes() {}
 
 // Ref: #/components/schemas/PolicyGroupNameData
 type PolicyGroupNameData struct {
-	// 受影响策略组的名称.
+	// 策略组名称.
 	Name string `json:"name"`
 }
 
@@ -3059,41 +4311,89 @@ func (s *PolicyGroupNameResponse) SetData(val OptPolicyGroupNameData) {
 func (*PolicyGroupNameResponse) createPolicyGroupRes() {}
 func (*PolicyGroupNameResponse) updatePolicyGroupRes() {}
 
+// Ref: #/components/schemas/PolicyGroupPolicies
+type PolicyGroupPolicies struct {
+	// 按名称引用的策略.
+	ByName []PolicyRef `json:"byName"`
+	// 按标签选择器引用策略.
+	BySelector OptPolicyGroupPoliciesBySelector `json:"bySelector"`
+	// 排除的策略名称.
+	Exclude []string `json:"exclude"`
+}
+
+// GetByName returns the value of ByName.
+func (s *PolicyGroupPolicies) GetByName() []PolicyRef {
+	return s.ByName
+}
+
+// GetBySelector returns the value of BySelector.
+func (s *PolicyGroupPolicies) GetBySelector() OptPolicyGroupPoliciesBySelector {
+	return s.BySelector
+}
+
+// GetExclude returns the value of Exclude.
+func (s *PolicyGroupPolicies) GetExclude() []string {
+	return s.Exclude
+}
+
+// SetByName sets the value of ByName.
+func (s *PolicyGroupPolicies) SetByName(val []PolicyRef) {
+	s.ByName = val
+}
+
+// SetBySelector sets the value of BySelector.
+func (s *PolicyGroupPolicies) SetBySelector(val OptPolicyGroupPoliciesBySelector) {
+	s.BySelector = val
+}
+
+// SetExclude sets the value of Exclude.
+func (s *PolicyGroupPolicies) SetExclude(val []string) {
+	s.Exclude = val
+}
+
+// 按标签选择器引用策略.
+type PolicyGroupPoliciesBySelector map[string]string
+
+func (s *PolicyGroupPoliciesBySelector) init() PolicyGroupPoliciesBySelector {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Merged schema.
 // Ref: #/components/schemas/PolicyGroupRequest
 type PolicyGroupRequest struct {
-	// 策略组名称。创建时必需；更新时忽略并使用路径参数.
-	Name OptString `json:"name"`
-	// 展示名称.
-	DisplayName string `json:"displayName"`
+	// 策略组显示名称.
+	DisplayName OptString `json:"displayName"`
 	// 策略组说明.
-	Description string `json:"description"`
+	Description OptString `json:"description"`
 	// 是否启用策略组.
 	Enabled bool `json:"enabled"`
-	// 作用的命名空间标签选择器.
-	NamespaceSelector OptLabelSelector `json:"namespaceSelector"`
-	Policies          GroupPolicies    `json:"policies"`
-	// BySelector 成员的执行模式.
+	// Kubernetes 命名空间标签选择器.
+	NamespaceSelector OptPolicyGroupRequestNamespaceSelector `json:"namespaceSelector"`
+	Policies          PolicyGroupPolicies                    `json:"policies"`
+	// 标签选择器匹配策略的默认执行模式.
 	SelectorEnforcementMode OptPolicyGroupRequestSelectorEnforcementMode `json:"selectorEnforcementMode"`
-	// 更新时可选的乐观并发令牌.
+	// 创建时的策略组名称，更新时忽略.
+	Name OptString `json:"name"`
+	// 更新时使用的乐观并发版本.
 	ResourceVersion OptString `json:"resourceVersion"`
-	// 是否作用于全部在线集群。与 clusterNames 二选一.
-	AllClusters bool `json:"allClusters"`
-	// 指定作用的集群名称。allClusters 为 false 时必需.
+	// 是否作用于全部在线集群.
+	AllClusters OptBool `json:"allClusters"`
+	// 指定作用集群.
 	ClusterNames []string `json:"clusterNames"`
 }
 
-// GetName returns the value of Name.
-func (s *PolicyGroupRequest) GetName() OptString {
-	return s.Name
-}
-
 // GetDisplayName returns the value of DisplayName.
-func (s *PolicyGroupRequest) GetDisplayName() string {
+func (s *PolicyGroupRequest) GetDisplayName() OptString {
 	return s.DisplayName
 }
 
 // GetDescription returns the value of Description.
-func (s *PolicyGroupRequest) GetDescription() string {
+func (s *PolicyGroupRequest) GetDescription() OptString {
 	return s.Description
 }
 
@@ -3103,12 +4403,12 @@ func (s *PolicyGroupRequest) GetEnabled() bool {
 }
 
 // GetNamespaceSelector returns the value of NamespaceSelector.
-func (s *PolicyGroupRequest) GetNamespaceSelector() OptLabelSelector {
+func (s *PolicyGroupRequest) GetNamespaceSelector() OptPolicyGroupRequestNamespaceSelector {
 	return s.NamespaceSelector
 }
 
 // GetPolicies returns the value of Policies.
-func (s *PolicyGroupRequest) GetPolicies() GroupPolicies {
+func (s *PolicyGroupRequest) GetPolicies() PolicyGroupPolicies {
 	return s.Policies
 }
 
@@ -3117,13 +4417,18 @@ func (s *PolicyGroupRequest) GetSelectorEnforcementMode() OptPolicyGroupRequestS
 	return s.SelectorEnforcementMode
 }
 
+// GetName returns the value of Name.
+func (s *PolicyGroupRequest) GetName() OptString {
+	return s.Name
+}
+
 // GetResourceVersion returns the value of ResourceVersion.
 func (s *PolicyGroupRequest) GetResourceVersion() OptString {
 	return s.ResourceVersion
 }
 
 // GetAllClusters returns the value of AllClusters.
-func (s *PolicyGroupRequest) GetAllClusters() bool {
+func (s *PolicyGroupRequest) GetAllClusters() OptBool {
 	return s.AllClusters
 }
 
@@ -3132,18 +4437,13 @@ func (s *PolicyGroupRequest) GetClusterNames() []string {
 	return s.ClusterNames
 }
 
-// SetName sets the value of Name.
-func (s *PolicyGroupRequest) SetName(val OptString) {
-	s.Name = val
-}
-
 // SetDisplayName sets the value of DisplayName.
-func (s *PolicyGroupRequest) SetDisplayName(val string) {
+func (s *PolicyGroupRequest) SetDisplayName(val OptString) {
 	s.DisplayName = val
 }
 
 // SetDescription sets the value of Description.
-func (s *PolicyGroupRequest) SetDescription(val string) {
+func (s *PolicyGroupRequest) SetDescription(val OptString) {
 	s.Description = val
 }
 
@@ -3153,12 +4453,12 @@ func (s *PolicyGroupRequest) SetEnabled(val bool) {
 }
 
 // SetNamespaceSelector sets the value of NamespaceSelector.
-func (s *PolicyGroupRequest) SetNamespaceSelector(val OptLabelSelector) {
+func (s *PolicyGroupRequest) SetNamespaceSelector(val OptPolicyGroupRequestNamespaceSelector) {
 	s.NamespaceSelector = val
 }
 
 // SetPolicies sets the value of Policies.
-func (s *PolicyGroupRequest) SetPolicies(val GroupPolicies) {
+func (s *PolicyGroupRequest) SetPolicies(val PolicyGroupPolicies) {
 	s.Policies = val
 }
 
@@ -3167,13 +4467,18 @@ func (s *PolicyGroupRequest) SetSelectorEnforcementMode(val OptPolicyGroupReques
 	s.SelectorEnforcementMode = val
 }
 
+// SetName sets the value of Name.
+func (s *PolicyGroupRequest) SetName(val OptString) {
+	s.Name = val
+}
+
 // SetResourceVersion sets the value of ResourceVersion.
 func (s *PolicyGroupRequest) SetResourceVersion(val OptString) {
 	s.ResourceVersion = val
 }
 
 // SetAllClusters sets the value of AllClusters.
-func (s *PolicyGroupRequest) SetAllClusters(val bool) {
+func (s *PolicyGroupRequest) SetAllClusters(val OptBool) {
 	s.AllClusters = val
 }
 
@@ -3182,7 +4487,19 @@ func (s *PolicyGroupRequest) SetClusterNames(val []string) {
 	s.ClusterNames = val
 }
 
-// BySelector 成员的执行模式.
+// Kubernetes 命名空间标签选择器.
+type PolicyGroupRequestNamespaceSelector map[string]jx.Raw
+
+func (s *PolicyGroupRequestNamespaceSelector) init() PolicyGroupRequestNamespaceSelector {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// 标签选择器匹配策略的默认执行模式.
 type PolicyGroupRequestSelectorEnforcementMode string
 
 const (
@@ -3224,28 +4541,56 @@ func (s *PolicyGroupRequestSelectorEnforcementMode) UnmarshalText(data []byte) e
 	}
 }
 
+// Ref: #/components/schemas/PolicyGroupScope
+type PolicyGroupScope struct {
+	// 是否作用于全部在线集群.
+	AllClusters bool `json:"allClusters"`
+	// 指定作用集群名称.
+	ClusterNames []string `json:"clusterNames"`
+}
+
+// GetAllClusters returns the value of AllClusters.
+func (s *PolicyGroupScope) GetAllClusters() bool {
+	return s.AllClusters
+}
+
+// GetClusterNames returns the value of ClusterNames.
+func (s *PolicyGroupScope) GetClusterNames() []string {
+	return s.ClusterNames
+}
+
+// SetAllClusters sets the value of AllClusters.
+func (s *PolicyGroupScope) SetAllClusters(val bool) {
+	s.AllClusters = val
+}
+
+// SetClusterNames sets the value of ClusterNames.
+func (s *PolicyGroupScope) SetClusterNames(val []string) {
+	s.ClusterNames = val
+}
+
 // Ref: #/components/schemas/PolicyGroupSpec
 type PolicyGroupSpec struct {
-	// 展示名称.
-	DisplayName string `json:"displayName"`
+	// 策略组显示名称.
+	DisplayName OptString `json:"displayName"`
 	// 策略组说明.
-	Description string `json:"description"`
+	Description OptString `json:"description"`
 	// 是否启用策略组.
 	Enabled bool `json:"enabled"`
-	// 作用的命名空间标签选择器。省略时匹配所有命名空间.
-	NamespaceSelector OptLabelSelector `json:"namespaceSelector"`
-	Policies          GroupPolicies    `json:"policies"`
-	// BySelector 成员的执行模式。省略时沿用策略自身模式.
+	// Kubernetes 命名空间标签选择器.
+	NamespaceSelector OptPolicyGroupSpecNamespaceSelector `json:"namespaceSelector"`
+	Policies          PolicyGroupPolicies                 `json:"policies"`
+	// 标签选择器匹配策略的默认执行模式.
 	SelectorEnforcementMode OptPolicyGroupSpecSelectorEnforcementMode `json:"selectorEnforcementMode"`
 }
 
 // GetDisplayName returns the value of DisplayName.
-func (s *PolicyGroupSpec) GetDisplayName() string {
+func (s *PolicyGroupSpec) GetDisplayName() OptString {
 	return s.DisplayName
 }
 
 // GetDescription returns the value of Description.
-func (s *PolicyGroupSpec) GetDescription() string {
+func (s *PolicyGroupSpec) GetDescription() OptString {
 	return s.Description
 }
 
@@ -3255,12 +4600,12 @@ func (s *PolicyGroupSpec) GetEnabled() bool {
 }
 
 // GetNamespaceSelector returns the value of NamespaceSelector.
-func (s *PolicyGroupSpec) GetNamespaceSelector() OptLabelSelector {
+func (s *PolicyGroupSpec) GetNamespaceSelector() OptPolicyGroupSpecNamespaceSelector {
 	return s.NamespaceSelector
 }
 
 // GetPolicies returns the value of Policies.
-func (s *PolicyGroupSpec) GetPolicies() GroupPolicies {
+func (s *PolicyGroupSpec) GetPolicies() PolicyGroupPolicies {
 	return s.Policies
 }
 
@@ -3270,12 +4615,12 @@ func (s *PolicyGroupSpec) GetSelectorEnforcementMode() OptPolicyGroupSpecSelecto
 }
 
 // SetDisplayName sets the value of DisplayName.
-func (s *PolicyGroupSpec) SetDisplayName(val string) {
+func (s *PolicyGroupSpec) SetDisplayName(val OptString) {
 	s.DisplayName = val
 }
 
 // SetDescription sets the value of Description.
-func (s *PolicyGroupSpec) SetDescription(val string) {
+func (s *PolicyGroupSpec) SetDescription(val OptString) {
 	s.Description = val
 }
 
@@ -3285,12 +4630,12 @@ func (s *PolicyGroupSpec) SetEnabled(val bool) {
 }
 
 // SetNamespaceSelector sets the value of NamespaceSelector.
-func (s *PolicyGroupSpec) SetNamespaceSelector(val OptLabelSelector) {
+func (s *PolicyGroupSpec) SetNamespaceSelector(val OptPolicyGroupSpecNamespaceSelector) {
 	s.NamespaceSelector = val
 }
 
 // SetPolicies sets the value of Policies.
-func (s *PolicyGroupSpec) SetPolicies(val GroupPolicies) {
+func (s *PolicyGroupSpec) SetPolicies(val PolicyGroupPolicies) {
 	s.Policies = val
 }
 
@@ -3299,7 +4644,19 @@ func (s *PolicyGroupSpec) SetSelectorEnforcementMode(val OptPolicyGroupSpecSelec
 	s.SelectorEnforcementMode = val
 }
 
-// BySelector 成员的执行模式。省略时沿用策略自身模式.
+// Kubernetes 命名空间标签选择器.
+type PolicyGroupSpecNamespaceSelector map[string]jx.Raw
+
+func (s *PolicyGroupSpecNamespaceSelector) init() PolicyGroupSpecNamespaceSelector {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// 标签选择器匹配策略的默认执行模式.
 type PolicyGroupSpecSelectorEnforcementMode string
 
 const (
@@ -3343,11 +4700,11 @@ func (s *PolicyGroupSpecSelectorEnforcementMode) UnmarshalText(data []byte) erro
 
 // Ref: #/components/schemas/PolicyGroupStatus
 type PolicyGroupStatus struct {
-	// 解析状态.
+	// 策略组解析状态.
 	Phase PolicyGroupStatusPhase `json:"phase"`
-	// 已解析的策略数量.
+	// 解析出的策略数量.
 	ResolvedCount int `json:"resolvedCount"`
-	// 已解析的有效策略成员.
+	// 解析后的策略成员.
 	ResolvedPolicies []EffectiveMember `json:"resolvedPolicies"`
 }
 
@@ -3381,7 +4738,7 @@ func (s *PolicyGroupStatus) SetResolvedPolicies(val []EffectiveMember) {
 	s.ResolvedPolicies = val
 }
 
-// 解析状态.
+// 策略组解析状态.
 type PolicyGroupStatusPhase string
 
 const (
@@ -3897,9 +5254,9 @@ func (*PolicyNameResponse) updatePolicyRes() {}
 
 // Ref: #/components/schemas/PolicyRef
 type PolicyRef struct {
-	// 策略名称.
+	// 被引用的策略名称.
 	Name string `json:"name"`
-	// 此策略在本组中的执行模式。省略时沿用策略自身模式.
+	// 覆盖该策略在策略组中的执行模式.
 	EnforcementMode OptPolicyRefEnforcementMode `json:"enforcementMode"`
 }
 
@@ -3923,7 +5280,7 @@ func (s *PolicyRef) SetEnforcementMode(val OptPolicyRefEnforcementMode) {
 	s.EnforcementMode = val
 }
 
-// 此策略在本组中的执行模式。省略时沿用策略自身模式.
+// 覆盖该策略在策略组中的执行模式.
 type PolicyRefEnforcementMode string
 
 const (
@@ -4590,6 +5947,22 @@ func (*SetPolicyGroupEnabledInternalServerError) setPolicyGroupEnabledRes() {}
 type SetPolicyGroupEnabledNotFound ErrorResponse
 
 func (*SetPolicyGroupEnabledNotFound) setPolicyGroupEnabledRes() {}
+
+type UpdateExceptionBadRequest ErrorResponse
+
+func (*UpdateExceptionBadRequest) updateExceptionRes() {}
+
+type UpdateExceptionConflict ErrorResponse
+
+func (*UpdateExceptionConflict) updateExceptionRes() {}
+
+type UpdateExceptionInternalServerError ErrorResponse
+
+func (*UpdateExceptionInternalServerError) updateExceptionRes() {}
+
+type UpdateExceptionNotFound ErrorResponse
+
+func (*UpdateExceptionNotFound) updateExceptionRes() {}
 
 type UpdatePolicyBadRequest ErrorResponse
 

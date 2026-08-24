@@ -13,6 +13,15 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// CreateException implements createException operation.
+//
+// 创建策略例外.
+//
+// POST /exceptions
+func (UnimplementedHandler) CreateException(ctx context.Context, req *ExceptionRequest) (r CreateExceptionRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreatePolicy implements createPolicy operation.
 //
 // 创建策略并同时写入 v1 版本快照，两者在同一事务内提交。 Rego
@@ -32,6 +41,15 @@ func (UnimplementedHandler) CreatePolicyGroup(ctx context.Context, req *PolicyGr
 	return r, ht.ErrNotImplemented
 }
 
+// DeleteException implements deleteException operation.
+//
+// 删除策略例外.
+//
+// DELETE /exceptions/{name}
+func (UnimplementedHandler) DeleteException(ctx context.Context, params DeleteExceptionParams) (r DeleteExceptionRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // DeletePolicy implements deletePolicy operation.
 //
 // 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy
@@ -48,6 +66,15 @@ func (UnimplementedHandler) DeletePolicy(ctx context.Context, params DeletePolic
 //
 // DELETE /policygroups/{name}
 func (UnimplementedHandler) DeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (r DeletePolicyGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetException implements getException operation.
+//
+// 查询策略例外详情.
+//
+// GET /exceptions/{name}
+func (UnimplementedHandler) GetException(ctx context.Context, params GetExceptionParams) (r GetExceptionRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -76,6 +103,15 @@ func (UnimplementedHandler) GetPolicyGroup(ctx context.Context, params GetPolicy
 //
 // GET /policies/resource-suggestions
 func (UnimplementedHandler) GetResourceSuggestions(ctx context.Context) (r GetResourceSuggestionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListExceptions implements listExceptions operation.
+//
+// 分页查询策略例外.
+//
+// GET /exceptions
+func (UnimplementedHandler) ListExceptions(ctx context.Context, params ListExceptionsParams) (r ListExceptionsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -124,6 +160,15 @@ func (UnimplementedHandler) RollbackPolicy(ctx context.Context, req *RollbackReq
 //
 // PUT /policygroups/{name}/enabled
 func (UnimplementedHandler) SetPolicyGroupEnabled(ctx context.Context, req *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (r SetPolicyGroupEnabledRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateException implements updateException operation.
+//
+// 更新策略例外.
+//
+// PUT /exceptions/{name}
+func (UnimplementedHandler) UpdateException(ctx context.Context, req *ExceptionRequest, params UpdateExceptionParams) (r UpdateExceptionRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

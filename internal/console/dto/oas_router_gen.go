@@ -14,22 +14,28 @@ var (
 	rn1AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn13AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn5AllowedHeaders = map[string]string{
+	rn7AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
-	}
-	rn11AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
 	}
 	rn3AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn7AllowedHeaders = map[string]string{
+	rn17AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn9AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn12AllowedHeaders = map[string]string{
+	rn15AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn5AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn11AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn16AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
 )
@@ -73,9 +79,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/polic"
+		case '/': // Prefix: "/"
 
-			if l := len("/polic"); len(elem) >= l && elem[0:l] == "/polic" {
+			if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 				elem = elem[l:]
 			} else {
 				break
@@ -85,9 +91,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			switch elem[0] {
-			case 'i': // Prefix: "ies"
+			case 'e': // Prefix: "exceptions"
 
-				if l := len("ies"); len(elem) >= l && elem[0:l] == "ies" {
+				if l := len("exceptions"); len(elem) >= l && elem[0:l] == "exceptions" {
 					elem = elem[l:]
 				} else {
 					break
@@ -96,9 +102,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if len(elem) == 0 {
 					switch r.Method {
 					case "GET":
-						s.handleListPoliciesRequest([0]string{}, elemIsEscaped, w, r)
+						s.handleListExceptionsRequest([0]string{}, elemIsEscaped, w, r)
 					case "POST":
-						s.handleCreatePolicyRequest([0]string{}, elemIsEscaped, w, r)
+						s.handleCreateExceptionRequest([0]string{}, elemIsEscaped, w, r)
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "GET,POST",
@@ -119,91 +125,74 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 
-					if len(elem) == 0 {
+					// Param: "name"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
 						break
 					}
-					switch elem[0] {
-					case 'r': // Prefix: "resource-suggestions"
-						origElem := elem
-						if l := len("resource-suggestions"); len(elem) >= l && elem[0:l] == "resource-suggestions" {
-							elem = elem[l:]
-						} else {
-							break
-						}
-
-						if len(elem) == 0 {
-							// Leaf node.
-							switch r.Method {
-							case "GET":
-								s.handleGetResourceSuggestionsRequest([0]string{}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "GET",
-									allowedHeaders: nil,
-									acceptPost:     "",
-									acceptPatch:    "",
-								})
-							}
-
-							return
-						}
-
-						elem = origElem
-					case 'v': // Prefix: "validate"
-						origElem := elem
-						if l := len("validate"); len(elem) >= l && elem[0:l] == "validate" {
-							elem = elem[l:]
-						} else {
-							break
-						}
-
-						if len(elem) == 0 {
-							// Leaf node.
-							switch r.Method {
-							case "POST":
-								s.handleValidatePolicyRegoRequest([0]string{}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "POST",
-									allowedHeaders: rn13AllowedHeaders,
-									acceptPost:     "application/json",
-									acceptPatch:    "",
-								})
-							}
-
-							return
-						}
-
-						elem = origElem
-					}
-					// Param: "name"
-					// Match until "/"
-					idx := strings.IndexByte(elem, '/')
-					if idx < 0 {
-						idx = len(elem)
-					}
-					args[0] = elem[:idx]
-					elem = elem[idx:]
+					args[0] = elem
+					elem = ""
 
 					if len(elem) == 0 {
+						// Leaf node.
 						switch r.Method {
 						case "DELETE":
-							s.handleDeletePolicyRequest([1]string{
+							s.handleDeleteExceptionRequest([1]string{
 								args[0],
 							}, elemIsEscaped, w, r)
 						case "GET":
-							s.handleGetPolicyRequest([1]string{
+							s.handleGetExceptionRequest([1]string{
 								args[0],
 							}, elemIsEscaped, w, r)
 						case "PUT":
-							s.handleUpdatePolicyRequest([1]string{
+							s.handleUpdateExceptionRequest([1]string{
 								args[0],
 							}, elemIsEscaped, w, r)
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "DELETE,GET,PUT",
-								allowedHeaders: rn5AllowedHeaders,
+								allowedHeaders: rn7AllowedHeaders,
 								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+				}
+
+			case 'p': // Prefix: "polic"
+
+				if l := len("polic"); len(elem) >= l && elem[0:l] == "polic" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case 'i': // Prefix: "ies"
+
+					if l := len("ies"); len(elem) >= l && elem[0:l] == "ies" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch r.Method {
+						case "GET":
+							s.handleListPoliciesRequest([0]string{}, elemIsEscaped, w, r)
+						case "POST":
+							s.handleCreatePolicyRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "GET,POST",
+								allowedHeaders: rn3AllowedHeaders,
+								acceptPost:     "application/json",
 								acceptPatch:    "",
 							})
 						}
@@ -223,36 +212,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							break
 						}
 						switch elem[0] {
-						case 'r': // Prefix: "rollback"
-
-							if l := len("rollback"); len(elem) >= l && elem[0:l] == "rollback" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch r.Method {
-								case "POST":
-									s.handleRollbackPolicyRequest([1]string{
-										args[0],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, notAllowedParams{
-										allowedMethods: "POST",
-										allowedHeaders: rn11AllowedHeaders,
-										acceptPost:     "application/json",
-										acceptPatch:    "",
-									})
-								}
-
-								return
-							}
-
-						case 'v': // Prefix: "versions"
-
-							if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
+						case 'r': // Prefix: "resource-suggestions"
+							origElem := elem
+							if l := len("resource-suggestions"); len(elem) >= l && elem[0:l] == "resource-suggestions" {
 								elem = elem[l:]
 							} else {
 								break
@@ -262,9 +224,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								// Leaf node.
 								switch r.Method {
 								case "GET":
-									s.handleListPolicyVersionsRequest([1]string{
-										args[0],
-									}, elemIsEscaped, w, r)
+									s.handleGetResourceSuggestionsRequest([0]string{}, elemIsEscaped, w, r)
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET",
@@ -277,98 +237,61 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								return
 							}
 
+							elem = origElem
+						case 'v': // Prefix: "validate"
+							origElem := elem
+							if l := len("validate"); len(elem) >= l && elem[0:l] == "validate" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleValidatePolicyRegoRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "POST",
+										allowedHeaders: rn17AllowedHeaders,
+										acceptPost:     "application/json",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+							elem = origElem
 						}
-					}
-				}
-
-			case 'y': // Prefix: "ygroups"
-
-				if l := len("ygroups"); len(elem) >= l && elem[0:l] == "ygroups" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				if len(elem) == 0 {
-					switch r.Method {
-					case "GET":
-						s.handleListPolicyGroupsRequest([0]string{}, elemIsEscaped, w, r)
-					case "POST":
-						s.handleCreatePolicyGroupRequest([0]string{}, elemIsEscaped, w, r)
-					default:
-						s.notAllowed(w, r, notAllowedParams{
-							allowedMethods: "GET,POST",
-							allowedHeaders: rn3AllowedHeaders,
-							acceptPost:     "application/json",
-							acceptPatch:    "",
-						})
-					}
-
-					return
-				}
-				switch elem[0] {
-				case '/': // Prefix: "/"
-
-					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-						elem = elem[l:]
-					} else {
-						break
-					}
-
-					// Param: "name"
-					// Match until "/"
-					idx := strings.IndexByte(elem, '/')
-					if idx < 0 {
-						idx = len(elem)
-					}
-					args[0] = elem[:idx]
-					elem = elem[idx:]
-
-					if len(elem) == 0 {
-						switch r.Method {
-						case "DELETE":
-							s.handleDeletePolicyGroupRequest([1]string{
-								args[0],
-							}, elemIsEscaped, w, r)
-						case "GET":
-							s.handleGetPolicyGroupRequest([1]string{
-								args[0],
-							}, elemIsEscaped, w, r)
-						case "PUT":
-							s.handleUpdatePolicyGroupRequest([1]string{
-								args[0],
-							}, elemIsEscaped, w, r)
-						default:
-							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "DELETE,GET,PUT",
-								allowedHeaders: rn7AllowedHeaders,
-								acceptPost:     "",
-								acceptPatch:    "",
-							})
+						// Param: "name"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
 						}
-
-						return
-					}
-					switch elem[0] {
-					case '/': // Prefix: "/enabled"
-
-						if l := len("/enabled"); len(elem) >= l && elem[0:l] == "/enabled" {
-							elem = elem[l:]
-						} else {
-							break
-						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
 
 						if len(elem) == 0 {
-							// Leaf node.
 							switch r.Method {
+							case "DELETE":
+								s.handleDeletePolicyRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							case "GET":
+								s.handleGetPolicyRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
 							case "PUT":
-								s.handleSetPolicyGroupEnabledRequest([1]string{
+								s.handleUpdatePolicyRequest([1]string{
 									args[0],
 								}, elemIsEscaped, w, r)
 							default:
 								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "PUT",
-									allowedHeaders: rn12AllowedHeaders,
+									allowedMethods: "DELETE,GET,PUT",
+									allowedHeaders: rn9AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -376,7 +299,175 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 							return
 						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case 'r': // Prefix: "rollback"
+
+								if l := len("rollback"); len(elem) >= l && elem[0:l] == "rollback" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleRollbackPolicyRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "POST",
+											allowedHeaders: rn15AllowedHeaders,
+											acceptPost:     "application/json",
+											acceptPatch:    "",
+										})
+									}
+
+									return
+								}
+
+							case 'v': // Prefix: "versions"
+
+								if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "GET":
+										s.handleListPolicyVersionsRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "GET",
+											allowedHeaders: nil,
+											acceptPost:     "",
+											acceptPatch:    "",
+										})
+									}
+
+									return
+								}
+
+							}
+						}
 					}
+
+				case 'y': // Prefix: "ygroups"
+
+					if l := len("ygroups"); len(elem) >= l && elem[0:l] == "ygroups" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch r.Method {
+						case "GET":
+							s.handleListPolicyGroupsRequest([0]string{}, elemIsEscaped, w, r)
+						case "POST":
+							s.handleCreatePolicyGroupRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "GET,POST",
+								allowedHeaders: rn5AllowedHeaders,
+								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "name"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							switch r.Method {
+							case "DELETE":
+								s.handleDeletePolicyGroupRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							case "GET":
+								s.handleGetPolicyGroupRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							case "PUT":
+								s.handleUpdatePolicyGroupRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "DELETE,GET,PUT",
+									allowedHeaders: rn11AllowedHeaders,
+									acceptPost:     "",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/enabled"
+
+							if l := len("/enabled"); len(elem) >= l && elem[0:l] == "/enabled" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "PUT":
+									s.handleSetPolicyGroupEnabledRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "PUT",
+										allowedHeaders: rn16AllowedHeaders,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+						}
+					}
+
 				}
 
 			}
@@ -466,9 +557,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/polic"
+		case '/': // Prefix: "/"
 
-			if l := len("/polic"); len(elem) >= l && elem[0:l] == "/polic" {
+			if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 				elem = elem[l:]
 			} else {
 				break
@@ -478,9 +569,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				break
 			}
 			switch elem[0] {
-			case 'i': // Prefix: "ies"
+			case 'e': // Prefix: "exceptions"
 
-				if l := len("ies"); len(elem) >= l && elem[0:l] == "ies" {
+				if l := len("exceptions"); len(elem) >= l && elem[0:l] == "exceptions" {
 					elem = elem[l:]
 				} else {
 					break
@@ -489,20 +580,20 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				if len(elem) == 0 {
 					switch method {
 					case "GET":
-						r.name = ListPoliciesOperation
-						r.summary = "分页查询策略列表"
-						r.operationID = "listPolicies"
+						r.name = ListExceptionsOperation
+						r.summary = "分页查询策略例外"
+						r.operationID = "listExceptions"
 						r.operationGroup = ""
-						r.pathPattern = "/policies"
+						r.pathPattern = "/exceptions"
 						r.args = args
 						r.count = 0
 						return r, true
 					case "POST":
-						r.name = CreatePolicyOperation
-						r.summary = "创建策略"
-						r.operationID = "createPolicy"
+						r.name = CreateExceptionOperation
+						r.summary = "创建策略例外"
+						r.operationID = "createException"
 						r.operationGroup = ""
-						r.pathPattern = "/policies"
+						r.pathPattern = "/exceptions"
 						r.args = args
 						r.count = 0
 						return r, true
@@ -519,100 +610,90 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 
-					if len(elem) == 0 {
+					// Param: "name"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
 						break
 					}
-					switch elem[0] {
-					case 'r': // Prefix: "resource-suggestions"
-						origElem := elem
-						if l := len("resource-suggestions"); len(elem) >= l && elem[0:l] == "resource-suggestions" {
-							elem = elem[l:]
-						} else {
-							break
-						}
-
-						if len(elem) == 0 {
-							// Leaf node.
-							switch method {
-							case "GET":
-								r.name = GetResourceSuggestionsOperation
-								r.summary = "查询资源建议"
-								r.operationID = "getResourceSuggestions"
-								r.operationGroup = ""
-								r.pathPattern = "/policies/resource-suggestions"
-								r.args = args
-								r.count = 0
-								return r, true
-							default:
-								return
-							}
-						}
-
-						elem = origElem
-					case 'v': // Prefix: "validate"
-						origElem := elem
-						if l := len("validate"); len(elem) >= l && elem[0:l] == "validate" {
-							elem = elem[l:]
-						} else {
-							break
-						}
-
-						if len(elem) == 0 {
-							// Leaf node.
-							switch method {
-							case "POST":
-								r.name = ValidatePolicyRegoOperation
-								r.summary = "校验 Rego 源码"
-								r.operationID = "validatePolicyRego"
-								r.operationGroup = ""
-								r.pathPattern = "/policies/validate"
-								r.args = args
-								r.count = 0
-								return r, true
-							default:
-								return
-							}
-						}
-
-						elem = origElem
-					}
-					// Param: "name"
-					// Match until "/"
-					idx := strings.IndexByte(elem, '/')
-					if idx < 0 {
-						idx = len(elem)
-					}
-					args[0] = elem[:idx]
-					elem = elem[idx:]
+					args[0] = elem
+					elem = ""
 
 					if len(elem) == 0 {
+						// Leaf node.
 						switch method {
 						case "DELETE":
-							r.name = DeletePolicyOperation
-							r.summary = "删除策略"
-							r.operationID = "deletePolicy"
+							r.name = DeleteExceptionOperation
+							r.summary = "删除策略例外"
+							r.operationID = "deleteException"
 							r.operationGroup = ""
-							r.pathPattern = "/policies/{name}"
+							r.pathPattern = "/exceptions/{name}"
 							r.args = args
 							r.count = 1
 							return r, true
 						case "GET":
-							r.name = GetPolicyOperation
-							r.summary = "查询策略详情"
-							r.operationID = "getPolicy"
+							r.name = GetExceptionOperation
+							r.summary = "查询策略例外详情"
+							r.operationID = "getException"
 							r.operationGroup = ""
-							r.pathPattern = "/policies/{name}"
+							r.pathPattern = "/exceptions/{name}"
 							r.args = args
 							r.count = 1
 							return r, true
 						case "PUT":
-							r.name = UpdatePolicyOperation
-							r.summary = "更新策略"
-							r.operationID = "updatePolicy"
+							r.name = UpdateExceptionOperation
+							r.summary = "更新策略例外"
+							r.operationID = "updateException"
 							r.operationGroup = ""
-							r.pathPattern = "/policies/{name}"
+							r.pathPattern = "/exceptions/{name}"
 							r.args = args
 							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+				}
+
+			case 'p': // Prefix: "polic"
+
+				if l := len("polic"); len(elem) >= l && elem[0:l] == "polic" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case 'i': // Prefix: "ies"
+
+					if l := len("ies"); len(elem) >= l && elem[0:l] == "ies" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch method {
+						case "GET":
+							r.name = ListPoliciesOperation
+							r.summary = "分页查询策略列表"
+							r.operationID = "listPolicies"
+							r.operationGroup = ""
+							r.pathPattern = "/policies"
+							r.args = args
+							r.count = 0
+							return r, true
+						case "POST":
+							r.name = CreatePolicyOperation
+							r.summary = "创建策略"
+							r.operationID = "createPolicy"
+							r.operationGroup = ""
+							r.pathPattern = "/policies"
+							r.args = args
+							r.count = 0
 							return r, true
 						default:
 							return
@@ -631,34 +712,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							break
 						}
 						switch elem[0] {
-						case 'r': // Prefix: "rollback"
-
-							if l := len("rollback"); len(elem) >= l && elem[0:l] == "rollback" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch method {
-								case "POST":
-									r.name = RollbackPolicyOperation
-									r.summary = "回滚策略到上一版本"
-									r.operationID = "rollbackPolicy"
-									r.operationGroup = ""
-									r.pathPattern = "/policies/{name}/rollback"
-									r.args = args
-									r.count = 1
-									return r, true
-								default:
-									return
-								}
-							}
-
-						case 'v': // Prefix: "versions"
-
-							if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
+						case 'r': // Prefix: "resource-suggestions"
+							origElem := elem
+							if l := len("resource-suggestions"); len(elem) >= l && elem[0:l] == "resource-suggestions" {
 								elem = elem[l:]
 							} else {
 								break
@@ -668,124 +724,82 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								// Leaf node.
 								switch method {
 								case "GET":
-									r.name = ListPolicyVersionsOperation
-									r.summary = "查询策略版本历史"
-									r.operationID = "listPolicyVersions"
+									r.name = GetResourceSuggestionsOperation
+									r.summary = "查询资源建议"
+									r.operationID = "getResourceSuggestions"
 									r.operationGroup = ""
-									r.pathPattern = "/policies/{name}/versions"
+									r.pathPattern = "/policies/resource-suggestions"
 									r.args = args
-									r.count = 1
+									r.count = 0
 									return r, true
 								default:
 									return
 								}
 							}
 
+							elem = origElem
+						case 'v': // Prefix: "validate"
+							origElem := elem
+							if l := len("validate"); len(elem) >= l && elem[0:l] == "validate" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = ValidatePolicyRegoOperation
+									r.summary = "校验 Rego 源码"
+									r.operationID = "validatePolicyRego"
+									r.operationGroup = ""
+									r.pathPattern = "/policies/validate"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+							elem = origElem
 						}
-					}
-				}
-
-			case 'y': // Prefix: "ygroups"
-
-				if l := len("ygroups"); len(elem) >= l && elem[0:l] == "ygroups" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				if len(elem) == 0 {
-					switch method {
-					case "GET":
-						r.name = ListPolicyGroupsOperation
-						r.summary = "分页查询策略组列表"
-						r.operationID = "listPolicyGroups"
-						r.operationGroup = ""
-						r.pathPattern = "/policygroups"
-						r.args = args
-						r.count = 0
-						return r, true
-					case "POST":
-						r.name = CreatePolicyGroupOperation
-						r.summary = "创建策略组"
-						r.operationID = "createPolicyGroup"
-						r.operationGroup = ""
-						r.pathPattern = "/policygroups"
-						r.args = args
-						r.count = 0
-						return r, true
-					default:
-						return
-					}
-				}
-				switch elem[0] {
-				case '/': // Prefix: "/"
-
-					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
-						elem = elem[l:]
-					} else {
-						break
-					}
-
-					// Param: "name"
-					// Match until "/"
-					idx := strings.IndexByte(elem, '/')
-					if idx < 0 {
-						idx = len(elem)
-					}
-					args[0] = elem[:idx]
-					elem = elem[idx:]
-
-					if len(elem) == 0 {
-						switch method {
-						case "DELETE":
-							r.name = DeletePolicyGroupOperation
-							r.summary = "删除策略组"
-							r.operationID = "deletePolicyGroup"
-							r.operationGroup = ""
-							r.pathPattern = "/policygroups/{name}"
-							r.args = args
-							r.count = 1
-							return r, true
-						case "GET":
-							r.name = GetPolicyGroupOperation
-							r.summary = "查询策略组详情"
-							r.operationID = "getPolicyGroup"
-							r.operationGroup = ""
-							r.pathPattern = "/policygroups/{name}"
-							r.args = args
-							r.count = 1
-							return r, true
-						case "PUT":
-							r.name = UpdatePolicyGroupOperation
-							r.summary = "更新策略组"
-							r.operationID = "updatePolicyGroup"
-							r.operationGroup = ""
-							r.pathPattern = "/policygroups/{name}"
-							r.args = args
-							r.count = 1
-							return r, true
-						default:
-							return
+						// Param: "name"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
 						}
-					}
-					switch elem[0] {
-					case '/': // Prefix: "/enabled"
-
-						if l := len("/enabled"); len(elem) >= l && elem[0:l] == "/enabled" {
-							elem = elem[l:]
-						} else {
-							break
-						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
 
 						if len(elem) == 0 {
-							// Leaf node.
 							switch method {
-							case "PUT":
-								r.name = SetPolicyGroupEnabledOperation
-								r.summary = "设置策略组启用状态"
-								r.operationID = "setPolicyGroupEnabled"
+							case "DELETE":
+								r.name = DeletePolicyOperation
+								r.summary = "删除策略"
+								r.operationID = "deletePolicy"
 								r.operationGroup = ""
-								r.pathPattern = "/policygroups/{name}/enabled"
+								r.pathPattern = "/policies/{name}"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "GET":
+								r.name = GetPolicyOperation
+								r.summary = "查询策略详情"
+								r.operationID = "getPolicy"
+								r.operationGroup = ""
+								r.pathPattern = "/policies/{name}"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "PUT":
+								r.name = UpdatePolicyOperation
+								r.summary = "更新策略"
+								r.operationID = "updatePolicy"
+								r.operationGroup = ""
+								r.pathPattern = "/policies/{name}"
 								r.args = args
 								r.count = 1
 								return r, true
@@ -793,7 +807,184 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								return
 							}
 						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case 'r': // Prefix: "rollback"
+
+								if l := len("rollback"); len(elem) >= l && elem[0:l] == "rollback" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = RollbackPolicyOperation
+										r.summary = "回滚策略到上一版本"
+										r.operationID = "rollbackPolicy"
+										r.operationGroup = ""
+										r.pathPattern = "/policies/{name}/rollback"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 'v': // Prefix: "versions"
+
+								if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "GET":
+										r.name = ListPolicyVersionsOperation
+										r.summary = "查询策略版本历史"
+										r.operationID = "listPolicyVersions"
+										r.operationGroup = ""
+										r.pathPattern = "/policies/{name}/versions"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
+							}
+						}
 					}
+
+				case 'y': // Prefix: "ygroups"
+
+					if l := len("ygroups"); len(elem) >= l && elem[0:l] == "ygroups" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch method {
+						case "GET":
+							r.name = ListPolicyGroupsOperation
+							r.summary = "分页查询策略组列表"
+							r.operationID = "listPolicyGroups"
+							r.operationGroup = ""
+							r.pathPattern = "/policygroups"
+							r.args = args
+							r.count = 0
+							return r, true
+						case "POST":
+							r.name = CreatePolicyGroupOperation
+							r.summary = "创建策略组"
+							r.operationID = "createPolicyGroup"
+							r.operationGroup = ""
+							r.pathPattern = "/policygroups"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "name"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							switch method {
+							case "DELETE":
+								r.name = DeletePolicyGroupOperation
+								r.summary = "删除策略组"
+								r.operationID = "deletePolicyGroup"
+								r.operationGroup = ""
+								r.pathPattern = "/policygroups/{name}"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "GET":
+								r.name = GetPolicyGroupOperation
+								r.summary = "查询策略组详情"
+								r.operationID = "getPolicyGroup"
+								r.operationGroup = ""
+								r.pathPattern = "/policygroups/{name}"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "PUT":
+								r.name = UpdatePolicyGroupOperation
+								r.summary = "更新策略组"
+								r.operationID = "updatePolicyGroup"
+								r.operationGroup = ""
+								r.pathPattern = "/policygroups/{name}"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/enabled"
+
+							if l := len("/enabled"); len(elem) >= l && elem[0:l] == "/enabled" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "PUT":
+									r.name = SetPolicyGroupEnabledOperation
+									r.summary = "设置策略组启用状态"
+									r.operationID = "setPolicyGroupEnabled"
+									r.operationGroup = ""
+									r.pathPattern = "/policygroups/{name}/enabled"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+						}
+					}
+
 				}
 
 			}

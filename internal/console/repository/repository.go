@@ -24,6 +24,7 @@ type Repositories struct {
 	Policies      PolicyRepository
 	Groups        GroupRepository
 	PolicyGroups  PolicyGroupRepository
+	Exceptions    ExceptionRepository
 	Distributions DistributionRepository
 	Clusters      ClusterRepository
 }
@@ -37,6 +38,7 @@ func FromGatewayRepos(r gateway.Repos) Repositories {
 		Policies:      r.Policies,
 		Groups:        r.Groups,
 		PolicyGroups:  r.Groups,
+		Exceptions:    r.Exceptions,
 		Distributions: r.Distributions,
 		Clusters:      r.Clusters,
 	}

@@ -20,6 +20,8 @@ tags:
     description: 策略的增删改查、Rego 校验、版本与回滚
   - name: PolicyGroup
     description: 策略组的增删改查与启用状态管理
+  - name: Exception
+    description: 策略例外的增删改查
 
 components:
   securitySchemes:
@@ -71,6 +73,15 @@ components:
         type: string
         description: 策略组名称
         example: baseline
+    ExceptionName:
+      name: name
+      in: path
+      required: true
+      description: 例外名称
+      schema:
+        type: string
+        description: 例外名称
+        example: emergency-maintenance
 
   responses:
     BadRequest:
@@ -561,3 +572,70 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  /exceptions:
+    get:
+      tags: [Exception]
+      operationId: listExceptions
+      summary: 分页查询策略例外
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sortBy
+          in: query
+          description: 排序字段
+          schema: {type: string, enum: [name, phase, targetSummary, duration, expiresAt], default: name, description: 排序字段, example: name}
+        - name: sortOrder
+          in: query
+          description: 排序方向
+          schema: {type: string, enum: [asc, desc], default: asc, description: 排序方向, example: asc}
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/exception.yaml#/components/schemas/ExceptionListResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    post:
+      tags: [Exception]
+      operationId: createException
+      summary: 创建策略例外
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../schemas/exception.yaml#/components/schemas/ExceptionRequest'}}}
+      responses:
+        '200': {description: 创建成功, content: {application/json: {schema: {$ref: '../schemas/exception.yaml#/components/schemas/ExceptionNameResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /exceptions/{name}:
+    get:
+      tags: [Exception]
+      operationId: getException
+      summary: 查询策略例外详情
+      parameters: [{ $ref: '#/components/parameters/ExceptionName' }]
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/exception.yaml#/components/schemas/ExceptionDetailResponse'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    put:
+      tags: [Exception]
+      operationId: updateException
+      summary: 更新策略例外
+      parameters: [{ $ref: '#/components/parameters/ExceptionName' }]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../schemas/exception.yaml#/components/schemas/ExceptionRequest'}}}
+      responses:
+        '200': {description: 更新成功, content: {application/json: {schema: {$ref: '../schemas/exception.yaml#/components/schemas/ExceptionNameResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    delete:
+      tags: [Exception]
+      operationId: deleteException
+      summary: 删除策略例外
+      parameters: [{ $ref: '#/components/parameters/ExceptionName' }]
+      responses:
+        '200': {description: 删除成功, content: {application/json: {schema: {$ref: '../schemas/policy.yaml#/components/schemas/EmptyResponse'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}

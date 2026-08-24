@@ -8,6 +8,12 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// CreateException implements createException operation.
+	//
+	// 创建策略例外.
+	//
+	// POST /exceptions
+	CreateException(ctx context.Context, req *ExceptionRequest) (CreateExceptionRes, error)
 	// CreatePolicy implements createPolicy operation.
 	//
 	// 创建策略并同时写入 v1 版本快照，两者在同一事务内提交。 Rego
@@ -21,6 +27,12 @@ type Handler interface {
 	//
 	// POST /policygroups
 	CreatePolicyGroup(ctx context.Context, req *PolicyGroupRequest) (CreatePolicyGroupRes, error)
+	// DeleteException implements deleteException operation.
+	//
+	// 删除策略例外.
+	//
+	// DELETE /exceptions/{name}
+	DeleteException(ctx context.Context, params DeleteExceptionParams) (DeleteExceptionRes, error)
 	// DeletePolicy implements deletePolicy operation.
 	//
 	// 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy
@@ -34,6 +46,12 @@ type Handler interface {
 	//
 	// DELETE /policygroups/{name}
 	DeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (DeletePolicyGroupRes, error)
+	// GetException implements getException operation.
+	//
+	// 查询策略例外详情.
+	//
+	// GET /exceptions/{name}
+	GetException(ctx context.Context, params GetExceptionParams) (GetExceptionRes, error)
 	// GetPolicy implements getPolicy operation.
 	//
 	// 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.
@@ -53,6 +71,12 @@ type Handler interface {
 	//
 	// GET /policies/resource-suggestions
 	GetResourceSuggestions(ctx context.Context) (GetResourceSuggestionsRes, error)
+	// ListExceptions implements listExceptions operation.
+	//
+	// 分页查询策略例外.
+	//
+	// GET /exceptions
+	ListExceptions(ctx context.Context, params ListExceptionsParams) (ListExceptionsRes, error)
 	// ListPolicies implements listPolicies operation.
 	//
 	// 按名称、来源、执行模式、编译状态筛选并分页返回策略。 phase、mode、source
@@ -86,6 +110,12 @@ type Handler interface {
 	//
 	// PUT /policygroups/{name}/enabled
 	SetPolicyGroupEnabled(ctx context.Context, req *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (SetPolicyGroupEnabledRes, error)
+	// UpdateException implements updateException operation.
+	//
+	// 更新策略例外.
+	//
+	// PUT /exceptions/{name}
+	UpdateException(ctx context.Context, req *ExceptionRequest, params UpdateExceptionParams) (UpdateExceptionRes, error)
 	// UpdatePolicy implements updatePolicy operation.
 	//
 	// 更新策略并追加新版本快照，两者在同一事务内提交。 labels

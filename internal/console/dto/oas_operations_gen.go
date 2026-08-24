@@ -6,18 +6,23 @@ package dto
 type OperationName = string
 
 const (
+	CreateExceptionOperation        OperationName = "CreateException"
 	CreatePolicyOperation           OperationName = "CreatePolicy"
 	CreatePolicyGroupOperation      OperationName = "CreatePolicyGroup"
+	DeleteExceptionOperation        OperationName = "DeleteException"
 	DeletePolicyOperation           OperationName = "DeletePolicy"
 	DeletePolicyGroupOperation      OperationName = "DeletePolicyGroup"
+	GetExceptionOperation           OperationName = "GetException"
 	GetPolicyOperation              OperationName = "GetPolicy"
 	GetPolicyGroupOperation         OperationName = "GetPolicyGroup"
 	GetResourceSuggestionsOperation OperationName = "GetResourceSuggestions"
+	ListExceptionsOperation         OperationName = "ListExceptions"
 	ListPoliciesOperation           OperationName = "ListPolicies"
 	ListPolicyGroupsOperation       OperationName = "ListPolicyGroups"
 	ListPolicyVersionsOperation     OperationName = "ListPolicyVersions"
 	RollbackPolicyOperation         OperationName = "RollbackPolicy"
 	SetPolicyGroupEnabledOperation  OperationName = "SetPolicyGroupEnabled"
+	UpdateExceptionOperation        OperationName = "UpdateException"
 	UpdatePolicyOperation           OperationName = "UpdatePolicy"
 	UpdatePolicyGroupOperation      OperationName = "UpdatePolicyGroup"
 	ValidatePolicyRegoOperation     OperationName = "ValidatePolicyRego"

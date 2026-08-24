@@ -52,18 +52,18 @@ func groupSpec(req *dto.PolicyGroupRequest) (v1alpha1.PolicyGroupSpec, error) {
 	return s, e
 }
 
-func scopeFor(ctx context.Context, r repository.Repositories, owner string) (dto.GroupScope, error) {
+func scopeFor(ctx context.Context, r repository.Repositories, owner string) (dto.PolicyGroupScope, error) {
 	ds, e := r.Distributions.List(ctx)
 	if e != nil {
-		return dto.GroupScope{}, e
+		return dto.PolicyGroupScope{}, e
 	}
 	for _, d := range ds {
 		if d.Managed && d.OwnerType == "PolicyGroup" && d.OwnerName == owner {
 			s := d.Spec.Data()
-			return dto.GroupScope{AllClusters: s.Clusters.ClusterSelector != nil, ClusterNames: s.Clusters.ByName}, nil
+			return dto.PolicyGroupScope{AllClusters: s.Clusters.ClusterSelector != nil, ClusterNames: s.Clusters.ByName}, nil
 		}
 	}
-	return dto.GroupScope{AllClusters: true}, nil
+	return dto.PolicyGroupScope{AllClusters: true}, nil
 }
 
 func syncScope(ctx context.Context, r repository.Repositories, owner string, all bool, names []string) error {
@@ -114,7 +114,7 @@ func deleteScope(ctx context.Context, r repository.Repositories, owner string) e
 	return nil
 }
 
-func detail(g *dbrepo.PolicyGroup, ps []v1alpha1.Policy, scope dto.GroupScope) dto.PolicyGroupDetail {
+func detail(g *dbrepo.PolicyGroup, ps []v1alpha1.Policy, scope dto.PolicyGroupScope) dto.PolicyGroupDetail {
 	s := g.Spec.Data()
 	m, c := groupresolve.Resolve(s, ps)
 	phase := dto.PolicyGroupStatusPhaseReady
@@ -167,8 +167,8 @@ func (s *PolicyGroupService) List(ctx context.Context, page, size int, sortBy, o
 	pol := policyList(ps)
 	items := make([]dto.PolicyGroupListItem, 0, len(gs))
 	for _, g := range gs {
-		d := detail(&g, pol, dto.GroupScope{})
-		items = append(items, dto.PolicyGroupListItem{Name: g.Name, Source: dto.PolicyGroupListItemSource(d.Source), DisplayName: d.Spec.DisplayName, Enabled: d.Spec.Enabled, Phase: dto.PolicyGroupListItemPhase(d.Status.Phase), ResolvedCount: d.Status.ResolvedCount})
+		d := detail(&g, pol, dto.PolicyGroupScope{})
+		items = append(items, dto.PolicyGroupListItem{Name: g.Name, Source: dto.PolicyGroupListItemSource(d.Source), DisplayName: d.Spec.DisplayName.Or(""), Enabled: d.Spec.Enabled, Phase: dto.PolicyGroupListItemPhase(d.Status.Phase), ResolvedCount: d.Status.ResolvedCount})
 	}
 	sort.Slice(items, func(i, j int) bool {
 		a, b := items[i], items[j]
@@ -214,7 +214,7 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupReq
 	if e != nil {
 		return e
 	}
-	if !req.AllClusters && len(req.ClusterNames) == 0 {
+	if !req.AllClusters.Or(false) && len(req.ClusterNames) == 0 {
 		return &ValidationError{Msg: "clusterNames is required when allClusters is false"}
 	}
 	g := &dbrepo.PolicyGroup{Name: name, Spec: datatypes.NewJSONType(spec), Labels: datatypes.NewJSONType(map[string]string{}), Annotations: datatypes.NewJSONType(map[string]string{})}
@@ -224,7 +224,7 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupReq
 		}
 		return e
 	}
-	if e = syncScope(ctx, s.repos, name, req.AllClusters, req.ClusterNames); e != nil {
+	if e = syncScope(ctx, s.repos, name, req.AllClusters.Or(false), req.ClusterNames); e != nil {
 		return e
 	}
 	if s.notifier != nil {
@@ -254,7 +254,7 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 	if e = s.repos.PolicyGroups.UpdateCAS(ctx, g.ID, g.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec)}); e != nil {
 		return e
 	}
-	return syncScope(ctx, s.repos, name, req.AllClusters, req.ClusterNames)
+	return syncScope(ctx, s.repos, name, req.AllClusters.Or(false), req.ClusterNames)
 }
 
 func (s *PolicyGroupService) SetEnabled(ctx context.Context, name string, enabled bool) error {

@@ -10,6 +10,20 @@ import (
 	ht "github.com/ogen-go/ogen/http"
 )
 
+func encodeCreateExceptionRequest(
+	req *ExceptionRequest,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeCreatePolicyRequest(
 	req *PolicyRequest,
 	r *http.Request,
@@ -54,6 +68,20 @@ func encodeRollbackPolicyRequest(
 
 func encodeSetPolicyGroupEnabledRequest(
 	req *PolicyGroupEnabledRequest,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeUpdateExceptionRequest(
+	req *ExceptionRequest,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

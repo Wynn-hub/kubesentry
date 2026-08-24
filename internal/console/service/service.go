@@ -10,6 +10,7 @@ import "github.com/Wynn-hub/kubesentry/internal/console/repository"
 type Services struct {
 	Policy      *PolicyService
 	PolicyGroup *PolicyGroupService
+	Exception   *ExceptionService
 }
 
 // New wires every service from the repository bundle and an optional Notifier.
@@ -19,5 +20,6 @@ func New(repos repository.Repositories, notifier Notifier) Services {
 	return Services{
 		Policy:      NewPolicyService(repos.Policies, repos.Groups, notifier),
 		PolicyGroup: NewPolicyGroupService(repos, notifier),
+		Exception:   NewExceptionService(repos, notifier),
 	}
 }
