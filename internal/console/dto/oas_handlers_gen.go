@@ -4316,6 +4316,14 @@ func (s *Server) handleListClustersRequest(args [0]string, argsEscaped bool, w h
 					Name: "pageSize",
 					In:   "query",
 				}: params.PageSize,
+				{
+					Name: "sortBy",
+					In:   "query",
+				}: params.SortBy,
+				{
+					Name: "sortOrder",
+					In:   "query",
+				}: params.SortOrder,
 			},
 			Raw: r,
 		}
@@ -4424,8 +4432,22 @@ func (s *Server) handleListDistributionsRequest(args [0]string, argsEscaped bool
 
 			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
 		}
-		err error
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListDistributionsOperation,
+			ID:   "listDistributions",
+		}
 	)
+	params, err := decodeListDistributionsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 
@@ -4438,13 +4460,30 @@ func (s *Server) handleListDistributionsRequest(args [0]string, argsEscaped bool
 			OperationID:      "listDistributions",
 			Body:             nil,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "page",
+					In:   "query",
+				}: params.Page,
+				{
+					Name: "pageSize",
+					In:   "query",
+				}: params.PageSize,
+				{
+					Name: "sortBy",
+					In:   "query",
+				}: params.SortBy,
+				{
+					Name: "sortOrder",
+					In:   "query",
+				}: params.SortOrder,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = ListDistributionsParams
 			Response = ListDistributionsRes
 		)
 		response, err = middleware.HookMiddleware[
@@ -4454,14 +4493,14 @@ func (s *Server) handleListDistributionsRequest(args [0]string, argsEscaped bool
 		](
 			m,
 			mreq,
-			nil,
+			unpackListDistributionsParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.ListDistributions(ctx)
+				response, err = s.h.ListDistributions(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.ListDistributions(ctx)
+		response, err = s.h.ListDistributions(ctx, params)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -4738,6 +4777,14 @@ func (s *Server) handleListInstallRecordsRequest(args [0]string, argsEscaped boo
 					Name: "pageSize",
 					In:   "query",
 				}: params.PageSize,
+				{
+					Name: "sortBy",
+					In:   "query",
+				}: params.SortBy,
+				{
+					Name: "sortOrder",
+					In:   "query",
+				}: params.SortOrder,
 			},
 			Raw: r,
 		}
@@ -5646,6 +5693,21 @@ func (s *Server) handleReissueClusterTokenRequest(args [1]string, argsEscaped bo
 	}
 
 	var rawBody []byte
+	request, rawBody, close, err := s.decodeReissueClusterTokenRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
 
 	var response ReissueClusterTokenRes
 	if m := s.cfg.Middleware; m != nil {
@@ -5654,7 +5716,7 @@ func (s *Server) handleReissueClusterTokenRequest(args [1]string, argsEscaped bo
 			OperationName:    ReissueClusterTokenOperation,
 			OperationSummary: "",
 			OperationID:      "reissueClusterToken",
-			Body:             nil,
+			Body:             request,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
@@ -5666,7 +5728,7 @@ func (s *Server) handleReissueClusterTokenRequest(args [1]string, argsEscaped bo
 		}
 
 		type (
-			Request  = struct{}
+			Request  = ReissueClusterTokenReq
 			Params   = ReissueClusterTokenParams
 			Response = ReissueClusterTokenRes
 		)
@@ -5679,12 +5741,12 @@ func (s *Server) handleReissueClusterTokenRequest(args [1]string, argsEscaped bo
 			mreq,
 			unpackReissueClusterTokenParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.ReissueClusterToken(ctx, params)
+				response, err = s.h.ReissueClusterToken(ctx, request, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.ReissueClusterToken(ctx, params)
+		response, err = s.h.ReissueClusterToken(ctx, request, params)
 	}
 	if err != nil {
 		defer recordError("Internal", err)

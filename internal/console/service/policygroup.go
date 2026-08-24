@@ -210,6 +210,11 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupReq
 	if name == defaultGroupName {
 		return &ValidationError{Msg: "default policy group cannot be created"}
 	}
+	for _, name := range req.Policies.Exclude {
+		if strings.TrimSpace(name) == "" {
+			return &ValidationError{Msg: "excluded policy name must not be empty"}
+		}
+	}
 	spec, e := groupSpec(req)
 	if e != nil {
 		return e
@@ -236,6 +241,11 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupReq
 func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.PolicyGroupRequest) error {
 	if name == defaultGroupName {
 		return fmt.Errorf("default policy group scope is managed; use the enabled endpoint to disable it")
+	}
+	for _, excluded := range req.Policies.Exclude {
+		if strings.TrimSpace(excluded) == "" {
+			return &ValidationError{Msg: "excluded policy name must not be empty"}
+		}
 	}
 	g, e := s.repos.PolicyGroups.GetByName(ctx, name)
 	if e != nil {

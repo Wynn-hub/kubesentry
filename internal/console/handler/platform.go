@@ -19,6 +19,14 @@ func (h *Handler) platformInvoke(ctx context.Context, method, path string, body 
 	return values, status, nil
 }
 
+func responseMessage(values map[string]jx.Raw) string {
+	var message string
+	if raw, ok := values["message"]; ok {
+		_ = json.Unmarshal(raw, &message)
+	}
+	return message
+}
+
 func platformResult(values map[string]jx.Raw, status int) (dto.GetPlatformOverviewRes, error) {
 	if status == 400 {
 		return &dto.GetPlatformOverviewBadRequest{Code: 40000, Message: "request failed"}, nil

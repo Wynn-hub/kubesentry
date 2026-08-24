@@ -176,7 +176,7 @@ type Handler interface {
 	// ListDistributions implements listDistributions operation.
 	//
 	// GET /distributions
-	ListDistributions(ctx context.Context) (ListDistributionsRes, error)
+	ListDistributions(ctx context.Context, params ListDistributionsParams) (ListDistributionsRes, error)
 	// ListExceptions implements listExceptions operation.
 	//
 	// 分页查询策略例外.
@@ -219,7 +219,7 @@ type Handler interface {
 	// ReissueClusterToken implements reissueClusterToken operation.
 	//
 	// POST /clusters/{name}/reissue-token
-	ReissueClusterToken(ctx context.Context, params ReissueClusterTokenParams) (ReissueClusterTokenRes, error)
+	ReissueClusterToken(ctx context.Context, req ReissueClusterTokenReq, params ReissueClusterTokenParams) (ReissueClusterTokenRes, error)
 	// RetryUninstallTask implements retryUninstallTask operation.
 	//
 	// POST /clusters/{name}/uninstall-tasks/{taskID}/retry

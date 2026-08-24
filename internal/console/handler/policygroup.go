@@ -40,7 +40,7 @@ func (h *Handler) CreatePolicyGroup(ctx context.Context, r *dto.PolicyGroupReque
 		if errors.As(e, &v) {
 			return &dto.CreatePolicyGroupBadRequest{Code: 40000, Message: e.Error()}, nil
 		}
-		if dbrepo.IsUniqueViolation(e) {
+		if errors.Is(e, dbrepo.ErrConflict) || dbrepo.IsUniqueViolation(e) {
 			return &dto.CreatePolicyGroupConflict{Code: 40900, Message: e.Error()}, nil
 		}
 		return &dto.CreatePolicyGroupInternalServerError{Code: 50000, Message: e.Error()}, nil
@@ -51,6 +51,9 @@ func (h *Handler) CreatePolicyGroup(ctx context.Context, r *dto.PolicyGroupReque
 func (h *Handler) UpdatePolicyGroup(ctx context.Context, r *dto.PolicyGroupRequest, p dto.UpdatePolicyGroupParams) (dto.UpdatePolicyGroupRes, error) {
 	e := h.svcs.PolicyGroup.Update(ctx, p.Name, r)
 	if e != nil {
+		if p.Name == "default" {
+			return &dto.UpdatePolicyGroupForbidden{Code: 40300, Message: e.Error()}, nil
+		}
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.UpdatePolicyGroupNotFound{Code: 40400, Message: e.Error()}, nil
 		}
@@ -83,6 +86,9 @@ func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupE
 func (h *Handler) DeletePolicyGroup(ctx context.Context, p dto.DeletePolicyGroupParams) (dto.DeletePolicyGroupRes, error) {
 	e := h.svcs.PolicyGroup.Delete(ctx, p.Name)
 	if e != nil {
+		if p.Name == "default" {
+			return &dto.DeletePolicyGroupForbidden{Code: 40300, Message: e.Error()}, nil
+		}
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.DeletePolicyGroupNotFound{Code: 40400, Message: e.Error()}, nil
 		}

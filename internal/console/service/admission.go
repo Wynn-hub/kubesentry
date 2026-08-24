@@ -9,11 +9,12 @@ import (
 )
 
 type AdmissionService struct {
-	repo repository.AdmissionRepository
+	repo     repository.AdmissionRepository
+	notifier Notifier
 }
 
-func NewAdmissionService(repo repository.AdmissionRepository) *AdmissionService {
-	return &AdmissionService{repo: repo}
+func NewAdmissionService(repo repository.AdmissionRepository, notifier Notifier) *AdmissionService {
+	return &AdmissionService{repo: repo, notifier: notifier}
 }
 
 func (s *AdmissionService) Settings(ctx context.Context) (*dbrepo.AdmissionEventSettings, []dbrepo.AdmissionStoragePolicy, error) {
@@ -29,7 +30,13 @@ func (s *AdmissionService) Settings(ctx context.Context) (*dbrepo.AdmissionEvent
 }
 
 func (s *AdmissionService) UpdateSettings(ctx context.Context, settings *dbrepo.AdmissionEventSettings, policies []dbrepo.AdmissionStoragePolicy) error {
-	return s.repo.UpdateSettingsAndPolicies(ctx, settings, policies)
+	if err := s.repo.UpdateSettingsAndPolicies(ctx, settings, policies); err != nil {
+		return err
+	}
+	if s.notifier != nil {
+		s.notifier.NotifyChange(ctx, "admission-event-settings")
+	}
+	return nil
 }
 
 func (s *AdmissionService) List(ctx context.Context, options dbrepo.AdmissionEventPageOptions) ([]dbrepo.AdmissionEvent, int64, error) {

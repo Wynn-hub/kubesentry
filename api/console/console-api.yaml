@@ -127,6 +127,12 @@ components:
         application/json:
           schema:
             $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: 操作被禁止。code 为 40300
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
     Gone:
       description: 目标版本快照已被保留策略清理。code 为 41000
       content:
@@ -139,7 +145,15 @@ paths:
     get:
       tags: [Cluster]
       operationId: listClusters
-      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sortBy
+          in: query
+          schema: {type: string, enum: [name, phase, operatorVersion, lastHeartbeatAt, createdAt]}
+        - name: sortOrder
+          in: query
+          schema: {type: string, enum: [asc, desc], default: asc}
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -176,6 +190,7 @@ paths:
       responses:
         '200': {description: 删除成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
+        '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
         '500': {$ref: '#/components/responses/InternalError'}
 
@@ -184,6 +199,7 @@ paths:
       tags: [Cluster]
       operationId: reissueClusterToken
       parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
       responses:
         '200': {description: 操作成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -241,7 +257,15 @@ paths:
     get:
       tags: [Cluster]
       operationId: listInstallRecords
-      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sortBy
+          in: query
+          schema: {type: string, enum: [clusterName, namespace, createdAt]}
+        - name: sortOrder
+          in: query
+          schema: {type: string, enum: [asc, desc], default: desc}
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -250,6 +274,19 @@ paths:
     get:
       tags: [Distribution]
       operationId: listDistributions
+      parameters:
+        - name: page
+          in: query
+          schema: {type: integer, minimum: 1, default: 1}
+        - name: pageSize
+          in: query
+          schema: {type: integer, enum: [10, 20, 50, 100], default: 20}
+        - name: sortBy
+          in: query
+          schema: {type: string, enum: [name]}
+        - name: sortOrder
+          in: query
+          schema: {type: string, enum: [asc, desc], default: asc}
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -288,6 +325,7 @@ paths:
       responses:
         '200': {description: 删除成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
+        '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
         '500': {$ref: '#/components/responses/InternalError'}
   /platform/overview:

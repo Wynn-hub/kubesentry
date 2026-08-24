@@ -443,18 +443,25 @@ func (s *AdmissionEventSettingsRequest) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           100,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.MaxRetryAttempts)); err != nil {
-			return errors.Wrap(err, "int")
+		if value, ok := s.MaxRetryAttempts.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           100,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -464,18 +471,25 @@ func (s *AdmissionEventSettingsRequest) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           10000,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.QueueCapacity)); err != nil {
-			return errors.Wrap(err, "int")
+		if value, ok := s.QueueCapacity.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           10000,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -485,18 +499,25 @@ func (s *AdmissionEventSettingsRequest) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           365,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.IncidentRetentionDays)); err != nil {
-			return errors.Wrap(err, "int")
+		if value, ok := s.IncidentRetentionDays.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           365,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -506,9 +527,6 @@ func (s *AdmissionEventSettingsRequest) Validate() error {
 		})
 	}
 	if err := func() error {
-		if s.StoragePolicies == nil {
-			return errors.New("nil is invalid value")
-		}
 		var failures []validate.FieldError
 		for i, elem := range s.StoragePolicies {
 			if err := func() error {
@@ -1693,6 +1711,69 @@ func (s ListAdmissionLinkIncidentsStatusItem) Validate() error {
 	}
 }
 
+func (s ListClustersSortBy) Validate() error {
+	switch s {
+	case "name":
+		return nil
+	case "phase":
+		return nil
+	case "operatorVersion":
+		return nil
+	case "lastHeartbeatAt":
+		return nil
+	case "createdAt":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ListClustersSortOrder) Validate() error {
+	switch s {
+	case "asc":
+		return nil
+	case "desc":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ListDistributionsPageSize) Validate() error {
+	switch s {
+	case 10:
+		return nil
+	case 20:
+		return nil
+	case 50:
+		return nil
+	case 100:
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ListDistributionsSortBy) Validate() error {
+	switch s {
+	case "name":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ListDistributionsSortOrder) Validate() error {
+	switch s {
+	case "asc":
+		return nil
+	case "desc":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ListExceptionsSortBy) Validate() error {
 	switch s {
 	case "name":
@@ -1711,6 +1792,30 @@ func (s ListExceptionsSortBy) Validate() error {
 }
 
 func (s ListExceptionsSortOrder) Validate() error {
+	switch s {
+	case "asc":
+		return nil
+	case "desc":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ListInstallRecordsSortBy) Validate() error {
+	switch s {
+	case "clusterName":
+		return nil
+	case "namespace":
+		return nil
+	case "createdAt":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ListInstallRecordsSortOrder) Validate() error {
 	switch s {
 	case "asc":
 		return nil

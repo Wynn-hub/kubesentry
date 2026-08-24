@@ -36,6 +36,6 @@ func New(repos repository.Repositories, notifier Notifier) Services {
 		Exception:   NewExceptionService(repos, notifier),
 		Summary:     NewSummaryService(repos),
 		Incident:    NewIncidentService(repos),
-		Admission:   NewAdmissionService(repos.Admission),
+		Admission:   NewAdmissionService(repos.Admission, notifier),
 	}
 }

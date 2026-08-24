@@ -361,6 +361,18 @@ func encodeDeleteClusterResponse(response DeleteClusterRes, w http.ResponseWrite
 
 		return nil
 
+	case *DeleteClusterForbidden:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
 	case *DeleteClusterNotFound:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
@@ -408,6 +420,18 @@ func encodeDeleteDistributionResponse(response DeleteDistributionRes, w http.Res
 	case *DeleteDistributionOK:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
+	case *DeleteDistributionForbidden:
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(403)
 
 		e := new(jx.Encoder)
 		response.Encode(e)

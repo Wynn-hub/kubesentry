@@ -124,6 +124,26 @@ func (h *Handler) GetAdmissionEventSettings(ctx context.Context) (dto.GetAdmissi
 }
 
 func (h *Handler) UpdateAdmissionEventSettings(ctx context.Context, req *dto.AdmissionEventSettingsRequest) (dto.UpdateAdmissionEventSettingsRes, error) {
+	maxRetryAttempts := 3
+	if req.MaxRetryAttempts.Set {
+		maxRetryAttempts = req.MaxRetryAttempts.Value
+	}
+	queueCapacity := 1024
+	if req.QueueCapacity.Set {
+		queueCapacity = req.QueueCapacity.Value
+	}
+	incidentRetentionDays := 7
+	if req.IncidentRetentionDays.Set {
+		incidentRetentionDays = req.IncidentRetentionDays.Value
+	}
+	retryEnabled := false
+	if req.RetryEnabled.Set {
+		retryEnabled = req.RetryEnabled.Value
+	}
+	observationEnabled := false
+	if req.ObservationEnabled.Set {
+		observationEnabled = req.ObservationEnabled.Value
+	}
 	policies := make([]dbrepo.AdmissionStoragePolicy, 0, len(req.StoragePolicies))
 	for i, p := range req.StoragePolicies {
 		verdicts := make([]string, 0, len(p.Verdicts))
@@ -132,7 +152,7 @@ func (h *Handler) UpdateAdmissionEventSettings(ctx context.Context, req *dto.Adm
 		}
 		policies = append(policies, dbrepo.AdmissionStoragePolicy{Priority: i + 1, MatchMode: string(p.MatchMode), Verdicts: verdicts, Clusters: p.Clusters, GVKs: p.Gvks, Namespaces: p.Namespaces})
 	}
-	if err := h.svcs.Admission.UpdateSettings(ctx, &dbrepo.AdmissionEventSettings{ID: 1, DefaultRetentionDays: req.DefaultRetentionDays, RetryEnabled: req.RetryEnabled, MaxRetryAttempts: req.MaxRetryAttempts, QueueCapacity: req.QueueCapacity, IncidentRetentionDays: req.IncidentRetentionDays, ObservationEnabled: req.ObservationEnabled}, policies); err != nil {
+	if err := h.svcs.Admission.UpdateSettings(ctx, &dbrepo.AdmissionEventSettings{ID: 1, DefaultRetentionDays: req.DefaultRetentionDays, RetryEnabled: retryEnabled, MaxRetryAttempts: maxRetryAttempts, QueueCapacity: queueCapacity, IncidentRetentionDays: incidentRetentionDays, ObservationEnabled: observationEnabled}, policies); err != nil {
 		return &dto.UpdateAdmissionEventSettingsInternalServerError{Code: 50000, Message: err.Error()}, nil
 	}
 	s, p, err := h.svcs.Admission.Settings(ctx)

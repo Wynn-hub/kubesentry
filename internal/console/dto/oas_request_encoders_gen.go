@@ -80,6 +80,20 @@ func encodeCreatePolicyGroupRequest(
 	return nil
 }
 
+func encodeReissueClusterTokenRequest(
+	req ReissueClusterTokenReq,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeRollbackPolicyRequest(
 	req *RollbackRequest,
 	r *http.Request,

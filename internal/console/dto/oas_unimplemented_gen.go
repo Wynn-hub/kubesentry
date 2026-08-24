@@ -271,7 +271,7 @@ func (UnimplementedHandler) ListClusters(ctx context.Context, params ListCluster
 // ListDistributions implements listDistributions operation.
 //
 // GET /distributions
-func (UnimplementedHandler) ListDistributions(ctx context.Context) (r ListDistributionsRes, _ error) {
+func (UnimplementedHandler) ListDistributions(ctx context.Context, params ListDistributionsParams) (r ListDistributionsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -338,7 +338,7 @@ func (UnimplementedHandler) ListUninstallTasks(ctx context.Context, params ListU
 // ReissueClusterToken implements reissueClusterToken operation.
 //
 // POST /clusters/{name}/reissue-token
-func (UnimplementedHandler) ReissueClusterToken(ctx context.Context, params ReissueClusterTokenParams) (r ReissueClusterTokenRes, _ error) {
+func (UnimplementedHandler) ReissueClusterToken(ctx context.Context, req ReissueClusterTokenReq, params ReissueClusterTokenParams) (r ReissueClusterTokenRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

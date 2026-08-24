@@ -747,11 +747,11 @@ func (s *AdmissionEventSettings) SetStoragePolicies(val []AdmissionStoragePolicy
 // Ref: #/components/schemas/AdmissionEventSettingsRequest
 type AdmissionEventSettingsRequest struct {
 	DefaultRetentionDays  int                      `json:"defaultRetentionDays"`
-	RetryEnabled          bool                     `json:"retryEnabled"`
-	MaxRetryAttempts      int                      `json:"maxRetryAttempts"`
-	QueueCapacity         int                      `json:"queueCapacity"`
-	IncidentRetentionDays int                      `json:"incidentRetentionDays"`
-	ObservationEnabled    bool                     `json:"observationEnabled"`
+	RetryEnabled          OptBool                  `json:"retryEnabled"`
+	MaxRetryAttempts      OptInt                   `json:"maxRetryAttempts"`
+	QueueCapacity         OptInt                   `json:"queueCapacity"`
+	IncidentRetentionDays OptInt                   `json:"incidentRetentionDays"`
+	ObservationEnabled    OptBool                  `json:"observationEnabled"`
 	StoragePolicies       []AdmissionStoragePolicy `json:"storagePolicies"`
 }
 
@@ -761,27 +761,27 @@ func (s *AdmissionEventSettingsRequest) GetDefaultRetentionDays() int {
 }
 
 // GetRetryEnabled returns the value of RetryEnabled.
-func (s *AdmissionEventSettingsRequest) GetRetryEnabled() bool {
+func (s *AdmissionEventSettingsRequest) GetRetryEnabled() OptBool {
 	return s.RetryEnabled
 }
 
 // GetMaxRetryAttempts returns the value of MaxRetryAttempts.
-func (s *AdmissionEventSettingsRequest) GetMaxRetryAttempts() int {
+func (s *AdmissionEventSettingsRequest) GetMaxRetryAttempts() OptInt {
 	return s.MaxRetryAttempts
 }
 
 // GetQueueCapacity returns the value of QueueCapacity.
-func (s *AdmissionEventSettingsRequest) GetQueueCapacity() int {
+func (s *AdmissionEventSettingsRequest) GetQueueCapacity() OptInt {
 	return s.QueueCapacity
 }
 
 // GetIncidentRetentionDays returns the value of IncidentRetentionDays.
-func (s *AdmissionEventSettingsRequest) GetIncidentRetentionDays() int {
+func (s *AdmissionEventSettingsRequest) GetIncidentRetentionDays() OptInt {
 	return s.IncidentRetentionDays
 }
 
 // GetObservationEnabled returns the value of ObservationEnabled.
-func (s *AdmissionEventSettingsRequest) GetObservationEnabled() bool {
+func (s *AdmissionEventSettingsRequest) GetObservationEnabled() OptBool {
 	return s.ObservationEnabled
 }
 
@@ -796,27 +796,27 @@ func (s *AdmissionEventSettingsRequest) SetDefaultRetentionDays(val int) {
 }
 
 // SetRetryEnabled sets the value of RetryEnabled.
-func (s *AdmissionEventSettingsRequest) SetRetryEnabled(val bool) {
+func (s *AdmissionEventSettingsRequest) SetRetryEnabled(val OptBool) {
 	s.RetryEnabled = val
 }
 
 // SetMaxRetryAttempts sets the value of MaxRetryAttempts.
-func (s *AdmissionEventSettingsRequest) SetMaxRetryAttempts(val int) {
+func (s *AdmissionEventSettingsRequest) SetMaxRetryAttempts(val OptInt) {
 	s.MaxRetryAttempts = val
 }
 
 // SetQueueCapacity sets the value of QueueCapacity.
-func (s *AdmissionEventSettingsRequest) SetQueueCapacity(val int) {
+func (s *AdmissionEventSettingsRequest) SetQueueCapacity(val OptInt) {
 	s.QueueCapacity = val
 }
 
 // SetIncidentRetentionDays sets the value of IncidentRetentionDays.
-func (s *AdmissionEventSettingsRequest) SetIncidentRetentionDays(val int) {
+func (s *AdmissionEventSettingsRequest) SetIncidentRetentionDays(val OptInt) {
 	s.IncidentRetentionDays = val
 }
 
 // SetObservationEnabled sets the value of ObservationEnabled.
-func (s *AdmissionEventSettingsRequest) SetObservationEnabled(val bool) {
+func (s *AdmissionEventSettingsRequest) SetObservationEnabled(val OptBool) {
 	s.ObservationEnabled = val
 }
 
@@ -1904,6 +1904,10 @@ type DeleteClusterConflict ErrorResponse
 
 func (*DeleteClusterConflict) deleteClusterRes() {}
 
+type DeleteClusterForbidden ErrorResponse
+
+func (*DeleteClusterForbidden) deleteClusterRes() {}
+
 type DeleteClusterInternalServerError ErrorResponse
 
 func (*DeleteClusterInternalServerError) deleteClusterRes() {}
@@ -1928,6 +1932,10 @@ func (*DeleteClusterOK) deleteClusterRes() {}
 type DeleteDistributionConflict ErrorResponse
 
 func (*DeleteDistributionConflict) deleteDistributionRes() {}
+
+type DeleteDistributionForbidden ErrorResponse
+
+func (*DeleteDistributionForbidden) deleteDistributionRes() {}
 
 type DeleteDistributionInternalServerError ErrorResponse
 
@@ -3765,6 +3773,109 @@ func (s *ListClustersOK) init() ListClustersOK {
 
 func (*ListClustersOK) listClustersRes() {}
 
+type ListClustersSortBy string
+
+const (
+	ListClustersSortByName            ListClustersSortBy = "name"
+	ListClustersSortByPhase           ListClustersSortBy = "phase"
+	ListClustersSortByOperatorVersion ListClustersSortBy = "operatorVersion"
+	ListClustersSortByLastHeartbeatAt ListClustersSortBy = "lastHeartbeatAt"
+	ListClustersSortByCreatedAt       ListClustersSortBy = "createdAt"
+)
+
+// AllValues returns all ListClustersSortBy values.
+func (ListClustersSortBy) AllValues() []ListClustersSortBy {
+	return []ListClustersSortBy{
+		ListClustersSortByName,
+		ListClustersSortByPhase,
+		ListClustersSortByOperatorVersion,
+		ListClustersSortByLastHeartbeatAt,
+		ListClustersSortByCreatedAt,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListClustersSortBy) MarshalText() ([]byte, error) {
+	switch s {
+	case ListClustersSortByName:
+		return []byte(s), nil
+	case ListClustersSortByPhase:
+		return []byte(s), nil
+	case ListClustersSortByOperatorVersion:
+		return []byte(s), nil
+	case ListClustersSortByLastHeartbeatAt:
+		return []byte(s), nil
+	case ListClustersSortByCreatedAt:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListClustersSortBy) UnmarshalText(data []byte) error {
+	switch ListClustersSortBy(data) {
+	case ListClustersSortByName:
+		*s = ListClustersSortByName
+		return nil
+	case ListClustersSortByPhase:
+		*s = ListClustersSortByPhase
+		return nil
+	case ListClustersSortByOperatorVersion:
+		*s = ListClustersSortByOperatorVersion
+		return nil
+	case ListClustersSortByLastHeartbeatAt:
+		*s = ListClustersSortByLastHeartbeatAt
+		return nil
+	case ListClustersSortByCreatedAt:
+		*s = ListClustersSortByCreatedAt
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListClustersSortOrder string
+
+const (
+	ListClustersSortOrderAsc  ListClustersSortOrder = "asc"
+	ListClustersSortOrderDesc ListClustersSortOrder = "desc"
+)
+
+// AllValues returns all ListClustersSortOrder values.
+func (ListClustersSortOrder) AllValues() []ListClustersSortOrder {
+	return []ListClustersSortOrder{
+		ListClustersSortOrderAsc,
+		ListClustersSortOrderDesc,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListClustersSortOrder) MarshalText() ([]byte, error) {
+	switch s {
+	case ListClustersSortOrderAsc:
+		return []byte(s), nil
+	case ListClustersSortOrderDesc:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListClustersSortOrder) UnmarshalText(data []byte) error {
+	switch ListClustersSortOrder(data) {
+	case ListClustersSortOrderAsc:
+		*s = ListClustersSortOrderAsc
+		return nil
+	case ListClustersSortOrderDesc:
+		*s = ListClustersSortOrderDesc
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ListDistributionsOK map[string]jx.Raw
 
 func (s *ListDistributionsOK) init() ListDistributionsOK {
@@ -3777,6 +3888,100 @@ func (s *ListDistributionsOK) init() ListDistributionsOK {
 }
 
 func (*ListDistributionsOK) listDistributionsRes() {}
+
+type ListDistributionsPageSize int
+
+const (
+	ListDistributionsPageSize10  ListDistributionsPageSize = 10
+	ListDistributionsPageSize20  ListDistributionsPageSize = 20
+	ListDistributionsPageSize50  ListDistributionsPageSize = 50
+	ListDistributionsPageSize100 ListDistributionsPageSize = 100
+)
+
+// AllValues returns all ListDistributionsPageSize values.
+func (ListDistributionsPageSize) AllValues() []ListDistributionsPageSize {
+	return []ListDistributionsPageSize{
+		ListDistributionsPageSize10,
+		ListDistributionsPageSize20,
+		ListDistributionsPageSize50,
+		ListDistributionsPageSize100,
+	}
+}
+
+type ListDistributionsSortBy string
+
+const (
+	ListDistributionsSortByName ListDistributionsSortBy = "name"
+)
+
+// AllValues returns all ListDistributionsSortBy values.
+func (ListDistributionsSortBy) AllValues() []ListDistributionsSortBy {
+	return []ListDistributionsSortBy{
+		ListDistributionsSortByName,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListDistributionsSortBy) MarshalText() ([]byte, error) {
+	switch s {
+	case ListDistributionsSortByName:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListDistributionsSortBy) UnmarshalText(data []byte) error {
+	switch ListDistributionsSortBy(data) {
+	case ListDistributionsSortByName:
+		*s = ListDistributionsSortByName
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListDistributionsSortOrder string
+
+const (
+	ListDistributionsSortOrderAsc  ListDistributionsSortOrder = "asc"
+	ListDistributionsSortOrderDesc ListDistributionsSortOrder = "desc"
+)
+
+// AllValues returns all ListDistributionsSortOrder values.
+func (ListDistributionsSortOrder) AllValues() []ListDistributionsSortOrder {
+	return []ListDistributionsSortOrder{
+		ListDistributionsSortOrderAsc,
+		ListDistributionsSortOrderDesc,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListDistributionsSortOrder) MarshalText() ([]byte, error) {
+	switch s {
+	case ListDistributionsSortOrderAsc:
+		return []byte(s), nil
+	case ListDistributionsSortOrderDesc:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListDistributionsSortOrder) UnmarshalText(data []byte) error {
+	switch ListDistributionsSortOrder(data) {
+	case ListDistributionsSortOrderAsc:
+		*s = ListDistributionsSortOrderAsc
+		return nil
+	case ListDistributionsSortOrderDesc:
+		*s = ListDistributionsSortOrderDesc
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type ListExceptionsBadRequest ErrorResponse
 
@@ -3903,6 +4108,95 @@ func (s *ListInstallRecordsOK) init() ListInstallRecordsOK {
 }
 
 func (*ListInstallRecordsOK) listInstallRecordsRes() {}
+
+type ListInstallRecordsSortBy string
+
+const (
+	ListInstallRecordsSortByClusterName ListInstallRecordsSortBy = "clusterName"
+	ListInstallRecordsSortByNamespace   ListInstallRecordsSortBy = "namespace"
+	ListInstallRecordsSortByCreatedAt   ListInstallRecordsSortBy = "createdAt"
+)
+
+// AllValues returns all ListInstallRecordsSortBy values.
+func (ListInstallRecordsSortBy) AllValues() []ListInstallRecordsSortBy {
+	return []ListInstallRecordsSortBy{
+		ListInstallRecordsSortByClusterName,
+		ListInstallRecordsSortByNamespace,
+		ListInstallRecordsSortByCreatedAt,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListInstallRecordsSortBy) MarshalText() ([]byte, error) {
+	switch s {
+	case ListInstallRecordsSortByClusterName:
+		return []byte(s), nil
+	case ListInstallRecordsSortByNamespace:
+		return []byte(s), nil
+	case ListInstallRecordsSortByCreatedAt:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListInstallRecordsSortBy) UnmarshalText(data []byte) error {
+	switch ListInstallRecordsSortBy(data) {
+	case ListInstallRecordsSortByClusterName:
+		*s = ListInstallRecordsSortByClusterName
+		return nil
+	case ListInstallRecordsSortByNamespace:
+		*s = ListInstallRecordsSortByNamespace
+		return nil
+	case ListInstallRecordsSortByCreatedAt:
+		*s = ListInstallRecordsSortByCreatedAt
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListInstallRecordsSortOrder string
+
+const (
+	ListInstallRecordsSortOrderAsc  ListInstallRecordsSortOrder = "asc"
+	ListInstallRecordsSortOrderDesc ListInstallRecordsSortOrder = "desc"
+)
+
+// AllValues returns all ListInstallRecordsSortOrder values.
+func (ListInstallRecordsSortOrder) AllValues() []ListInstallRecordsSortOrder {
+	return []ListInstallRecordsSortOrder{
+		ListInstallRecordsSortOrderAsc,
+		ListInstallRecordsSortOrderDesc,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListInstallRecordsSortOrder) MarshalText() ([]byte, error) {
+	switch s {
+	case ListInstallRecordsSortOrderAsc:
+		return []byte(s), nil
+	case ListInstallRecordsSortOrderDesc:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListInstallRecordsSortOrder) UnmarshalText(data []byte) error {
+	switch ListInstallRecordsSortOrder(data) {
+	case ListInstallRecordsSortOrderAsc:
+		*s = ListInstallRecordsSortOrderAsc
+		return nil
+	case ListInstallRecordsSortOrderDesc:
+		*s = ListInstallRecordsSortOrderDesc
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type ListPlatformLeadershipEventsBadRequest ErrorResponse
 
@@ -5139,6 +5433,236 @@ func (o OptListAdmissionEventsVerdict) Or(d ListAdmissionEventsVerdict) ListAdmi
 	return d
 }
 
+// NewOptListClustersSortBy returns new OptListClustersSortBy with value set to v.
+func NewOptListClustersSortBy(v ListClustersSortBy) OptListClustersSortBy {
+	return OptListClustersSortBy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListClustersSortBy is optional ListClustersSortBy.
+type OptListClustersSortBy struct {
+	Value ListClustersSortBy
+	Set   bool
+}
+
+// IsSet returns true if OptListClustersSortBy was set.
+func (o OptListClustersSortBy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListClustersSortBy) Reset() {
+	var v ListClustersSortBy
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListClustersSortBy) SetTo(v ListClustersSortBy) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListClustersSortBy) Get() (v ListClustersSortBy, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListClustersSortBy) Or(d ListClustersSortBy) ListClustersSortBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListClustersSortOrder returns new OptListClustersSortOrder with value set to v.
+func NewOptListClustersSortOrder(v ListClustersSortOrder) OptListClustersSortOrder {
+	return OptListClustersSortOrder{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListClustersSortOrder is optional ListClustersSortOrder.
+type OptListClustersSortOrder struct {
+	Value ListClustersSortOrder
+	Set   bool
+}
+
+// IsSet returns true if OptListClustersSortOrder was set.
+func (o OptListClustersSortOrder) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListClustersSortOrder) Reset() {
+	var v ListClustersSortOrder
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListClustersSortOrder) SetTo(v ListClustersSortOrder) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListClustersSortOrder) Get() (v ListClustersSortOrder, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListClustersSortOrder) Or(d ListClustersSortOrder) ListClustersSortOrder {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListDistributionsPageSize returns new OptListDistributionsPageSize with value set to v.
+func NewOptListDistributionsPageSize(v ListDistributionsPageSize) OptListDistributionsPageSize {
+	return OptListDistributionsPageSize{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListDistributionsPageSize is optional ListDistributionsPageSize.
+type OptListDistributionsPageSize struct {
+	Value ListDistributionsPageSize
+	Set   bool
+}
+
+// IsSet returns true if OptListDistributionsPageSize was set.
+func (o OptListDistributionsPageSize) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListDistributionsPageSize) Reset() {
+	var v ListDistributionsPageSize
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListDistributionsPageSize) SetTo(v ListDistributionsPageSize) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListDistributionsPageSize) Get() (v ListDistributionsPageSize, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListDistributionsPageSize) Or(d ListDistributionsPageSize) ListDistributionsPageSize {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListDistributionsSortBy returns new OptListDistributionsSortBy with value set to v.
+func NewOptListDistributionsSortBy(v ListDistributionsSortBy) OptListDistributionsSortBy {
+	return OptListDistributionsSortBy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListDistributionsSortBy is optional ListDistributionsSortBy.
+type OptListDistributionsSortBy struct {
+	Value ListDistributionsSortBy
+	Set   bool
+}
+
+// IsSet returns true if OptListDistributionsSortBy was set.
+func (o OptListDistributionsSortBy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListDistributionsSortBy) Reset() {
+	var v ListDistributionsSortBy
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListDistributionsSortBy) SetTo(v ListDistributionsSortBy) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListDistributionsSortBy) Get() (v ListDistributionsSortBy, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListDistributionsSortBy) Or(d ListDistributionsSortBy) ListDistributionsSortBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListDistributionsSortOrder returns new OptListDistributionsSortOrder with value set to v.
+func NewOptListDistributionsSortOrder(v ListDistributionsSortOrder) OptListDistributionsSortOrder {
+	return OptListDistributionsSortOrder{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListDistributionsSortOrder is optional ListDistributionsSortOrder.
+type OptListDistributionsSortOrder struct {
+	Value ListDistributionsSortOrder
+	Set   bool
+}
+
+// IsSet returns true if OptListDistributionsSortOrder was set.
+func (o OptListDistributionsSortOrder) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListDistributionsSortOrder) Reset() {
+	var v ListDistributionsSortOrder
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListDistributionsSortOrder) SetTo(v ListDistributionsSortOrder) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListDistributionsSortOrder) Get() (v ListDistributionsSortOrder, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListDistributionsSortOrder) Or(d ListDistributionsSortOrder) ListDistributionsSortOrder {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptListExceptionsSortBy returns new OptListExceptionsSortBy with value set to v.
 func NewOptListExceptionsSortBy(v ListExceptionsSortBy) OptListExceptionsSortBy {
 	return OptListExceptionsSortBy{
@@ -5225,6 +5749,98 @@ func (o OptListExceptionsSortOrder) Get() (v ListExceptionsSortOrder, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptListExceptionsSortOrder) Or(d ListExceptionsSortOrder) ListExceptionsSortOrder {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListInstallRecordsSortBy returns new OptListInstallRecordsSortBy with value set to v.
+func NewOptListInstallRecordsSortBy(v ListInstallRecordsSortBy) OptListInstallRecordsSortBy {
+	return OptListInstallRecordsSortBy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListInstallRecordsSortBy is optional ListInstallRecordsSortBy.
+type OptListInstallRecordsSortBy struct {
+	Value ListInstallRecordsSortBy
+	Set   bool
+}
+
+// IsSet returns true if OptListInstallRecordsSortBy was set.
+func (o OptListInstallRecordsSortBy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListInstallRecordsSortBy) Reset() {
+	var v ListInstallRecordsSortBy
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListInstallRecordsSortBy) SetTo(v ListInstallRecordsSortBy) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListInstallRecordsSortBy) Get() (v ListInstallRecordsSortBy, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListInstallRecordsSortBy) Or(d ListInstallRecordsSortBy) ListInstallRecordsSortBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListInstallRecordsSortOrder returns new OptListInstallRecordsSortOrder with value set to v.
+func NewOptListInstallRecordsSortOrder(v ListInstallRecordsSortOrder) OptListInstallRecordsSortOrder {
+	return OptListInstallRecordsSortOrder{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListInstallRecordsSortOrder is optional ListInstallRecordsSortOrder.
+type OptListInstallRecordsSortOrder struct {
+	Value ListInstallRecordsSortOrder
+	Set   bool
+}
+
+// IsSet returns true if OptListInstallRecordsSortOrder was set.
+func (o OptListInstallRecordsSortOrder) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListInstallRecordsSortOrder) Reset() {
+	var v ListInstallRecordsSortOrder
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListInstallRecordsSortOrder) SetTo(v ListInstallRecordsSortOrder) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListInstallRecordsSortOrder) Get() (v ListInstallRecordsSortOrder, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListInstallRecordsSortOrder) Or(d ListInstallRecordsSortOrder) ListInstallRecordsSortOrder {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -8764,6 +9380,17 @@ func (s *ReissueClusterTokenOK) init() ReissueClusterTokenOK {
 }
 
 func (*ReissueClusterTokenOK) reissueClusterTokenRes() {}
+
+type ReissueClusterTokenReq map[string]jx.Raw
+
+func (s *ReissueClusterTokenReq) init() ReissueClusterTokenReq {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
 
 type ResourceID string
 

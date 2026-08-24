@@ -3156,7 +3156,9 @@ type ListClustersParams struct {
 	// 页码，从 1 开始。省略时为 1.
 	Page OptInt `json:",omitempty,omitzero"`
 	// 每页记录数。仅接受 10、20、50、100。省略时为 20.
-	PageSize OptPageSize `json:",omitempty,omitzero"`
+	PageSize  OptPageSize              `json:",omitempty,omitzero"`
+	SortBy    OptListClustersSortBy    `json:",omitempty,omitzero"`
+	SortOrder OptListClustersSortOrder `json:",omitempty,omitzero"`
 }
 
 func unpackListClustersParams(packed middleware.Parameters) (params ListClustersParams) {
@@ -3176,6 +3178,24 @@ func unpackListClustersParams(packed middleware.Parameters) (params ListClusters
 		}
 		if v, ok := packed[key]; ok {
 			params.PageSize = v.(OptPageSize)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "sortBy",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.SortBy = v.(OptListClustersSortBy)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "sortOrder",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.SortOrder = v.(OptListClustersSortOrder)
 		}
 	}
 	return params
@@ -3311,6 +3331,425 @@ func decodeListClustersParams(args [0]string, argsEscaped bool, r *http.Request)
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "pageSize",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: sortBy.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "sortBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSortByVal ListClustersSortBy
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSortByVal = ListClustersSortBy(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SortBy.SetTo(paramsDotSortByVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.SortBy.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "sortBy",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: sortOrder.
+	{
+		val := ListClustersSortOrder("asc")
+		params.SortOrder.SetTo(val)
+	}
+	// Decode query: sortOrder.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "sortOrder",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSortOrderVal ListClustersSortOrder
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSortOrderVal = ListClustersSortOrder(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SortOrder.SetTo(paramsDotSortOrderVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.SortOrder.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "sortOrder",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// ListDistributionsParams is parameters of listDistributions operation.
+type ListDistributionsParams struct {
+	Page      OptInt                        `json:",omitempty,omitzero"`
+	PageSize  OptListDistributionsPageSize  `json:",omitempty,omitzero"`
+	SortBy    OptListDistributionsSortBy    `json:",omitempty,omitzero"`
+	SortOrder OptListDistributionsSortOrder `json:",omitempty,omitzero"`
+}
+
+func unpackListDistributionsParams(packed middleware.Parameters) (params ListDistributionsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "page",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Page = v.(OptInt)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "pageSize",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.PageSize = v.(OptListDistributionsPageSize)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "sortBy",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.SortBy = v.(OptListDistributionsSortBy)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "sortOrder",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.SortOrder = v.(OptListDistributionsSortOrder)
+		}
+	}
+	return params
+}
+
+func decodeListDistributionsParams(args [0]string, argsEscaped bool, r *http.Request) (params ListDistributionsParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Set default value for query: page.
+	{
+		val := int(1)
+		params.Page.SetTo(val)
+	}
+	// Decode query: page.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "page",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotPageVal int
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToInt(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotPageVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Page.SetTo(paramsDotPageVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Page.Get(); ok {
+					if err := func() error {
+						if err := (validate.Int{
+							MinSet:        true,
+							Min:           1,
+							MaxSet:        false,
+							Max:           0,
+							MinExclusive:  false,
+							MaxExclusive:  false,
+							MultipleOfSet: false,
+							MultipleOf:    0,
+							Pattern:       nil,
+						}).Validate(int64(value)); err != nil {
+							return errors.Wrap(err, "int")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "page",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: pageSize.
+	{
+		val := ListDistributionsPageSize(20)
+		params.PageSize.SetTo(val)
+	}
+	// Decode query: pageSize.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "pageSize",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotPageSizeVal ListDistributionsPageSize
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToInt(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotPageSizeVal = ListDistributionsPageSize(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.PageSize.SetTo(paramsDotPageSizeVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.PageSize.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "pageSize",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: sortBy.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "sortBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSortByVal ListDistributionsSortBy
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSortByVal = ListDistributionsSortBy(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SortBy.SetTo(paramsDotSortByVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.SortBy.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "sortBy",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: sortOrder.
+	{
+		val := ListDistributionsSortOrder("asc")
+		params.SortOrder.SetTo(val)
+	}
+	// Decode query: sortOrder.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "sortOrder",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSortOrderVal ListDistributionsSortOrder
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSortOrderVal = ListDistributionsSortOrder(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SortOrder.SetTo(paramsDotSortOrderVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.SortOrder.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "sortOrder",
 			In:   "query",
 			Err:  err,
 		}
@@ -3634,7 +4073,9 @@ type ListInstallRecordsParams struct {
 	// 页码，从 1 开始。省略时为 1.
 	Page OptInt `json:",omitempty,omitzero"`
 	// 每页记录数。仅接受 10、20、50、100。省略时为 20.
-	PageSize OptPageSize `json:",omitempty,omitzero"`
+	PageSize  OptPageSize                    `json:",omitempty,omitzero"`
+	SortBy    OptListInstallRecordsSortBy    `json:",omitempty,omitzero"`
+	SortOrder OptListInstallRecordsSortOrder `json:",omitempty,omitzero"`
 }
 
 func unpackListInstallRecordsParams(packed middleware.Parameters) (params ListInstallRecordsParams) {
@@ -3654,6 +4095,24 @@ func unpackListInstallRecordsParams(packed middleware.Parameters) (params ListIn
 		}
 		if v, ok := packed[key]; ok {
 			params.PageSize = v.(OptPageSize)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "sortBy",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.SortBy = v.(OptListInstallRecordsSortBy)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "sortOrder",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.SortOrder = v.(OptListInstallRecordsSortOrder)
 		}
 	}
 	return params
@@ -3789,6 +4248,123 @@ func decodeListInstallRecordsParams(args [0]string, argsEscaped bool, r *http.Re
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "pageSize",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: sortBy.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "sortBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSortByVal ListInstallRecordsSortBy
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSortByVal = ListInstallRecordsSortBy(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SortBy.SetTo(paramsDotSortByVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.SortBy.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "sortBy",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: sortOrder.
+	{
+		val := ListInstallRecordsSortOrder("desc")
+		params.SortOrder.SetTo(val)
+	}
+	// Decode query: sortOrder.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "sortOrder",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSortOrderVal ListInstallRecordsSortOrder
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSortOrderVal = ListInstallRecordsSortOrder(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.SortOrder.SetTo(paramsDotSortOrderVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.SortOrder.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "sortOrder",
 			In:   "query",
 			Err:  err,
 		}

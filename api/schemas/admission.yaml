@@ -35,7 +35,9 @@ components:
           items: {$ref: '#/components/schemas/AdmissionStoragePolicy'}
     AdmissionEventSettingsRequest:
       type: object
-      required: [defaultRetentionDays, retryEnabled, maxRetryAttempts, queueCapacity, incidentRetentionDays, observationEnabled, storagePolicies]
+      # Existing clients may update only the retention and queue settings. The
+      # remaining fields retain their server-side defaults when omitted.
+      required: [defaultRetentionDays]
       properties:
         defaultRetentionDays: {type: integer, minimum: 1, maximum: 365}
         retryEnabled: {type: boolean}

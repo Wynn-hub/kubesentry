@@ -4,12 +4,30 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"strconv"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 )
 
-func (h *Handler) ListDistributions(ctx context.Context) (dto.ListDistributionsRes, error) {
-	v, status, err := h.invokeObject(ctx, "GET", "/api/v1/distributions", nil)
+func (h *Handler) ListDistributions(ctx context.Context, p dto.ListDistributionsParams) (dto.ListDistributionsRes, error) {
+	q := url.Values{}
+	if p.Page.Set {
+		q.Set("page", strconv.Itoa(p.Page.Value))
+	}
+	if p.PageSize.Set {
+		q.Set("pageSize", strconv.Itoa(int(p.PageSize.Value)))
+	}
+	if p.SortBy.Set {
+		q.Set("sortBy", string(p.SortBy.Value))
+	}
+	if p.SortOrder.Set {
+		q.Set("sortOrder", string(p.SortOrder.Value))
+	}
+	path := "/api/v1/distributions"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	v, status, err := h.invokeObject(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}

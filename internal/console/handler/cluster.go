@@ -33,6 +33,12 @@ func queryPage(q url.Values, page dto.OptInt, size dto.OptPageSize) {
 func (h *Handler) ListClusters(ctx context.Context, p dto.ListClustersParams) (dto.ListClustersRes, error) {
 	q := url.Values{}
 	queryPage(q, p.Page, p.PageSize)
+	if p.SortBy.Set {
+		q.Set("sortBy", string(p.SortBy.Value))
+	}
+	if p.SortOrder.Set {
+		q.Set("sortOrder", string(p.SortOrder.Value))
+	}
 	path := "/api/v1/clusters"
 	if s := q.Encode(); s != "" {
 		path += "?" + s
@@ -57,7 +63,7 @@ func (h *Handler) CreateCluster(ctx context.Context, req dto.CreateClusterReq) (
 		return nil, err
 	}
 	if status >= 400 {
-		return createClusterError(status), nil
+		return createClusterError(status, responseMessage(v)), nil
 	}
 	return (*dto.CreateClusterOK)(&v), nil
 }
@@ -99,8 +105,12 @@ func (h *Handler) DeleteCluster(ctx context.Context, p dto.DeleteClusterParams) 
 	return (*dto.DeleteClusterOK)(&v), nil
 }
 
-func (h *Handler) ReissueClusterToken(ctx context.Context, p dto.ReissueClusterTokenParams) (dto.ReissueClusterTokenRes, error) {
-	v, status, err := h.invokeObject(ctx, "POST", "/api/v1/clusters/"+url.PathEscape(p.Name)+"/reissue-token", nil)
+func (h *Handler) ReissueClusterToken(ctx context.Context, req dto.ReissueClusterTokenReq, p dto.ReissueClusterTokenParams) (dto.ReissueClusterTokenRes, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	v, status, err := h.invokeObject(ctx, "POST", "/api/v1/clusters/"+url.PathEscape(p.Name)+"/reissue-token", body)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +174,12 @@ func (h *Handler) RetryUninstallTask(ctx context.Context, p dto.RetryUninstallTa
 func (h *Handler) ListInstallRecords(ctx context.Context, p dto.ListInstallRecordsParams) (dto.ListInstallRecordsRes, error) {
 	q := url.Values{}
 	queryPage(q, p.Page, p.PageSize)
+	if p.SortBy.Set {
+		q.Set("sortBy", string(p.SortBy.Value))
+	}
+	if p.SortOrder.Set {
+		q.Set("sortOrder", string(p.SortOrder.Value))
+	}
 	path := "/api/v1/install-records"
 	if s := q.Encode(); s != "" {
 		path += "?" + s

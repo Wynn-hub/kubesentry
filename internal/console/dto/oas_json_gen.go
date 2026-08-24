@@ -1694,32 +1694,44 @@ func (s *AdmissionEventSettingsRequest) encodeFields(e *jx.Encoder) {
 		e.Int(s.DefaultRetentionDays)
 	}
 	{
-		e.FieldStart("retryEnabled")
-		e.Bool(s.RetryEnabled)
-	}
-	{
-		e.FieldStart("maxRetryAttempts")
-		e.Int(s.MaxRetryAttempts)
-	}
-	{
-		e.FieldStart("queueCapacity")
-		e.Int(s.QueueCapacity)
-	}
-	{
-		e.FieldStart("incidentRetentionDays")
-		e.Int(s.IncidentRetentionDays)
-	}
-	{
-		e.FieldStart("observationEnabled")
-		e.Bool(s.ObservationEnabled)
-	}
-	{
-		e.FieldStart("storagePolicies")
-		e.ArrStart()
-		for _, elem := range s.StoragePolicies {
-			elem.Encode(e)
+		if s.RetryEnabled.Set {
+			e.FieldStart("retryEnabled")
+			s.RetryEnabled.Encode(e)
 		}
-		e.ArrEnd()
+	}
+	{
+		if s.MaxRetryAttempts.Set {
+			e.FieldStart("maxRetryAttempts")
+			s.MaxRetryAttempts.Encode(e)
+		}
+	}
+	{
+		if s.QueueCapacity.Set {
+			e.FieldStart("queueCapacity")
+			s.QueueCapacity.Encode(e)
+		}
+	}
+	{
+		if s.IncidentRetentionDays.Set {
+			e.FieldStart("incidentRetentionDays")
+			s.IncidentRetentionDays.Encode(e)
+		}
+	}
+	{
+		if s.ObservationEnabled.Set {
+			e.FieldStart("observationEnabled")
+			s.ObservationEnabled.Encode(e)
+		}
+	}
+	{
+		if s.StoragePolicies != nil {
+			e.FieldStart("storagePolicies")
+			e.ArrStart()
+			for _, elem := range s.StoragePolicies {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
 	}
 }
 
@@ -1755,11 +1767,9 @@ func (s *AdmissionEventSettingsRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"defaultRetentionDays\"")
 			}
 		case "retryEnabled":
-			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				v, err := d.Bool()
-				s.RetryEnabled = bool(v)
-				if err != nil {
+				s.RetryEnabled.Reset()
+				if err := s.RetryEnabled.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -1767,11 +1777,9 @@ func (s *AdmissionEventSettingsRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"retryEnabled\"")
 			}
 		case "maxRetryAttempts":
-			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				v, err := d.Int()
-				s.MaxRetryAttempts = int(v)
-				if err != nil {
+				s.MaxRetryAttempts.Reset()
+				if err := s.MaxRetryAttempts.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -1779,11 +1787,9 @@ func (s *AdmissionEventSettingsRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"maxRetryAttempts\"")
 			}
 		case "queueCapacity":
-			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
-				v, err := d.Int()
-				s.QueueCapacity = int(v)
-				if err != nil {
+				s.QueueCapacity.Reset()
+				if err := s.QueueCapacity.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -1791,11 +1797,9 @@ func (s *AdmissionEventSettingsRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"queueCapacity\"")
 			}
 		case "incidentRetentionDays":
-			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
-				v, err := d.Int()
-				s.IncidentRetentionDays = int(v)
-				if err != nil {
+				s.IncidentRetentionDays.Reset()
+				if err := s.IncidentRetentionDays.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -1803,11 +1807,9 @@ func (s *AdmissionEventSettingsRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"incidentRetentionDays\"")
 			}
 		case "observationEnabled":
-			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				v, err := d.Bool()
-				s.ObservationEnabled = bool(v)
-				if err != nil {
+				s.ObservationEnabled.Reset()
+				if err := s.ObservationEnabled.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -1815,7 +1817,6 @@ func (s *AdmissionEventSettingsRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"observationEnabled\"")
 			}
 		case "storagePolicies":
-			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.StoragePolicies = make([]AdmissionStoragePolicy, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -1842,7 +1843,7 @@ func (s *AdmissionEventSettingsRequest) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -4870,6 +4871,44 @@ func (s *DeleteClusterConflict) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes DeleteClusterForbidden as json.
+func (s *DeleteClusterForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*ErrorResponse)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes DeleteClusterForbidden from json.
+func (s *DeleteClusterForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DeleteClusterForbidden to nil")
+	}
+	var unwrapped ErrorResponse
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = DeleteClusterForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *DeleteClusterForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DeleteClusterForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes DeleteClusterInternalServerError as json.
 func (s *DeleteClusterInternalServerError) Encode(e *jx.Encoder) {
 	unwrapped := (*ErrorResponse)(s)
@@ -5038,6 +5077,44 @@ func (s *DeleteDistributionConflict) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *DeleteDistributionConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes DeleteDistributionForbidden as json.
+func (s *DeleteDistributionForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*ErrorResponse)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes DeleteDistributionForbidden from json.
+func (s *DeleteDistributionForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DeleteDistributionForbidden to nil")
+	}
+	var unwrapped ErrorResponse
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = DeleteDistributionForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *DeleteDistributionForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DeleteDistributionForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -11779,6 +11856,41 @@ func (s *OptExceptionNameResponseData) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes int as json.
+func (o OptInt) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Int(int(o.Value))
+}
+
+// Decode decodes int from json.
+func (o *OptInt) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptInt to nil")
+	}
+	o.Set = true
+	v, err := d.Int()
+	if err != nil {
+		return err
+	}
+	o.Value = int(v)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptInt) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptInt) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes LabelSelector as json.
 func (o OptLabelSelector) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -17994,6 +18106,64 @@ func (s ReissueClusterTokenOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReissueClusterTokenOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s ReissueClusterTokenReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s ReissueClusterTokenReq) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		if len(elem) != 0 {
+			e.Raw(elem)
+		}
+	}
+}
+
+// Decode decodes ReissueClusterTokenReq from json.
+func (s *ReissueClusterTokenReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReissueClusterTokenReq to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem jx.Raw
+		if err := func() error {
+			v, err := d.RawAppend(nil)
+			elem = jx.Raw(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ReissueClusterTokenReq")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReissueClusterTokenReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReissueClusterTokenReq) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

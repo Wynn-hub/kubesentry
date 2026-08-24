@@ -196,7 +196,7 @@ type Invoker interface {
 	// ListDistributions invokes listDistributions operation.
 	//
 	// GET /distributions
-	ListDistributions(ctx context.Context) (ListDistributionsRes, error)
+	ListDistributions(ctx context.Context, params ListDistributionsParams) (ListDistributionsRes, error)
 	// ListExceptions invokes listExceptions operation.
 	//
 	// 分页查询策略例外.
@@ -239,7 +239,7 @@ type Invoker interface {
 	// ReissueClusterToken invokes reissueClusterToken operation.
 	//
 	// POST /clusters/{name}/reissue-token
-	ReissueClusterToken(ctx context.Context, params ReissueClusterTokenParams) (ReissueClusterTokenRes, error)
+	ReissueClusterToken(ctx context.Context, request ReissueClusterTokenReq, params ReissueClusterTokenParams) (ReissueClusterTokenRes, error)
 	// RetryUninstallTask invokes retryUninstallTask operation.
 	//
 	// POST /clusters/{name}/uninstall-tasks/{taskID}/retry
@@ -3681,6 +3681,40 @@ func (c *Client) sendListClusters(ctx context.Context, params ListClustersParams
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
+	{
+		// Encode "sortBy" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sortBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortBy.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "sortOrder" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sortOrder",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortOrder.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
 	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
@@ -3715,12 +3749,12 @@ func (c *Client) sendListClusters(ctx context.Context, params ListClustersParams
 // ListDistributions invokes listDistributions operation.
 //
 // GET /distributions
-func (c *Client) ListDistributions(ctx context.Context) (ListDistributionsRes, error) {
-	res, err := c.sendListDistributions(ctx)
+func (c *Client) ListDistributions(ctx context.Context, params ListDistributionsParams) (ListDistributionsRes, error) {
+	res, err := c.sendListDistributions(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendListDistributions(ctx context.Context) (res ListDistributionsRes, err error) {
+func (c *Client) sendListDistributions(ctx context.Context, params ListDistributionsParams) (res ListDistributionsRes, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("listDistributions"),
 		semconv.HTTPRequestMethodKey.String("GET"),
@@ -3760,6 +3794,78 @@ func (c *Client) sendListDistributions(ctx context.Context) (res ListDistributio
 	var pathParts [1]string
 	pathParts[0] = "/distributions"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "page" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "page",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Page.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "pageSize" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "pageSize",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.PageSize.Get(); ok {
+				return e.EncodeValue(conv.IntToString(int(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "sortBy" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sortBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortBy.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "sortOrder" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sortOrder",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortOrder.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "GET", u)
@@ -4021,6 +4127,40 @@ func (c *Client) sendListInstallRecords(ctx context.Context, params ListInstallR
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.PageSize.Get(); ok {
 				return e.EncodeValue(conv.IntToString(int(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "sortBy" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sortBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortBy.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "sortOrder" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "sortOrder",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.SortOrder.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
 			}
 			return nil
 		}); err != nil {
@@ -4881,12 +5021,12 @@ func (c *Client) sendListUninstallTasks(ctx context.Context, params ListUninstal
 // ReissueClusterToken invokes reissueClusterToken operation.
 //
 // POST /clusters/{name}/reissue-token
-func (c *Client) ReissueClusterToken(ctx context.Context, params ReissueClusterTokenParams) (ReissueClusterTokenRes, error) {
-	res, err := c.sendReissueClusterToken(ctx, params)
+func (c *Client) ReissueClusterToken(ctx context.Context, request ReissueClusterTokenReq, params ReissueClusterTokenParams) (ReissueClusterTokenRes, error) {
+	res, err := c.sendReissueClusterToken(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendReissueClusterToken(ctx context.Context, params ReissueClusterTokenParams) (res ReissueClusterTokenRes, err error) {
+func (c *Client) sendReissueClusterToken(ctx context.Context, request ReissueClusterTokenReq, params ReissueClusterTokenParams) (res ReissueClusterTokenRes, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("reissueClusterToken"),
 		semconv.HTTPRequestMethodKey.String("POST"),
@@ -4950,6 +5090,9 @@ func (c *Client) sendReissueClusterToken(ctx context.Context, params ReissueClus
 	r, err := ht.NewRequest(ctx, "POST", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeReissueClusterTokenRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
 	}
 
 	stage = "SendRequest"

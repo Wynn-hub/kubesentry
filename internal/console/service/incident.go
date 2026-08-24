@@ -31,10 +31,21 @@ func (s *IncidentService) List(ctx context.Context, p dto.ListAdmissionLinkIncid
 	page, size := p.Page.Or(1), int(p.PageSize.Or(dto.PageSize20))
 	components := make([]string, 0, len(p.Component))
 	for _, v := range p.Component {
+		if !admissionobs.Component(v).Valid() {
+			return nil, &ValidationError{Msg: "invalid component"}
+		}
 		components = append(components, string(v))
+	}
+	for _, reason := range p.Reason {
+		if !admissionobs.ValidReason(reason) {
+			return nil, &ValidationError{Msg: "invalid reason"}
+		}
 	}
 	statuses := make([]string, 0, len(p.Status))
 	for _, v := range p.Status {
+		if v != "active" && v != "interrupted" && v != "closed" {
+			return nil, &ValidationError{Msg: "invalid status"}
+		}
 		statuses = append(statuses, string(v))
 	}
 	var from, to *time.Time
