@@ -81,6 +81,11 @@ func TestOpenAPIDocumentationEndpoints(t *testing.T) {
 	if docs.Code != http.StatusOK || docs.Header().Get("Content-Type") != "text/html; charset=utf-8" {
 		t.Fatalf("api docs = %d %q", docs.Code, docs.Header().Get("Content-Type"))
 	}
+	legacyDocs := httptest.NewRecorder()
+	h.ServeHTTP(legacyDocs, httptest.NewRequest("GET", "/system/api-docs", nil))
+	if legacyDocs.Code != http.StatusOK {
+		t.Fatalf("system api docs = %d", legacyDocs.Code)
+	}
 
 	spec := httptest.NewRecorder()
 	h.ServeHTTP(spec, httptest.NewRequest("GET", "/api/docs/openapi.json", nil))

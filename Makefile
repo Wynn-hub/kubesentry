@@ -13,6 +13,11 @@ CHART_DIR  = charts/kubesentry
 GATEWAY_CHART_DIR = charts/kubesentry-gateway
 DIST_DIR   = dist
 REPORT_DIR = $(DIST_DIR)/test-reports
+# Gateway-plane packages use testcontainers PostgreSQL instances. Keep Go
+# package-level test concurrency at one by default so a full repository run
+# cannot exhaust Docker with dozens of simultaneous databases. Override with
+# TEST_PACKAGE_PARALLELISM only when the local Docker daemon has capacity.
+TEST_PACKAGE_PARALLELISM ?= 1
 
 # VERSION is the single source of truth for all artifact naming.
 # Override at the command line: make release VERSION=v0.1.0
@@ -121,7 +126,7 @@ api-lint:
 # ── Test & Lint ───────────────────────────────────────────────────────────────
 # Quick run for local development — no report files produced.
 test:
-	go test ./... -count=1
+	go test -p $(TEST_PACKAGE_PARALLELISM) ./... -count=1
 
 lint:
 	go vet ./...
@@ -158,7 +163,7 @@ test-report: $(GOTESTSUM)
 	  --junitfile $(REPORT_DIR)/unit-tests.xml \
 	  --jsonfile  $(REPORT_DIR)/unit-tests.json \
 	  --format    pkgname \
-	  -- ./... -count=1; \
+	  -- ./... -p $(TEST_PACKAGE_PARALLELISM) -count=1; \
 	  EXIT=$$?; \
 	  python3 scripts/junit2html.py \
 	    $(REPORT_DIR)/unit-tests.xml \
