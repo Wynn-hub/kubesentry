@@ -5,8 +5,10 @@ export interface PageResult<T> {
   pageSize: number
 }
 
-export type ListQuery = Record<string, string>
-export type PageFetcher<T> = (params: ListQuery) => Promise<PageResult<T>>
+import type { components } from './generated/console-api'
+
+type PageQuery = Pick<components['schemas']['PageMeta'], 'page' | 'pageSize'>
+export type PageFetcher<T> = (params: PageQuery) => Promise<PageResult<T>>
 
 const collectionPageSize = 100
 
@@ -32,7 +34,7 @@ export async function collectAllPages<T>(fetchPage: PageFetcher<T>): Promise<T[]
   let expectedTotal: number | undefined
 
   for (let page = 1; ; page += 1) {
-    const result = await fetchPage({ page: String(page), pageSize: String(collectionPageSize) })
+    const result = await fetchPage({ page, pageSize: collectionPageSize })
     assertPageResult(result, page)
 
     if (expectedTotal === undefined) {

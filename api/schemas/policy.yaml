@@ -218,7 +218,7 @@ components:
 
     PolicyVersionEntry:
       type: object
-      required: [version, createdAt, rego, match, enforcementMode, isCurrent]
+      required: [version, createdAt, phase, rego, match, enforcementMode, isCurrent]
       properties:
         version:
           type: integer
@@ -229,6 +229,11 @@ components:
           format: date-time
           description: 该版本快照的创建时间
           example: "2026-08-03T10:15:30Z"
+        phase:
+          type: string
+          description: 该版本快照的 Rego 编译状态
+          enum: [Ready, Invalid]
+          example: Ready
         rego:
           type: string
           description: 该版本的 Rego 源码
@@ -247,12 +252,32 @@ components:
 
     PolicyVersionList:
       type: object
-      required: [currentVersion, versions]
+      required: [currentVersion, cursor, head, inFlight, prevEnabled, nextEnabled, versions]
       properties:
         currentVersion:
           type: integer
           description: 当前生效的版本号。无版本记录时为 0
           example: 3
+        cursor:
+          type: integer
+          description: 逻辑时间线中的当前位置；同步回滚时等于 currentVersion
+          example: 3
+        head:
+          type: integer
+          description: 逻辑时间线中的最新版本；同步回滚时等于 currentVersion
+          example: 3
+        inFlight:
+          type: boolean
+          description: 是否存在尚未完成的异步回滚
+          example: false
+        prevEnabled:
+          type: boolean
+          description: 是否可以回滚到上一个版本
+          example: true
+        nextEnabled:
+          type: boolean
+          description: 是否可以前进到下一个逻辑版本
+          example: false
         versions:
           type: array
           description: 版本快照列表，按版本号倒序

@@ -168,7 +168,7 @@ onMounted(async () => {
   try {
     const [summary, invalid] = await Promise.all([
       getSummary(),
-      collectAllPages((params) => listPolicies({ ...params, phase: 'Invalid' })),
+      collectAllPages((params) => listPolicies({ ...params, phase: ['Invalid'] })),
     ])
     data.value = summary
     invalidPolicies.value = invalid

@@ -11,10 +11,10 @@ const podFields: FieldNode[] = [
       {
         name: 'containers', type: 'array', isArray: true, isMap: false,
         children: [
-          { name: 'image', type: 'string', isArray: false, isMap: false },
+          { name: 'image', type: 'string', isArray: false, isMap: false, children: [] },
           {
             name: 'securityContext', type: 'object', isArray: false, isMap: false,
-            children: [{ name: 'privileged', type: 'boolean', isArray: false, isMap: false }],
+            children: [{ name: 'privileged', type: 'boolean', isArray: false, isMap: false, children: [] }],
           },
         ],
       },
@@ -23,8 +23,8 @@ const podFields: FieldNode[] = [
   {
     name: 'metadata', type: 'object', isArray: false, isMap: false,
     children: [
-      { name: 'labels', type: 'object', isArray: false, isMap: true, mapValueType: 'string' },
-      { name: 'annotations', type: 'object', isArray: false, isMap: true },
+      { name: 'labels', type: 'object', isArray: false, isMap: true, mapValueType: 'string', children: [] },
+      { name: 'annotations', type: 'object', isArray: false, isMap: true, children: [] },
     ],
   },
 ]

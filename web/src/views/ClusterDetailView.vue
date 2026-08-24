@@ -112,7 +112,7 @@ onBeforeUnmount(() => { if (refreshTimer) clearInterval(refreshTimer) })
 async function onRetryUninstall(taskID: number) {
   if (!d.value) return
   try {
-    await retryUninstallTask(d.value.name, taskID)
+    await retryUninstallTask(d.value.name, String(taskID))
     ElMessage.success(t('cluster.uninstallStarted'))
     await load()
   } catch (e) {

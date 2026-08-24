@@ -5674,6 +5674,8 @@ func (s *ClusterPhase) Decode(d *jx.Decoder) error {
 		*s = ClusterPhaseOffline
 	case ClusterPhaseUninstalling:
 		*s = ClusterPhaseUninstalling
+	case ClusterPhaseUninstalled:
+		*s = ClusterPhaseUninstalled
 	default:
 		*s = ClusterPhase(v)
 	}
@@ -17082,40 +17084,6 @@ func (s *OptPolicyGroupNameData) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes PolicyGroupPoliciesBySelector as json.
-func (o OptPolicyGroupPoliciesBySelector) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes PolicyGroupPoliciesBySelector from json.
-func (o *OptPolicyGroupPoliciesBySelector) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptPolicyGroupPoliciesBySelector to nil")
-	}
-	o.Set = true
-	o.Value = make(PolicyGroupPoliciesBySelector)
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptPolicyGroupPoliciesBySelector) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptPolicyGroupPoliciesBySelector) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes PolicyGroupRequestSelectorEnforcementMode as json.
 func (o OptPolicyGroupRequestSelectorEnforcementMode) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -22101,62 +22069,6 @@ func (s *PolicyGroupPolicies) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s PolicyGroupPoliciesBySelector) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields implements json.Marshaler.
-func (s PolicyGroupPoliciesBySelector) encodeFields(e *jx.Encoder) {
-	for k, elem := range s {
-		e.FieldStart(k)
-
-		e.Str(elem)
-	}
-}
-
-// Decode decodes PolicyGroupPoliciesBySelector from json.
-func (s *PolicyGroupPoliciesBySelector) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode PolicyGroupPoliciesBySelector to nil")
-	}
-	m := s.init()
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		var elem string
-		if err := func() error {
-			v, err := d.Str()
-			elem = string(v)
-			if err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrapf(err, "decode field %q", k)
-		}
-		m[string(k)] = elem
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode PolicyGroupPoliciesBySelector")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s PolicyGroupPoliciesBySelector) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PolicyGroupPoliciesBySelector) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
 func (s *PolicyGroupRequest) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -24546,6 +24458,10 @@ func (s *PolicyVersionEntry) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.CreatedAt)
 	}
 	{
+		e.FieldStart("phase")
+		s.Phase.Encode(e)
+	}
+	{
 		e.FieldStart("rego")
 		e.Str(s.Rego)
 	}
@@ -24563,13 +24479,14 @@ func (s *PolicyVersionEntry) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPolicyVersionEntry = [6]string{
+var jsonFieldsNameOfPolicyVersionEntry = [7]string{
 	0: "version",
 	1: "createdAt",
-	2: "rego",
-	3: "match",
-	4: "enforcementMode",
-	5: "isCurrent",
+	2: "phase",
+	3: "rego",
+	4: "match",
+	5: "enforcementMode",
+	6: "isCurrent",
 }
 
 // Decode decodes PolicyVersionEntry from json.
@@ -24605,8 +24522,18 @@ func (s *PolicyVersionEntry) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"createdAt\"")
 			}
-		case "rego":
+		case "phase":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Phase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"phase\"")
+			}
+		case "rego":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Rego = string(v)
@@ -24618,7 +24545,7 @@ func (s *PolicyVersionEntry) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"rego\"")
 			}
 		case "match":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Match.Decode(d); err != nil {
 					return err
@@ -24628,7 +24555,7 @@ func (s *PolicyVersionEntry) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"match\"")
 			}
 		case "enforcementMode":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.EnforcementMode.Decode(d); err != nil {
 					return err
@@ -24638,7 +24565,7 @@ func (s *PolicyVersionEntry) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enforcementMode\"")
 			}
 		case "isCurrent":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Bool()
 				s.IsCurrent = bool(v)
@@ -24659,7 +24586,7 @@ func (s *PolicyVersionEntry) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -24745,6 +24672,46 @@ func (s *PolicyVersionEntryEnforcementMode) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes PolicyVersionEntryPhase as json.
+func (s PolicyVersionEntryPhase) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PolicyVersionEntryPhase from json.
+func (s *PolicyVersionEntryPhase) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PolicyVersionEntryPhase to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PolicyVersionEntryPhase(v) {
+	case PolicyVersionEntryPhaseReady:
+		*s = PolicyVersionEntryPhaseReady
+	case PolicyVersionEntryPhaseInvalid:
+		*s = PolicyVersionEntryPhaseInvalid
+	default:
+		*s = PolicyVersionEntryPhase(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PolicyVersionEntryPhase) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PolicyVersionEntryPhase) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *PolicyVersionList) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -24759,6 +24726,26 @@ func (s *PolicyVersionList) encodeFields(e *jx.Encoder) {
 		e.Int(s.CurrentVersion)
 	}
 	{
+		e.FieldStart("cursor")
+		e.Int(s.Cursor)
+	}
+	{
+		e.FieldStart("head")
+		e.Int(s.Head)
+	}
+	{
+		e.FieldStart("inFlight")
+		e.Bool(s.InFlight)
+	}
+	{
+		e.FieldStart("prevEnabled")
+		e.Bool(s.PrevEnabled)
+	}
+	{
+		e.FieldStart("nextEnabled")
+		e.Bool(s.NextEnabled)
+	}
+	{
 		e.FieldStart("versions")
 		e.ArrStart()
 		for _, elem := range s.Versions {
@@ -24768,9 +24755,14 @@ func (s *PolicyVersionList) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPolicyVersionList = [2]string{
+var jsonFieldsNameOfPolicyVersionList = [7]string{
 	0: "currentVersion",
-	1: "versions",
+	1: "cursor",
+	2: "head",
+	3: "inFlight",
+	4: "prevEnabled",
+	5: "nextEnabled",
+	6: "versions",
 }
 
 // Decode decodes PolicyVersionList from json.
@@ -24794,8 +24786,68 @@ func (s *PolicyVersionList) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"currentVersion\"")
 			}
-		case "versions":
+		case "cursor":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Cursor = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cursor\"")
+			}
+		case "head":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Head = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"head\"")
+			}
+		case "inFlight":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.InFlight = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"inFlight\"")
+			}
+		case "prevEnabled":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.PrevEnabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"prevEnabled\"")
+			}
+		case "nextEnabled":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.NextEnabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"nextEnabled\"")
+			}
+		case "versions":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Versions = make([]PolicyVersionEntry, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -24822,7 +24874,7 @@ func (s *PolicyVersionList) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

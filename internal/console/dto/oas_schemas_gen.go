@@ -2463,6 +2463,7 @@ const (
 	ClusterPhaseOnline       ClusterPhase = "Online"
 	ClusterPhaseOffline      ClusterPhase = "Offline"
 	ClusterPhaseUninstalling ClusterPhase = "Uninstalling"
+	ClusterPhaseUninstalled  ClusterPhase = "Uninstalled"
 )
 
 // AllValues returns all ClusterPhase values.
@@ -2472,6 +2473,7 @@ func (ClusterPhase) AllValues() []ClusterPhase {
 		ClusterPhaseOnline,
 		ClusterPhaseOffline,
 		ClusterPhaseUninstalling,
+		ClusterPhaseUninstalled,
 	}
 }
 
@@ -2485,6 +2487,8 @@ func (s ClusterPhase) MarshalText() ([]byte, error) {
 	case ClusterPhaseOffline:
 		return []byte(s), nil
 	case ClusterPhaseUninstalling:
+		return []byte(s), nil
+	case ClusterPhaseUninstalled:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -2505,6 +2509,9 @@ func (s *ClusterPhase) UnmarshalText(data []byte) error {
 		return nil
 	case ClusterPhaseUninstalling:
 		*s = ClusterPhaseUninstalling
+		return nil
+	case ClusterPhaseUninstalled:
+		*s = ClusterPhaseUninstalled
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -5884,27 +5891,27 @@ func (s *ListAdmissionEventsSortOrder) UnmarshalText(data []byte) error {
 	}
 }
 
-type ListAdmissionEventsVerdict string
+type ListAdmissionEventsVerdictItem string
 
 const (
-	ListAdmissionEventsVerdictAudit ListAdmissionEventsVerdict = "audit"
-	ListAdmissionEventsVerdictDeny  ListAdmissionEventsVerdict = "deny"
+	ListAdmissionEventsVerdictItemAudit ListAdmissionEventsVerdictItem = "audit"
+	ListAdmissionEventsVerdictItemDeny  ListAdmissionEventsVerdictItem = "deny"
 )
 
-// AllValues returns all ListAdmissionEventsVerdict values.
-func (ListAdmissionEventsVerdict) AllValues() []ListAdmissionEventsVerdict {
-	return []ListAdmissionEventsVerdict{
-		ListAdmissionEventsVerdictAudit,
-		ListAdmissionEventsVerdictDeny,
+// AllValues returns all ListAdmissionEventsVerdictItem values.
+func (ListAdmissionEventsVerdictItem) AllValues() []ListAdmissionEventsVerdictItem {
+	return []ListAdmissionEventsVerdictItem{
+		ListAdmissionEventsVerdictItemAudit,
+		ListAdmissionEventsVerdictItemDeny,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ListAdmissionEventsVerdict) MarshalText() ([]byte, error) {
+func (s ListAdmissionEventsVerdictItem) MarshalText() ([]byte, error) {
 	switch s {
-	case ListAdmissionEventsVerdictAudit:
+	case ListAdmissionEventsVerdictItemAudit:
 		return []byte(s), nil
-	case ListAdmissionEventsVerdictDeny:
+	case ListAdmissionEventsVerdictItemDeny:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -5912,13 +5919,13 @@ func (s ListAdmissionEventsVerdict) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ListAdmissionEventsVerdict) UnmarshalText(data []byte) error {
-	switch ListAdmissionEventsVerdict(data) {
-	case ListAdmissionEventsVerdictAudit:
-		*s = ListAdmissionEventsVerdictAudit
+func (s *ListAdmissionEventsVerdictItem) UnmarshalText(data []byte) error {
+	switch ListAdmissionEventsVerdictItem(data) {
+	case ListAdmissionEventsVerdictItemAudit:
+		*s = ListAdmissionEventsVerdictItemAudit
 		return nil
-	case ListAdmissionEventsVerdictDeny:
-		*s = ListAdmissionEventsVerdictDeny
+	case ListAdmissionEventsVerdictItemDeny:
+		*s = ListAdmissionEventsVerdictItemDeny
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -7948,52 +7955,6 @@ func (o OptListAdmissionEventsSortOrder) Or(d ListAdmissionEventsSortOrder) List
 	return d
 }
 
-// NewOptListAdmissionEventsVerdict returns new OptListAdmissionEventsVerdict with value set to v.
-func NewOptListAdmissionEventsVerdict(v ListAdmissionEventsVerdict) OptListAdmissionEventsVerdict {
-	return OptListAdmissionEventsVerdict{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptListAdmissionEventsVerdict is optional ListAdmissionEventsVerdict.
-type OptListAdmissionEventsVerdict struct {
-	Value ListAdmissionEventsVerdict
-	Set   bool
-}
-
-// IsSet returns true if OptListAdmissionEventsVerdict was set.
-func (o OptListAdmissionEventsVerdict) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptListAdmissionEventsVerdict) Reset() {
-	var v ListAdmissionEventsVerdict
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptListAdmissionEventsVerdict) SetTo(v ListAdmissionEventsVerdict) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptListAdmissionEventsVerdict) Get() (v ListAdmissionEventsVerdict, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptListAdmissionEventsVerdict) Or(d ListAdmissionEventsVerdict) ListAdmissionEventsVerdict {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptListClustersSortBy returns new OptListClustersSortBy with value set to v.
 func NewOptListClustersSortBy(v ListClustersSortBy) OptListClustersSortBy {
 	return OptListClustersSortBy{
@@ -8908,52 +8869,6 @@ func (o OptPolicyGroupNameData) Get() (v PolicyGroupNameData, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptPolicyGroupNameData) Or(d PolicyGroupNameData) PolicyGroupNameData {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptPolicyGroupPoliciesBySelector returns new OptPolicyGroupPoliciesBySelector with value set to v.
-func NewOptPolicyGroupPoliciesBySelector(v PolicyGroupPoliciesBySelector) OptPolicyGroupPoliciesBySelector {
-	return OptPolicyGroupPoliciesBySelector{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptPolicyGroupPoliciesBySelector is optional PolicyGroupPoliciesBySelector.
-type OptPolicyGroupPoliciesBySelector struct {
-	Value PolicyGroupPoliciesBySelector
-	Set   bool
-}
-
-// IsSet returns true if OptPolicyGroupPoliciesBySelector was set.
-func (o OptPolicyGroupPoliciesBySelector) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptPolicyGroupPoliciesBySelector) Reset() {
-	var v PolicyGroupPoliciesBySelector
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptPolicyGroupPoliciesBySelector) SetTo(v PolicyGroupPoliciesBySelector) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptPolicyGroupPoliciesBySelector) Get() (v PolicyGroupPoliciesBySelector, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptPolicyGroupPoliciesBySelector) Or(d PolicyGroupPoliciesBySelector) PolicyGroupPoliciesBySelector {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -11679,8 +11594,8 @@ func (*PolicyGroupNameResponse) updatePolicyGroupRes() {}
 type PolicyGroupPolicies struct {
 	// 按名称引用的策略.
 	ByName []PolicyRef `json:"byName"`
-	// 按标签选择器引用策略.
-	BySelector OptPolicyGroupPoliciesBySelector `json:"bySelector"`
+	// 按 Kubernetes 标签选择器引用策略.
+	BySelector OptKubernetesLabelSelector `json:"bySelector"`
 	// 排除的策略名称.
 	Exclude []string `json:"exclude"`
 }
@@ -11691,7 +11606,7 @@ func (s *PolicyGroupPolicies) GetByName() []PolicyRef {
 }
 
 // GetBySelector returns the value of BySelector.
-func (s *PolicyGroupPolicies) GetBySelector() OptPolicyGroupPoliciesBySelector {
+func (s *PolicyGroupPolicies) GetBySelector() OptKubernetesLabelSelector {
 	return s.BySelector
 }
 
@@ -11706,25 +11621,13 @@ func (s *PolicyGroupPolicies) SetByName(val []PolicyRef) {
 }
 
 // SetBySelector sets the value of BySelector.
-func (s *PolicyGroupPolicies) SetBySelector(val OptPolicyGroupPoliciesBySelector) {
+func (s *PolicyGroupPolicies) SetBySelector(val OptKubernetesLabelSelector) {
 	s.BySelector = val
 }
 
 // SetExclude sets the value of Exclude.
 func (s *PolicyGroupPolicies) SetExclude(val []string) {
 	s.Exclude = val
-}
-
-// 按标签选择器引用策略.
-type PolicyGroupPoliciesBySelector map[string]string
-
-func (s *PolicyGroupPoliciesBySelector) init() PolicyGroupPoliciesBySelector {
-	m := *s
-	if m == nil {
-		m = map[string]string{}
-		*s = m
-	}
-	return m
 }
 
 // Merged schema.
@@ -12833,6 +12736,8 @@ type PolicyVersionEntry struct {
 	Version int `json:"version"`
 	// 该版本快照的创建时间.
 	CreatedAt time.Time `json:"createdAt"`
+	// 该版本快照的 Rego 编译状态.
+	Phase PolicyVersionEntryPhase `json:"phase"`
 	// 该版本的 Rego 源码.
 	Rego  string      `json:"rego"`
 	Match PolicyMatch `json:"match"`
@@ -12850,6 +12755,11 @@ func (s *PolicyVersionEntry) GetVersion() int {
 // GetCreatedAt returns the value of CreatedAt.
 func (s *PolicyVersionEntry) GetCreatedAt() time.Time {
 	return s.CreatedAt
+}
+
+// GetPhase returns the value of Phase.
+func (s *PolicyVersionEntry) GetPhase() PolicyVersionEntryPhase {
+	return s.Phase
 }
 
 // GetRego returns the value of Rego.
@@ -12880,6 +12790,11 @@ func (s *PolicyVersionEntry) SetVersion(val int) {
 // SetCreatedAt sets the value of CreatedAt.
 func (s *PolicyVersionEntry) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *PolicyVersionEntry) SetPhase(val PolicyVersionEntryPhase) {
+	s.Phase = val
 }
 
 // SetRego sets the value of Rego.
@@ -12944,10 +12859,62 @@ func (s *PolicyVersionEntryEnforcementMode) UnmarshalText(data []byte) error {
 	}
 }
 
+// 该版本快照的 Rego 编译状态.
+type PolicyVersionEntryPhase string
+
+const (
+	PolicyVersionEntryPhaseReady   PolicyVersionEntryPhase = "Ready"
+	PolicyVersionEntryPhaseInvalid PolicyVersionEntryPhase = "Invalid"
+)
+
+// AllValues returns all PolicyVersionEntryPhase values.
+func (PolicyVersionEntryPhase) AllValues() []PolicyVersionEntryPhase {
+	return []PolicyVersionEntryPhase{
+		PolicyVersionEntryPhaseReady,
+		PolicyVersionEntryPhaseInvalid,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PolicyVersionEntryPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case PolicyVersionEntryPhaseReady:
+		return []byte(s), nil
+	case PolicyVersionEntryPhaseInvalid:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PolicyVersionEntryPhase) UnmarshalText(data []byte) error {
+	switch PolicyVersionEntryPhase(data) {
+	case PolicyVersionEntryPhaseReady:
+		*s = PolicyVersionEntryPhaseReady
+		return nil
+	case PolicyVersionEntryPhaseInvalid:
+		*s = PolicyVersionEntryPhaseInvalid
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/PolicyVersionList
 type PolicyVersionList struct {
 	// 当前生效的版本号。无版本记录时为 0.
 	CurrentVersion int `json:"currentVersion"`
+	// 逻辑时间线中的当前位置；同步回滚时等于 currentVersion.
+	Cursor int `json:"cursor"`
+	// 逻辑时间线中的最新版本；同步回滚时等于 currentVersion.
+	Head int `json:"head"`
+	// 是否存在尚未完成的异步回滚.
+	InFlight bool `json:"inFlight"`
+	// 是否可以回滚到上一个版本.
+	PrevEnabled bool `json:"prevEnabled"`
+	// 是否可以前进到下一个逻辑版本.
+	NextEnabled bool `json:"nextEnabled"`
 	// 版本快照列表，按版本号倒序.
 	Versions []PolicyVersionEntry `json:"versions"`
 }
@@ -12955,6 +12922,31 @@ type PolicyVersionList struct {
 // GetCurrentVersion returns the value of CurrentVersion.
 func (s *PolicyVersionList) GetCurrentVersion() int {
 	return s.CurrentVersion
+}
+
+// GetCursor returns the value of Cursor.
+func (s *PolicyVersionList) GetCursor() int {
+	return s.Cursor
+}
+
+// GetHead returns the value of Head.
+func (s *PolicyVersionList) GetHead() int {
+	return s.Head
+}
+
+// GetInFlight returns the value of InFlight.
+func (s *PolicyVersionList) GetInFlight() bool {
+	return s.InFlight
+}
+
+// GetPrevEnabled returns the value of PrevEnabled.
+func (s *PolicyVersionList) GetPrevEnabled() bool {
+	return s.PrevEnabled
+}
+
+// GetNextEnabled returns the value of NextEnabled.
+func (s *PolicyVersionList) GetNextEnabled() bool {
+	return s.NextEnabled
 }
 
 // GetVersions returns the value of Versions.
@@ -12965,6 +12957,31 @@ func (s *PolicyVersionList) GetVersions() []PolicyVersionEntry {
 // SetCurrentVersion sets the value of CurrentVersion.
 func (s *PolicyVersionList) SetCurrentVersion(val int) {
 	s.CurrentVersion = val
+}
+
+// SetCursor sets the value of Cursor.
+func (s *PolicyVersionList) SetCursor(val int) {
+	s.Cursor = val
+}
+
+// SetHead sets the value of Head.
+func (s *PolicyVersionList) SetHead(val int) {
+	s.Head = val
+}
+
+// SetInFlight sets the value of InFlight.
+func (s *PolicyVersionList) SetInFlight(val bool) {
+	s.InFlight = val
+}
+
+// SetPrevEnabled sets the value of PrevEnabled.
+func (s *PolicyVersionList) SetPrevEnabled(val bool) {
+	s.PrevEnabled = val
+}
+
+// SetNextEnabled sets the value of NextEnabled.
+func (s *PolicyVersionList) SetNextEnabled(val bool) {
+	s.NextEnabled = val
 }
 
 // SetVersions sets the value of Versions.

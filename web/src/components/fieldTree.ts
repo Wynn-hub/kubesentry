@@ -1,12 +1,11 @@
 import type { PathSegment } from './ruleGroupCodegen'
+import type { components } from '../api/generated/console-api'
 
-export interface FieldNode {
-  name: string
-  type: 'string' | 'integer' | 'number' | 'boolean' | 'array' | 'object'
-  isArray: boolean
-  isMap: boolean
-  mapValueType?: FieldNode['type']
-  children?: FieldNode[]
+export type FieldNode = components['schemas']['FieldNode']
+const fieldTypes = ['string', 'integer', 'number', 'boolean', 'array', 'object'] as const
+
+function isFieldType(value: string): value is FieldNode['type'] {
+  return fieldTypes.includes(value as FieldNode['type'])
 }
 
 export interface CascaderFieldOption {
@@ -15,7 +14,7 @@ export interface CascaderFieldOption {
   type: FieldNode['type']
   isArray: boolean
   isMap: boolean
-  mapValueType?: FieldNode['type']
+  mapValueType?: FieldNode['mapValueType']
   children?: CascaderFieldOption[]
 }
 
@@ -65,7 +64,7 @@ export function resolveLeafType(valuePath: string[], options: CascaderFieldOptio
     level = node.children ?? []
   }
   if (!node) throw new Error('empty field path')
-  if (node.isMap) return node.mapValueType ?? 'string'
+  if (node.isMap) return node.mapValueType && isFieldType(node.mapValueType) ? node.mapValueType : 'string'
   return node.type
 }
 

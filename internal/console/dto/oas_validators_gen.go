@@ -1281,6 +1281,8 @@ func (s ClusterPhase) Validate() error {
 		return nil
 	case "Uninstalling":
 		return nil
+	case "Uninstalled":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -3262,7 +3264,7 @@ func (s ListAdmissionEventsSortOrder) Validate() error {
 	}
 }
 
-func (s ListAdmissionEventsVerdict) Validate() error {
+func (s ListAdmissionEventsVerdictItem) Validate() error {
 	switch s {
 	case "audit":
 		return nil
@@ -4650,6 +4652,24 @@ func (s *PolicyGroupPolicies) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.BySelector.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "bySelector",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -5208,6 +5228,17 @@ func (s *PolicyVersionEntry) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Phase.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "phase",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Match.Validate(); err != nil {
 			return err
 		}
@@ -5240,6 +5271,17 @@ func (s PolicyVersionEntryEnforcementMode) Validate() error {
 	case "enforce":
 		return nil
 	case "audit":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s PolicyVersionEntryPhase) Validate() error {
+	switch s {
+	case "Ready":
+		return nil
+	case "Invalid":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

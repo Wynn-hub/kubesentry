@@ -1,36 +1,39 @@
-import { request } from './http'
-import type { ListQuery, PageResult } from './pagination'
+import { apiClient } from './generated/client'
+import type { components, operations } from './generated/console-api'
+import { extract } from './http'
 
-export interface AdmissionEvent {
-  id: string; eventId: string; clusterName: string; occurredAt: string; verdict: 'audit' | 'deny'
-  apiGroup: string; apiVersion: string; resource: string; operation: string; namespace: string; resourceName: string
-  username: string; policyNames: string[]; violations: string[]
+export type AdmissionEvent = components['schemas']['AdmissionEventItem']
+export type AdmissionEventDetail = components['schemas']['AdmissionEventDetail']
+export type AdmissionSettings = components['schemas']['AdmissionEventSettings']
+export type AdmissionStoragePolicy = components['schemas']['AdmissionStoragePolicy']
+type AdmissionEventsQuery = operations['listAdmissionEvents']['parameters']['query']
+
+type CsvCompatible<Query> = {
+  [Key in keyof Query]: Query[Key] extends readonly unknown[] | undefined ? string | Query[Key] : Query[Key]
 }
-export interface AdmissionEventDetail extends AdmissionEvent {
-  requestUid: string; userGroups: string[]; policyGroupNames: string[]
-  metadataSnapshot: Record<string, unknown>; specSnapshot: Record<string, unknown>; storagePolicyVersion: string
+
+export type AdmissionEventQuery = CsvCompatible<NonNullable<AdmissionEventsQuery>>
+
+function splitCSV(value: string | readonly string[] | undefined): string[] | undefined {
+  if (typeof value === 'string') return value.split(',').filter(Boolean)
+  return value ? [...value] : undefined
 }
-export interface AdmissionSettings {
-  defaultRetentionDays: number
-  retryEnabled: boolean
-  maxRetryAttempts: number
-  queueCapacity: number
-  incidentRetentionDays: number
-  observationEnabled: boolean
-  storagePolicyVersion: number
-  storagePolicies: AdmissionStoragePolicy[]
-}
-// A storage rule carries conditions only: matching any rule stores the event,
-// an empty rule set stores everything, and retention is the global
-// defaultRetentionDays.
-export interface AdmissionStoragePolicy {
-  matchMode: 'include' | 'exclude'
-  verdicts: string[]
-  clusters: string[]
-  gvks: string[]
-  namespaces: string[]
-}
-export const listAdmissionEvents = (params: ListQuery & Record<string, string> = {}) => request<PageResult<AdmissionEvent>>('GET', '/admission-events', undefined, params)
-export const getAdmissionEvent = (id: string) => request<AdmissionEventDetail>('GET', `/admission-events/${id}`)
-export const getAdmissionSettings = () => request<AdmissionSettings>('GET', '/admission-event-settings')
-export const updateAdmissionSettings = (body: AdmissionSettings) => request<AdmissionSettings>('PUT', '/admission-event-settings', body)
+
+export const listAdmissionEvents = (params: AdmissionEventQuery = {}) =>
+  extract<'listAdmissionEvents'>(apiClient.GET('/admission-events', {
+    params: {
+      query: {
+        ...params,
+        cluster: splitCSV(params.cluster),
+        verdict: splitCSV(params.verdict) as NonNullable<NonNullable<AdmissionEventsQuery>['verdict']>,
+        namespace: splitCSV(params.namespace),
+        gvk: splitCSV(params.gvk),
+      },
+    },
+  }))
+export const getAdmissionEvent = (id: string) =>
+  extract<'getAdmissionEvent'>(apiClient.GET('/admission-events/{id}', { params: { path: { id } } }))
+export const getAdmissionSettings = () =>
+  extract<'getAdmissionEventSettings'>(apiClient.GET('/admission-event-settings'))
+export const updateAdmissionSettings = (body: components['schemas']['AdmissionEventSettingsRequest']) =>
+  extract<'updateAdmissionEventSettings'>(apiClient.PUT('/admission-event-settings', { body }))

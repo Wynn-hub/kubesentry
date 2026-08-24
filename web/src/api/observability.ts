@@ -1,39 +1,33 @@
-import { request } from './http'
-import type { PageResult } from './pagination'
+import { apiClient } from './generated/client'
+import type { components, operations } from './generated/console-api'
+import { extract } from './http'
 
-export type LinkIncidentStatus = 'active' | 'interrupted' | 'closed'
-export type LinkIncidentComponent = 'webhook' | 'operator' | 'gateway'
-export type LinkIncidentReason = 'queue_full' | 'retry_exhausted' | 'ack_timeout' | 'auth_failure' | 'batch_failure' | 'write_failed' | 'report_dropped'
+export type LinkIncidentStatus = components['schemas']['AdmissionLinkIncidentItem']['status']
+export type LinkIncidentComponent = components['schemas']['AdmissionLinkIncidentItem']['component']
+export type LinkIncidentReason = components['schemas']['AdmissionLinkIncidentItem']['reason']
+export type LinkIncident = components['schemas']['AdmissionLinkIncidentItem']
+export type LinkIncidentSample = components['schemas']['AdmissionLinkIncidentSample']
+export type LinkIncidentDetail = components['schemas']['AdmissionLinkIncidentDetail']
+export type LinkIncidentQuery = operations['listAdmissionLinkIncidents']['parameters']['query']
 
-export interface LinkIncident {
-  id: string
-  clusterName: string
-  reporterInstanceId: string
-  component: LinkIncidentComponent
-  reason: LinkIncidentReason
-  startedAt: string
-  lastSeenAt: string
-  affectedCount: number
-  status: LinkIncidentStatus
+export function normalizeLinkIncidentPage(value: Omit<components['schemas']['AdmissionLinkIncidentListData'], 'items'> & {
+  items: components['schemas']['AdmissionLinkIncidentListData']['items'] | null
+}) {
+  return { ...value, items: value.items ?? [] }
 }
 
-export interface LinkIncidentSample {
-  eventId: string
-  eventDatabaseId?: string
-  expired: boolean
+export function normalizeLinkIncidentDetail(value: Omit<LinkIncidentDetail, 'samples'> & {
+  samples: LinkIncidentDetail['samples'] | null
+}): LinkIncidentDetail {
+  return { ...value, samples: value.samples ?? [] }
 }
 
-export interface LinkIncidentDetail extends LinkIncident {
-  detail: string
-  samples: LinkIncidentSample[]
-}
+export const listLinkIncidents = async (query: LinkIncidentQuery = {}) =>
+  normalizeLinkIncidentPage(await extract<'listAdmissionLinkIncidents'>(
+    apiClient.GET('/admission-link-incidents', { params: { query } }),
+  ))
 
-export type LinkIncidentQuery = Record<string, string>
-
-export const listLinkIncidents = (query: LinkIncidentQuery = {}) =>
-  request<PageResult<LinkIncident>>('GET', '/admission-link-incidents', undefined, query)
-    .then(page => ({ ...page, items: page.items ?? [] }))
-
-export const getLinkIncident = (id: string) =>
-  request<LinkIncidentDetail>('GET', `/admission-link-incidents/${id}`)
-    .then(value => ({ ...value, samples: value.samples ?? [] }))
+export const getLinkIncident = async (id: string) =>
+  normalizeLinkIncidentDetail(await extract<'getAdmissionLinkIncident'>(
+    apiClient.GET('/admission-link-incidents/{id}', { params: { path: { id } } }),
+  ))

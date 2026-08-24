@@ -281,6 +281,7 @@ func (s *PolicyService) ListVersions(ctx context.Context, name string) (*dto.Pol
 		entries = append(entries, dto.PolicyVersionEntry{
 			Version:         v.Version,
 			CreatedAt:       v.CreatedAt,
+			Phase:           dto.PolicyVersionEntryPhaseReady,
 			Rego:            v.Rego,
 			Match:           dto.MatchToDTO(snap.Match),
 			EnforcementMode: dto.PolicyVersionEntryEnforcementMode(snap.EnforcementMode),
@@ -290,6 +291,11 @@ func (s *PolicyService) ListVersions(ctx context.Context, name string) (*dto.Pol
 
 	return &dto.PolicyVersionList{
 		CurrentVersion: current,
+		Cursor:         current,
+		Head:           current,
+		InFlight:       false,
+		PrevEnabled:    current > 1,
+		NextEnabled:    false,
 		Versions:       entries,
 	}, nil
 }

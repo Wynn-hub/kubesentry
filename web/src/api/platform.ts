@@ -1,102 +1,22 @@
-import { request } from './http'
+import { apiClient } from './generated/client'
+import type { components, operations } from './generated/console-api'
+import { extract } from './http'
 
-export type PlatformHealth = 'ok' | 'pending' | 'degraded' | 'unavailable' | 'disabled'
-export type PlatformRole = 'leader' | 'standby' | 'none'
-
-export interface PlatformInstance {
-  instance: string
-  role: PlatformRole
-  health: string
-  healthReason: string
-  uptimeSeconds: number
-  restartCount: number
-  memoryBytes: number
-  memoryLimitBytes: number
-  cpuMillis: number
-  goroutines: number
-  heapAllocBytes: number
-  heapSysBytes: number
-  lastObservedAt: string
-  dbStats?: Record<string, number>
-}
-
-export interface PlatformComponent {
-  component: string
-  health: PlatformHealth
-  healthReason: string
-  hasLeadership: boolean
-  noLeader: boolean
-  singleReplica: boolean
-  instances: PlatformInstance[]
-  lastLeadershipChange?: string
-}
-
-export interface PlatformCluster {
-  name: string
-  phase: string
-  health: PlatformHealth
-  components: PlatformComponent[]
-}
-
-export interface PlatformOverview {
-  enabled: boolean
-  platformHealth: PlatformHealth
-  gatewayPlane: PlatformComponent[]
-  memberPlane: {
-    clusters: PlatformCluster[]
-    total: number
-    page: number
-    pageSize: number
-  }
-}
-
-export interface PlatformTrendPoint {
-  bucketStartedAt: string
-  memoryBytes: number
-  cpuUsageMicros: number
-  goroutines: number
-  gcPauseMicros: number
-}
-
-export interface PlatformTrend {
-  items: PlatformTrendPoint[]
-  stepSeconds: number
-  from: string
-  to: string
-}
-
-export interface PlatformLeadershipEvent {
-  id: number
-  component: string
-  clusterId: number
-  clusterName: string
-  instance: string
-  roleFrom: string
-  roleTo: string
-  changedAt: string
-  detectedBy: string
-}
-
-export interface PlatformLeadershipPage {
-  items: PlatformLeadershipEvent[]
-  total: number
-  page: number
-  pageSize: number
-}
-
-export interface PlatformSettings {
-  enabled: boolean
-  retentionDays: number
-  maxRetentionDays: number
-}
-
-export interface PlatformSettingsInput {
-  enabled: boolean
-  retentionDays: number
-}
-
-const cleanParams = (query: Record<string, string | undefined>): Record<string, string> =>
-  Object.fromEntries(Object.entries(query).filter((entry): entry is [string, string] => Boolean(entry[1])))
+export type PlatformHealth = components['schemas']['PlatformOverviewHealth'] | components['schemas']['PlatformComponentHealth']
+export type PlatformRole = components['schemas']['PlatformInstance']['role']
+export type PlatformInstance = components['schemas']['PlatformInstance']
+export type PlatformComponent = components['schemas']['PlatformComponent']
+export type PlatformCluster = components['schemas']['PlatformCluster']
+export type PlatformOverview = components['schemas']['PlatformOverview']
+export type PlatformTrendPoint = components['schemas']['PlatformTrendPoint']
+export type PlatformTrend = components['schemas']['PlatformTrend']
+export type PlatformLeadershipEvent = components['schemas']['LeadershipEvent']
+export type PlatformLeadershipPage = components['schemas']['LeadershipEventListResponse']['data']
+export type PlatformSettings = components['schemas']['PlatformSettings']
+export type PlatformSettingsInput = components['schemas']['PlatformSettingsRequest']
+type PlatformOverviewQuery = operations['getPlatformOverview']['parameters']['query']
+type PlatformTrendQuery = operations['getPlatformInstanceTrend']['parameters']['query']
+type LeadershipQuery = operations['listPlatformLeadershipEvents']['parameters']['query']
 
 export function normalizePlatformOverview(value: PlatformOverview): PlatformOverview {
   return {
@@ -125,28 +45,30 @@ function normalizeComponent(component: PlatformComponent): PlatformComponent {
   }
 }
 
-export const getPlatformOverview = (query: { page: string; pageSize: string; health?: string }) =>
-  request<PlatformOverview>('GET', '/platform/overview', undefined, cleanParams(query))
-    .then(normalizePlatformOverview)
+export const getPlatformOverview = async (query: PlatformOverviewQuery) =>
+  normalizePlatformOverview(await extract<'getPlatformOverview'>(
+    apiClient.GET('/platform/overview', { params: { query } }),
+  ))
 
-export const getPlatformInstanceTrend = (
-  component: string,
+export const getPlatformInstanceTrend = async (
+  component: operations['getPlatformInstanceTrend']['parameters']['path']['component'],
   instance: string,
-  query: { from: string; to: string; cluster?: string },
-) => request<PlatformTrend>(
-  'GET',
-  `/platform/instances/${encodeURIComponent(component)}/${encodeURIComponent(instance)}/trend`,
-  undefined,
-  cleanParams(query),
-).then(value => ({ ...value, items: value.items ?? [] }))
+  query: PlatformTrendQuery,
+) => {
+  const value = await extract<'getPlatformInstanceTrend'>(apiClient.GET('/platform/instances/{component}/{instance}/trend', {
+    params: { path: { component, instance }, query },
+  }))
+  return { ...value, items: value.items ?? [] }
+}
 
-export const listPlatformLeadershipEvents = (
-  query: { page: string; pageSize: string; component?: string; cluster?: string; from: string; to: string },
-) => request<PlatformLeadershipPage>('GET', '/platform/leadership-events', undefined, cleanParams(query))
-  .then(value => ({ ...value, items: value.items ?? [] }))
+export const listPlatformLeadershipEvents = async (query: LeadershipQuery) => {
+  const value = await extract<'listPlatformLeadershipEvents'>(apiClient.GET('/platform/leadership-events', {
+    params: { query },
+  }))
+  return { ...value, items: value.items ?? [] }
+}
 
 export const getPlatformSettings = () =>
-  request<PlatformSettings>('GET', '/platform/settings')
-
+  extract<'getPlatformSettings'>(apiClient.GET('/platform/settings'))
 export const updatePlatformSettings = (body: PlatformSettingsInput) =>
-  request<PlatformSettings>('PUT', '/platform/settings', body)
+  extract<'updatePlatformSettings'>(apiClient.PUT('/platform/settings', { body }))

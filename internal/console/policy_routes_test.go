@@ -446,8 +446,14 @@ func TestListPolicyVersions(t *testing.T) {
 	if vl.CurrentVersion != 2 || len(vl.Versions) != 2 {
 		t.Fatalf("versions = %+v", vl)
 	}
+	if vl.Cursor != 2 || vl.Head != 2 || vl.InFlight || !vl.PrevEnabled || vl.NextEnabled {
+		t.Fatalf("timeline controls = %+v", vl)
+	}
 	if vl.Versions[0].Version != 2 || !vl.Versions[0].IsCurrent {
 		t.Fatalf("newest entry = %+v, want v2 current", vl.Versions[0])
+	}
+	if vl.Versions[0].Phase != "Ready" {
+		t.Fatalf("newest phase = %q, want Ready", vl.Versions[0].Phase)
 	}
 	if vl.Versions[1].Version != 1 || vl.Versions[1].IsCurrent {
 		t.Fatalf("oldest entry = %+v, want v1 not current", vl.Versions[1])

@@ -1,45 +1,22 @@
-import { request } from './http'
-import type { ListQuery, PageResult } from './pagination'
-import type { LabelSelector } from './group'
+import { apiClient } from './generated/client'
+import type { components, operations } from './generated/console-api'
+import { extract } from './http'
 
-export interface DistributionClusters {
-  byName?: string[]
-  clusterSelector?: LabelSelector | null
-}
+export type DistributionClusters = NonNullable<components['schemas']['DistributionSpec']['clusters']>
+export type DistributionOverride = NonNullable<components['schemas']['DistributionSpec']['overrides']>[number]
+export type PolicyDistributionSpec = components['schemas']['DistributionSpec']
+export type DistributionListItem = components['schemas']['DistributionListItem']
+export type DistributionDetail = components['schemas']['DistributionDetail']
+export type DistributionRequest = components['schemas']['DistributionRequest']
+export type ListDistributionsQuery = NonNullable<operations['listDistributions']['parameters']['query']>
 
-export interface DistributionOverride {
-  cluster: string
-  enforcementMode: string
-}
-
-export interface PolicyDistributionSpec {
-  clusters?: DistributionClusters
-  policyGroups: string[]
-  overrides?: DistributionOverride[]
-}
-
-export interface DistributionListItem {
-  name: string
-  policyGroups: string[]
-}
-
-export interface DistributionDetail {
-  name: string
-  resourceVersion: string
-  spec: PolicyDistributionSpec
-}
-
-export interface DistributionRequest {
-  name?: string
-  spec: PolicyDistributionSpec
-  resourceVersion?: string
-}
-
-export const listDistributions = (params: ListQuery = {}) =>
-  request<PageResult<DistributionListItem>>('GET', '/distributions', undefined, params)
-export const getDistribution = (name: string) => request<DistributionDetail>('GET', `/distributions/${name}`)
-export const createDistribution = (req: DistributionRequest) =>
-  request<{ name: string }>('POST', '/distributions', req)
-export const updateDistribution = (name: string, req: DistributionRequest) =>
-  request<{ name: string }>('PUT', `/distributions/${name}`, req)
-export const deleteDistribution = (name: string) => request<null>('DELETE', `/distributions/${name}`)
+export const listDistributions = (params: ListDistributionsQuery = {}) =>
+  extract<'listDistributions'>(apiClient.GET('/distributions', { params: { query: params } }))
+export const getDistribution = (name: string) =>
+  extract<'getDistribution'>(apiClient.GET('/distributions/{name}', { params: { path: { name } } }))
+export const createDistribution = (body: DistributionRequest) =>
+  extract<'createDistribution'>(apiClient.POST('/distributions', { body }))
+export const updateDistribution = (name: string, body: DistributionRequest) =>
+  extract<'updateDistribution'>(apiClient.PUT('/distributions/{name}', { params: { path: { name } }, body }))
+export const deleteDistribution = (name: string) =>
+  extract<'deleteDistribution'>(apiClient.DELETE('/distributions/{name}', { params: { path: { name } } }))

@@ -100,7 +100,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ApiError } from '../api/http'
 import { collectAllPages } from '../api/pagination'
-import { createGroup, getGroup, updateGroup, type GroupRequest, type LabelSelector } from '../api/group'
+import { createGroup, getGroup, updateGroup, type GroupRequest, type LabelSelector, type PolicyRef } from '../api/group'
 import { listPolicies } from '../api/policy'
 import { listClusters } from '../api/cluster'
 import LabelEditor from '../components/LabelEditor.vue'
@@ -138,7 +138,7 @@ const form = reactive({
   displayName: '',
   description: '',
   enabled: true,
-  selectorEnforcementMode: '',
+  selectorEnforcementMode: '' as '' | NonNullable<GroupRequest['selectorEnforcementMode']>,
 })
 const allPolicies = ref<{ key: string; label: string }[]>([])
 const selectedNames = ref<string[]>([])
@@ -161,7 +161,7 @@ watch(
     if (selectedState.value.page > lastPage) void selectedRouteList.replace({ page: lastPage })
   },
 )
-const modeOverrides = reactive<Record<string, string>>({})
+const modeOverrides = reactive<Record<string, PolicyRef['enforcementMode'] | undefined>>({})
 const bySelector = ref<LabelSelector | null>(null)
 const policyTab = ref<'byName' | 'bySelector'>('byName')
 
@@ -199,7 +199,7 @@ function toRequest(): GroupRequest {
     displayName: form.displayName,
     description: form.description,
     enabled: form.enabled,
-    namespaceSelector,
+    namespaceSelector: namespaceSelector ?? undefined,
     policies: {
       byName,
       bySelector: bySelector.value ?? undefined,

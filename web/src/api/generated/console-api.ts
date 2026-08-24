@@ -793,7 +793,7 @@ export interface components {
          * @example Online
          * @enum {string}
          */
-        ClusterPhase: "Registering" | "Online" | "Offline" | "Uninstalling";
+        ClusterPhase: "Registering" | "Online" | "Offline" | "Uninstalling" | "Uninstalled";
         ClusterListItem: {
             /**
              * @description 集群名称
@@ -2514,6 +2514,12 @@ export interface components {
              */
             createdAt: string;
             /**
+             * @description 该版本快照的 Rego 编译状态
+             * @example Ready
+             * @enum {string}
+             */
+            phase: "Ready" | "Invalid";
+            /**
              * @description 该版本的 Rego 源码
              * @example package kubesentry
              *
@@ -2539,6 +2545,31 @@ export interface components {
              * @example 3
              */
             currentVersion: number;
+            /**
+             * @description 逻辑时间线中的当前位置；同步回滚时等于 currentVersion
+             * @example 3
+             */
+            cursor: number;
+            /**
+             * @description 逻辑时间线中的最新版本；同步回滚时等于 currentVersion
+             * @example 3
+             */
+            head: number;
+            /**
+             * @description 是否存在尚未完成的异步回滚
+             * @example false
+             */
+            inFlight: boolean;
+            /**
+             * @description 是否可以回滚到上一个版本
+             * @example true
+             */
+            prevEnabled: boolean;
+            /**
+             * @description 是否可以前进到下一个逻辑版本
+             * @example false
+             */
+            nextEnabled: boolean;
             /** @description 版本快照列表，按版本号倒序 */
             versions: components["schemas"]["PolicyVersionEntry"][];
         };
@@ -2635,14 +2666,14 @@ export interface components {
              */
             byName?: components["schemas"]["PolicyRef"][];
             /**
-             * @description 按标签选择器引用策略
+             * @description 按 Kubernetes 标签选择器引用策略
              * @example {
-             *       "team": "platform"
+             *       "matchLabels": {
+             *         "team": "platform"
+             *       }
              *     }
              */
-            bySelector?: {
-                [key: string]: string;
-            };
+            bySelector?: components["schemas"]["KubernetesLabelSelector"];
             /**
              * @description 排除的策略名称
              * @example [
@@ -3743,12 +3774,14 @@ export interface operations {
                 sortBy?: "occurredAt" | "createdAt" | "verdict";
                 sortOrder?: "asc" | "desc";
                 /** @description 集群名称，逗号分隔 */
-                cluster?: string;
-                verdict?: "audit" | "deny";
+                cluster?: string[];
+                /** @description 准入结论，逗号分隔多值，取 OR */
+                verdict?: ("audit" | "deny")[];
                 policy?: string;
-                namespace?: string;
+                /** @description 命名空间，逗号分隔多值 */
+                namespace?: string[];
                 /** @description 资源名称或 group/resource，逗号分隔 */
-                gvk?: string;
+                gvk?: string[];
                 resourceName?: string;
                 username?: string;
                 from?: string;

@@ -1,48 +1,17 @@
-import { request } from './http'
-import type { ListQuery, PageResult } from './pagination'
+import { apiClient } from './generated/client'
+import type { components, operations } from './generated/console-api'
+import { extract } from './http'
 
-export interface ClusterListItem {
-  name: string
-  phase: string
-  operatorVersion: string
-  kubernetesVersion: string
-  nodeCount: number
-  readyNodeCount: number
-  lastHeartbeatAt: string | null
-  createdAt: string
-}
-
-export interface ClusterDetail {
-  name: string
-  clusterUid: string
-  phase: string
-  operatorVersion: string
-  lastHeartbeatAt: string | null
-  // Member-reported inventory; empty/zero until the member reports it.
-  kubernetesVersion: string
-  apiServerAddress: string
-  nodeCount: number
-  readyNodeCount: number
-  labels: Record<string, string> | null
-  createdAt: string
-  updatedAt: string
-}
-
-export interface ImageParams {
-  repository: string
-  tag: string
-  pullPolicy: string
-}
-
-export interface InstallParams {
-  namespace: string
-  webhookImage: ImageParams
-  operatorImage: ImageParams
-  highAvailability: boolean
-  gatewayAddress: string
-  gatewayTlsServerName?: string
-  gatewayCaBundle?: string
-}
+export type ClusterListItem = components['schemas']['ClusterListItem']
+export type ClusterDetail = components['schemas']['ClusterDetail']
+export type ImageParams = components['schemas']['ImageParams']
+export type InstallParams = components['schemas']['InstallParams']
+export type InstallRecordItem = components['schemas']['InstallRecord']
+export type CreateClusterRequest = components['schemas']['ClusterCreateRequest']
+export type CreateClusterResponse = components['schemas']['ClusterCommand']
+export type UninstallTask = components['schemas']['UninstallTask']
+export type ListClustersQuery = NonNullable<operations['listClusters']['parameters']['query']>
+export type ListInstallRecordsQuery = NonNullable<operations['listInstallRecords']['parameters']['query']>
 
 export const DEFAULT_INSTALL_PARAMS: InstallParams = {
   namespace: 'kubesentry-system',
@@ -52,45 +21,25 @@ export const DEFAULT_INSTALL_PARAMS: InstallParams = {
   gatewayAddress: '',
 }
 
-export interface InstallRecordItem {
-  clusterName: string
-  namespace: string
-  webhookRepository: string
-  webhookTag: string
-  operatorRepository: string
-  operatorTag: string
-  gatewayAddress: string
-  createdAt: string
-}
-
-export interface CreateClusterRequest {
-  name: string
-  labels?: Record<string, string>
-  installParams: InstallParams
-}
-
-export interface CreateClusterResponse {
-  name: string
-  command: string
-}
-
-export interface UninstallTask { id: number; status: string; error?: string; requestedAt: string; completedAt?: string }
-
-export const listClusters = (params: ListQuery = {}) =>
-  request<PageResult<ClusterListItem>>('GET', '/clusters', undefined, params)
-export const getCluster = (name: string) => request<ClusterDetail>('GET', `/clusters/${name}`)
-export const createCluster = (req: CreateClusterRequest) =>
-  request<CreateClusterResponse>('POST', '/clusters', req)
-export const updateClusterLabels = (name: string, labels: Record<string, string>) =>
-  request<null>('PUT', `/clusters/${name}`, { labels })
-export const deleteCluster = (name: string) => request<null>('DELETE', `/clusters/${name}`)
+export const listClusters = (params: ListClustersQuery = {}) =>
+  extract<'listClusters'>(apiClient.GET('/clusters', { params: { query: params } }))
+export const getCluster = (name: string) =>
+  extract<'getCluster'>(apiClient.GET('/clusters/{name}', { params: { path: { name } } }))
+export const createCluster = (body: CreateClusterRequest) =>
+  extract<'createCluster'>(apiClient.POST('/clusters', { body }))
+export const updateClusterLabels = (name: string, labels: components['schemas']['ClusterLabelsRequest']['labels']) =>
+  extract<'updateCluster'>(apiClient.PUT('/clusters/{name}', { params: { path: { name } }, body: { labels } }))
+export const deleteCluster = (name: string) =>
+  extract<'deleteCluster'>(apiClient.DELETE('/clusters/{name}', { params: { path: { name } } }))
 export const reissueToken = (name: string, installParams: InstallParams) =>
-  request<CreateClusterResponse>('POST', `/clusters/${name}/reissue-token`, { installParams })
+  extract<'reissueClusterToken'>(apiClient.POST('/clusters/{name}/reissue-token', { params: { path: { name } }, body: { installParams } }))
 export const getLatestInstallParams = (name: string) =>
-  request<InstallParams | null>('GET', `/clusters/${name}/latest-install-params`)
-export const uninstallCluster = (name: string) => request<UninstallTask>('POST', `/clusters/${name}/uninstall`)
-export const listUninstallTasks = (name: string) => request<UninstallTask[]>('GET', `/clusters/${name}/uninstall-tasks`)
-export const retryUninstallTask = (name: string, taskID: number) =>
-  request<{ id: number }>('POST', `/clusters/${name}/uninstall-tasks/${taskID}/retry`)
-export const listInstallRecords = (params: ListQuery = {}) =>
-  request<PageResult<InstallRecordItem>>('GET', '/install-records', undefined, params)
+  extract<'getLatestInstallParams'>(apiClient.GET('/clusters/{name}/latest-install-params', { params: { path: { name } } }))
+export const uninstallCluster = (name: string) =>
+  extract<'createUninstallTask'>(apiClient.POST('/clusters/{name}/uninstall', { params: { path: { name } } }))
+export const listUninstallTasks = (name: string) =>
+  extract<'listUninstallTasks'>(apiClient.GET('/clusters/{name}/uninstall-tasks', { params: { path: { name } } }))
+export const retryUninstallTask = (name: string, taskID: string) =>
+  extract<'retryUninstallTask'>(apiClient.POST('/clusters/{name}/uninstall-tasks/{taskID}/retry', { params: { path: { name, taskID } } }))
+export const listInstallRecords = (params: ListInstallRecordsQuery = {}) =>
+  extract<'listInstallRecords'>(apiClient.GET('/install-records', { params: { query: params } }))

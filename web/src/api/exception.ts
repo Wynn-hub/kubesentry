@@ -1,60 +1,22 @@
-import { request } from './http'
-import type { ListQuery, PageResult } from './pagination'
-import type { LabelSelector } from './group'
-import type { ClusterScope } from './group'
+import { apiClient } from './generated/client'
+import type { components, operations } from './generated/console-api'
+import { extract } from './http'
 
-export interface ExceptionMatch {
-  namespaces?: string[]
-  namespaceSelector?: LabelSelector | null
-  resourceSelector?: LabelSelector | null
-}
+export type ExceptionMatch = components['schemas']['ExceptionMatch']
+export type ExceptionListItem = components['schemas']['ExceptionListItem']
+export type ExceptionSpec = components['schemas']['ExceptionSpec']
+export type ExceptionStatus = components['schemas']['ExceptionStatus']
+export type ExceptionDetail = components['schemas']['ExceptionDetail']
+export type ExceptionRequest = components['schemas']['ExceptionRequest']
+export type ListExceptionsQuery = NonNullable<operations['listExceptions']['parameters']['query']>
 
-export interface ExceptionListItem {
-  name: string
-  phase: string
-  reason: string
-  duration: string
-  targetSummary: string
-  expiresAt?: string
-}
-
-export interface ExceptionSpec {
-  policyRefs?: string[]
-  policyGroupRefs?: string[]
-  allPolicies?: boolean
-  match: ExceptionMatch
-  duration: string
-  retainAfterExpiry?: string
-  reason: string
-}
-
-export interface ExceptionStatus {
-  phase?: string
-  message?: string
-  effectiveAt?: string
-  expiresAt?: string
-}
-
-export interface ExceptionDetail {
-  name: string
-  resourceVersion: string
-  spec: ExceptionSpec
-  status: ExceptionStatus
-  scope: ClusterScope
-}
-
-export interface ExceptionRequest extends ExceptionSpec {
-  name?: string
-  resourceVersion?: string
-  allClusters: boolean
-  clusterNames?: string[]
-}
-
-export const listExceptions = (params: ListQuery = {}) =>
-  request<PageResult<ExceptionListItem>>('GET', '/exceptions', undefined, params)
-export const getException = (name: string) => request<ExceptionDetail>('GET', `/exceptions/${name}`)
-export const createException = (req: ExceptionRequest) =>
-  request<{ name: string }>('POST', '/exceptions', req)
-export const updateException = (name: string, req: ExceptionRequest) =>
-  request<{ name: string }>('PUT', `/exceptions/${name}`, req)
-export const deleteException = (name: string) => request<null>('DELETE', `/exceptions/${name}`)
+export const listExceptions = (params: ListExceptionsQuery = {}) =>
+  extract<'listExceptions'>(apiClient.GET('/exceptions', { params: { query: params } }))
+export const getException = (name: string) =>
+  extract<'getException'>(apiClient.GET('/exceptions/{name}', { params: { path: { name } } }))
+export const createException = (body: ExceptionRequest) =>
+  extract<'createException'>(apiClient.POST('/exceptions', { body }))
+export const updateException = (name: string, body: ExceptionRequest) =>
+  extract<'updateException'>(apiClient.PUT('/exceptions/{name}', { params: { path: { name } }, body }))
+export const deleteException = (name: string) =>
+  extract<'deleteException'>(apiClient.DELETE('/exceptions/{name}', { params: { path: { name } } }))

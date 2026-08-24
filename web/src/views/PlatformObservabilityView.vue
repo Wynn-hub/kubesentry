@@ -148,6 +148,7 @@ import {
   listPlatformLeadershipEvents,
   updatePlatformSettings,
   type PlatformInstance,
+  type PlatformComponent,
   type PlatformLeadershipPage,
   type PlatformOverview,
   type PlatformSettings,
@@ -159,7 +160,7 @@ const overview = ref<PlatformOverview>()
 const loading = ref(true)
 const page = ref(1)
 const pageSize = ref(20)
-const healthFilter = ref('')
+const healthFilter = ref<'' | Extract<PlatformOverview['platformHealth'], 'ok' | 'degraded' | 'unavailable'>>('')
 const instanceOpen = ref(false)
 const selectedInstance = ref<PlatformInstanceTarget>()
 const historyOpen = ref(false)
@@ -197,8 +198,8 @@ function dismissBanner() {
 async function load() {
   try {
     overview.value = await getPlatformOverview({
-      page: String(page.value),
-      pageSize: String(pageSize.value),
+      page: page.value,
+      pageSize: pageSize.value as 10 | 20 | 50 | 100,
       ...(healthFilter.value ? { health: healthFilter.value } : {}),
     })
   } catch (error) {
@@ -263,11 +264,11 @@ async function saveSettings() {
   }
 }
 
-function selectInstance(component: string, cluster: string | undefined, instance: PlatformInstance) {
+function selectInstance(component: PlatformComponent['component'], cluster: string | undefined, instance: PlatformInstance) {
   selectedInstance.value = { component, cluster, instance }
   instanceOpen.value = true
 }
-function openHistory(component: string, cluster?: string) {
+function openHistory(component: PlatformComponent['component'], cluster?: string) {
   historyComponent.value = component
   historyCluster.value = cluster
   historyPage.value = 1
@@ -279,9 +280,9 @@ async function loadHistory() {
   try {
     const to = new Date()
     leadership.value = await listPlatformLeadershipEvents({
-      page: String(historyPage.value),
-      pageSize: '10',
-      component: historyComponent.value,
+      page: historyPage.value,
+      pageSize: 10,
+      component: historyComponent.value as PlatformComponent['component'],
       cluster: historyCluster.value,
       from: new Date(to.getTime() - 30 * 864e5).toISOString(),
       to: to.toISOString(),

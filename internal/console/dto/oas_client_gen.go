@@ -3209,12 +3209,21 @@ func (c *Client) sendListAdmissionEvents(ctx context.Context, params ListAdmissi
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "cluster",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Cluster.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
+			if params.Cluster != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Cluster {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
 			}
 			return nil
 		}); err != nil {
@@ -3226,12 +3235,21 @@ func (c *Client) sendListAdmissionEvents(ctx context.Context, params ListAdmissi
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "verdict",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Verdict.Get(); ok {
-				return e.EncodeValue(conv.StringToString(string(val)))
+			if params.Verdict != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Verdict {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(string(item)))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
 			}
 			return nil
 		}); err != nil {
@@ -3260,12 +3278,21 @@ func (c *Client) sendListAdmissionEvents(ctx context.Context, params ListAdmissi
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "namespace",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Namespace.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
+			if params.Namespace != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Namespace {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
 			}
 			return nil
 		}); err != nil {
@@ -3277,12 +3304,21 @@ func (c *Client) sendListAdmissionEvents(ctx context.Context, params ListAdmissi
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "gvk",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Gvk.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
+			if params.Gvk != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Gvk {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
 			}
 			return nil
 		}); err != nil {

@@ -3,7 +3,7 @@ components:
     ClusterPhase:
       type: string
       description: 集群连接与卸载阶段
-      enum: [Registering, Online, Offline, Uninstalling]
+      enum: [Registering, Online, Offline, Uninstalling, Uninstalled]
       example: Online
     ImageParams:
       type: object

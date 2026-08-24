@@ -1,14 +1,13 @@
-export interface PolicyRefOut {
-  name: string
-  enforcementMode?: string
-}
+import type { components } from '../api/generated/console-api'
+
+export type PolicyRefOut = components['schemas']['PolicyRef']
 
 export interface ComputeMembershipInput {
   initialResolvedNames: string[]
   initialByNameNames: string[]
   initialExclude: string[]
   finalSelectedNames: string[]
-  modeOverrides: Record<string, string | undefined>
+  modeOverrides: Record<string, PolicyRefOut['enforcementMode'] | undefined>
 }
 
 export interface ComputeMembershipResult {
@@ -36,7 +35,7 @@ export function computeMembership(input: ComputeMembershipInput): ComputeMembers
     const wasByName = byNameSet.has(name)
     const isNewlyAdded = !resolvedSet.has(name)
     const override = input.modeOverrides[name]
-    const hasOverride = override !== undefined && override !== ''
+    const hasOverride = override !== undefined
     if (wasByName || isNewlyAdded || hasOverride) {
       byName.push({ name, enforcementMode: override || undefined })
     }

@@ -1,96 +1,34 @@
-import { request } from './http'
-import type { ListQuery, PageResult } from './pagination'
+import { apiClient } from './generated/client'
+import type { components, operations } from './generated/console-api'
+import { extract } from './http'
 
-export interface MatchResource {
-  apiGroups: string[]
-  apiVersions: string[]
-  resources: string[]
-}
+export type MatchResource = components['schemas']['MatchResource']
+export type PolicyMatch = components['schemas']['PolicyMatch']
+export type PolicyListItem = components['schemas']['PolicyListItem']
+export type PolicyDetail = components['schemas']['PolicyDetail']
+export type PolicyRequest = components['schemas']['PolicyRequest']
+export type VersionEntry = components['schemas']['PolicyVersionEntry']
+export type VersionTimeline = components['schemas']['PolicyVersionList']
+export type ResourceSuggestions = components['schemas']['ResourceSuggestions']
+export type ListPoliciesQuery = NonNullable<operations['listPolicies']['parameters']['query']>
 
-export interface PolicyMatch {
-  operations: string[]
-  resources: MatchResource[]
-}
-
-export interface PolicyListItem {
-  name: string
-  source: string
-  enforcementMode: string
-  phase: string
-  description: string
-  createdAt: string
-  updatedAt: string | null
-}
-
-export interface PolicyDetail {
-  name: string
-  source: string
-  description: string
-  labels: Record<string, string> | null
-  annotations: Record<string, string> | null
-  enforcementMode: string
-  match: PolicyMatch
-  rego: string
-  phase: string
-  compileError?: string
-  referencedBy: string[] | null
-  resourceVersion: string
-  createdAt: string
-  updatedAt: string | null
-}
-
-export interface PolicyRequest {
-  name?: string
-  description: string
-  enforcementMode: string
-  match: PolicyMatch
-  rego: string
-  labels?: Record<string, string>
-  annotations?: Record<string, string>
-  resourceVersion?: string
-}
-
-export interface VersionEntry {
-  version: number
-  createdAt: string
-  phase: string
-  rego: string
-  match: PolicyMatch
-  enforcementMode: string
-  isCurrent: boolean
-}
-
-export interface VersionTimeline {
-  currentVersion: number
-  cursor: number
-  head: number
-  inFlight: boolean
-  prevEnabled: boolean
-  nextEnabled: boolean
-  versions: VersionEntry[]
-}
-
-export const listPolicies = (params: ListQuery = {}) =>
-  request<PageResult<PolicyListItem>>('GET', '/policies', undefined, params)
-export const getPolicy = (name: string) => request<PolicyDetail>('GET', `/policies/${name}`)
-export const createPolicy = (req: PolicyRequest) => request<{ name: string }>('POST', '/policies', req)
-export const updatePolicy = (name: string, req: PolicyRequest) =>
-  request<{ name: string }>('PUT', `/policies/${name}`, req)
+export const listPolicies = (params: ListPoliciesQuery = {}) =>
+  extract<'listPolicies'>(apiClient.GET('/policies', { params: { query: params } }))
+export const getPolicy = (name: string) =>
+  extract<'getPolicy'>(apiClient.GET('/policies/{name}', { params: { path: { name } } }))
+export const createPolicy = (body: PolicyRequest) =>
+  extract<'createPolicy'>(apiClient.POST('/policies', { body }))
+export const updatePolicy = (name: string, body: PolicyRequest) =>
+  extract<'updatePolicy'>(apiClient.PUT('/policies/{name}', { params: { path: { name } }, body }))
 export const deletePolicy = (name: string, force = false) =>
-  request<null>('DELETE', `/policies/${name}`, undefined, force ? { force: 'true' } : {})
-export const validateRego = (rego: string) => request<null>('POST', '/policies/validate', { rego })
+  extract<'deletePolicy'>(apiClient.DELETE('/policies/{name}', { params: { path: { name }, query: force ? { force } : {} } }))
+export const validateRego = (rego: components['schemas']['ValidateRegoRequest']['rego']) =>
+  extract<'validatePolicyRego'>(apiClient.POST('/policies/validate', { body: { rego } }))
 export const getTimeline = async (name: string) => {
-  const timeline = await request<VersionTimeline>('GET', `/policies/${name}/versions`)
+  const timeline = await extract<'listPolicyVersions'>(apiClient.GET('/policies/{name}/versions', { params: { path: { name } } }))
   return { ...timeline, versions: [...timeline.versions].sort((a, b) => b.version - a.version) }
 }
-export const rollback = (name: string, direction: 'prev' | 'next') =>
-  request<{ targetVersion: number }>('POST', `/policies/${name}/rollback`, { direction })
-
-export interface ResourceSuggestions {
-  apiGroups: string[]
-  apiVersions: string[]
-  resources: string[]
-  resourcesByGroup: Record<string, string[]>
-}
+export const rollback = (name: string, direction: components['schemas']['RollbackRequest']['direction']) =>
+  extract<'rollbackPolicy'>(apiClient.POST('/policies/{name}/rollback', { params: { path: { name } }, body: { direction } }))
 export const getResourceSuggestions = () =>
-  request<ResourceSuggestions>('GET', '/policies/resource-suggestions')
+  extract<'getResourceSuggestions'>(apiClient.GET('/policies/resource-suggestions'))

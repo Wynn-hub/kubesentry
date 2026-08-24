@@ -44,7 +44,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { deleteException, listExceptions, type ExceptionListItem } from '../api/exception'
+import { deleteException, listExceptions, type ExceptionListItem, type ListExceptionsQuery } from '../api/exception'
 import PageHeader from '../components/PageHeader.vue'
 import PhaseTag from '../components/PhaseTag.vue'
 import PaginationBar from '../components/PaginationBar.vue'
@@ -67,7 +67,7 @@ const tableSort = computed(() => ({
   prop: listState.value.sortBy,
   order: listState.value.sortOrder === 'asc' ? 'ascending' : 'descending',
 }))
-const requestParams = computed(() => listStateParams(listState.value))
+const requestParams = computed(() => listStateParams<ListExceptionsQuery>(listState.value))
 
 async function load() {
   try {

@@ -555,20 +555,30 @@ paths:
         - name: cluster
           in: query
           description: 集群名称，逗号分隔
-          schema: {type: string}
+          style: form
+          explode: false
+          schema: {type: array, items: {type: string}}
         - name: verdict
           in: query
-          schema: {type: string, enum: [audit, deny]}
+          description: 准入结论，逗号分隔多值，取 OR
+          style: form
+          explode: false
+          schema: {type: array, items: {type: string, enum: [audit, deny]}}
         - name: policy
           in: query
           schema: {type: string}
         - name: namespace
           in: query
-          schema: {type: string}
+          description: 命名空间，逗号分隔多值
+          style: form
+          explode: false
+          schema: {type: array, items: {type: string}}
         - name: gvk
           in: query
           description: 资源名称或 group/resource，逗号分隔
-          schema: {type: string}
+          style: form
+          explode: false
+          schema: {type: array, items: {type: string}}
         - name: resourceName
           in: query
           schema: {type: string}

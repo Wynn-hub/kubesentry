@@ -50,7 +50,7 @@ watch(
 )
 
 function emitValue() {
-  const matchExpressions = rows.value
+  const matchExpressions: NonNullable<LabelSelector['matchExpressions']> = rows.value
     .filter((r) => r.key.trim() !== '' && r.values.length > 0)
     .map((r) => ({ key: r.key.trim(), operator: 'In', values: r.values }))
   const out = matchExpressions.length ? { matchExpressions } : null

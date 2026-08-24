@@ -23,11 +23,9 @@ components:
             $ref: '#/components/schemas/PolicyRef'
           example: [{name: deny-privileged-pod}]
         bySelector:
-          type: object
-          additionalProperties:
-            type: string
-          description: 按标签选择器引用策略
-          example: {team: platform}
+          $ref: './common.yaml#/components/schemas/KubernetesLabelSelector'
+          description: 按 Kubernetes 标签选择器引用策略
+          example: {matchLabels: {team: platform}}
         exclude:
           type: array
           description: 排除的策略名称

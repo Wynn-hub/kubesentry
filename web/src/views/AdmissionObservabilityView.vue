@@ -98,7 +98,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import PageHeader from '../components/PageHeader.vue'
 import PaginationBar from '../components/PaginationBar.vue'
-import { getLinkIncident, listLinkIncidents, type LinkIncident, type LinkIncidentComponent, type LinkIncidentDetail, type LinkIncidentReason, type LinkIncidentStatus } from '../api/observability'
+import { getLinkIncident, listLinkIncidents, type LinkIncident, type LinkIncidentComponent, type LinkIncidentDetail, type LinkIncidentQuery, type LinkIncidentReason, type LinkIncidentStatus } from '../api/observability'
 import { listClusters } from '../api/cluster'
 import { collectAllPages } from '../api/pagination'
 import { createObservationPoller } from './observationPolling'
@@ -124,18 +124,18 @@ function range(): Record<string,string>{
   const spans:Record<string,number>={'1h':36e5,'6h':216e5,'24h':864e5,'7d':6048e5}; const end=Date.now()
   return {from:new Date(end-(spans[rangeKey.value]??36e5)).toISOString(),to:new Date(end).toISOString()}
 }
-function filters(): Record<string,string>{ return {
-  ...(clusters.value.length?{cluster:clusters.value.join(',')}:{}), ...(components.value.length?{component:components.value.join(',')}:{}),
-  ...(reasons.value.length?{reason:reasons.value.join(',')}:{}),
+function filters(): LinkIncidentQuery { return {
+  ...(clusters.value.length?{cluster:clusters.value}:{}), ...(components.value.length?{component:components.value}:{}),
+  ...(reasons.value.length?{reason:reasons.value}:{}),
 } }
 async function loadActive(){
-  try{ const result=await listLinkIncidents({...filters(),status:'active',page:'1',pageSize:'100'}); activeIncidents.value=result.items }
+  try{ const result=await listLinkIncidents({...filters(),status:['active'],page:1,pageSize:100}); activeIncidents.value=result.items }
   catch(error){ console.warn('load active link incidents',error) }
 }
 async function loadHistory(){
   loading.value=true
   try{
-    const result=await listLinkIncidents({...filters(),...(statuses.value.length?{status:statuses.value.join(',')}:{}),...range(),page:String(page.value),pageSize:String(pageSize.value)})
+    const result=await listLinkIncidents({...filters(),...(statuses.value.length?{status:statuses.value}:{}),...range(),page:page.value,pageSize:pageSize.value as 10 | 20 | 50 | 100})
     incidents.value=result.items;total.value=result.total
   }catch(error){ElMessage.error((error as Error).message)}finally{loading.value=false}
 }

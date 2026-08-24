@@ -253,7 +253,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 								return
 							}
-
 						}
 
 					}
@@ -317,7 +316,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 							return
 						}
-
 					}
 
 				}
@@ -557,17 +555,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 											return
 										}
-
 									}
-
 								}
-
 							}
 
 						}
-
 					}
-
 				}
 
 			case 'd': // Prefix: "distributions"
@@ -639,7 +632,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 						return
 					}
-
 				}
 
 			case 'e': // Prefix: "exceptions"
@@ -711,7 +703,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 						return
 					}
-
 				}
 
 			case 'i': // Prefix: "install-records"
@@ -832,9 +823,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									return
 								}
-
 							}
-
 						}
 
 					case 'l': // Prefix: "leadership-events"
@@ -1121,9 +1110,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									}
 
 								}
-
 							}
-
 						}
 
 					case 'y': // Prefix: "ygroups"
@@ -1221,9 +1208,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									return
 								}
-
 							}
-
 						}
 
 					}
@@ -1295,7 +1280,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 
 			}
-
 		}
 	}
 	s.notFound(w, r)
@@ -1540,7 +1524,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									return
 								}
 							}
-
 						}
 
 					}
@@ -1602,7 +1585,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								return
 							}
 						}
-
 					}
 
 				}
@@ -1846,17 +1828,12 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												return
 											}
 										}
-
 									}
-
 								}
-
 							}
 
 						}
-
 					}
-
 				}
 
 			case 'd': // Prefix: "distributions"
@@ -1943,7 +1920,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return
 						}
 					}
-
 				}
 
 			case 'e': // Prefix: "exceptions"
@@ -2030,7 +2006,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return
 						}
 					}
-
 				}
 
 			case 'i': // Prefix: "install-records"
@@ -2148,9 +2123,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return
 									}
 								}
-
 							}
-
 						}
 
 					case 'l': // Prefix: "leadership-events"
@@ -2455,9 +2428,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 
 								}
-
 							}
-
 						}
 
 					case 'y': // Prefix: "ygroups"
@@ -2568,9 +2539,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return
 									}
 								}
-
 							}
-
 						}
 
 					}
@@ -2642,7 +2611,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				}
 
 			}
-
 		}
 	}
 	return r, false

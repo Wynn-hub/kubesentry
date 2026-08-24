@@ -1869,12 +1869,14 @@ type ListAdmissionEventsParams struct {
 	SortBy    OptListAdmissionEventsSortBy    `json:",omitempty,omitzero"`
 	SortOrder OptListAdmissionEventsSortOrder `json:",omitempty,omitzero"`
 	// 集群名称，逗号分隔.
-	Cluster   OptString                     `json:",omitempty,omitzero"`
-	Verdict   OptListAdmissionEventsVerdict `json:",omitempty,omitzero"`
-	Policy    OptString                     `json:",omitempty,omitzero"`
-	Namespace OptString                     `json:",omitempty,omitzero"`
+	Cluster []string `json:",omitempty"`
+	// 准入结论，逗号分隔多值，取 OR.
+	Verdict []ListAdmissionEventsVerdictItem `json:",omitempty"`
+	Policy  OptString                        `json:",omitempty,omitzero"`
+	// 命名空间，逗号分隔多值.
+	Namespace []string `json:",omitempty"`
 	// 资源名称或 group/resource，逗号分隔.
-	Gvk          OptString   `json:",omitempty,omitzero"`
+	Gvk          []string    `json:",omitempty"`
 	ResourceName OptString   `json:",omitempty,omitzero"`
 	Username     OptString   `json:",omitempty,omitzero"`
 	From         OptDateTime `json:",omitempty,omitzero"`
@@ -1924,7 +1926,7 @@ func unpackListAdmissionEventsParams(packed middleware.Parameters) (params ListA
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.Cluster = v.(OptString)
+			params.Cluster = v.([]string)
 		}
 	}
 	{
@@ -1933,7 +1935,7 @@ func unpackListAdmissionEventsParams(packed middleware.Parameters) (params ListA
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.Verdict = v.(OptListAdmissionEventsVerdict)
+			params.Verdict = v.([]ListAdmissionEventsVerdictItem)
 		}
 	}
 	{
@@ -1951,7 +1953,7 @@ func unpackListAdmissionEventsParams(packed middleware.Parameters) (params ListA
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.Namespace = v.(OptString)
+			params.Namespace = v.([]string)
 		}
 	}
 	{
@@ -1960,7 +1962,7 @@ func unpackListAdmissionEventsParams(packed middleware.Parameters) (params ListA
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.Gvk = v.(OptString)
+			params.Gvk = v.([]string)
 		}
 	}
 	{
@@ -2263,30 +2265,33 @@ func decodeListAdmissionEventsParams(args [0]string, argsEscaped bool, r *http.R
 		cfg := uri.QueryParameterDecodingConfig{
 			Name:    "cluster",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotClusterVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
+				params.Cluster = nil
+				return d.DecodeArray(func(d uri.Decoder) error {
+					var paramsDotClusterVal string
+					if err := func() error {
+						val, err := d.DecodeValue()
+						if err != nil {
+							return err
+						}
+
+						c, err := conv.ToString(val)
+						if err != nil {
+							return err
+						}
+
+						paramsDotClusterVal = c
+						return nil
+					}(); err != nil {
 						return err
 					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotClusterVal = c
+					params.Cluster = append(params.Cluster, paramsDotClusterVal)
 					return nil
-				}(); err != nil {
-					return err
-				}
-				params.Cluster.SetTo(paramsDotClusterVal)
-				return nil
+				})
 			}); err != nil {
 				return err
 			}
@@ -2304,43 +2309,53 @@ func decodeListAdmissionEventsParams(args [0]string, argsEscaped bool, r *http.R
 		cfg := uri.QueryParameterDecodingConfig{
 			Name:    "verdict",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotVerdictVal ListAdmissionEventsVerdict
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotVerdictVal = ListAdmissionEventsVerdict(c)
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.Verdict.SetTo(paramsDotVerdictVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if value, ok := params.Verdict.Get(); ok {
+				params.Verdict = nil
+				return d.DecodeArray(func(d uri.Decoder) error {
+					var paramsDotVerdictVal ListAdmissionEventsVerdictItem
 					if err := func() error {
-						if err := value.Validate(); err != nil {
+						val, err := d.DecodeValue()
+						if err != nil {
 							return err
 						}
+
+						c, err := conv.ToString(val)
+						if err != nil {
+							return err
+						}
+
+						paramsDotVerdictVal = ListAdmissionEventsVerdictItem(c)
 						return nil
 					}(); err != nil {
 						return err
 					}
+					params.Verdict = append(params.Verdict, paramsDotVerdictVal)
+					return nil
+				})
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				var failures []validate.FieldError
+				for i, elem := range params.Verdict {
+					if err := func() error {
+						if err := elem.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						failures = append(failures, validate.FieldError{
+							Name:  fmt.Sprintf("[%d]", i),
+							Error: err,
+						})
+					}
+				}
+				if len(failures) > 0 {
+					return &validate.Error{Fields: failures}
 				}
 				return nil
 			}(); err != nil {
@@ -2401,30 +2416,33 @@ func decodeListAdmissionEventsParams(args [0]string, argsEscaped bool, r *http.R
 		cfg := uri.QueryParameterDecodingConfig{
 			Name:    "namespace",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotNamespaceVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
+				params.Namespace = nil
+				return d.DecodeArray(func(d uri.Decoder) error {
+					var paramsDotNamespaceVal string
+					if err := func() error {
+						val, err := d.DecodeValue()
+						if err != nil {
+							return err
+						}
+
+						c, err := conv.ToString(val)
+						if err != nil {
+							return err
+						}
+
+						paramsDotNamespaceVal = c
+						return nil
+					}(); err != nil {
 						return err
 					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotNamespaceVal = c
+					params.Namespace = append(params.Namespace, paramsDotNamespaceVal)
 					return nil
-				}(); err != nil {
-					return err
-				}
-				params.Namespace.SetTo(paramsDotNamespaceVal)
-				return nil
+				})
 			}); err != nil {
 				return err
 			}
@@ -2442,30 +2460,33 @@ func decodeListAdmissionEventsParams(args [0]string, argsEscaped bool, r *http.R
 		cfg := uri.QueryParameterDecodingConfig{
 			Name:    "gvk",
 			Style:   uri.QueryStyleForm,
-			Explode: true,
+			Explode: false,
 		}
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotGvkVal string
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
+				params.Gvk = nil
+				return d.DecodeArray(func(d uri.Decoder) error {
+					var paramsDotGvkVal string
+					if err := func() error {
+						val, err := d.DecodeValue()
+						if err != nil {
+							return err
+						}
+
+						c, err := conv.ToString(val)
+						if err != nil {
+							return err
+						}
+
+						paramsDotGvkVal = c
+						return nil
+					}(); err != nil {
 						return err
 					}
-
-					c, err := conv.ToString(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotGvkVal = c
+					params.Gvk = append(params.Gvk, paramsDotGvkVal)
 					return nil
-				}(); err != nil {
-					return err
-				}
-				params.Gvk.SetTo(paramsDotGvkVal)
-				return nil
+				})
 			}); err != nil {
 				return err
 			}

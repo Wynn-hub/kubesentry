@@ -153,7 +153,7 @@ import { MoreFilled } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import {
   createCluster, deleteCluster, listClusters, listInstallRecords, uninstallCluster,
-  DEFAULT_INSTALL_PARAMS, type ClusterListItem, type InstallParams, type InstallRecordItem,
+  DEFAULT_INSTALL_PARAMS, type ClusterListItem, type InstallParams, type InstallRecordItem, type ListClustersQuery, type ListInstallRecordsQuery,
 } from '../api/cluster'
 import { relTime } from '../lib/relTime'
 import PageHeader from '../components/PageHeader.vue'
@@ -196,7 +196,7 @@ const clustersRouteList = useRouteListState({
   allowedSort: ['name', 'phase', 'operatorVersion', 'lastHeartbeatAt', 'createdAt'],
 })
 const clustersState = clustersRouteList.state
-const clustersParams = computed(() => listStateParams(clustersState.value))
+const clustersParams = computed(() => listStateParams<ListClustersQuery>(clustersState.value))
 const clustersTableSort = computed(() => ({
   prop: clustersState.value.sortBy,
   order: clustersState.value.sortOrder === 'asc' ? 'ascending' : 'descending',
@@ -249,7 +249,7 @@ const recordsRouteList = useRouteListState({
   allowedSort: ['clusterName', 'namespace', 'createdAt'],
 })
 const recordsState = recordsRouteList.state
-const recordsParams = computed(() => listStateParams(recordsState.value))
+const recordsParams = computed(() => listStateParams<ListInstallRecordsQuery>(recordsState.value))
 const recordsTableSort = computed(() => ({
   prop: recordsState.value.sortBy,
   order: recordsState.value.sortOrder === 'asc' ? 'ascending' : 'descending',

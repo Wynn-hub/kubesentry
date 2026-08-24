@@ -96,7 +96,8 @@ const memoryLabel = (instance: PlatformInstance) => instance.memoryLimitBytes > 
 const probeLabel = (instance: PlatformInstance) => instance.healthReason === 'console_web_probe_failed'
   ? t('platformObservability.probeFailed')
   : t('platformObservability.probeOk')
-const dbRatio = (instance: PlatformInstance, value: string, maximum: string) => {
+type DatabaseStatKey = keyof NonNullable<PlatformInstance['dbStats']>
+const dbRatio = (instance: PlatformInstance, value: DatabaseStatKey, maximum: DatabaseStatKey) => {
   const current = instance.dbStats?.[value] ?? -1
   const limit = instance.dbStats?.[maximum] ?? -1
   return limit >= 0 ? `${platformMetricText(current)} / ${platformMetricText(limit)}` : platformMetricText(current)

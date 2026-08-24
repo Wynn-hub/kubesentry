@@ -99,7 +99,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ApiError } from '../api/http'
-import { deletePolicy, listPolicies, type PolicyListItem } from '../api/policy'
+import { deletePolicy, listPolicies, type ListPoliciesQuery, type PolicyListItem } from '../api/policy'
 import PageHeader from '../components/PageHeader.vue'
 import ModeTag from '../components/ModeTag.vue'
 import PhaseTag from '../components/PhaseTag.vue'
@@ -163,10 +163,10 @@ watch(keywordInput, (keyword) => {
 onBeforeUnmount(() => clearTimeout(keywordTimer))
 
 const requestParams = computed(() => {
-  const params = listStateParams(listState.value)
-  if (sourceFilter.value.length) params.source = sourceFilter.value.join(',')
-  if (phaseFilter.value.length) params.phase = phaseFilter.value.join(',')
-  if (modeFilter.value.length) params.mode = modeFilter.value.join(',')
+  const params = listStateParams<ListPoliciesQuery>(listState.value)
+  if (sourceFilter.value.length) params.source = sourceFilter.value as NonNullable<ListPoliciesQuery['source']>
+  if (phaseFilter.value.length) params.phase = phaseFilter.value as NonNullable<ListPoliciesQuery['phase']>
+  if (modeFilter.value.length) params.mode = modeFilter.value as NonNullable<ListPoliciesQuery['mode']>
   const keyword = queryText(route.query.keyword)
   if (keyword) params.keyword = keyword
   return params

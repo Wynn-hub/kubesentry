@@ -41,7 +41,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { deleteDistribution, listDistributions, type DistributionListItem } from '../api/distribution'
+import { deleteDistribution, listDistributions, type DistributionListItem, type ListDistributionsQuery } from '../api/distribution'
 import PageHeader from '../components/PageHeader.vue'
 import PaginationBar from '../components/PaginationBar.vue'
 import { listStateParams, useRouteListState, type SortOrder } from '../composables/useRouteListState'
@@ -63,7 +63,7 @@ const tableSort = computed(() => ({
   prop: listState.value.sortBy,
   order: listState.value.sortOrder === 'asc' ? 'ascending' : 'descending',
 }))
-const requestParams = computed(() => listStateParams(listState.value))
+const requestParams = computed(() => listStateParams<ListDistributionsQuery>(listState.value))
 
 async function load() {
   try {

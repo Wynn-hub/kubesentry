@@ -121,13 +121,13 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import type { PlatformInstance, PlatformTrend } from '../api/platform'
+import type { PlatformComponent, PlatformInstance, PlatformTrend } from '../api/platform'
 import { getPlatformInstanceTrend } from '../api/platform'
 import PlatformTrendChart from './PlatformTrendChart.vue'
 import { platformMetricsStale, platformMetricText } from './platformTrend'
 
 export interface PlatformInstanceTarget {
-  component: string
+  component: PlatformComponent['component']
   cluster?: string
   instance: PlatformInstance
 }
@@ -161,8 +161,9 @@ const memory = computed(() => {
     ? `${bytes(instance.memoryBytes)} / ${bytes(instance.memoryLimitBytes)}`
     : bytes(instance.memoryBytes)
 })
-const stat = (key: string) => props.target?.instance.dbStats?.[key] ?? -1
-const ratio = (value: string, maximum: string) => stat(maximum) >= 0
+type DatabaseStatKey = keyof NonNullable<PlatformInstance['dbStats']>
+const stat = (key: DatabaseStatKey) => props.target?.instance.dbStats?.[key] ?? -1
+const ratio = (value: DatabaseStatKey, maximum: DatabaseStatKey) => stat(maximum) >= 0
   ? `${platformMetricText(stat(value))} / ${platformMetricText(stat(maximum))}`
   : platformMetricText(stat(value))
 const pool = computed(() => `${platformMetricText(stat('poolInUse'))} / ${platformMetricText(stat('poolIdle'))}`)

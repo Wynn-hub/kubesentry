@@ -146,8 +146,8 @@ function resourceOptionsFor(apiGroup: string | null): string[] {
 const form = reactive({
   name: '',
   description: '',
-  enforcementMode: 'audit',
-  operations: ['CREATE'] as string[],
+  enforcementMode: 'audit' as PolicyRequest['enforcementMode'],
+  operations: ['CREATE'] as PolicyRequest['match']['operations'],
   resources: [{ apiGroup: null, apiVersion: null, resource: null }] as ResourceRow[],
   rego: 'package kubesentry\n\ndeny[msg] {\n\t# condition\n\tmsg := "reason"\n}\n',
 })

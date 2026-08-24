@@ -1,7 +1,10 @@
-import { request } from './http'
-import type { FieldNode } from '../components/fieldTree'
+import { apiClient } from './generated/client'
+import type { components } from './generated/console-api'
+import { extract } from './http'
+
+export type FieldNode = components['schemas']['FieldNode']
 
 export const getFieldSchema = (group: string, version: string, resource: string, refresh = false) =>
-  request<FieldNode[]>('GET', '/schema/fields', undefined, {
-    group, version, resource, ...(refresh ? { refresh: 'true' } : {}),
-  })
+  extract<'getFieldSchema'>(apiClient.GET('/schema/fields', {
+    params: { query: { group, version, resource, ...(refresh ? { refresh } : {}) } },
+  }))

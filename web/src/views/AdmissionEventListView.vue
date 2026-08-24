@@ -123,7 +123,7 @@ async function load(){
   try {
     const { from, to } = resolveRange()
     const result=await listAdmissionEvents({
-      page:String(page.value), pageSize:String(pageSize.value), sortBy:'occurredAt', sortOrder:'desc',
+      page: page.value, pageSize: pageSize.value as 10 | 20 | 50 | 100, sortBy:'occurredAt', sortOrder:'desc',
       ...(verdicts.value.length?{verdict:verdicts.value.join(',')}:{}),
       ...(clusters.value.length?{cluster:clusters.value.join(',')}:{}),
       ...(namespaces.value.length?{namespace:namespaces.value.join(',')}:{}),
