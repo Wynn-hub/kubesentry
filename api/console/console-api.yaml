@@ -135,6 +135,161 @@ components:
             $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
 
 paths:
+  /clusters:
+    get:
+      tags: [Cluster]
+      operationId: listClusters
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' }]
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '500': {$ref: '#/components/responses/InternalError'}
+    post:
+      tags: [Cluster]
+      operationId: createCluster
+      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+      responses:
+        '200': {description: 创建成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /clusters/{name}:
+    parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+    get:
+      tags: [Cluster]
+      operationId: getCluster
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    put:
+      tags: [Cluster]
+      operationId: updateCluster
+      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+      responses:
+        '200': {description: 更新成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    delete:
+      tags: [Cluster]
+      operationId: deleteCluster
+      responses:
+        '200': {description: 删除成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /clusters/{name}/reissue-token:
+    post:
+      tags: [Cluster]
+      operationId: reissueClusterToken
+      parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+      responses:
+        '200': {description: 操作成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /clusters/{name}/latest-install-params:
+    get:
+      tags: [Cluster]
+      operationId: getLatestInstallParams
+      parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /clusters/{name}/uninstall:
+    post:
+      tags: [Cluster]
+      operationId: createUninstallTask
+      parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+      responses:
+        '200': {description: 操作成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /clusters/{name}/uninstall-tasks:
+    get:
+      tags: [Cluster]
+      operationId: listUninstallTasks
+      parameters: [{ $ref: '#/components/parameters/PolicyName' }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' }]
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /clusters/{name}/uninstall-tasks/{taskID}/retry:
+    post:
+      tags: [Cluster]
+      operationId: retryUninstallTask
+      parameters:
+        - $ref: '#/components/parameters/PolicyName'
+        - name: taskID
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+      responses:
+        '200': {description: 操作成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /install-records:
+    get:
+      tags: [Cluster]
+      operationId: listInstallRecords
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' }]
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /distributions:
+    get:
+      tags: [Distribution]
+      operationId: listDistributions
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '500': {$ref: '#/components/responses/InternalError'}
+    post:
+      tags: [Distribution]
+      operationId: createDistribution
+      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+      responses:
+        '200': {description: 创建成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /distributions/{name}:
+    parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+    get:
+      tags: [Distribution]
+      operationId: getDistribution
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    put:
+      tags: [Distribution]
+      operationId: updateDistribution
+      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+      responses:
+        '200': {description: 更新成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    delete:
+      tags: [Distribution]
+      operationId: deleteDistribution
+      responses:
+        '200': {description: 删除成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
   /platform/overview:
     get:
       tags: [Platform]

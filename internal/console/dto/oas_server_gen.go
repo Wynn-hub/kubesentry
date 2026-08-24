@@ -8,6 +8,14 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// CreateCluster implements createCluster operation.
+	//
+	// POST /clusters
+	CreateCluster(ctx context.Context, req CreateClusterReq) (CreateClusterRes, error)
+	// CreateDistribution implements createDistribution operation.
+	//
+	// POST /distributions
+	CreateDistribution(ctx context.Context, req CreateDistributionReq) (CreateDistributionRes, error)
 	// CreateException implements createException operation.
 	//
 	// 创建策略例外.
@@ -27,6 +35,18 @@ type Handler interface {
 	//
 	// POST /policygroups
 	CreatePolicyGroup(ctx context.Context, req *PolicyGroupRequest) (CreatePolicyGroupRes, error)
+	// CreateUninstallTask implements createUninstallTask operation.
+	//
+	// POST /clusters/{name}/uninstall
+	CreateUninstallTask(ctx context.Context, params CreateUninstallTaskParams) (CreateUninstallTaskRes, error)
+	// DeleteCluster implements deleteCluster operation.
+	//
+	// DELETE /clusters/{name}
+	DeleteCluster(ctx context.Context, params DeleteClusterParams) (DeleteClusterRes, error)
+	// DeleteDistribution implements deleteDistribution operation.
+	//
+	// DELETE /distributions/{name}
+	DeleteDistribution(ctx context.Context, params DeleteDistributionParams) (DeleteDistributionRes, error)
 	// DeleteException implements deleteException operation.
 	//
 	// 删除策略例外.
@@ -70,6 +90,14 @@ type Handler interface {
 	//
 	// GET /admission-link-incidents/{id}
 	GetAdmissionLinkIncident(ctx context.Context, params GetAdmissionLinkIncidentParams) (GetAdmissionLinkIncidentRes, error)
+	// GetCluster implements getCluster operation.
+	//
+	// GET /clusters/{name}
+	GetCluster(ctx context.Context, params GetClusterParams) (GetClusterRes, error)
+	// GetDistribution implements getDistribution operation.
+	//
+	// GET /distributions/{name}
+	GetDistribution(ctx context.Context, params GetDistributionParams) (GetDistributionRes, error)
 	// GetException implements getException operation.
 	//
 	// 查询策略例外详情.
@@ -82,6 +110,10 @@ type Handler interface {
 	//
 	// GET /schema/fields
 	GetFieldSchema(ctx context.Context, params GetFieldSchemaParams) (GetFieldSchemaRes, error)
+	// GetLatestInstallParams implements getLatestInstallParams operation.
+	//
+	// GET /clusters/{name}/latest-install-params
+	GetLatestInstallParams(ctx context.Context, params GetLatestInstallParamsParams) (GetLatestInstallParamsRes, error)
 	// GetPlatformInstanceTrend implements getPlatformInstanceTrend operation.
 	//
 	// 获取平台实例趋势.
@@ -137,12 +169,24 @@ type Handler interface {
 	//
 	// GET /admission-link-incidents
 	ListAdmissionLinkIncidents(ctx context.Context, params ListAdmissionLinkIncidentsParams) (ListAdmissionLinkIncidentsRes, error)
+	// ListClusters implements listClusters operation.
+	//
+	// GET /clusters
+	ListClusters(ctx context.Context, params ListClustersParams) (ListClustersRes, error)
+	// ListDistributions implements listDistributions operation.
+	//
+	// GET /distributions
+	ListDistributions(ctx context.Context) (ListDistributionsRes, error)
 	// ListExceptions implements listExceptions operation.
 	//
 	// 分页查询策略例外.
 	//
 	// GET /exceptions
 	ListExceptions(ctx context.Context, params ListExceptionsParams) (ListExceptionsRes, error)
+	// ListInstallRecords implements listInstallRecords operation.
+	//
+	// GET /install-records
+	ListInstallRecords(ctx context.Context, params ListInstallRecordsParams) (ListInstallRecordsRes, error)
 	// ListPlatformLeadershipEvents implements listPlatformLeadershipEvents operation.
 	//
 	// 查询平台领导权事件.
@@ -168,6 +212,18 @@ type Handler interface {
 	//
 	// GET /policies/{name}/versions
 	ListPolicyVersions(ctx context.Context, params ListPolicyVersionsParams) (ListPolicyVersionsRes, error)
+	// ListUninstallTasks implements listUninstallTasks operation.
+	//
+	// GET /clusters/{name}/uninstall-tasks
+	ListUninstallTasks(ctx context.Context, params ListUninstallTasksParams) (ListUninstallTasksRes, error)
+	// ReissueClusterToken implements reissueClusterToken operation.
+	//
+	// POST /clusters/{name}/reissue-token
+	ReissueClusterToken(ctx context.Context, params ReissueClusterTokenParams) (ReissueClusterTokenRes, error)
+	// RetryUninstallTask implements retryUninstallTask operation.
+	//
+	// POST /clusters/{name}/uninstall-tasks/{taskID}/retry
+	RetryUninstallTask(ctx context.Context, params RetryUninstallTaskParams) (RetryUninstallTaskRes, error)
 	// RollbackPolicy implements rollbackPolicy operation.
 	//
 	// 以追加新版本的方式回滚（roll-forward），类似 git revert，不修改历史。
@@ -188,6 +244,14 @@ type Handler interface {
 	//
 	// PUT /admission-event-settings
 	UpdateAdmissionEventSettings(ctx context.Context, req *AdmissionEventSettingsRequest) (UpdateAdmissionEventSettingsRes, error)
+	// UpdateCluster implements updateCluster operation.
+	//
+	// PUT /clusters/{name}
+	UpdateCluster(ctx context.Context, req UpdateClusterReq, params UpdateClusterParams) (UpdateClusterRes, error)
+	// UpdateDistribution implements updateDistribution operation.
+	//
+	// PUT /distributions/{name}
+	UpdateDistribution(ctx context.Context, req UpdateDistributionReq, params UpdateDistributionParams) (UpdateDistributionRes, error)
 	// UpdateException implements updateException operation.
 	//
 	// 更新策略例外.

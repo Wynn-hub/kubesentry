@@ -1767,6 +1767,78 @@ func (s *AdmissionStoragePolicyVerdictsItem) UnmarshalText(data []byte) error {
 	}
 }
 
+type CreateClusterBadRequest ErrorResponse
+
+func (*CreateClusterBadRequest) createClusterRes() {}
+
+type CreateClusterConflict ErrorResponse
+
+func (*CreateClusterConflict) createClusterRes() {}
+
+type CreateClusterInternalServerError ErrorResponse
+
+func (*CreateClusterInternalServerError) createClusterRes() {}
+
+type CreateClusterOK map[string]jx.Raw
+
+func (s *CreateClusterOK) init() CreateClusterOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*CreateClusterOK) createClusterRes() {}
+
+type CreateClusterReq map[string]jx.Raw
+
+func (s *CreateClusterReq) init() CreateClusterReq {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type CreateDistributionBadRequest ErrorResponse
+
+func (*CreateDistributionBadRequest) createDistributionRes() {}
+
+type CreateDistributionConflict ErrorResponse
+
+func (*CreateDistributionConflict) createDistributionRes() {}
+
+type CreateDistributionInternalServerError ErrorResponse
+
+func (*CreateDistributionInternalServerError) createDistributionRes() {}
+
+type CreateDistributionOK map[string]jx.Raw
+
+func (s *CreateDistributionOK) init() CreateDistributionOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*CreateDistributionOK) createDistributionRes() {}
+
+type CreateDistributionReq map[string]jx.Raw
+
+func (s *CreateDistributionReq) init() CreateDistributionReq {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
 type CreateExceptionBadRequest ErrorResponse
 
 func (*CreateExceptionBadRequest) createExceptionRes() {}
@@ -1802,6 +1874,81 @@ func (*CreatePolicyGroupInternalServerError) createPolicyGroupRes() {}
 type CreatePolicyInternalServerError ErrorResponse
 
 func (*CreatePolicyInternalServerError) createPolicyRes() {}
+
+type CreateUninstallTaskConflict ErrorResponse
+
+func (*CreateUninstallTaskConflict) createUninstallTaskRes() {}
+
+type CreateUninstallTaskInternalServerError ErrorResponse
+
+func (*CreateUninstallTaskInternalServerError) createUninstallTaskRes() {}
+
+type CreateUninstallTaskNotFound ErrorResponse
+
+func (*CreateUninstallTaskNotFound) createUninstallTaskRes() {}
+
+type CreateUninstallTaskOK map[string]jx.Raw
+
+func (s *CreateUninstallTaskOK) init() CreateUninstallTaskOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*CreateUninstallTaskOK) createUninstallTaskRes() {}
+
+type DeleteClusterConflict ErrorResponse
+
+func (*DeleteClusterConflict) deleteClusterRes() {}
+
+type DeleteClusterInternalServerError ErrorResponse
+
+func (*DeleteClusterInternalServerError) deleteClusterRes() {}
+
+type DeleteClusterNotFound ErrorResponse
+
+func (*DeleteClusterNotFound) deleteClusterRes() {}
+
+type DeleteClusterOK map[string]jx.Raw
+
+func (s *DeleteClusterOK) init() DeleteClusterOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*DeleteClusterOK) deleteClusterRes() {}
+
+type DeleteDistributionConflict ErrorResponse
+
+func (*DeleteDistributionConflict) deleteDistributionRes() {}
+
+type DeleteDistributionInternalServerError ErrorResponse
+
+func (*DeleteDistributionInternalServerError) deleteDistributionRes() {}
+
+type DeleteDistributionNotFound ErrorResponse
+
+func (*DeleteDistributionNotFound) deleteDistributionRes() {}
+
+type DeleteDistributionOK map[string]jx.Raw
+
+func (s *DeleteDistributionOK) init() DeleteDistributionOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*DeleteDistributionOK) deleteDistributionRes() {}
 
 type DeleteExceptionInternalServerError ErrorResponse
 
@@ -2047,6 +2194,9 @@ func (s *ErrorResponse) SetData(val OptErrorResponseData) {
 
 func (*ErrorResponse) getPlatformSettingsRes() {}
 func (*ErrorResponse) getSummaryRes()          {}
+func (*ErrorResponse) listClustersRes()        {}
+func (*ErrorResponse) listDistributionsRes()   {}
+func (*ErrorResponse) listInstallRecordsRes()  {}
 func (*ErrorResponse) validatePolicyRegoRes()  {}
 
 // 失败时附带的结构化数据。例如删除被引用资源时的 referencedBy 列表.
@@ -3059,6 +3209,48 @@ type GetAdmissionLinkIncidentServiceUnavailable ErrorResponse
 
 func (*GetAdmissionLinkIncidentServiceUnavailable) getAdmissionLinkIncidentRes() {}
 
+type GetClusterInternalServerError ErrorResponse
+
+func (*GetClusterInternalServerError) getClusterRes() {}
+
+type GetClusterNotFound ErrorResponse
+
+func (*GetClusterNotFound) getClusterRes() {}
+
+type GetClusterOK map[string]jx.Raw
+
+func (s *GetClusterOK) init() GetClusterOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*GetClusterOK) getClusterRes() {}
+
+type GetDistributionInternalServerError ErrorResponse
+
+func (*GetDistributionInternalServerError) getDistributionRes() {}
+
+type GetDistributionNotFound ErrorResponse
+
+func (*GetDistributionNotFound) getDistributionRes() {}
+
+type GetDistributionOK map[string]jx.Raw
+
+func (s *GetDistributionOK) init() GetDistributionOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*GetDistributionOK) getDistributionRes() {}
+
 type GetExceptionInternalServerError ErrorResponse
 
 func (*GetExceptionInternalServerError) getExceptionRes() {}
@@ -3074,6 +3266,27 @@ func (*GetFieldSchemaBadGateway) getFieldSchemaRes() {}
 type GetFieldSchemaBadRequest ErrorResponse
 
 func (*GetFieldSchemaBadRequest) getFieldSchemaRes() {}
+
+type GetLatestInstallParamsInternalServerError ErrorResponse
+
+func (*GetLatestInstallParamsInternalServerError) getLatestInstallParamsRes() {}
+
+type GetLatestInstallParamsNotFound ErrorResponse
+
+func (*GetLatestInstallParamsNotFound) getLatestInstallParamsRes() {}
+
+type GetLatestInstallParamsOK map[string]jx.Raw
+
+func (s *GetLatestInstallParamsOK) init() GetLatestInstallParamsOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*GetLatestInstallParamsOK) getLatestInstallParamsRes() {}
 
 type GetPlatformInstanceTrendBadRequest ErrorResponse
 
@@ -3539,6 +3752,32 @@ func (s *ListAdmissionLinkIncidentsStatusItem) UnmarshalText(data []byte) error 
 	}
 }
 
+type ListClustersOK map[string]jx.Raw
+
+func (s *ListClustersOK) init() ListClustersOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*ListClustersOK) listClustersRes() {}
+
+type ListDistributionsOK map[string]jx.Raw
+
+func (s *ListDistributionsOK) init() ListDistributionsOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*ListDistributionsOK) listDistributionsRes() {}
+
 type ListExceptionsBadRequest ErrorResponse
 
 func (*ListExceptionsBadRequest) listExceptionsRes() {}
@@ -3651,6 +3890,19 @@ func (s *ListExceptionsSortOrder) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+type ListInstallRecordsOK map[string]jx.Raw
+
+func (s *ListInstallRecordsOK) init() ListInstallRecordsOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*ListInstallRecordsOK) listInstallRecordsRes() {}
 
 type ListPlatformLeadershipEventsBadRequest ErrorResponse
 
@@ -4041,6 +4293,27 @@ func (*ListPolicyVersionsInternalServerError) listPolicyVersionsRes() {}
 type ListPolicyVersionsNotFound ErrorResponse
 
 func (*ListPolicyVersionsNotFound) listPolicyVersionsRes() {}
+
+type ListUninstallTasksInternalServerError ErrorResponse
+
+func (*ListUninstallTasksInternalServerError) listUninstallTasksRes() {}
+
+type ListUninstallTasksNotFound ErrorResponse
+
+func (*ListUninstallTasksNotFound) listUninstallTasksRes() {}
+
+type ListUninstallTasksOK map[string]jx.Raw
+
+func (s *ListUninstallTasksOK) init() ListUninstallTasksOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*ListUninstallTasksOK) listUninstallTasksRes() {}
 
 // Ref: #/components/schemas/MatchResource
 type MatchResource struct {
@@ -8467,6 +8740,31 @@ func (s *PolicyVersionListResponse) SetData(val OptPolicyVersionList) {
 
 func (*PolicyVersionListResponse) listPolicyVersionsRes() {}
 
+type ReissueClusterTokenConflict ErrorResponse
+
+func (*ReissueClusterTokenConflict) reissueClusterTokenRes() {}
+
+type ReissueClusterTokenInternalServerError ErrorResponse
+
+func (*ReissueClusterTokenInternalServerError) reissueClusterTokenRes() {}
+
+type ReissueClusterTokenNotFound ErrorResponse
+
+func (*ReissueClusterTokenNotFound) reissueClusterTokenRes() {}
+
+type ReissueClusterTokenOK map[string]jx.Raw
+
+func (s *ReissueClusterTokenOK) init() ReissueClusterTokenOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*ReissueClusterTokenOK) reissueClusterTokenRes() {}
+
 type ResourceID string
 
 // Ref: #/components/schemas/ResourceSuggestions
@@ -8574,6 +8872,31 @@ func (s *ResourceSuggestionsResponse) SetData(val OptResourceSuggestions) {
 }
 
 func (*ResourceSuggestionsResponse) getResourceSuggestionsRes() {}
+
+type RetryUninstallTaskConflict ErrorResponse
+
+func (*RetryUninstallTaskConflict) retryUninstallTaskRes() {}
+
+type RetryUninstallTaskInternalServerError ErrorResponse
+
+func (*RetryUninstallTaskInternalServerError) retryUninstallTaskRes() {}
+
+type RetryUninstallTaskNotFound ErrorResponse
+
+func (*RetryUninstallTaskNotFound) retryUninstallTaskRes() {}
+
+type RetryUninstallTaskOK map[string]jx.Raw
+
+func (s *RetryUninstallTaskOK) init() RetryUninstallTaskOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*RetryUninstallTaskOK) retryUninstallTaskRes() {}
 
 type RollbackPolicyBadRequest ErrorResponse
 
@@ -8956,6 +9279,78 @@ func (*UpdateAdmissionEventSettingsBadRequest) updateAdmissionEventSettingsRes()
 type UpdateAdmissionEventSettingsInternalServerError ErrorResponse
 
 func (*UpdateAdmissionEventSettingsInternalServerError) updateAdmissionEventSettingsRes() {}
+
+type UpdateClusterInternalServerError ErrorResponse
+
+func (*UpdateClusterInternalServerError) updateClusterRes() {}
+
+type UpdateClusterNotFound ErrorResponse
+
+func (*UpdateClusterNotFound) updateClusterRes() {}
+
+type UpdateClusterOK map[string]jx.Raw
+
+func (s *UpdateClusterOK) init() UpdateClusterOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*UpdateClusterOK) updateClusterRes() {}
+
+type UpdateClusterReq map[string]jx.Raw
+
+func (s *UpdateClusterReq) init() UpdateClusterReq {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type UpdateDistributionBadRequest ErrorResponse
+
+func (*UpdateDistributionBadRequest) updateDistributionRes() {}
+
+type UpdateDistributionConflict ErrorResponse
+
+func (*UpdateDistributionConflict) updateDistributionRes() {}
+
+type UpdateDistributionInternalServerError ErrorResponse
+
+func (*UpdateDistributionInternalServerError) updateDistributionRes() {}
+
+type UpdateDistributionNotFound ErrorResponse
+
+func (*UpdateDistributionNotFound) updateDistributionRes() {}
+
+type UpdateDistributionOK map[string]jx.Raw
+
+func (s *UpdateDistributionOK) init() UpdateDistributionOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*UpdateDistributionOK) updateDistributionRes() {}
+
+type UpdateDistributionReq map[string]jx.Raw
+
+func (s *UpdateDistributionReq) init() UpdateDistributionReq {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
 
 type UpdateExceptionBadRequest ErrorResponse
 

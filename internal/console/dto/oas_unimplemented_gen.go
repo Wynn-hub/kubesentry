@@ -13,6 +13,20 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// CreateCluster implements createCluster operation.
+//
+// POST /clusters
+func (UnimplementedHandler) CreateCluster(ctx context.Context, req CreateClusterReq) (r CreateClusterRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateDistribution implements createDistribution operation.
+//
+// POST /distributions
+func (UnimplementedHandler) CreateDistribution(ctx context.Context, req CreateDistributionReq) (r CreateDistributionRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateException implements createException operation.
 //
 // 创建策略例外.
@@ -38,6 +52,27 @@ func (UnimplementedHandler) CreatePolicy(ctx context.Context, req *PolicyRequest
 //
 // POST /policygroups
 func (UnimplementedHandler) CreatePolicyGroup(ctx context.Context, req *PolicyGroupRequest) (r CreatePolicyGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateUninstallTask implements createUninstallTask operation.
+//
+// POST /clusters/{name}/uninstall
+func (UnimplementedHandler) CreateUninstallTask(ctx context.Context, params CreateUninstallTaskParams) (r CreateUninstallTaskRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DeleteCluster implements deleteCluster operation.
+//
+// DELETE /clusters/{name}
+func (UnimplementedHandler) DeleteCluster(ctx context.Context, params DeleteClusterParams) (r DeleteClusterRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DeleteDistribution implements deleteDistribution operation.
+//
+// DELETE /distributions/{name}
+func (UnimplementedHandler) DeleteDistribution(ctx context.Context, params DeleteDistributionParams) (r DeleteDistributionRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -105,6 +140,20 @@ func (UnimplementedHandler) GetAdmissionLinkIncident(ctx context.Context, params
 	return r, ht.ErrNotImplemented
 }
 
+// GetCluster implements getCluster operation.
+//
+// GET /clusters/{name}
+func (UnimplementedHandler) GetCluster(ctx context.Context, params GetClusterParams) (r GetClusterRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetDistribution implements getDistribution operation.
+//
+// GET /distributions/{name}
+func (UnimplementedHandler) GetDistribution(ctx context.Context, params GetDistributionParams) (r GetDistributionRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetException implements getException operation.
 //
 // 查询策略例外详情.
@@ -120,6 +169,13 @@ func (UnimplementedHandler) GetException(ctx context.Context, params GetExceptio
 //
 // GET /schema/fields
 func (UnimplementedHandler) GetFieldSchema(ctx context.Context, params GetFieldSchemaParams) (r GetFieldSchemaRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetLatestInstallParams implements getLatestInstallParams operation.
+//
+// GET /clusters/{name}/latest-install-params
+func (UnimplementedHandler) GetLatestInstallParams(ctx context.Context, params GetLatestInstallParamsParams) (r GetLatestInstallParamsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -205,12 +261,33 @@ func (UnimplementedHandler) ListAdmissionLinkIncidents(ctx context.Context, para
 	return r, ht.ErrNotImplemented
 }
 
+// ListClusters implements listClusters operation.
+//
+// GET /clusters
+func (UnimplementedHandler) ListClusters(ctx context.Context, params ListClustersParams) (r ListClustersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListDistributions implements listDistributions operation.
+//
+// GET /distributions
+func (UnimplementedHandler) ListDistributions(ctx context.Context) (r ListDistributionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListExceptions implements listExceptions operation.
 //
 // 分页查询策略例外.
 //
 // GET /exceptions
 func (UnimplementedHandler) ListExceptions(ctx context.Context, params ListExceptionsParams) (r ListExceptionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListInstallRecords implements listInstallRecords operation.
+//
+// GET /install-records
+func (UnimplementedHandler) ListInstallRecords(ctx context.Context, params ListInstallRecordsParams) (r ListInstallRecordsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -251,6 +328,27 @@ func (UnimplementedHandler) ListPolicyVersions(ctx context.Context, params ListP
 	return r, ht.ErrNotImplemented
 }
 
+// ListUninstallTasks implements listUninstallTasks operation.
+//
+// GET /clusters/{name}/uninstall-tasks
+func (UnimplementedHandler) ListUninstallTasks(ctx context.Context, params ListUninstallTasksParams) (r ListUninstallTasksRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReissueClusterToken implements reissueClusterToken operation.
+//
+// POST /clusters/{name}/reissue-token
+func (UnimplementedHandler) ReissueClusterToken(ctx context.Context, params ReissueClusterTokenParams) (r ReissueClusterTokenRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RetryUninstallTask implements retryUninstallTask operation.
+//
+// POST /clusters/{name}/uninstall-tasks/{taskID}/retry
+func (UnimplementedHandler) RetryUninstallTask(ctx context.Context, params RetryUninstallTaskParams) (r RetryUninstallTaskRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // RollbackPolicy implements rollbackPolicy operation.
 //
 // 以追加新版本的方式回滚（roll-forward），类似 git revert，不修改历史。
@@ -277,6 +375,20 @@ func (UnimplementedHandler) SetPolicyGroupEnabled(ctx context.Context, req *Poli
 //
 // PUT /admission-event-settings
 func (UnimplementedHandler) UpdateAdmissionEventSettings(ctx context.Context, req *AdmissionEventSettingsRequest) (r UpdateAdmissionEventSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateCluster implements updateCluster operation.
+//
+// PUT /clusters/{name}
+func (UnimplementedHandler) UpdateCluster(ctx context.Context, req UpdateClusterReq, params UpdateClusterParams) (r UpdateClusterRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateDistribution implements updateDistribution operation.
+//
+// PUT /distributions/{name}
+func (UnimplementedHandler) UpdateDistribution(ctx context.Context, req UpdateDistributionReq, params UpdateDistributionParams) (r UpdateDistributionRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

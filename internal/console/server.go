@@ -40,22 +40,6 @@ type Handlers struct {
 
 // RegisterLegacy wires routes that have not yet moved to ogen.
 func (h *Handlers) RegisterLegacy(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/clusters", h.listClusters)
-	mux.HandleFunc("POST /api/v1/clusters", h.createCluster)
-	mux.HandleFunc("GET /api/v1/clusters/{name}", h.getCluster)
-	mux.HandleFunc("PUT /api/v1/clusters/{name}", h.updateClusterLabels)
-	mux.HandleFunc("DELETE /api/v1/clusters/{name}", h.deleteCluster)
-	mux.HandleFunc("POST /api/v1/clusters/{name}/reissue-token", h.reissueClusterToken)
-	mux.HandleFunc("GET /api/v1/clusters/{name}/latest-install-params", h.getLatestInstallParams)
-	mux.HandleFunc("POST /api/v1/clusters/{name}/uninstall", h.createUninstallTask)
-	mux.HandleFunc("GET /api/v1/clusters/{name}/uninstall-tasks", h.listUninstallTasks)
-	mux.HandleFunc("POST /api/v1/clusters/{name}/uninstall-tasks/{taskID}/retry", h.retryUninstallTask)
-	mux.HandleFunc("GET /api/v1/install-records", h.listInstallRecords)
-	mux.HandleFunc("GET /api/v1/distributions", h.listDistributions)
-	mux.HandleFunc("POST /api/v1/distributions", h.createDistribution)
-	mux.HandleFunc("GET /api/v1/distributions/{name}", h.getDistribution)
-	mux.HandleFunc("PUT /api/v1/distributions/{name}", h.updateDistribution)
-	mux.HandleFunc("DELETE /api/v1/distributions/{name}", h.deleteDistribution)
 }
 
 // Server is the console HTTP server (plain HTTP; accessed via port-forward,
@@ -76,6 +60,22 @@ func (h *Handlers) legacyPlatformInvoke(ctx context.Context, method, path string
 	mux.HandleFunc("GET /api/v1/platform/leadership-events", h.platformLeadershipEvents)
 	mux.HandleFunc("GET /api/v1/platform/settings", h.getPlatformSettings)
 	mux.HandleFunc("PUT /api/v1/platform/settings", h.updatePlatformSettings)
+	mux.HandleFunc("GET /api/v1/clusters", h.listClusters)
+	mux.HandleFunc("POST /api/v1/clusters", h.createCluster)
+	mux.HandleFunc("GET /api/v1/clusters/{name}", h.getCluster)
+	mux.HandleFunc("PUT /api/v1/clusters/{name}", h.updateClusterLabels)
+	mux.HandleFunc("DELETE /api/v1/clusters/{name}", h.deleteCluster)
+	mux.HandleFunc("POST /api/v1/clusters/{name}/reissue-token", h.reissueClusterToken)
+	mux.HandleFunc("GET /api/v1/clusters/{name}/latest-install-params", h.getLatestInstallParams)
+	mux.HandleFunc("POST /api/v1/clusters/{name}/uninstall", h.createUninstallTask)
+	mux.HandleFunc("GET /api/v1/clusters/{name}/uninstall-tasks", h.listUninstallTasks)
+	mux.HandleFunc("POST /api/v1/clusters/{name}/uninstall-tasks/{taskID}/retry", h.retryUninstallTask)
+	mux.HandleFunc("GET /api/v1/install-records", h.listInstallRecords)
+	mux.HandleFunc("GET /api/v1/distributions", h.listDistributions)
+	mux.HandleFunc("POST /api/v1/distributions", h.createDistribution)
+	mux.HandleFunc("GET /api/v1/distributions/{name}", h.getDistribution)
+	mux.HandleFunc("PUT /api/v1/distributions/{name}", h.updateDistribution)
+	mux.HandleFunc("DELETE /api/v1/distributions/{name}", h.deleteDistribution)
 	req := httptest.NewRequest(method, path, bytes.NewReader(body)).WithContext(ctx)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -129,6 +129,11 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		mux.Handle("/api/v1/platform/instances/", ogenServer)
 		mux.Handle("/api/v1/platform/leadership-events", ogenServer)
 		mux.Handle("/api/v1/platform/settings", ogenServer)
+		mux.Handle("/api/v1/clusters", ogenServer)
+		mux.Handle("/api/v1/clusters/", ogenServer)
+		mux.Handle("/api/v1/install-records", ogenServer)
+		mux.Handle("/api/v1/distributions", ogenServer)
+		mux.Handle("/api/v1/distributions/", ogenServer)
 	}
 	h.RegisterLegacy(mux)
 

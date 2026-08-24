@@ -10,6 +10,34 @@ import (
 	ht "github.com/ogen-go/ogen/http"
 )
 
+func encodeCreateClusterRequest(
+	req CreateClusterReq,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeCreateDistributionRequest(
+	req CreateDistributionReq,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeCreateExceptionRequest(
 	req *ExceptionRequest,
 	r *http.Request,
@@ -82,6 +110,34 @@ func encodeSetPolicyGroupEnabledRequest(
 
 func encodeUpdateAdmissionEventSettingsRequest(
 	req *AdmissionEventSettingsRequest,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeUpdateClusterRequest(
+	req UpdateClusterReq,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeUpdateDistributionRequest(
+	req UpdateDistributionReq,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
