@@ -23,6 +23,13 @@ type testEnvelope struct {
 	Details []string        `json:"details"`
 }
 
+type testPageResult[T any] struct {
+	Items    []T `json:"items"`
+	Total    int `json:"total"`
+	Page     int `json:"page"`
+	PageSize int `json:"pageSize"`
+}
+
 // newTestServer builds a console server around a bare *Handlers, for tests
 // that don't need a database (e.g. handlers_schema.go, whose fetcher is
 // swapped for a fake in tests rather than backed by Repos/Discovery).

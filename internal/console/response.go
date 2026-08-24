@@ -31,20 +31,8 @@ func codeForStatus(status int) int {
 	return status * 100
 }
 
-func writeOK(w http.ResponseWriter, data any) {
-	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success", Data: data})
-}
-
 func writeErr(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, Envelope{Code: codeForStatus(status), Message: msg})
-}
-
-// writeErrData carries structured data alongside an error, e.g. the
-// referencedBy list on a blocked delete. The error envelope deliberately
-// keeps a data field rather than folding this into details: details is a list
-// of error strings, while referencedBy is business data the UI renders.
-func writeErrData(w http.ResponseWriter, status int, msg string, data any) {
-	writeJSON(w, status, Envelope{Code: codeForStatus(status), Message: msg, Data: data})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

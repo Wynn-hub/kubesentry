@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
@@ -23,7 +25,8 @@ func validInstallParams() map[string]any {
 			"tag":        "latest",
 			"pullPolicy": "IfNotPresent",
 		},
-		"gatewayAddress": "10.0.0.1:30443",
+		"highAvailability": false,
+		"gatewayAddress":   "10.0.0.1:30443",
 	}
 }
 
@@ -36,7 +39,7 @@ func TestCreateClusterReturnsCommandAndRegisteringPhase(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	created := mustUnmarshal[createClusterResponse](t, env.Data)
+	created := mustUnmarshal[dto.ClusterCommand](t, env.Data)
 	if created.Name != "prod-east" || created.Command == "" {
 		t.Fatalf("created = %+v", created)
 	}
@@ -99,7 +102,7 @@ func TestCreateClusterHighAvailabilityAddsReplicaOverridesAndPersistsChoice(t *t
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	created := mustUnmarshal[createClusterResponse](t, env.Data)
+	created := mustUnmarshal[dto.ClusterCommand](t, env.Data)
 	for _, want := range []string{
 		"--set webhook.highAvailability.enabled=true",
 		"--set operator.highAvailability.enabled=true",
@@ -180,7 +183,7 @@ func TestListClustersSortedByName(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	page := mustUnmarshal[pageResult[clusterListItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.ClusterListItem]](t, env.Data)
 	items := page.Items
 	if page.Total != 2 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)
@@ -212,10 +215,10 @@ func TestClusterResponsesExposeMemberReportedInventory(t *testing.T) {
 
 	rec, env := doRequest(t, h, "GET", "/api/v1/clusters/member", nil)
 	if rec.Code != 200 {
-		t.Fatalf("detail code = %d", rec.Code)
+		t.Fatalf("detail code = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	detail := mustUnmarshal[clusterDetail](t, env.Data)
-	if detail.KubernetesVersion != "v1.31.2" || detail.APIServerAddress != "https://10.96.0.1:443" ||
+	detail := mustUnmarshal[dto.ClusterDetail](t, env.Data)
+	if detail.KubernetesVersion != "v1.31.2" || detail.ApiServerAddress != "https://10.96.0.1:443" ||
 		detail.NodeCount != 5 || detail.ReadyNodeCount != 4 {
 		t.Fatalf("detail inventory = %+v", detail)
 	}
@@ -224,7 +227,7 @@ func TestClusterResponsesExposeMemberReportedInventory(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("list code = %d", rec.Code)
 	}
-	items := mustUnmarshal[pageResult[clusterListItem]](t, env.Data).Items
+	items := mustUnmarshal[testPageResult[dto.ClusterListItem]](t, env.Data).Items
 	if len(items) != 1 || items[0].KubernetesVersion != "v1.31.2" || items[0].NodeCount != 5 || items[0].ReadyNodeCount != 4 {
 		t.Fatalf("list inventory = %+v", items)
 	}
@@ -270,18 +273,22 @@ func TestUninstallClusterCreatesTaskAndRetryFailedTask(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("create uninstall = %d: %s", rec.Code, rec.Body.String())
 	}
-	task := mustUnmarshal[uninstallTaskItem](t, env.Data)
-	if task.Status != "Pending" || task.ID == 0 {
+	task := mustUnmarshal[dto.UninstallTask](t, env.Data)
+	if task.Status != dto.UninstallTaskStatusPending || task.ID == "" {
 		t.Fatalf("task = %+v", task)
+	}
+	taskID, err := strconv.ParseInt(string(task.ID), 10, 64)
+	if err != nil {
+		t.Fatalf("parse task ID %q: %v", task.ID, err)
 	}
 	c, err = repos.Clusters.GetByName(context.Background(), "live")
 	if err != nil || c.Phase != "Uninstalling" {
 		t.Fatalf("cluster after request = %+v, err=%v", c, err)
 	}
-	if err := repos.UninstallTasks.Transition(context.Background(), task.ID, "Pending", "Received", "", task.RequestedAt); err != nil {
+	if err := repos.UninstallTasks.Transition(context.Background(), taskID, "Pending", "Received", "", task.RequestedAt); err != nil {
 		t.Fatal(err)
 	}
-	if err := repos.UninstallTasks.Transition(context.Background(), task.ID, "Received", "Failed", "connection lost", task.RequestedAt); err != nil {
+	if err := repos.UninstallTasks.Transition(context.Background(), taskID, "Received", "Failed", "connection lost", task.RequestedAt); err != nil {
 		t.Fatal(err)
 	}
 
@@ -289,7 +296,7 @@ func TestUninstallClusterCreatesTaskAndRetryFailedTask(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("retry = %d: %s", rec.Code, rec.Body.String())
 	}
-	retried, err := repos.UninstallTasks.GetByID(context.Background(), task.ID)
+	retried, err := repos.UninstallTasks.GetByID(context.Background(), taskID)
 	if err != nil || retried.Status != "Pending" || retried.Attempts != 2 || retried.Error != "" {
 		t.Fatalf("retried task = %+v, err=%v", retried, err)
 	}
@@ -321,13 +328,13 @@ func TestReissueTokenOnlyWhenRegistering(t *testing.T) {
 	if rec1.Code != 200 {
 		t.Fatalf("create code = %d", rec1.Code)
 	}
-	firstCommand := mustUnmarshal[createClusterResponse](t, env1.Data).Command
+	firstCommand := mustUnmarshal[dto.ClusterCommand](t, env1.Data).Command
 
 	rec2, env2 := doRequest(t, h, "POST", "/api/v1/clusters/reissue-me/reissue-token", map[string]any{"installParams": validInstallParams()})
 	if rec2.Code != 200 {
 		t.Fatalf("reissue code = %d, body = %s", rec2.Code, rec2.Body.String())
 	}
-	second := mustUnmarshal[createClusterResponse](t, env2.Data)
+	second := mustUnmarshal[dto.ClusterCommand](t, env2.Data)
 	if second.Command == "" || second.Command == firstCommand {
 		t.Fatalf("expected a fresh, different command (new token embedded); first=%q second=%q", firstCommand, second.Command)
 	}
@@ -400,7 +407,7 @@ func TestGetLatestInstallParamsReturnsNewest(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	got := mustUnmarshal[installParams](t, env.Data)
+	got := mustUnmarshal[dto.InstallParams](t, env.Data)
 	if got.Namespace != "custom-ns" {
 		t.Errorf("namespace = %q, want custom-ns (the most recent)", got.Namespace)
 	}
@@ -418,7 +425,7 @@ func TestListInstallRecordsAcrossClusters(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	page := mustUnmarshal[pageResult[installRecordItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.InstallRecord]](t, env.Data)
 	items := page.Items
 	if page.Total != 2 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)

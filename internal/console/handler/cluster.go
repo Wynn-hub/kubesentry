@@ -4,24 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-
-	"github.com/go-faster/jx"
+	"strconv"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
-func rawSuccess(data any) (map[string]jx.Raw, error) {
-	response := map[string]any{"code": 0, "message": "success"}
-	if data != nil {
-		response["data"] = data
-	}
-	b, err := json.Marshal(response)
+func dtoData[T any](data any) (T, error) {
+	var value T
+	b, err := json.Marshal(data)
 	if err != nil {
-		return nil, err
+		return value, err
 	}
-	return rawObject(b), nil
+	if err := json.Unmarshal(b, &value); err != nil {
+		return value, err
+	}
+	return value, nil
 }
 
 func (h *Handler) ListClusters(ctx context.Context, p dto.ListClustersParams) (dto.ListClustersRes, error) {
@@ -29,14 +28,14 @@ func (h *Handler) ListClusters(ctx context.Context, p dto.ListClustersParams) (d
 	if err != nil {
 		return objectError(500), nil
 	}
-	v, err := rawSuccess(data)
+	v, err := dtoData[dto.ClusterListResponseData](data)
 	if err != nil {
 		return nil, err
 	}
-	return (*dto.ListClustersOK)(&v), nil
+	return &dto.ClusterListResponse{Code: 0, Message: "success", Data: v}, nil
 }
 
-func (h *Handler) CreateCluster(ctx context.Context, req dto.CreateClusterReq) (dto.CreateClusterRes, error) {
+func (h *Handler) CreateCluster(ctx context.Context, req *dto.ClusterCreateRequest) (dto.CreateClusterRes, error) {
 	var input service.CreateClusterRequest
 	b, err := json.Marshal(req)
 	if err != nil {
@@ -49,11 +48,7 @@ func (h *Handler) CreateCluster(ctx context.Context, req dto.CreateClusterReq) (
 	if err != nil {
 		return createClusterServiceError(err), nil
 	}
-	v, err := rawSuccess(map[string]string{"name": name, "command": command})
-	if err != nil {
-		return nil, err
-	}
-	return (*dto.CreateClusterOK)(&v), nil
+	return &dto.ClusterCommandResponse{Code: 0, Message: "success", Data: dto.ClusterCommand{Name: name, Command: command}}, nil
 }
 
 func (h *Handler) GetCluster(ctx context.Context, p dto.GetClusterParams) (dto.GetClusterRes, error) {
@@ -61,14 +56,17 @@ func (h *Handler) GetCluster(ctx context.Context, p dto.GetClusterParams) (dto.G
 	if err != nil {
 		return getClusterServiceError(err), nil
 	}
-	v, err := rawSuccess(data)
+	if data.Labels == nil {
+		data.Labels = map[string]string{}
+	}
+	v, err := dtoData[dto.ClusterDetail](data)
 	if err != nil {
 		return nil, err
 	}
-	return (*dto.GetClusterOK)(&v), nil
+	return &dto.ClusterDetailResponse{Code: 0, Message: "success", Data: v}, nil
 }
 
-func (h *Handler) UpdateCluster(ctx context.Context, req dto.UpdateClusterReq, p dto.UpdateClusterParams) (dto.UpdateClusterRes, error) {
+func (h *Handler) UpdateCluster(ctx context.Context, req *dto.ClusterLabelsRequest, p dto.UpdateClusterParams) (dto.UpdateClusterRes, error) {
 	var input service.UpdateClusterLabelsRequest
 	b, err := json.Marshal(req)
 	if err != nil {
@@ -80,25 +78,17 @@ func (h *Handler) UpdateCluster(ctx context.Context, req dto.UpdateClusterReq, p
 	if err := h.svcs.Cluster.UpdateLabels(ctx, p.Name, input); err != nil {
 		return updateClusterServiceError(err), nil
 	}
-	v, err := rawSuccess(map[string]string{"name": p.Name})
-	if err != nil {
-		return nil, err
-	}
-	return (*dto.UpdateClusterOK)(&v), nil
+	return &dto.ClusterNameResponse{Code: 0, Message: "success", Data: dto.ClusterNameData{Name: p.Name}}, nil
 }
 
 func (h *Handler) DeleteCluster(ctx context.Context, p dto.DeleteClusterParams) (dto.DeleteClusterRes, error) {
 	if err := h.svcs.Cluster.Delete(ctx, p.Name); err != nil {
 		return deleteClusterServiceError(err), nil
 	}
-	v, err := rawSuccess(nil)
-	if err != nil {
-		return nil, err
-	}
-	return (*dto.DeleteClusterOK)(&v), nil
+	return &dto.EmptyResponse{Code: 0, Message: "success"}, nil
 }
 
-func (h *Handler) ReissueClusterToken(ctx context.Context, req dto.ReissueClusterTokenReq, p dto.ReissueClusterTokenParams) (dto.ReissueClusterTokenRes, error) {
+func (h *Handler) ReissueClusterToken(ctx context.Context, req *dto.ClusterTokenRequest, p dto.ReissueClusterTokenParams) (dto.ReissueClusterTokenRes, error) {
 	var input service.ReissueClusterTokenRequest
 	b, err := json.Marshal(req)
 	if err != nil {
@@ -111,11 +101,7 @@ func (h *Handler) ReissueClusterToken(ctx context.Context, req dto.ReissueCluste
 	if err != nil {
 		return reissueClusterServiceError(err), nil
 	}
-	v, err := rawSuccess(map[string]string{"name": name, "command": command})
-	if err != nil {
-		return nil, err
-	}
-	return (*dto.ReissueClusterTokenOK)(&v), nil
+	return &dto.ClusterCommandResponse{Code: 0, Message: "success", Data: dto.ClusterCommand{Name: name, Command: command}}, nil
 }
 
 func (h *Handler) GetLatestInstallParams(ctx context.Context, p dto.GetLatestInstallParamsParams) (dto.GetLatestInstallParamsRes, error) {
@@ -124,17 +110,13 @@ func (h *Handler) GetLatestInstallParams(ctx context.Context, p dto.GetLatestIns
 		return &dto.GetLatestInstallParamsInternalServerError{Code: 50000, Message: err.Error()}, nil
 	}
 	if data == nil {
-		v, err := rawSuccess(nil)
-		if err != nil {
-			return nil, err
-		}
-		return (*dto.GetLatestInstallParamsOK)(&v), nil
+		return &dto.InstallParamsResponse{Code: 0, Message: "success"}, nil
 	}
-	v, err := rawSuccess(data)
+	v, err := dtoData[dto.InstallParams](data)
 	if err != nil {
 		return nil, err
 	}
-	return (*dto.GetLatestInstallParamsOK)(&v), nil
+	return &dto.InstallParamsResponse{Code: 0, Message: "success", Data: dto.NewOptInstallParams(v)}, nil
 }
 
 func (h *Handler) CreateUninstallTask(ctx context.Context, p dto.CreateUninstallTaskParams) (dto.CreateUninstallTaskRes, error) {
@@ -142,11 +124,7 @@ func (h *Handler) CreateUninstallTask(ctx context.Context, p dto.CreateUninstall
 	if err != nil {
 		return createUninstallServiceError(err), nil
 	}
-	v, err := rawSuccess(data)
-	if err != nil {
-		return nil, err
-	}
-	return (*dto.CreateUninstallTaskOK)(&v), nil
+	return &dto.UninstallTaskResponse{Code: 0, Message: "success", Data: uninstallTask(data)}, nil
 }
 
 func (h *Handler) ListUninstallTasks(ctx context.Context, p dto.ListUninstallTasksParams) (dto.ListUninstallTasksRes, error) {
@@ -154,22 +132,22 @@ func (h *Handler) ListUninstallTasks(ctx context.Context, p dto.ListUninstallTas
 	if err != nil {
 		return listUninstallServiceError(err), nil
 	}
-	v, err := rawSuccess(data)
-	if err != nil {
-		return nil, err
+	items := make([]dto.UninstallTask, 0, len(data))
+	for i := range data {
+		items = append(items, uninstallTask(&data[i]))
 	}
-	return (*dto.ListUninstallTasksOK)(&v), nil
+	return &dto.UninstallTaskListResponse{Code: 0, Message: "success", Data: items}, nil
 }
 
 func (h *Handler) RetryUninstallTask(ctx context.Context, p dto.RetryUninstallTaskParams) (dto.RetryUninstallTaskRes, error) {
-	if err := h.svcs.Cluster.RetryUninstall(ctx, p.Name, p.TaskID); err != nil {
+	taskID, err := strconv.ParseInt(string(p.TaskID), 10, 64)
+	if err != nil || taskID <= 0 {
+		return &dto.RetryUninstallTaskNotFound{Code: 40400, Message: "task not found"}, nil
+	}
+	if err := h.svcs.Cluster.RetryUninstall(ctx, p.Name, taskID); err != nil {
 		return retryUninstallServiceError(err), nil
 	}
-	v, err := rawSuccess(map[string]int64{"id": p.TaskID})
-	if err != nil {
-		return nil, err
-	}
-	return (*dto.RetryUninstallTaskOK)(&v), nil
+	return &dto.UninstallTaskIDResponse{Code: 0, Message: "success", Data: dto.UninstallTaskIDData{ID: p.TaskID}}, nil
 }
 
 func (h *Handler) ListInstallRecords(ctx context.Context, p dto.ListInstallRecordsParams) (dto.ListInstallRecordsRes, error) {
@@ -177,11 +155,26 @@ func (h *Handler) ListInstallRecords(ctx context.Context, p dto.ListInstallRecor
 	if err != nil {
 		return objectError(500), nil
 	}
-	v, err := rawSuccess(data)
+	v, err := dtoData[dto.InstallRecordListResponseData](data)
 	if err != nil {
 		return nil, err
 	}
-	return (*dto.ListInstallRecordsOK)(&v), nil
+	return &dto.InstallRecordListResponse{Code: 0, Message: "success", Data: v}, nil
+}
+
+func uninstallTask(item *service.UninstallTaskItem) dto.UninstallTask {
+	result := dto.UninstallTask{
+		ID:          dto.ResourceID(strconv.FormatInt(item.ID, 10)),
+		Status:      dto.UninstallTaskStatus(item.Status),
+		RequestedAt: item.RequestedAt,
+	}
+	if item.Error != "" {
+		result.Error = dto.NewOptString(item.Error)
+	}
+	if item.CompletedAt != nil {
+		result.CompletedAt = dto.NewOptDateTime(*item.CompletedAt)
+	}
+	return result
 }
 
 func createClusterServiceError(err error) dto.CreateClusterRes {

@@ -24,6 +24,26 @@ type (
 	resourceSuggestionsResponse = dto.ResourceSuggestions
 )
 
+type testPolicyRequest struct {
+	Name            string               `json:"name,omitempty"`
+	Description     string               `json:"description"`
+	EnforcementMode string               `json:"enforcementMode"`
+	Match           v1alpha1.PolicyMatch `json:"match"`
+	Rego            string               `json:"rego"`
+	Labels          map[string]string    `json:"labels,omitempty"`
+	Annotations     map[string]string    `json:"annotations,omitempty"`
+	ResourceVersion string               `json:"resourceVersion,omitempty"`
+}
+
+func validReq() *testPolicyRequest {
+	return &testPolicyRequest{
+		Name:            "my-policy",
+		EnforcementMode: "audit",
+		Match:           testMatch(),
+		Rego:            validRego,
+	}
+}
+
 func testMatch() v1alpha1.PolicyMatch {
 	return v1alpha1.PolicyMatch{
 		Operations: []string{"CREATE"},
@@ -106,7 +126,7 @@ func TestListPoliciesFiltered(t *testing.T) {
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
-	page := mustUnmarshal[pageResult[policyListItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[policyListItem]](t, env.Data)
 	items := page.Items
 	if page.Total != 1 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)
@@ -119,13 +139,13 @@ func TestListPoliciesFiltered(t *testing.T) {
 	}
 
 	_, env = doRequest(t, h, "GET", "/api/v1/policies?phase=Invalid&keyword="+zzTestKeyword, nil)
-	items = mustUnmarshal[pageResult[policyListItem]](t, env.Data).Items
+	items = mustUnmarshal[testPageResult[policyListItem]](t, env.Data).Items
 	if len(items) != 1 || items[0].Name != zzTestKeyword+"b-invalid" {
 		t.Fatalf("phase filter items = %+v", items)
 	}
 
 	_, env = doRequest(t, h, "GET", "/api/v1/policies?keyword="+zzTestKeyword+"a-rea", nil)
-	items = mustUnmarshal[pageResult[policyListItem]](t, env.Data).Items
+	items = mustUnmarshal[testPageResult[policyListItem]](t, env.Data).Items
 	if len(items) != 1 || items[0].Name != zzTestKeyword+"a-ready" {
 		t.Fatalf("keyword filter items = %+v", items)
 	}
@@ -138,13 +158,13 @@ func TestListPoliciesMultiValueFilters(t *testing.T) {
 	seedPolicy(t, repos, zzTestKeyword+"c-enforce", "enforce")
 
 	_, env := doRequest(t, h, "GET", "/api/v1/policies?mode=enforce,audit&keyword="+zzTestKeyword, nil)
-	items := mustUnmarshal[pageResult[policyListItem]](t, env.Data).Items
+	items := mustUnmarshal[testPageResult[policyListItem]](t, env.Data).Items
 	if len(items) != 3 {
 		t.Fatalf("multi mode items = %+v", items)
 	}
 
 	_, env = doRequest(t, h, "GET", "/api/v1/policies?mode=enforce&keyword="+zzTestKeyword, nil)
-	items = mustUnmarshal[pageResult[policyListItem]](t, env.Data).Items
+	items = mustUnmarshal[testPageResult[policyListItem]](t, env.Data).Items
 	if len(items) != 2 {
 		t.Fatalf("mode=enforce items = %+v", items)
 	}
@@ -156,7 +176,7 @@ func TestListPoliciesMultiValueFilters(t *testing.T) {
 	}
 
 	_, env = doRequest(t, h, "GET", "/api/v1/policies?mode=enforce&keyword="+zzTestKeyword+"c-en", nil)
-	items = mustUnmarshal[pageResult[policyListItem]](t, env.Data).Items
+	items = mustUnmarshal[testPageResult[policyListItem]](t, env.Data).Items
 	if len(items) != 1 || items[0].Name != zzTestKeyword+"c-enforce" {
 		t.Fatalf("mode+keyword items = %+v", items)
 	}

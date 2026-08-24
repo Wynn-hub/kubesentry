@@ -2,56 +2,38 @@
 package console
 
 import (
-	"strings"
 	"testing"
 	"time"
 
 	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
-func validExceptionReq() *exceptionRequest {
-	return &exceptionRequest{
+type testExceptionRequest struct {
+	Name              string                        `json:"name,omitempty"`
+	PolicyRefs        []string                      `json:"policyRefs,omitempty"`
+	PolicyGroupRefs   []string                      `json:"policyGroupRefs,omitempty"`
+	AllPolicies       bool                          `json:"allPolicies,omitempty"`
+	Match             v1alpha1.PolicyExceptionMatch `json:"match"`
+	Duration          string                        `json:"duration"`
+	RetainAfterExpiry string                        `json:"retainAfterExpiry,omitempty"`
+	Reason            string                        `json:"reason"`
+	ResourceVersion   string                        `json:"resourceVersion,omitempty"`
+	AllClusters       bool                          `json:"allClusters,omitempty"`
+	ClusterNames      []string                      `json:"clusterNames,omitempty"`
+}
+
+func validExceptionReq() *testExceptionRequest {
+	return &testExceptionRequest{
 		AllClusters: true,
 		Name:        "my-exception",
 		PolicyRefs:  []string{"run-as-privileged"},
 		Match:       v1alpha1.PolicyExceptionMatch{Namespaces: []string{"dev"}},
 		Duration:    "24h",
 		Reason:      "temporary migration",
-	}
-}
-
-func TestValidateExceptionRequest(t *testing.T) {
-	cases := []struct {
-		name    string
-		mutate  func(*exceptionRequest)
-		wantErr string
-	}{
-		{"valid", func(r *exceptionRequest) {}, ""},
-		{"no target", func(r *exceptionRequest) { r.PolicyRefs = nil }, "exactly one"},
-		{"two targets", func(r *exceptionRequest) { r.AllPolicies = true }, "exactly one"},
-		{"bad duration", func(r *exceptionRequest) { r.Duration = "soon" }, "duration"},
-		{"zero duration", func(r *exceptionRequest) { r.Duration = "0s" }, "duration"},
-		{"blank reason", func(r *exceptionRequest) { r.Reason = "  " }, "reason"},
-		{"bad retain", func(r *exceptionRequest) { r.RetainAfterExpiry = "forever" }, "retainAfterExpiry"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := validExceptionReq()
-			tc.mutate(req)
-			err := validateExceptionRequest(req, true)
-			if tc.wantErr == "" {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				return
-			}
-			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
-				t.Fatalf("error = %v, want contains %q", err, tc.wantErr)
-			}
-		})
 	}
 }
 
@@ -79,7 +61,7 @@ func TestExceptionCRUD(t *testing.T) {
 	// The DB is seeded with a permanent "default-system-namespaces"
 	// exception (migration 0004), so assert containment rather than an
 	// exact count of 1.
-	page := mustUnmarshal[pageResult[exceptionListItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.ExceptionListItem]](t, env.Data)
 	items := page.Items
 	if page.Total < 1 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)
@@ -157,8 +139,8 @@ func TestGetExceptionDetail(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	d := mustUnmarshal[exceptionDetail](t, env.Data)
-	if !d.Spec.AllPolicies || d.Status.Phase != "Active" {
+	d := mustUnmarshal[dto.ExceptionDetail](t, env.Data)
+	if !d.Spec.AllPolicies.Or(false) || d.Status.Phase != dto.ExceptionStatusPhaseActive {
 		t.Fatalf("detail = %+v", d)
 	}
 }
@@ -177,8 +159,8 @@ func TestGetExceptionDetailExpired(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	d := mustUnmarshal[exceptionDetail](t, env.Data)
-	if d.Status.Phase != "Expired" {
+	d := mustUnmarshal[dto.ExceptionDetail](t, env.Data)
+	if d.Status.Phase != dto.ExceptionStatusPhaseExpired {
 		t.Fatalf("phase = %q, want Expired", d.Status.Phase)
 	}
 }

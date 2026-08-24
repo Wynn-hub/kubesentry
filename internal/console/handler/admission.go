@@ -4,22 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
-	"strings"
 
 	"github.com/go-faster/jx"
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
 func admissionItem(e dbrepo.AdmissionEvent) dto.AdmissionEventItem {
 	violations := []string{}
 	_ = json.Unmarshal(e.Violations, &violations)
+	policyNames := []string(e.PolicyNames)
+	if len(policyNames) == 0 {
+		policyNames, _ = webhook.AdmissionEventReferences(violations)
+	}
 	return dto.AdmissionEventItem{
 		ID: dto.ResourceID(strconv.FormatInt(e.ID, 10)), EventId: e.EventID, ClusterName: e.ClusterName, OccurredAt: e.OccurredAt,
 		Verdict: dto.AdmissionEventItemVerdict(e.Verdict), ApiGroup: e.APIGroup, ApiVersion: e.APIVersion, Resource: e.Resource, Operation: e.Operation,
-		Namespace: e.Namespace, ResourceName: e.ResourceName, Username: e.Username, PolicyNames: []string(e.PolicyNames), Violations: violations,
+		Namespace: e.Namespace, ResourceName: e.ResourceName, Username: e.Username, PolicyNames: policyNames, Violations: violations,
 	}
 }
 
@@ -51,9 +55,9 @@ func (h *Handler) ListAdmissionEvents(ctx context.Context, params dto.ListAdmiss
 	pageSize := int(params.PageSize.Or(dto.PageSize20))
 	sortBy := string(params.SortBy.Or(dto.ListAdmissionEventsSortByOccurredAt))
 	sortOrder := string(params.SortOrder.Or(dto.ListAdmissionEventsSortOrderDesc))
-	opts := dbrepo.AdmissionEventPageOptions{PageOptions: dbrepo.PageOptions{Limit: pageSize, Offset: (page - 1) * pageSize, SortBy: sortBy, Desc: sortOrder == "desc"}, ClusterNames: csv(params.Cluster.Or("")), PolicyName: params.Policy.Or(""), Namespaces: csv(params.Namespace.Or("")), GVKs: csv(params.Gvk.Or("")), ResourceName: params.ResourceName.Or(""), Username: params.Username.Or("")}
-	if v := params.Verdict; v.Set {
-		opts.Verdicts = []string{string(v.Value)}
+	opts := dbrepo.AdmissionEventPageOptions{PageOptions: dbrepo.PageOptions{Limit: pageSize, Offset: (page - 1) * pageSize, SortBy: sortBy, Desc: sortOrder == "desc"}, ClusterNames: params.Cluster, PolicyName: params.Policy.Or(""), Namespaces: params.Namespace, GVKs: params.Gvk, ResourceName: params.ResourceName.Or(""), Username: params.Username.Or("")}
+	for _, verdict := range params.Verdict {
+		opts.Verdicts = append(opts.Verdicts, string(verdict))
 	}
 	if v := params.From; v.Set {
 		opts.From = &v.Value
@@ -160,18 +164,4 @@ func (h *Handler) UpdateAdmissionEventSettings(ctx context.Context, req *dto.Adm
 		return &dto.UpdateAdmissionEventSettingsInternalServerError{Code: 50000, Message: err.Error()}, nil
 	}
 	return &dto.AdmissionEventSettingsResponse{Code: 0, Message: "success", Data: dto.OptAdmissionEventSettings{Set: true, Value: admissionSettings(s, p)}}, nil
-}
-
-func csv(raw string) []string {
-	if strings.TrimSpace(raw) == "" {
-		return nil
-	}
-	parts := strings.Split(raw, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if p = strings.TrimSpace(p); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }

@@ -20,12 +20,33 @@ type DistributionRepository interface {
 type ClusterRepository interface {
 	Create(context.Context, *dbrepo.Cluster) error
 	GetByName(context.Context, string) (*dbrepo.Cluster, error)
+	List(context.Context) ([]dbrepo.Cluster, error)
 	ListPage(context.Context, dbrepo.PageOptions) ([]dbrepo.Cluster, int64, error)
 	CountByPhase(context.Context) (dbrepo.ClusterPhaseCounts, error)
 	UpdateLabels(context.Context, int64, map[string]string) error
 	UpdateRegToken(context.Context, int64, string) error
 	UpdatePhase(context.Context, int64, string) error
 	Delete(context.Context, int64) error
+}
+
+// PlatformClusterRepository is the read-only cluster view needed by platform
+// observability. Keeping it narrow lets PlatformService depend only on the two
+// cluster lookups it actually performs.
+type PlatformClusterRepository interface {
+	List(context.Context) ([]dbrepo.Cluster, error)
+	GetByName(context.Context, string) (*dbrepo.Cluster, error)
+}
+
+type PlatformRepository interface {
+	GetSettings(context.Context) (*dbrepo.PlatformObservabilitySettings, error)
+	UpdateSettings(context.Context, bool, int) error
+	LatestSamples(context.Context, time.Time) ([]dbrepo.PlatformComponentSample, error)
+	RestartedInstances(context.Context, time.Time) ([]dbrepo.PlatformRestartedInstance, error)
+	MemoryPressuredInstances(context.Context, time.Time) ([]dbrepo.PlatformRestartedInstance, error)
+	LatestCPUUsage(context.Context, time.Time) ([]dbrepo.PlatformCPUUsage, error)
+	Trend(context.Context, string, string, int64, time.Time, time.Time, time.Duration) ([]dbrepo.PlatformTrendRow, error)
+	LatestLeadershipEvents(context.Context, time.Time) ([]dbrepo.PlatformLeadershipEvent, error)
+	LeadershipEvents(context.Context, string, *int64, time.Time, time.Time, int, int) (dbrepo.LeadershipEventPage, error)
 }
 
 type InstallRecordRepository interface {
@@ -71,6 +92,7 @@ type Repositories struct {
 	UninstallTasks UninstallTaskRepository
 	Incidents      IncidentRepository
 	Admission      AdmissionRepository
+	Platform       PlatformRepository
 }
 
 // FromGatewayRepos narrows the shared gateway.Repos bundle down to the
@@ -89,5 +111,6 @@ func FromGatewayRepos(r gateway.Repos) Repositories {
 		UninstallTasks: r.UninstallTasks,
 		Incidents:      r.Incidents,
 		Admission:      r.Admission,
+		Platform:       r.Platform,
 	}
 }

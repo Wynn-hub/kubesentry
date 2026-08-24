@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
@@ -30,22 +31,22 @@ func summaryTestPolicy(t *testing.T, repo *dbrepo.PolicyRepo, name, mode string,
 	}
 }
 
-func findSummaryGroup(groups []groupSummary, name string) (groupSummary, bool) {
+func findSummaryGroup(groups []dto.SummaryGroup, name string) (dto.SummaryGroup, bool) {
 	for _, g := range groups {
 		if g.Name == name {
 			return g, true
 		}
 	}
-	return groupSummary{}, false
+	return dto.SummaryGroup{}, false
 }
 
-func getSummary(t *testing.T, handler http.Handler) summaryData {
+func getSummary(t *testing.T, handler http.Handler) dto.SummaryData {
 	t.Helper()
 	rec, env := doRequest(t, handler, "GET", "/api/v1/summary", nil)
 	if rec.Code != 200 {
 		t.Fatalf("code = %d body = %s", rec.Code, rec.Body.String())
 	}
-	return mustUnmarshal[summaryData](t, env.Data)
+	return mustUnmarshal[dto.SummaryData](t, env.Data)
 }
 
 // TestSummaryTotals seeds fixtures on top of whatever the migration already

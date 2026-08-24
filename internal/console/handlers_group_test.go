@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
@@ -31,8 +32,17 @@ func seedGroup(t *testing.T, repos gateway.Repos, name string, enabled bool) *db
 	return g
 }
 
-func validGroupReq() *groupRequest {
-	return &groupRequest{
+type testGroupRequest struct {
+	AllClusters     bool                         `json:"allClusters"`
+	Name            string                       `json:"name,omitempty"`
+	DisplayName     string                       `json:"displayName"`
+	Enabled         bool                         `json:"enabled"`
+	Policies        v1alpha1.PolicyGroupPolicies `json:"policies"`
+	ResourceVersion string                       `json:"resourceVersion,omitempty"`
+}
+
+func validGroupReq() *testGroupRequest {
+	return &testGroupRequest{
 		AllClusters: true,
 		Name:        "my-group",
 		DisplayName: "My Group",
@@ -43,13 +53,13 @@ func validGroupReq() *groupRequest {
 	}
 }
 
-func findGroup(items []groupListItem, name string) (groupListItem, bool) {
+func findGroup(items []dto.PolicyGroupListItem, name string) (dto.PolicyGroupListItem, bool) {
 	for _, it := range items {
 		if it.Name == name {
 			return it, true
 		}
 	}
-	return groupListItem{}, false
+	return dto.PolicyGroupListItem{}, false
 }
 
 func TestListGroups(t *testing.T) {
@@ -64,7 +74,7 @@ func TestListGroups(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	page := mustUnmarshal[pageResult[groupListItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.PolicyGroupListItem]](t, env.Data)
 	items := page.Items
 	if page.Total < 2 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)
@@ -86,7 +96,7 @@ func TestGetGroupDetail(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	d := mustUnmarshal[groupDetail](t, env.Data)
+	d := mustUnmarshal[dto.PolicyGroupDetail](t, env.Data)
 	if len(d.Spec.Policies.ByName) != 1 || d.Spec.Policies.ByName[0].Name != "p1" {
 		t.Fatalf("detail = %+v", d)
 	}

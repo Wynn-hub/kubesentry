@@ -1,10 +1,7 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
-
-	"github.com/go-faster/jx"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
@@ -13,13 +10,9 @@ import (
 
 // referencedByData marshals the group list into the error envelope's data
 // field. jx.Raw is raw JSON, so strings need quotes — json.Marshal handles it.
-func referencedByData(groups []string) dto.OptErrorResponseData {
-	raw, err := json.Marshal(groups)
-	if err != nil {
-		return dto.OptErrorResponseData{}
-	}
-	return dto.OptErrorResponseData{
-		Value: dto.ErrorResponseData{"referencedBy": jx.Raw(raw)},
+func referencedByData(groups []string) dto.OptReferencedByData {
+	return dto.OptReferencedByData{
+		Value: dto.ReferencedByData{ReferencedBy: groups},
 		Set:   true,
 	}
 }

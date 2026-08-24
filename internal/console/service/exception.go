@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
@@ -15,6 +16,8 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type ExceptionService struct {
@@ -46,7 +49,11 @@ func (s *ExceptionService) Get(ctx context.Context, name string) (*dto.Exception
 			st.Phase = dto.ExceptionStatusPhaseExpired
 		}
 	}
-	return &dto.ExceptionDetail{Name: e.Name, ResourceVersion: strconv.FormatInt(e.UpdatedAt.UnixNano(), 10), Spec: spec, Status: st, Scope: dto.ExceptionScope{AllClusters: true}}, nil
+	scope, err := exceptionScopeFor(ctx, s.repos, name)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.ExceptionDetail{Name: e.Name, ResourceVersion: strconv.FormatInt(e.UpdatedAt.UnixNano(), 10), Spec: spec, Status: st, Scope: scope}, nil
 }
 
 func (s *ExceptionService) List(ctx context.Context, page, size int, sortBy, order string) (*dto.ExceptionListData, error) {
@@ -99,13 +106,10 @@ func exceptionTarget(s v1alpha1.PolicyExceptionSpec) string {
 }
 
 func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionRequest) error {
+	if err := validateExceptionRequest(r, true); err != nil {
+		return err
+	}
 	name := r.Name.Or("")
-	if name == "" {
-		return &ValidationError{Msg: "name is required"}
-	}
-	if _, e := time.ParseDuration(r.Duration); e != nil {
-		return &ValidationError{Msg: "invalid duration"}
-	}
 	var spec v1alpha1.PolicyExceptionSpec
 	b, _ := json.Marshal(r)
 	if e := json.Unmarshal(b, &spec); e != nil {
@@ -119,10 +123,17 @@ func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionRequest) 
 		}
 		return err
 	}
+	if err := syncExceptionScope(ctx, s.repos, name, r.AllClusters.Or(false), r.ClusterNames); err != nil {
+		return err
+	}
+	s.notify(ctx)
 	return nil
 }
 func mustDuration(v string) time.Duration { d, _ := time.ParseDuration(v); return d }
 func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.ExceptionRequest) error {
+	if err := validateExceptionRequest(r, false); err != nil {
+		return err
+	}
 	e, err := s.repos.Exceptions.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -139,7 +150,14 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 		return err
 	}
 	exp := time.Now().Add(mustDuration(r.Duration))
-	return s.repos.Exceptions.UpdateCAS(ctx, e.ID, e.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec), "expires_at": &exp})
+	if err := s.repos.Exceptions.UpdateCAS(ctx, e.ID, e.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec), "expires_at": &exp}); err != nil {
+		return err
+	}
+	if err := syncExceptionScope(ctx, s.repos, name, r.AllClusters.Or(false), r.ClusterNames); err != nil {
+		return err
+	}
+	s.notify(ctx)
+	return nil
 }
 
 func (s *ExceptionService) Delete(ctx context.Context, name string) error {
@@ -150,7 +168,125 @@ func (s *ExceptionService) Delete(ctx context.Context, name string) error {
 		}
 		return err
 	}
-	return s.repos.Exceptions.Delete(ctx, e.ID)
+	if err := s.repos.Exceptions.Delete(ctx, e.ID); err != nil {
+		return err
+	}
+	if err := deleteExceptionScope(ctx, s.repos, name); err != nil {
+		return err
+	}
+	s.notify(ctx)
+	return nil
 }
 
-var _ = fmt.Sprintf
+func (s *ExceptionService) notify(ctx context.Context) {
+	if s.notifier != nil {
+		s.notifier.NotifyChange(ctx, "exception")
+	}
+}
+
+func validateExceptionRequest(req *dto.ExceptionRequest, create bool) error {
+	if create {
+		name := req.Name.Or("")
+		if errs := validation.IsDNS1123Subdomain(name); len(errs) > 0 {
+			return &ValidationError{Msg: "invalid name: " + strings.Join(errs, "; ")}
+		}
+	}
+	targets := 0
+	if len(req.PolicyRefs) > 0 {
+		targets++
+	}
+	if len(req.PolicyGroupRefs) > 0 {
+		targets++
+	}
+	if req.AllPolicies.Or(false) {
+		targets++
+	}
+	if targets != 1 {
+		return &ValidationError{Msg: "exactly one of policyRefs, policyGroupRefs, allPolicies must be set"}
+	}
+	duration, err := time.ParseDuration(req.Duration)
+	if err != nil || duration <= 0 {
+		return &ValidationError{Msg: fmt.Sprintf("duration must be a positive Go duration (e.g. 24h): %q", req.Duration)}
+	}
+	if retain := req.RetainAfterExpiry.Or(""); retain != "" {
+		retention, err := time.ParseDuration(retain)
+		if err != nil || retention < 0 {
+			return &ValidationError{Msg: fmt.Sprintf("retainAfterExpiry must be a non-negative Go duration: %q", retain)}
+		}
+	}
+	if strings.TrimSpace(req.Reason) == "" {
+		return &ValidationError{Msg: "reason is required"}
+	}
+	all := req.AllClusters.Or(false)
+	if all == (len(req.ClusterNames) > 0) {
+		return &ValidationError{Msg: "exactly one of allClusters or clusterNames must be set"}
+	}
+	for _, name := range req.ClusterNames {
+		if strings.TrimSpace(name) == "" {
+			return &ValidationError{Msg: "clusterNames entries must not be empty"}
+		}
+	}
+	return nil
+}
+
+func exceptionScopeFor(ctx context.Context, repos repository.Repositories, owner string) (dto.ExceptionScope, error) {
+	distributions, err := repos.Distributions.List(ctx)
+	if err != nil {
+		return dto.ExceptionScope{}, err
+	}
+	for _, distribution := range distributions {
+		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner {
+			spec := distribution.Spec.Data()
+			return dto.ExceptionScope{AllClusters: spec.Clusters.ClusterSelector != nil, ClusterNames: spec.Clusters.ByName}, nil
+		}
+	}
+	return dto.ExceptionScope{AllClusters: true}, nil
+}
+
+func syncExceptionScope(ctx context.Context, repos repository.Repositories, owner string, all bool, names []string) error {
+	if !all {
+		for _, name := range names {
+			cluster, err := repos.Clusters.GetByName(ctx, name)
+			if err != nil {
+				return fmt.Errorf("target cluster %q: %w", name, err)
+			}
+			if cluster.Phase == v1alpha1.ClusterPhaseUninstalled {
+				return fmt.Errorf("target cluster %q is uninstalled", name)
+			}
+		}
+	}
+	spec := v1alpha1.PolicyDistributionSpec{PolicyExceptions: []string{owner}}
+	if all {
+		spec.Clusters.ClusterSelector = &metav1.LabelSelector{}
+	} else {
+		spec.Clusters.ByName = append([]string(nil), names...)
+	}
+	distributions, err := repos.Distributions.List(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range distributions {
+		distribution := &distributions[i]
+		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner {
+			distribution.Spec = datatypes.NewJSONType(spec)
+			return repos.Distributions.Update(ctx, distribution)
+		}
+	}
+	return repos.Distributions.Create(ctx, &dbrepo.PolicyDistribution{
+		Name: "scope-exception-" + strings.ToLower(owner), Managed: true,
+		OwnerType: "PolicyException", OwnerName: owner, Spec: datatypes.NewJSONType(spec),
+	})
+}
+
+func deleteExceptionScope(ctx context.Context, repos repository.Repositories, owner string) error {
+	distributions, err := repos.Distributions.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, distribution := range distributions {
+		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner {
+			return repos.Distributions.Delete(ctx, distribution.ID)
+		}
+	}
+	return nil
+}

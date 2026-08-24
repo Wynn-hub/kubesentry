@@ -1,31 +1,12 @@
 package console
 
 import (
-	"encoding/json"
-	"reflect"
 	"testing"
 
-	"gorm.io/datatypes"
-
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
-
-func TestAdmissionEventItemFallsBackToViolationPolicyReferences(t *testing.T) {
-	violations, err := json.Marshal([]string{"[host-ipc-set via default] host IPC is not allowed"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	item := admissionEventItemOf(dbrepo.AdmissionEvent{Base: dbmodel.Base{ID: 2081582208838783001}, Violations: datatypes.JSON(violations)})
-	if item.ID != "2081582208838783001" {
-		t.Errorf("event ID = %q, want exact Snowflake ID", item.ID)
-	}
-	if want := []string{"host-ipc-set"}; !reflect.DeepEqual(item.PolicyNames, want) {
-		t.Errorf("policy names = %#v, want %#v", item.PolicyNames, want)
-	}
-}
 
 func TestAdmissionEventSettingsRoundTrip(t *testing.T) {
 	server, _ := newDBTestServer(t)
@@ -47,7 +28,7 @@ func TestAdmissionEventSettingsRoundTrip(t *testing.T) {
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("update settings = %d, body=%s", rec.Code, rec.Body.String())
 	}
-	got := mustUnmarshal[admissionSettingsResponse](t, env.Data)
+	got := mustUnmarshal[dto.AdmissionEventSettings](t, env.Data)
 	if got.DefaultRetentionDays != 21 || got.IncidentRetentionDays != 11 || !got.RetryEnabled || got.MaxRetryAttempts != 5 || got.QueueCapacity != 2048 {
 		t.Fatalf("settings = %+v", got)
 	}
@@ -81,19 +62,6 @@ func TestAdmissionEventSettingsRejectInvalidMatchModeAndGVR(t *testing.T) {
 				t.Fatalf("status = %d, want 400: %s", rec.Code, rec.Body.String())
 			}
 		})
-	}
-}
-
-func TestValidAdmissionGVR(t *testing.T) {
-	for _, value := range []string{"pods", "apps/deployments", "networking.k8s.io/ingresses"} {
-		if !validAdmissionGVR(value) {
-			t.Errorf("validAdmissionGVR(%q) = false, want true", value)
-		}
-	}
-	for _, value := range []string{"", "/pods", "apps/v1/deployments", "apps/", "Pods", " apps/deployments"} {
-		if validAdmissionGVR(value) {
-			t.Errorf("validAdmissionGVR(%q) = true, want false", value)
-		}
 	}
 }
 

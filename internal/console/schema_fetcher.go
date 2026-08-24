@@ -2,7 +2,6 @@ package console
 
 import (
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
@@ -64,43 +63,6 @@ func (f *discoverySchemaFetcher) FieldsFor(group, version, resource string) ([]F
 type schemaCacheEntry struct {
 	fields    []FieldNode
 	expiresAt time.Time
-}
-
-// getFieldSchema serves the cascading field selector's data. Results are
-// cached in-process per group/version/resource for schemaCacheTTL;
-// ?refresh=true forces a re-fetch (e.g. after a CRD schema change).
-func (h *Handlers) getFieldSchema(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	group, version, resource := q.Get("group"), q.Get("version"), q.Get("resource")
-	if version == "" || resource == "" {
-		writeErr(w, http.StatusBadRequest, "version and resource query params are required")
-		return
-	}
-
-	cacheKey := group + "/" + version + "/" + resource
-	refresh := q.Get("refresh") == "true"
-
-	if !refresh {
-		if v, ok := h.schemaCache().Load(cacheKey); ok {
-			entry := v.(schemaCacheEntry)
-			if time.Now().Before(entry.expiresAt) {
-				writeOK(w, entry.fields)
-				return
-			}
-		}
-	}
-
-	fetcher := h.SchemaFetcher
-	if fetcher == nil {
-		fetcher = &discoverySchemaFetcher{Discovery: h.Discovery}
-	}
-	fields, err := fetcher.FieldsFor(group, version, resource)
-	if err != nil {
-		writeErr(w, http.StatusBadGateway, "fetch field schema: "+err.Error())
-		return
-	}
-	h.schemaCache().Store(cacheKey, schemaCacheEntry{fields: fields, expiresAt: time.Now().Add(schemaCacheTTL)})
-	writeOK(w, fields)
 }
 
 func (h *Handlers) schemaCache() *sync.Map {

@@ -7,6 +7,7 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
@@ -26,8 +27,14 @@ func seedDistribution(t *testing.T, repos gateway.Repos, name string, groups []s
 	return d
 }
 
-func validDistributionReq() *distributionRequest {
-	return &distributionRequest{
+type testDistributionRequest struct {
+	Name            string                          `json:"name,omitempty"`
+	Spec            v1alpha1.PolicyDistributionSpec `json:"spec"`
+	ResourceVersion string                          `json:"resourceVersion,omitempty"`
+}
+
+func validDistributionReq() *testDistributionRequest {
+	return &testDistributionRequest{
 		Name: "my-dist",
 		Spec: v1alpha1.PolicyDistributionSpec{
 			Clusters:     v1alpha1.DistributionClusters{ByName: []string{"local"}},
@@ -46,7 +53,7 @@ func TestListDistributions(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	page := mustUnmarshal[pageResult[distributionListItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.DistributionListItem]](t, env.Data)
 	items := page.Items
 	if page.Total < 1 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)
@@ -72,11 +79,12 @@ func TestGetDistributionDetail(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	d := mustUnmarshal[distributionDetail](t, env.Data)
+	d := mustUnmarshal[dto.DistributionDetail](t, env.Data)
 	if len(d.Spec.PolicyGroups) != 1 || d.Spec.PolicyGroups[0] != "g1" {
 		t.Fatalf("detail = %+v", d)
 	}
-	if len(d.Spec.Clusters.ByName) != 1 || d.Spec.Clusters.ByName[0] != "local" {
+	clusters, ok := d.Spec.Clusters.Get()
+	if !ok || len(clusters.ByName) != 1 || clusters.ByName[0] != "local" {
 		t.Fatalf("detail.Spec.Clusters = %+v", d.Spec.Clusters)
 	}
 }

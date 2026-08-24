@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
@@ -46,25 +47,25 @@ func TestAdmissionLinkIncidentListAndDetailResolveSamples(t *testing.T) {
 		t.Fatalf("list incidents = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	page := mustUnmarshal[struct {
-		Items []linkIncidentItem `json:"items"`
-		Total int64              `json:"total"`
+		Items []dto.AdmissionLinkIncidentItem `json:"items"`
+		Total int64                           `json:"total"`
 	}](t, env.Data)
 	if page.Total != 1 || len(page.Items) != 1 || page.Items[0].Status != "active" || page.Items[0].AffectedCount != 4 {
 		t.Fatalf("incident page = %+v", page)
 	}
 
-	rec, env = doRequest(t, server, "GET", "/api/v1/admission-link-incidents/"+page.Items[0].ID, nil)
+	rec, env = doRequest(t, server, "GET", "/api/v1/admission-link-incidents/"+string(page.Items[0].ID), nil)
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("get incident = %d, body=%s", rec.Code, rec.Body.String())
 	}
-	detail := mustUnmarshal[linkIncidentDetail](t, env.Data)
+	detail := mustUnmarshal[dto.AdmissionLinkIncidentDetail](t, env.Data)
 	if detail.Detail != incident.Detail || len(detail.Samples) != 2 {
 		t.Fatalf("incident detail = %+v", detail)
 	}
-	if detail.Samples[0].Expired || detail.Samples[0].EventDatabaseID == "" {
+	if detail.Samples[0].Expired || !detail.Samples[0].EventDatabaseId.Set {
 		t.Fatalf("present sample = %+v", detail.Samples[0])
 	}
-	if !detail.Samples[1].Expired || detail.Samples[1].EventDatabaseID != "" {
+	if !detail.Samples[1].Expired || detail.Samples[1].EventDatabaseId.Set {
 		t.Fatalf("expired sample = %+v", detail.Samples[1])
 	}
 }

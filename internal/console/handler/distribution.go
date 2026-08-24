@@ -15,14 +15,14 @@ func (h *Handler) ListDistributions(ctx context.Context, p dto.ListDistributions
 	if err != nil {
 		return objectError(500), nil
 	}
-	v, err := rawSuccess(data)
+	v, err := dtoData[dto.DistributionListResponseData](data)
 	if err != nil {
 		return nil, err
 	}
-	return (*dto.ListDistributionsOK)(&v), nil
+	return &dto.DistributionListResponse{Code: 0, Message: "success", Data: v}, nil
 }
 
-func (h *Handler) CreateDistribution(ctx context.Context, req dto.CreateDistributionReq) (dto.CreateDistributionRes, error) {
+func (h *Handler) CreateDistribution(ctx context.Context, req *dto.DistributionRequest) (dto.CreateDistributionRes, error) {
 	var input service.DistributionRequest
 	b, err := json.Marshal(req)
 	if err != nil {
@@ -34,11 +34,7 @@ func (h *Handler) CreateDistribution(ctx context.Context, req dto.CreateDistribu
 	if err := h.svcs.Distribution.Create(ctx, input); err != nil {
 		return distributionCreateError(err), nil
 	}
-	v, err := rawSuccess(map[string]string{"name": input.Name})
-	if err != nil {
-		return nil, err
-	}
-	return (*dto.CreateDistributionOK)(&v), nil
+	return &dto.DistributionNameResponse{Code: 0, Message: "success", Data: dto.DistributionNameData{Name: input.Name}}, nil
 }
 
 func (h *Handler) GetDistribution(ctx context.Context, p dto.GetDistributionParams) (dto.GetDistributionRes, error) {
@@ -46,14 +42,14 @@ func (h *Handler) GetDistribution(ctx context.Context, p dto.GetDistributionPara
 	if err != nil {
 		return distributionGetError(err), nil
 	}
-	v, err := rawSuccess(data)
+	v, err := dtoData[dto.DistributionDetail](data)
 	if err != nil {
 		return nil, err
 	}
-	return (*dto.GetDistributionOK)(&v), nil
+	return &dto.DistributionDetailResponse{Code: 0, Message: "success", Data: v}, nil
 }
 
-func (h *Handler) UpdateDistribution(ctx context.Context, req dto.UpdateDistributionReq, p dto.UpdateDistributionParams) (dto.UpdateDistributionRes, error) {
+func (h *Handler) UpdateDistribution(ctx context.Context, req *dto.DistributionRequest, p dto.UpdateDistributionParams) (dto.UpdateDistributionRes, error) {
 	var input service.DistributionRequest
 	b, err := json.Marshal(req)
 	if err != nil {
@@ -65,22 +61,14 @@ func (h *Handler) UpdateDistribution(ctx context.Context, req dto.UpdateDistribu
 	if err := h.svcs.Distribution.Update(ctx, p.Name, input); err != nil {
 		return distributionUpdateError(err), nil
 	}
-	v, err := rawSuccess(map[string]string{"name": p.Name})
-	if err != nil {
-		return nil, err
-	}
-	return (*dto.UpdateDistributionOK)(&v), nil
+	return &dto.DistributionNameResponse{Code: 0, Message: "success", Data: dto.DistributionNameData{Name: p.Name}}, nil
 }
 
 func (h *Handler) DeleteDistribution(ctx context.Context, p dto.DeleteDistributionParams) (dto.DeleteDistributionRes, error) {
 	if err := h.svcs.Distribution.Delete(ctx, p.Name); err != nil {
 		return distributionDeleteError(err), nil
 	}
-	v, err := rawSuccess(nil)
-	if err != nil {
-		return nil, err
-	}
-	return (*dto.DeleteDistributionOK)(&v), nil
+	return &dto.DistributionEmptyResponse{Code: 0, Message: "success"}, nil
 }
 
 func distributionCreateError(err error) dto.CreateDistributionRes {

@@ -43,9 +43,8 @@ func TestTraceIDFromRequestGeneratesUniqueIDs(t *testing.T) {
 	}
 }
 
-// fakeHubClient is a minimal gatewaypb.HubClient stub for notifyChange
-// tests: only NotifyChange is exercised, everything else panics if ever
-// called so an accidental dependency on an unstubbed method fails loudly.
+// fakeHubClient is a minimal gatewaypb.HubClient stub used by API notification
+// tests. Everything except NotifyChange panics if called.
 type fakeHubClient struct {
 	notifyChangeErr error
 
@@ -85,43 +84,4 @@ func (f *fakeHubClient) calls() ([]string, []string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]string(nil), f.topics...), append([]string(nil), f.traces...)
-}
-
-func TestNotifyChangeSkipsWhenGatewayNil(t *testing.T) {
-	h := &Handlers{}
-	r := httptest.NewRequest(http.MethodPost, "/", nil)
-	// Must not panic despite Gateway being nil (soft dependency).
-	h.notifyChange(r, "policy")
-}
-
-func TestNotifyChangeSendsTopicAndTraceID(t *testing.T) {
-	fake := &fakeHubClient{}
-	h := &Handlers{Gateway: fake}
-	r := httptest.NewRequest(http.MethodPost, "/", nil)
-	r.Header.Set("X-Request-Id", "req-abc")
-
-	h.notifyChange(r, "policy")
-
-	topics, traces := fake.calls()
-	if len(topics) != 1 || topics[0] != "policy" {
-		t.Fatalf("topics = %v, want [policy]", topics)
-	}
-	if len(traces) != 1 || traces[0] != "req-abc" {
-		t.Fatalf("traces = %v, want [req-abc]", traces)
-	}
-}
-
-func TestNotifyChangeFailureIsNonFatal(t *testing.T) {
-	fake := &fakeHubClient{notifyChangeErr: context.DeadlineExceeded}
-	h := &Handlers{Gateway: fake}
-	r := httptest.NewRequest(http.MethodPost, "/", nil)
-
-	// Must not panic and must not return an error to the caller — this is
-	// the best-effort contract every write handler relies on.
-	h.notifyChange(r, "policy")
-
-	topics, _ := fake.calls()
-	if len(topics) != 1 {
-		t.Fatalf("expected NotifyChange to have been attempted once, got %v", topics)
-	}
 }

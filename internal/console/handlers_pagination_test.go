@@ -84,7 +84,7 @@ func TestListEndpointsSupportPagesAndSortFields(t *testing.T) {
 				if rec.Code != 200 || env.Code != 0 {
 					t.Fatalf("sortBy=%s code=%d env=%+v", sortField, rec.Code, env)
 				}
-				page := mustUnmarshal[pageResult[json.RawMessage]](t, env.Data)
+				page := mustUnmarshal[testPageResult[json.RawMessage]](t, env.Data)
 				if page.Page != 1 || page.PageSize != 10 || page.Total <= 10 || len(page.Items) != 10 {
 					t.Fatalf("sortBy=%s page=%+v", sortField, page)
 				}
@@ -94,7 +94,7 @@ func TestListEndpointsSupportPagesAndSortFields(t *testing.T) {
 			if rec.Code != 200 {
 				t.Fatalf("second page code=%d env=%+v", rec.Code, env)
 			}
-			page := mustUnmarshal[pageResult[json.RawMessage]](t, env.Data)
+			page := mustUnmarshal[testPageResult[json.RawMessage]](t, env.Data)
 			if page.Page != 2 || page.PageSize != 10 || page.Total <= 10 || len(page.Items) == 0 {
 				t.Fatalf("second page=%+v", page)
 			}
@@ -108,9 +108,9 @@ func TestListEndpointsSupportPagesAndSortFields(t *testing.T) {
 func assertDerivedSortUsesFullSet(t *testing.T, h http.Handler, path, sortBy string) {
 	t.Helper()
 	_, fullEnv := doRequest(t, h, "GET", path+"?pageSize=100&sortBy="+sortBy+"&sortOrder=desc", nil)
-	full := mustUnmarshal[pageResult[json.RawMessage]](t, fullEnv.Data)
+	full := mustUnmarshal[testPageResult[json.RawMessage]](t, fullEnv.Data)
 	_, secondEnv := doRequest(t, h, "GET", path+"?page=2&pageSize=10&sortBy="+sortBy+"&sortOrder=desc", nil)
-	second := mustUnmarshal[pageResult[json.RawMessage]](t, secondEnv.Data)
+	second := mustUnmarshal[testPageResult[json.RawMessage]](t, secondEnv.Data)
 	if !reflect.DeepEqual(second.Items, full.Items[10:]) {
 		t.Fatalf("%s sortBy=%s second page is not the sorted full-set suffix", path, sortBy)
 	}

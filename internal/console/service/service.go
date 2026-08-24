@@ -37,7 +37,7 @@ func New(repos repository.Repositories, notifier Notifier) Services {
 		Incident:     NewIncidentService(repos),
 		Cluster:      NewClusterService(repos, notifier),
 		Distribution: NewDistributionService(repos, notifier),
-		Platform:     NewPlatformService(nil),
+		Platform:     NewPlatformService(repos.Platform, repos.Clusters, notifier),
 		Admission:    NewAdmissionService(repos.Admission, notifier),
 	}
 }

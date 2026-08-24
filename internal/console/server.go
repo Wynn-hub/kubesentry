@@ -1,11 +1,9 @@
 package console
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 
@@ -38,31 +36,11 @@ type Handlers struct {
 	schemaCacheMap  *sync.Map
 }
 
-// RegisterLegacy wires routes that have not yet moved to ogen.
-func (h *Handlers) RegisterLegacy(mux *http.ServeMux) {
-}
-
 // Server is the console HTTP server (plain HTTP; accessed via port-forward,
 // or fronted by the nginx `web` container which proxies /api/* and /healthz
 // here and serves the built SPA itself — see charts/kubesentry-gateway/console).
 type Server struct {
 	Handler http.Handler
-}
-
-// platformServiceInvoke keeps the observability response semantics stable
-// while its repository-backed calculations are being extracted into the
-// platform service. It is an in-process call and never performs an HTTP hop.
-func (h *Handlers) platformServiceInvoke(ctx context.Context, method, path string, body []byte) (int, []byte) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/platform/overview", h.platformOverview)
-	mux.HandleFunc("GET /api/v1/platform/instances/{component}/{instance}/trend", h.platformInstanceTrend)
-	mux.HandleFunc("GET /api/v1/platform/leadership-events", h.platformLeadershipEvents)
-	mux.HandleFunc("GET /api/v1/platform/settings", h.getPlatformSettings)
-	mux.HandleFunc("PUT /api/v1/platform/settings", h.updatePlatformSettings)
-	req := httptest.NewRequest(method, path, bytes.NewReader(body)).WithContext(ctx)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-	return rec.Code, rec.Body.Bytes()
 }
 
 // NewServer wires the REST API only; the SPA is served by a separate nginx
@@ -90,7 +68,6 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 
 	{
 		svcs := service.New(repository.FromGatewayRepos(h.Repos), h.notifier())
-		svcs.Platform = service.NewPlatformService(h.platformServiceInvoke)
 		svcs.Schema = h.fieldSchema
 		ogenServer, err := dto.NewServer(
 			handler.New(svcs),
@@ -124,8 +101,6 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		mux.Handle("/api/v1/distributions", ogenServer)
 		mux.Handle("/api/v1/distributions/", ogenServer)
 	}
-	h.RegisterLegacy(mux)
-
 	// The nginx `web` container only proxies /healthz and /api/* here (see
 	// charts/kubesentry-gateway/templates/console/nginx-configmap.yaml); anything else served by
 	// this process directly (e.g. port-forward during dev) is an unmatched
