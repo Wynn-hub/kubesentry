@@ -1453,6 +1453,40 @@ func (s *CreateUninstallTaskNotFound) Validate() error {
 	return nil
 }
 
+func (s *DatabaseStats) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.CacheHitRatio)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "cacheHitRatio",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.PoolWaitSeconds)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "poolWaitSeconds",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *DeleteClusterConflict) Validate() error {
 	alias := (*ErrorResponse)(s)
 	if err := alias.Validate(); err != nil {
@@ -3168,7 +3202,7 @@ func (s LeadershipEventRoleFrom) Validate() error {
 		return nil
 	case "standby":
 		return nil
-	case "standalone":
+	case "none":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -3181,7 +3215,7 @@ func (s LeadershipEventRoleTo) Validate() error {
 		return nil
 	case "standby":
 		return nil
-	case "standalone":
+	case "none":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -3889,6 +3923,24 @@ func (s *PlatformInstance) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "health",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.DbStats.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "dbStats",
 			Error: err,
 		})
 	}

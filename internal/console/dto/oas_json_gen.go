@@ -6482,15 +6482,58 @@ func (s *DatabaseStats) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *DatabaseStats) encodeFields(e *jx.Encoder) {
 	{
-		if s.Connections.Set {
-			e.FieldStart("connections")
-			s.Connections.Encode(e)
-		}
+		e.FieldStart("connections")
+		e.Int(s.Connections)
+	}
+	{
+		e.FieldStart("maxConnections")
+		e.Int(s.MaxConnections)
+	}
+	{
+		e.FieldStart("transactions")
+		e.Int(s.Transactions)
+	}
+	{
+		e.FieldStart("rollbacks")
+		e.Int(s.Rollbacks)
+	}
+	{
+		e.FieldStart("cacheHitRatio")
+		e.Float64(s.CacheHitRatio)
+	}
+	{
+		e.FieldStart("databaseBytes")
+		e.Int(s.DatabaseBytes)
+	}
+	{
+		e.FieldStart("poolInUse")
+		e.Int(s.PoolInUse)
+	}
+	{
+		e.FieldStart("poolIdle")
+		e.Int(s.PoolIdle)
+	}
+	{
+		e.FieldStart("poolWaitCount")
+		e.Int(s.PoolWaitCount)
+	}
+	{
+		e.FieldStart("poolWaitSeconds")
+		e.Float64(s.PoolWaitSeconds)
 	}
 }
 
-var jsonFieldsNameOfDatabaseStats = [1]string{
+var jsonFieldsNameOfDatabaseStats = [10]string{
 	0: "connections",
+	1: "maxConnections",
+	2: "transactions",
+	3: "rollbacks",
+	4: "cacheHitRatio",
+	5: "databaseBytes",
+	6: "poolInUse",
+	7: "poolIdle",
+	8: "poolWaitCount",
+	9: "poolWaitSeconds",
 }
 
 // Decode decodes DatabaseStats from json.
@@ -6498,18 +6541,129 @@ func (s *DatabaseStats) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode DatabaseStats to nil")
 	}
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
 		case "connections":
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.Connections.Reset()
-				if err := s.Connections.Decode(d); err != nil {
+				v, err := d.Int()
+				s.Connections = int(v)
+				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"connections\"")
+			}
+		case "maxConnections":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.MaxConnections = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"maxConnections\"")
+			}
+		case "transactions":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Transactions = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"transactions\"")
+			}
+		case "rollbacks":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Rollbacks = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"rollbacks\"")
+			}
+		case "cacheHitRatio":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Float64()
+				s.CacheHitRatio = float64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cacheHitRatio\"")
+			}
+		case "databaseBytes":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.DatabaseBytes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"databaseBytes\"")
+			}
+		case "poolInUse":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int()
+				s.PoolInUse = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolInUse\"")
+			}
+		case "poolIdle":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.PoolIdle = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolIdle\"")
+			}
+		case "poolWaitCount":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.PoolWaitCount = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolWaitCount\"")
+			}
+		case "poolWaitSeconds":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Float64()
+				s.PoolWaitSeconds = float64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolWaitSeconds\"")
 			}
 		default:
 			return d.Skip()
@@ -6517,6 +6671,39 @@ func (s *DatabaseStats) Decode(d *jx.Decoder) error {
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "decode DatabaseStats")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfDatabaseStats) {
+					name = jsonFieldsNameOfDatabaseStats[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
 
 	return nil
@@ -15180,8 +15367,8 @@ func (s *LeadershipEventRoleFrom) Decode(d *jx.Decoder) error {
 		*s = LeadershipEventRoleFromLeader
 	case LeadershipEventRoleFromStandby:
 		*s = LeadershipEventRoleFromStandby
-	case LeadershipEventRoleFromStandalone:
-		*s = LeadershipEventRoleFromStandalone
+	case LeadershipEventRoleFromNone:
+		*s = LeadershipEventRoleFromNone
 	default:
 		*s = LeadershipEventRoleFrom(v)
 	}
@@ -15222,8 +15409,8 @@ func (s *LeadershipEventRoleTo) Decode(d *jx.Decoder) error {
 		*s = LeadershipEventRoleToLeader
 	case LeadershipEventRoleToStandby:
 		*s = LeadershipEventRoleToStandby
-	case LeadershipEventRoleToStandalone:
-		*s = LeadershipEventRoleToStandalone
+	case LeadershipEventRoleToNone:
+		*s = LeadershipEventRoleToNone
 	default:
 		*s = LeadershipEventRoleTo(v)
 	}

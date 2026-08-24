@@ -1348,17 +1348,73 @@ export interface components {
          */
         PlatformInstanceHealth: "ok" | "degraded" | "no_data";
         /**
-         * @description PostgreSQL 实例采集到的连接统计
+         * @description PostgreSQL 实例采集的数据库与 Go SQL 连接池统计
          * @example {
-         *       "connections": 4
+         *       "connections": 4,
+         *       "maxConnections": 100,
+         *       "transactions": 1234,
+         *       "rollbacks": 2,
+         *       "cacheHitRatio": 0.998,
+         *       "databaseBytes": 268435456,
+         *       "poolInUse": 1,
+         *       "poolIdle": 3,
+         *       "poolWaitCount": 0,
+         *       "poolWaitSeconds": 0
          *     }
          */
         DatabaseStats: {
             /**
-             * @description 当前数据库连接数
+             * @description PostgreSQL 当前后端连接数
              * @example 4
              */
-            connections?: number;
+            connections: number;
+            /**
+             * @description PostgreSQL 配置允许的最大连接数
+             * @example 100
+             */
+            maxConnections: number;
+            /**
+             * @description 当前数据库累计已提交事务数
+             * @example 1234
+             */
+            transactions: number;
+            /**
+             * @description 当前数据库累计回滚事务数
+             * @example 2
+             */
+            rollbacks: number;
+            /**
+             * Format: double
+             * @description PostgreSQL 缓冲区缓存命中率
+             * @example 0.998
+             */
+            cacheHitRatio: number;
+            /**
+             * @description 当前 PostgreSQL 数据库大小（字节）
+             * @example 268435456
+             */
+            databaseBytes: number;
+            /**
+             * @description Go SQL 连接池正在使用的连接数
+             * @example 1
+             */
+            poolInUse: number;
+            /**
+             * @description Go SQL 连接池空闲连接数
+             * @example 3
+             */
+            poolIdle: number;
+            /**
+             * @description Go SQL 连接池累计等待连接次数
+             * @example 0
+             */
+            poolWaitCount: number;
+            /**
+             * Format: double
+             * @description Go SQL 连接池累计等待时间（秒）
+             * @example 0
+             */
+            poolWaitSeconds: number;
         };
         PlatformInstance: {
             /**
@@ -1616,13 +1672,13 @@ export interface components {
              * @example standby
              * @enum {string}
              */
-            roleFrom: "leader" | "standby" | "standalone";
+            roleFrom: "leader" | "standby" | "none";
             /**
              * @description 变更后领导角色
              * @example leader
              * @enum {string}
              */
-            roleTo: "leader" | "standby" | "standalone";
+            roleTo: "leader" | "standby" | "none";
             /**
              * Format: date-time
              * @description 领导权变更时间

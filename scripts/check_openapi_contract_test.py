@@ -79,6 +79,18 @@ class ContractCheckerTest(unittest.TestCase):
             "parameter schema is missing description",
         )
 
+    def test_platform_runtime_stats_and_leadership_roles_are_explicit(self):
+        platform = checker.load(checker.ROOT / "api/schemas/platform.yaml")
+        schemas = platform["components"]["schemas"]
+        roles = schemas["LeadershipEvent"]["properties"]
+        self.assertEqual(roles["roleFrom"]["enum"], ["leader", "standby", "none"])
+        self.assertEqual(roles["roleTo"]["enum"], ["leader", "standby", "none"])
+        stats = schemas["DatabaseStats"]["properties"]
+        self.assertEqual(
+            set(stats),
+            {"connections", "maxConnections", "transactions", "rollbacks", "cacheHitRatio", "databaseBytes", "poolInUse", "poolIdle", "poolWaitCount", "poolWaitSeconds"},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

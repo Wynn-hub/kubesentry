@@ -22,10 +22,20 @@ components:
       example: ok
     DatabaseStats:
       type: object
-      description: PostgreSQL 实例采集到的连接统计
-      example: {connections: 4}
+      description: PostgreSQL 实例采集的数据库与 Go SQL 连接池统计
+      required: [connections, maxConnections, transactions, rollbacks, cacheHitRatio, databaseBytes, poolInUse, poolIdle, poolWaitCount, poolWaitSeconds]
+      example: {connections: 4, maxConnections: 100, transactions: 1234, rollbacks: 2, cacheHitRatio: 0.998, databaseBytes: 268435456, poolInUse: 1, poolIdle: 3, poolWaitCount: 0, poolWaitSeconds: 0}
       properties:
-        connections: {type: integer, description: 当前数据库连接数, example: 4}
+        connections: {type: integer, description: PostgreSQL 当前后端连接数, example: 4}
+        maxConnections: {type: integer, description: PostgreSQL 配置允许的最大连接数, example: 100}
+        transactions: {type: integer, description: 当前数据库累计已提交事务数, example: 1234}
+        rollbacks: {type: integer, description: 当前数据库累计回滚事务数, example: 2}
+        cacheHitRatio: {type: number, format: double, description: PostgreSQL 缓冲区缓存命中率, example: 0.998}
+        databaseBytes: {type: integer, description: 当前 PostgreSQL 数据库大小（字节）, example: 268435456}
+        poolInUse: {type: integer, description: Go SQL 连接池正在使用的连接数, example: 1}
+        poolIdle: {type: integer, description: Go SQL 连接池空闲连接数, example: 3}
+        poolWaitCount: {type: integer, description: Go SQL 连接池累计等待连接次数, example: 0}
+        poolWaitSeconds: {type: number, format: double, description: Go SQL 连接池累计等待时间（秒）, example: 0}
     PlatformInstance:
       type: object
       required: [instance, role, health, healthReason, uptimeSeconds, restartCount, memoryBytes, memoryLimitBytes, cpuMillis, goroutines, heapAllocBytes, heapSysBytes, lastObservedAt]
@@ -107,8 +117,8 @@ components:
         clusterId: {$ref: './common.yaml#/components/schemas/ResourceID'}
         instance: {type: string, description: 组件实例名称, example: gateway-0}
         clusterName: {type: string, description: 关联成员集群名称，平台平面为空字符串, example: production-east}
-        roleFrom: {type: string, description: 变更前领导角色, enum: [leader, standby, standalone], example: standby}
-        roleTo: {type: string, description: 变更后领导角色, enum: [leader, standby, standalone], example: leader}
+        roleFrom: {type: string, description: 变更前领导角色, enum: [leader, standby, none], example: standby}
+        roleTo: {type: string, description: 变更后领导角色, enum: [leader, standby, none], example: leader}
         changedAt: {type: string, format: date-time, description: 领导权变更时间, example: '2026-08-24T08:00:00Z'}
         detectedBy: {type: string, description: 检测到事件的实例名称, example: gateway-0}
         createdAt: {type: string, format: date-time, description: 事件记录创建时间, example: '2026-08-24T08:00:00Z'}

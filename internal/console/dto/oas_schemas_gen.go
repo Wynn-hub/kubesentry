@@ -2598,21 +2598,129 @@ type CreateUninstallTaskNotFound ErrorResponse
 
 func (*CreateUninstallTaskNotFound) createUninstallTaskRes() {}
 
-// PostgreSQL 实例采集到的连接统计.
+// PostgreSQL 实例采集的数据库与 Go SQL 连接池统计.
 // Ref: #/components/schemas/DatabaseStats
 type DatabaseStats struct {
-	// 当前数据库连接数.
-	Connections OptInt `json:"connections"`
+	// PostgreSQL 当前后端连接数.
+	Connections int `json:"connections"`
+	// PostgreSQL 配置允许的最大连接数.
+	MaxConnections int `json:"maxConnections"`
+	// 当前数据库累计已提交事务数.
+	Transactions int `json:"transactions"`
+	// 当前数据库累计回滚事务数.
+	Rollbacks int `json:"rollbacks"`
+	// PostgreSQL 缓冲区缓存命中率.
+	CacheHitRatio float64 `json:"cacheHitRatio"`
+	// 当前 PostgreSQL 数据库大小（字节）.
+	DatabaseBytes int `json:"databaseBytes"`
+	// Go SQL 连接池正在使用的连接数.
+	PoolInUse int `json:"poolInUse"`
+	// Go SQL 连接池空闲连接数.
+	PoolIdle int `json:"poolIdle"`
+	// Go SQL 连接池累计等待连接次数.
+	PoolWaitCount int `json:"poolWaitCount"`
+	// Go SQL 连接池累计等待时间（秒）.
+	PoolWaitSeconds float64 `json:"poolWaitSeconds"`
 }
 
 // GetConnections returns the value of Connections.
-func (s *DatabaseStats) GetConnections() OptInt {
+func (s *DatabaseStats) GetConnections() int {
 	return s.Connections
 }
 
+// GetMaxConnections returns the value of MaxConnections.
+func (s *DatabaseStats) GetMaxConnections() int {
+	return s.MaxConnections
+}
+
+// GetTransactions returns the value of Transactions.
+func (s *DatabaseStats) GetTransactions() int {
+	return s.Transactions
+}
+
+// GetRollbacks returns the value of Rollbacks.
+func (s *DatabaseStats) GetRollbacks() int {
+	return s.Rollbacks
+}
+
+// GetCacheHitRatio returns the value of CacheHitRatio.
+func (s *DatabaseStats) GetCacheHitRatio() float64 {
+	return s.CacheHitRatio
+}
+
+// GetDatabaseBytes returns the value of DatabaseBytes.
+func (s *DatabaseStats) GetDatabaseBytes() int {
+	return s.DatabaseBytes
+}
+
+// GetPoolInUse returns the value of PoolInUse.
+func (s *DatabaseStats) GetPoolInUse() int {
+	return s.PoolInUse
+}
+
+// GetPoolIdle returns the value of PoolIdle.
+func (s *DatabaseStats) GetPoolIdle() int {
+	return s.PoolIdle
+}
+
+// GetPoolWaitCount returns the value of PoolWaitCount.
+func (s *DatabaseStats) GetPoolWaitCount() int {
+	return s.PoolWaitCount
+}
+
+// GetPoolWaitSeconds returns the value of PoolWaitSeconds.
+func (s *DatabaseStats) GetPoolWaitSeconds() float64 {
+	return s.PoolWaitSeconds
+}
+
 // SetConnections sets the value of Connections.
-func (s *DatabaseStats) SetConnections(val OptInt) {
+func (s *DatabaseStats) SetConnections(val int) {
 	s.Connections = val
+}
+
+// SetMaxConnections sets the value of MaxConnections.
+func (s *DatabaseStats) SetMaxConnections(val int) {
+	s.MaxConnections = val
+}
+
+// SetTransactions sets the value of Transactions.
+func (s *DatabaseStats) SetTransactions(val int) {
+	s.Transactions = val
+}
+
+// SetRollbacks sets the value of Rollbacks.
+func (s *DatabaseStats) SetRollbacks(val int) {
+	s.Rollbacks = val
+}
+
+// SetCacheHitRatio sets the value of CacheHitRatio.
+func (s *DatabaseStats) SetCacheHitRatio(val float64) {
+	s.CacheHitRatio = val
+}
+
+// SetDatabaseBytes sets the value of DatabaseBytes.
+func (s *DatabaseStats) SetDatabaseBytes(val int) {
+	s.DatabaseBytes = val
+}
+
+// SetPoolInUse sets the value of PoolInUse.
+func (s *DatabaseStats) SetPoolInUse(val int) {
+	s.PoolInUse = val
+}
+
+// SetPoolIdle sets the value of PoolIdle.
+func (s *DatabaseStats) SetPoolIdle(val int) {
+	s.PoolIdle = val
+}
+
+// SetPoolWaitCount sets the value of PoolWaitCount.
+func (s *DatabaseStats) SetPoolWaitCount(val int) {
+	s.PoolWaitCount = val
+}
+
+// SetPoolWaitSeconds sets the value of PoolWaitSeconds.
+func (s *DatabaseStats) SetPoolWaitSeconds(val float64) {
+	s.PoolWaitSeconds = val
 }
 
 type DeleteClusterConflict ErrorResponse
@@ -5585,9 +5693,9 @@ func (LeadershipEventListResponseDataPageSize) AllValues() []LeadershipEventList
 type LeadershipEventRoleFrom string
 
 const (
-	LeadershipEventRoleFromLeader     LeadershipEventRoleFrom = "leader"
-	LeadershipEventRoleFromStandby    LeadershipEventRoleFrom = "standby"
-	LeadershipEventRoleFromStandalone LeadershipEventRoleFrom = "standalone"
+	LeadershipEventRoleFromLeader  LeadershipEventRoleFrom = "leader"
+	LeadershipEventRoleFromStandby LeadershipEventRoleFrom = "standby"
+	LeadershipEventRoleFromNone    LeadershipEventRoleFrom = "none"
 )
 
 // AllValues returns all LeadershipEventRoleFrom values.
@@ -5595,7 +5703,7 @@ func (LeadershipEventRoleFrom) AllValues() []LeadershipEventRoleFrom {
 	return []LeadershipEventRoleFrom{
 		LeadershipEventRoleFromLeader,
 		LeadershipEventRoleFromStandby,
-		LeadershipEventRoleFromStandalone,
+		LeadershipEventRoleFromNone,
 	}
 }
 
@@ -5606,7 +5714,7 @@ func (s LeadershipEventRoleFrom) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case LeadershipEventRoleFromStandby:
 		return []byte(s), nil
-	case LeadershipEventRoleFromStandalone:
+	case LeadershipEventRoleFromNone:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -5622,8 +5730,8 @@ func (s *LeadershipEventRoleFrom) UnmarshalText(data []byte) error {
 	case LeadershipEventRoleFromStandby:
 		*s = LeadershipEventRoleFromStandby
 		return nil
-	case LeadershipEventRoleFromStandalone:
-		*s = LeadershipEventRoleFromStandalone
+	case LeadershipEventRoleFromNone:
+		*s = LeadershipEventRoleFromNone
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -5634,9 +5742,9 @@ func (s *LeadershipEventRoleFrom) UnmarshalText(data []byte) error {
 type LeadershipEventRoleTo string
 
 const (
-	LeadershipEventRoleToLeader     LeadershipEventRoleTo = "leader"
-	LeadershipEventRoleToStandby    LeadershipEventRoleTo = "standby"
-	LeadershipEventRoleToStandalone LeadershipEventRoleTo = "standalone"
+	LeadershipEventRoleToLeader  LeadershipEventRoleTo = "leader"
+	LeadershipEventRoleToStandby LeadershipEventRoleTo = "standby"
+	LeadershipEventRoleToNone    LeadershipEventRoleTo = "none"
 )
 
 // AllValues returns all LeadershipEventRoleTo values.
@@ -5644,7 +5752,7 @@ func (LeadershipEventRoleTo) AllValues() []LeadershipEventRoleTo {
 	return []LeadershipEventRoleTo{
 		LeadershipEventRoleToLeader,
 		LeadershipEventRoleToStandby,
-		LeadershipEventRoleToStandalone,
+		LeadershipEventRoleToNone,
 	}
 }
 
@@ -5655,7 +5763,7 @@ func (s LeadershipEventRoleTo) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case LeadershipEventRoleToStandby:
 		return []byte(s), nil
-	case LeadershipEventRoleToStandalone:
+	case LeadershipEventRoleToNone:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -5671,8 +5779,8 @@ func (s *LeadershipEventRoleTo) UnmarshalText(data []byte) error {
 	case LeadershipEventRoleToStandby:
 		*s = LeadershipEventRoleToStandby
 		return nil
-	case LeadershipEventRoleToStandalone:
-		*s = LeadershipEventRoleToStandalone
+	case LeadershipEventRoleToNone:
+		*s = LeadershipEventRoleToNone
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
