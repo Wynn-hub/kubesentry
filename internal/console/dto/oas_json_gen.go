@@ -6472,6 +6472,69 @@ func (s *CreateUninstallTaskNotFound) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode implements json.Marshaler.
+func (s *DatabaseStats) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *DatabaseStats) encodeFields(e *jx.Encoder) {
+	{
+		if s.Connections.Set {
+			e.FieldStart("connections")
+			s.Connections.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfDatabaseStats = [1]string{
+	0: "connections",
+}
+
+// Decode decodes DatabaseStats from json.
+func (s *DatabaseStats) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode DatabaseStats to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "connections":
+			if err := func() error {
+				s.Connections.Reset()
+				if err := s.Connections.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"connections\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode DatabaseStats")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *DatabaseStats) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *DatabaseStats) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes DeleteClusterConflict as json.
 func (s *DeleteClusterConflict) Encode(e *jx.Encoder) {
 	unwrapped := (*ErrorResponse)(s)
@@ -8518,307 +8581,6 @@ func (s *DistributionSpecClusters) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *DistributionSpecClustersClusterSelector) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *DistributionSpecClustersClusterSelector) encodeFields(e *jx.Encoder) {
-	{
-		if s.MatchLabels.Set {
-			e.FieldStart("matchLabels")
-			s.MatchLabels.Encode(e)
-		}
-	}
-	{
-		if s.MatchExpressions != nil {
-			e.FieldStart("matchExpressions")
-			e.ArrStart()
-			for _, elem := range s.MatchExpressions {
-				elem.Encode(e)
-			}
-			e.ArrEnd()
-		}
-	}
-}
-
-var jsonFieldsNameOfDistributionSpecClustersClusterSelector = [2]string{
-	0: "matchLabels",
-	1: "matchExpressions",
-}
-
-// Decode decodes DistributionSpecClustersClusterSelector from json.
-func (s *DistributionSpecClustersClusterSelector) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode DistributionSpecClustersClusterSelector to nil")
-	}
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "matchLabels":
-			if err := func() error {
-				s.MatchLabels.Reset()
-				if err := s.MatchLabels.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"matchLabels\"")
-			}
-		case "matchExpressions":
-			if err := func() error {
-				s.MatchExpressions = make([]DistributionSpecClustersClusterSelectorMatchExpressionsItem, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem DistributionSpecClustersClusterSelectorMatchExpressionsItem
-					if err := elem.Decode(d); err != nil {
-						return err
-					}
-					s.MatchExpressions = append(s.MatchExpressions, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"matchExpressions\"")
-			}
-		default:
-			return d.Skip()
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode DistributionSpecClustersClusterSelector")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *DistributionSpecClustersClusterSelector) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *DistributionSpecClustersClusterSelector) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) encodeFields(e *jx.Encoder) {
-	{
-		if s.Key.Set {
-			e.FieldStart("key")
-			s.Key.Encode(e)
-		}
-	}
-	{
-		if s.Operator.Set {
-			e.FieldStart("operator")
-			s.Operator.Encode(e)
-		}
-	}
-	{
-		if s.Values != nil {
-			e.FieldStart("values")
-			e.ArrStart()
-			for _, elem := range s.Values {
-				e.Str(elem)
-			}
-			e.ArrEnd()
-		}
-	}
-}
-
-var jsonFieldsNameOfDistributionSpecClustersClusterSelectorMatchExpressionsItem = [3]string{
-	0: "key",
-	1: "operator",
-	2: "values",
-}
-
-// Decode decodes DistributionSpecClustersClusterSelectorMatchExpressionsItem from json.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode DistributionSpecClustersClusterSelectorMatchExpressionsItem to nil")
-	}
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "key":
-			if err := func() error {
-				s.Key.Reset()
-				if err := s.Key.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"key\"")
-			}
-		case "operator":
-			if err := func() error {
-				s.Operator.Reset()
-				if err := s.Operator.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"operator\"")
-			}
-		case "values":
-			if err := func() error {
-				s.Values = make([]string, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
-						return err
-					}
-					s.Values = append(s.Values, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"values\"")
-			}
-		default:
-			return d.Skip()
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode DistributionSpecClustersClusterSelectorMatchExpressionsItem")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator as json.
-func (s DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator from json.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator(v) {
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn:
-		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn:
-		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists:
-		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist:
-		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist
-	default:
-		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s DistributionSpecClustersClusterSelectorMatchLabels) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields implements json.Marshaler.
-func (s DistributionSpecClustersClusterSelectorMatchLabels) encodeFields(e *jx.Encoder) {
-	for k, elem := range s {
-		e.FieldStart(k)
-
-		e.Str(elem)
-	}
-}
-
-// Decode decodes DistributionSpecClustersClusterSelectorMatchLabels from json.
-func (s *DistributionSpecClustersClusterSelectorMatchLabels) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode DistributionSpecClustersClusterSelectorMatchLabels to nil")
-	}
-	m := s.init()
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		var elem string
-		if err := func() error {
-			v, err := d.Str()
-			elem = string(v)
-			if err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrapf(err, "decode field %q", k)
-		}
-		m[string(k)] = elem
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode DistributionSpecClustersClusterSelectorMatchLabels")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s DistributionSpecClustersClusterSelectorMatchLabels) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *DistributionSpecClustersClusterSelectorMatchLabels) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
 func (s *DistributionSpecOverridesItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -9557,64 +9319,6 @@ func (s *ErrorResponse) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ErrorResponse) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s ErrorResponseData) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields implements json.Marshaler.
-func (s ErrorResponseData) encodeFields(e *jx.Encoder) {
-	for k, elem := range s {
-		e.FieldStart(k)
-
-		if len(elem) != 0 {
-			e.Raw(elem)
-		}
-	}
-}
-
-// Decode decodes ErrorResponseData from json.
-func (s *ErrorResponseData) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ErrorResponseData to nil")
-	}
-	m := s.init()
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		var elem jx.Raw
-		if err := func() error {
-			v, err := d.RawAppend(nil)
-			elem = jx.Raw(v)
-			if err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrapf(err, "decode field %q", k)
-		}
-		m[string(k)] = elem
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode ErrorResponseData")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ErrorResponseData) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ErrorResponseData) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -14236,6 +13940,338 @@ func (s *InstallRecordListResponseDataPageSize) UnmarshalJSON(data []byte) error
 }
 
 // Encode implements json.Marshaler.
+func (s *KubernetesLabelSelector) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *KubernetesLabelSelector) encodeFields(e *jx.Encoder) {
+	{
+		if s.MatchLabels.Set {
+			e.FieldStart("matchLabels")
+			s.MatchLabels.Encode(e)
+		}
+	}
+	{
+		if s.MatchExpressions != nil {
+			e.FieldStart("matchExpressions")
+			e.ArrStart()
+			for _, elem := range s.MatchExpressions {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfKubernetesLabelSelector = [2]string{
+	0: "matchLabels",
+	1: "matchExpressions",
+}
+
+// Decode decodes KubernetesLabelSelector from json.
+func (s *KubernetesLabelSelector) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode KubernetesLabelSelector to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "matchLabels":
+			if err := func() error {
+				s.MatchLabels.Reset()
+				if err := s.MatchLabels.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"matchLabels\"")
+			}
+		case "matchExpressions":
+			if err := func() error {
+				s.MatchExpressions = make([]KubernetesLabelSelectorRequirement, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem KubernetesLabelSelectorRequirement
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.MatchExpressions = append(s.MatchExpressions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"matchExpressions\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode KubernetesLabelSelector")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *KubernetesLabelSelector) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *KubernetesLabelSelector) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s KubernetesLabelSelectorMatchLabels) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s KubernetesLabelSelectorMatchLabels) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes KubernetesLabelSelectorMatchLabels from json.
+func (s *KubernetesLabelSelectorMatchLabels) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode KubernetesLabelSelectorMatchLabels to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode KubernetesLabelSelectorMatchLabels")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s KubernetesLabelSelectorMatchLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *KubernetesLabelSelectorMatchLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *KubernetesLabelSelectorRequirement) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *KubernetesLabelSelectorRequirement) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("key")
+		e.Str(s.Key)
+	}
+	{
+		e.FieldStart("operator")
+		s.Operator.Encode(e)
+	}
+	{
+		if s.Values != nil {
+			e.FieldStart("values")
+			e.ArrStart()
+			for _, elem := range s.Values {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfKubernetesLabelSelectorRequirement = [3]string{
+	0: "key",
+	1: "operator",
+	2: "values",
+}
+
+// Decode decodes KubernetesLabelSelectorRequirement from json.
+func (s *KubernetesLabelSelectorRequirement) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode KubernetesLabelSelectorRequirement to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "key":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Key = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key\"")
+			}
+		case "operator":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Operator.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"operator\"")
+			}
+		case "values":
+			if err := func() error {
+				s.Values = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Values = append(s.Values, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"values\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode KubernetesLabelSelectorRequirement")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfKubernetesLabelSelectorRequirement) {
+					name = jsonFieldsNameOfKubernetesLabelSelectorRequirement[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *KubernetesLabelSelectorRequirement) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *KubernetesLabelSelectorRequirement) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes KubernetesLabelSelectorRequirementOperator as json.
+func (s KubernetesLabelSelectorRequirementOperator) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes KubernetesLabelSelectorRequirementOperator from json.
+func (s *KubernetesLabelSelectorRequirementOperator) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode KubernetesLabelSelectorRequirementOperator to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch KubernetesLabelSelectorRequirementOperator(v) {
+	case KubernetesLabelSelectorRequirementOperatorIn:
+		*s = KubernetesLabelSelectorRequirementOperatorIn
+	case KubernetesLabelSelectorRequirementOperatorNotIn:
+		*s = KubernetesLabelSelectorRequirementOperatorNotIn
+	case KubernetesLabelSelectorRequirementOperatorExists:
+		*s = KubernetesLabelSelectorRequirementOperatorExists
+	case KubernetesLabelSelectorRequirementOperatorDoesNotExist:
+		*s = KubernetesLabelSelectorRequirementOperatorDoesNotExist
+	default:
+		*s = KubernetesLabelSelectorRequirementOperator(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s KubernetesLabelSelectorRequirementOperator) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *KubernetesLabelSelectorRequirementOperator) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *LabelSelector) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -16292,6 +16328,39 @@ func (s *OptClusterCreateRequestLabels) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes DatabaseStats as json.
+func (o OptDatabaseStats) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes DatabaseStats from json.
+func (o *OptDatabaseStats) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptDatabaseStats to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptDatabaseStats) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptDatabaseStats) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes time.Time as json.
 func (o OptDateTime) Encode(e *jx.Encoder, format func(*jx.Encoder, time.Time)) {
 	if !o.Set {
@@ -16356,140 +16425,6 @@ func (s OptDistributionSpecClusters) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptDistributionSpecClusters) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes DistributionSpecClustersClusterSelector as json.
-func (o OptDistributionSpecClustersClusterSelector) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes DistributionSpecClustersClusterSelector from json.
-func (o *OptDistributionSpecClustersClusterSelector) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptDistributionSpecClustersClusterSelector to nil")
-	}
-	o.Set = true
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptDistributionSpecClustersClusterSelector) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptDistributionSpecClustersClusterSelector) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator as json.
-func (o OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator from json.
-func (o *OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator to nil")
-	}
-	o.Set = true
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes DistributionSpecClustersClusterSelectorMatchLabels as json.
-func (o OptDistributionSpecClustersClusterSelectorMatchLabels) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes DistributionSpecClustersClusterSelectorMatchLabels from json.
-func (o *OptDistributionSpecClustersClusterSelectorMatchLabels) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptDistributionSpecClustersClusterSelectorMatchLabels to nil")
-	}
-	o.Set = true
-	o.Value = make(DistributionSpecClustersClusterSelectorMatchLabels)
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptDistributionSpecClustersClusterSelectorMatchLabels) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptDistributionSpecClustersClusterSelectorMatchLabels) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ErrorResponseData as json.
-func (o OptErrorResponseData) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes ErrorResponseData from json.
-func (o *OptErrorResponseData) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptErrorResponseData to nil")
-	}
-	o.Set = true
-	o.Value = make(ErrorResponseData)
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptErrorResponseData) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptErrorResponseData) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -16661,6 +16596,73 @@ func (s *OptInt) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes KubernetesLabelSelector as json.
+func (o OptKubernetesLabelSelector) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes KubernetesLabelSelector from json.
+func (o *OptKubernetesLabelSelector) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptKubernetesLabelSelector to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptKubernetesLabelSelector) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptKubernetesLabelSelector) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes KubernetesLabelSelectorMatchLabels as json.
+func (o OptKubernetesLabelSelectorMatchLabels) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes KubernetesLabelSelectorMatchLabels from json.
+func (o *OptKubernetesLabelSelectorMatchLabels) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptKubernetesLabelSelectorMatchLabels to nil")
+	}
+	o.Set = true
+	o.Value = make(KubernetesLabelSelectorMatchLabels)
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptKubernetesLabelSelectorMatchLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptKubernetesLabelSelectorMatchLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes LabelSelector as json.
 func (o OptLabelSelector) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -16724,40 +16726,6 @@ func (s OptLabelSelectorMatchLabels) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptLabelSelectorMatchLabels) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes PlatformInstanceDbStats as json.
-func (o OptPlatformInstanceDbStats) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes PlatformInstanceDbStats from json.
-func (o *OptPlatformInstanceDbStats) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptPlatformInstanceDbStats to nil")
-	}
-	o.Set = true
-	o.Value = make(PlatformInstanceDbStats)
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptPlatformInstanceDbStats) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptPlatformInstanceDbStats) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -16961,40 +16929,6 @@ func (s *OptPolicyGroupPoliciesBySelector) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes PolicyGroupRequestNamespaceSelector as json.
-func (o OptPolicyGroupRequestNamespaceSelector) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes PolicyGroupRequestNamespaceSelector from json.
-func (o *OptPolicyGroupRequestNamespaceSelector) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptPolicyGroupRequestNamespaceSelector to nil")
-	}
-	o.Set = true
-	o.Value = make(PolicyGroupRequestNamespaceSelector)
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptPolicyGroupRequestNamespaceSelector) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptPolicyGroupRequestNamespaceSelector) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes PolicyGroupRequestSelectorEnforcementMode as json.
 func (o OptPolicyGroupRequestSelectorEnforcementMode) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -17024,40 +16958,6 @@ func (s OptPolicyGroupRequestSelectorEnforcementMode) MarshalJSON() ([]byte, err
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptPolicyGroupRequestSelectorEnforcementMode) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes PolicyGroupSpecNamespaceSelector as json.
-func (o OptPolicyGroupSpecNamespaceSelector) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes PolicyGroupSpecNamespaceSelector from json.
-func (o *OptPolicyGroupSpecNamespaceSelector) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptPolicyGroupSpecNamespaceSelector to nil")
-	}
-	o.Set = true
-	o.Value = make(PolicyGroupSpecNamespaceSelector)
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptPolicyGroupSpecNamespaceSelector) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptPolicyGroupSpecNamespaceSelector) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -17291,6 +17191,39 @@ func (s OptPolicyVersionList) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptPolicyVersionList) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReferencedByData as json.
+func (o OptReferencedByData) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ReferencedByData from json.
+func (o *OptReferencedByData) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptReferencedByData to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptReferencedByData) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptReferencedByData) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -17615,6 +17548,48 @@ func (s *PlatformCluster) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes PlatformClusterHealth as json.
+func (s PlatformClusterHealth) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PlatformClusterHealth from json.
+func (s *PlatformClusterHealth) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PlatformClusterHealth to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PlatformClusterHealth(v) {
+	case PlatformClusterHealthOk:
+		*s = PlatformClusterHealthOk
+	case PlatformClusterHealthDegraded:
+		*s = PlatformClusterHealthDegraded
+	case PlatformClusterHealthUnavailable:
+		*s = PlatformClusterHealthUnavailable
+	default:
+		*s = PlatformClusterHealth(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PlatformClusterHealth) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PlatformClusterHealth) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes PlatformClusterPhase as json.
 func (s PlatformClusterPhase) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -17928,48 +17903,46 @@ func (s *PlatformComponentComponent) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes PlatformHealth as json.
-func (s PlatformHealth) Encode(e *jx.Encoder) {
+// Encode encodes PlatformComponentHealth as json.
+func (s PlatformComponentHealth) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes PlatformHealth from json.
-func (s *PlatformHealth) Decode(d *jx.Decoder) error {
+// Decode decodes PlatformComponentHealth from json.
+func (s *PlatformComponentHealth) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode PlatformHealth to nil")
+		return errors.New("invalid: unable to decode PlatformComponentHealth to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch PlatformHealth(v) {
-	case PlatformHealthOk:
-		*s = PlatformHealthOk
-	case PlatformHealthWarning:
-		*s = PlatformHealthWarning
-	case PlatformHealthCritical:
-		*s = PlatformHealthCritical
-	case PlatformHealthUnavailable:
-		*s = PlatformHealthUnavailable
-	case PlatformHealthDisabled:
-		*s = PlatformHealthDisabled
+	switch PlatformComponentHealth(v) {
+	case PlatformComponentHealthOk:
+		*s = PlatformComponentHealthOk
+	case PlatformComponentHealthDegraded:
+		*s = PlatformComponentHealthDegraded
+	case PlatformComponentHealthUnavailable:
+		*s = PlatformComponentHealthUnavailable
+	case PlatformComponentHealthPending:
+		*s = PlatformComponentHealthPending
 	default:
-		*s = PlatformHealth(v)
+		*s = PlatformComponentHealth(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s PlatformHealth) MarshalJSON() ([]byte, error) {
+func (s PlatformComponentHealth) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PlatformHealth) UnmarshalJSON(data []byte) error {
+func (s *PlatformComponentHealth) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -18288,60 +18261,44 @@ func (s *PlatformInstance) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode implements json.Marshaler.
-func (s PlatformInstanceDbStats) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
+// Encode encodes PlatformInstanceHealth as json.
+func (s PlatformInstanceHealth) Encode(e *jx.Encoder) {
+	e.Str(string(s))
 }
 
-// encodeFields implements json.Marshaler.
-func (s PlatformInstanceDbStats) encodeFields(e *jx.Encoder) {
-	for k, elem := range s {
-		e.FieldStart(k)
-
-		if len(elem) != 0 {
-			e.Raw(elem)
-		}
-	}
-}
-
-// Decode decodes PlatformInstanceDbStats from json.
-func (s *PlatformInstanceDbStats) Decode(d *jx.Decoder) error {
+// Decode decodes PlatformInstanceHealth from json.
+func (s *PlatformInstanceHealth) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode PlatformInstanceDbStats to nil")
+		return errors.New("invalid: unable to decode PlatformInstanceHealth to nil")
 	}
-	m := s.init()
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		var elem jx.Raw
-		if err := func() error {
-			v, err := d.RawAppend(nil)
-			elem = jx.Raw(v)
-			if err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrapf(err, "decode field %q", k)
-		}
-		m[string(k)] = elem
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode PlatformInstanceDbStats")
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PlatformInstanceHealth(v) {
+	case PlatformInstanceHealthOk:
+		*s = PlatformInstanceHealthOk
+	case PlatformInstanceHealthDegraded:
+		*s = PlatformInstanceHealthDegraded
+	case PlatformInstanceHealthNoData:
+		*s = PlatformInstanceHealthNoData
+	default:
+		*s = PlatformInstanceHealth(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s PlatformInstanceDbStats) MarshalJSON() ([]byte, error) {
+func (s PlatformInstanceHealth) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PlatformInstanceDbStats) UnmarshalJSON(data []byte) error {
+func (s *PlatformInstanceHealth) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -18364,10 +18321,10 @@ func (s *PlatformInstanceRole) Decode(d *jx.Decoder) error {
 	switch PlatformInstanceRole(v) {
 	case PlatformInstanceRoleLeader:
 		*s = PlatformInstanceRoleLeader
-	case PlatformInstanceRoleFollower:
-		*s = PlatformInstanceRoleFollower
-	case PlatformInstanceRoleStandalone:
-		*s = PlatformInstanceRoleStandalone
+	case PlatformInstanceRoleStandby:
+		*s = PlatformInstanceRoleStandby
+	case PlatformInstanceRoleNone:
+		*s = PlatformInstanceRoleNone
 	default:
 		*s = PlatformInstanceRole(v)
 	}
@@ -18537,6 +18494,50 @@ func (s *PlatformOverview) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *PlatformOverview) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PlatformOverviewHealth as json.
+func (s PlatformOverviewHealth) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PlatformOverviewHealth from json.
+func (s *PlatformOverviewHealth) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PlatformOverviewHealth to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PlatformOverviewHealth(v) {
+	case PlatformOverviewHealthOk:
+		*s = PlatformOverviewHealthOk
+	case PlatformOverviewHealthDegraded:
+		*s = PlatformOverviewHealthDegraded
+	case PlatformOverviewHealthUnavailable:
+		*s = PlatformOverviewHealthUnavailable
+	case PlatformOverviewHealthDisabled:
+		*s = PlatformOverviewHealthDisabled
+	default:
+		*s = PlatformOverviewHealth(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PlatformOverviewHealth) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PlatformOverviewHealth) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -22229,64 +22230,6 @@ func (s *PolicyGroupRequest) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode implements json.Marshaler.
-func (s PolicyGroupRequestNamespaceSelector) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields implements json.Marshaler.
-func (s PolicyGroupRequestNamespaceSelector) encodeFields(e *jx.Encoder) {
-	for k, elem := range s {
-		e.FieldStart(k)
-
-		if len(elem) != 0 {
-			e.Raw(elem)
-		}
-	}
-}
-
-// Decode decodes PolicyGroupRequestNamespaceSelector from json.
-func (s *PolicyGroupRequestNamespaceSelector) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode PolicyGroupRequestNamespaceSelector to nil")
-	}
-	m := s.init()
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		var elem jx.Raw
-		if err := func() error {
-			v, err := d.RawAppend(nil)
-			elem = jx.Raw(v)
-			if err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrapf(err, "decode field %q", k)
-		}
-		m[string(k)] = elem
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode PolicyGroupRequestNamespaceSelector")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s PolicyGroupRequestNamespaceSelector) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PolicyGroupRequestNamespaceSelector) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes PolicyGroupRequestSelectorEnforcementMode as json.
 func (s PolicyGroupRequestSelectorEnforcementMode) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -22628,64 +22571,6 @@ func (s *PolicyGroupSpec) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *PolicyGroupSpec) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s PolicyGroupSpecNamespaceSelector) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields implements json.Marshaler.
-func (s PolicyGroupSpecNamespaceSelector) encodeFields(e *jx.Encoder) {
-	for k, elem := range s {
-		e.FieldStart(k)
-
-		if len(elem) != 0 {
-			e.Raw(elem)
-		}
-	}
-}
-
-// Decode decodes PolicyGroupSpecNamespaceSelector from json.
-func (s *PolicyGroupSpecNamespaceSelector) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode PolicyGroupSpecNamespaceSelector to nil")
-	}
-	m := s.init()
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		var elem jx.Raw
-		if err := func() error {
-			v, err := d.RawAppend(nil)
-			elem = jx.Raw(v)
-			if err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return errors.Wrapf(err, "decode field %q", k)
-		}
-		m[string(k)] = elem
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode PolicyGroupSpecNamespaceSelector")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s PolicyGroupSpecNamespaceSelector) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PolicyGroupSpecNamespaceSelector) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -24922,6 +24807,114 @@ func (s *PolicyVersionListResponse) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *PolicyVersionListResponse) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ReferencedByData) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ReferencedByData) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("referencedBy")
+		e.ArrStart()
+		for _, elem := range s.ReferencedBy {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfReferencedByData = [1]string{
+	0: "referencedBy",
+}
+
+// Decode decodes ReferencedByData from json.
+func (s *ReferencedByData) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReferencedByData to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "referencedBy":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.ReferencedBy = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.ReferencedBy = append(s.ReferencedBy, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"referencedBy\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ReferencedByData")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfReferencedByData) {
+					name = jsonFieldsNameOfReferencedByData[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ReferencedByData) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReferencedByData) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -27593,12 +27586,14 @@ func (s *UninstallTaskStatus) Decode(d *jx.Decoder) error {
 	switch UninstallTaskStatus(v) {
 	case UninstallTaskStatusPending:
 		*s = UninstallTaskStatusPending
+	case UninstallTaskStatusReceived:
+		*s = UninstallTaskStatusReceived
 	case UninstallTaskStatusRunning:
 		*s = UninstallTaskStatusRunning
+	case UninstallTaskStatusSucceeded:
+		*s = UninstallTaskStatusSucceeded
 	case UninstallTaskStatusFailed:
 		*s = UninstallTaskStatusFailed
-	case UninstallTaskStatusCompleted:
-		*s = UninstallTaskStatusCompleted
 	default:
 		*s = UninstallTaskStatus(v)
 	}

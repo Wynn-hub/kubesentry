@@ -1211,11 +1211,16 @@ func decodeGetLatestInstallParamsParams(args [1]string, argsEscaped bool, r *htt
 
 // GetPlatformInstanceTrendParams is parameters of getPlatformInstanceTrend operation.
 type GetPlatformInstanceTrendParams struct {
-	Component string
-	Instance  string
-	Cluster   OptString   `json:",omitempty,omitzero"`
-	From      OptDateTime `json:",omitempty,omitzero"`
-	To        OptDateTime `json:",omitempty,omitzero"`
+	// 平台组件名称.
+	Component GetPlatformInstanceTrendComponent
+	// 平台组件实例名称.
+	Instance string
+	// 成员面组件所属的集群名称；Gateway 平面组件省略.
+	Cluster OptString `json:",omitempty,omitzero"`
+	// 查询起始时间，RFC3339 格式.
+	From OptDateTime `json:",omitempty,omitzero"`
+	// 查询结束时间，RFC3339 格式.
+	To OptDateTime `json:",omitempty,omitzero"`
 }
 
 func unpackGetPlatformInstanceTrendParams(packed middleware.Parameters) (params GetPlatformInstanceTrendParams) {
@@ -1224,7 +1229,7 @@ func unpackGetPlatformInstanceTrendParams(packed middleware.Parameters) (params 
 			Name: "component",
 			In:   "path",
 		}
-		params.Component = packed[key].(string)
+		params.Component = packed[key].(GetPlatformInstanceTrendComponent)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -1294,7 +1299,15 @@ func decodeGetPlatformInstanceTrendParams(args [2]string, argsEscaped bool, r *h
 					return err
 				}
 
-				params.Component = c
+				params.Component = GetPlatformInstanceTrendComponent(c)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.Component.Validate(); err != nil {
+					return err
+				}
 				return nil
 			}(); err != nil {
 				return err
@@ -1487,7 +1500,8 @@ type GetPlatformOverviewParams struct {
 	Page OptInt `json:",omitempty,omitzero"`
 	// 每页记录数。仅接受 10、20、50、100。省略时为 20.
 	PageSize OptPageSize `json:",omitempty,omitzero"`
-	Health   OptString   `json:",omitempty,omitzero"`
+	// 按成员集群聚合健康状态筛选.
+	Health OptGetPlatformOverviewHealth `json:",omitempty,omitzero"`
 }
 
 func unpackGetPlatformOverviewParams(packed middleware.Parameters) (params GetPlatformOverviewParams) {
@@ -1515,7 +1529,7 @@ func unpackGetPlatformOverviewParams(packed middleware.Parameters) (params GetPl
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.Health = v.(OptString)
+			params.Health = v.(OptGetPlatformOverviewHealth)
 		}
 	}
 	return params
@@ -1665,7 +1679,7 @@ func decodeGetPlatformOverviewParams(args [0]string, argsEscaped bool, r *http.R
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotHealthVal string
+				var paramsDotHealthVal GetPlatformOverviewHealth
 				if err := func() error {
 					val, err := d.DecodeValue()
 					if err != nil {
@@ -1677,7 +1691,7 @@ func decodeGetPlatformOverviewParams(args [0]string, argsEscaped bool, r *http.R
 						return err
 					}
 
-					paramsDotHealthVal = c
+					paramsDotHealthVal = GetPlatformOverviewHealth(c)
 					return nil
 				}(); err != nil {
 					return err
@@ -1685,6 +1699,21 @@ func decodeGetPlatformOverviewParams(args [0]string, argsEscaped bool, r *http.R
 				params.Health.SetTo(paramsDotHealthVal)
 				return nil
 			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Health.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
 				return err
 			}
 		}
@@ -3462,8 +3491,10 @@ type ListDistributionsParams struct {
 	// 页码，从 1 开始.
 	Page OptInt `json:",omitempty,omitzero"`
 	// 每页数量.
-	PageSize  OptListDistributionsPageSize  `json:",omitempty,omitzero"`
-	SortBy    OptListDistributionsSortBy    `json:",omitempty,omitzero"`
+	PageSize OptListDistributionsPageSize `json:",omitempty,omitzero"`
+	// 排序字段.
+	SortBy OptListDistributionsSortBy `json:",omitempty,omitzero"`
+	// 排序方向.
 	SortOrder OptListDistributionsSortOrder `json:",omitempty,omitzero"`
 }
 
@@ -4383,11 +4414,15 @@ type ListPlatformLeadershipEventsParams struct {
 	// 页码，从 1 开始。省略时为 1.
 	Page OptInt `json:",omitempty,omitzero"`
 	// 每页记录数。仅接受 10、20、50、100。省略时为 20.
-	PageSize  OptPageSize `json:",omitempty,omitzero"`
-	Component OptString   `json:",omitempty,omitzero"`
-	Cluster   OptString   `json:",omitempty,omitzero"`
-	From      OptDateTime `json:",omitempty,omitzero"`
-	To        OptDateTime `json:",omitempty,omitzero"`
+	PageSize OptPageSize `json:",omitempty,omitzero"`
+	// 按发生领导权变更的组件筛选.
+	Component OptListPlatformLeadershipEventsComponent `json:",omitempty,omitzero"`
+	// 按关联成员集群筛选；Gateway 平面事件省略.
+	Cluster OptString `json:",omitempty,omitzero"`
+	// 查询起始时间，RFC3339 格式.
+	From OptDateTime `json:",omitempty,omitzero"`
+	// 查询结束时间，RFC3339 格式.
+	To OptDateTime `json:",omitempty,omitzero"`
 }
 
 func unpackListPlatformLeadershipEventsParams(packed middleware.Parameters) (params ListPlatformLeadershipEventsParams) {
@@ -4415,7 +4450,7 @@ func unpackListPlatformLeadershipEventsParams(packed middleware.Parameters) (par
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.Component = v.(OptString)
+			params.Component = v.(OptListPlatformLeadershipEventsComponent)
 		}
 	}
 	{
@@ -4592,7 +4627,7 @@ func decodeListPlatformLeadershipEventsParams(args [0]string, argsEscaped bool, 
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotComponentVal string
+				var paramsDotComponentVal ListPlatformLeadershipEventsComponent
 				if err := func() error {
 					val, err := d.DecodeValue()
 					if err != nil {
@@ -4604,7 +4639,7 @@ func decodeListPlatformLeadershipEventsParams(args [0]string, argsEscaped bool, 
 						return err
 					}
 
-					paramsDotComponentVal = c
+					paramsDotComponentVal = ListPlatformLeadershipEventsComponent(c)
 					return nil
 				}(); err != nil {
 					return err
@@ -4612,6 +4647,21 @@ func decodeListPlatformLeadershipEventsParams(args [0]string, argsEscaped bool, 
 				params.Component.SetTo(paramsDotComponentVal)
 				return nil
 			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Component.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
 				return err
 			}
 		}
@@ -5724,10 +5774,6 @@ func decodeListPolicyVersionsParams(args [1]string, argsEscaped bool, r *http.Re
 type ListUninstallTasksParams struct {
 	// 集群名称.
 	Name string
-	// 页码，从 1 开始。省略时为 1.
-	Page OptInt `json:",omitempty,omitzero"`
-	// 每页记录数。仅接受 10、20、50、100。省略时为 20.
-	PageSize OptPageSize `json:",omitempty,omitzero"`
 }
 
 func unpackListUninstallTasksParams(packed middleware.Parameters) (params ListUninstallTasksParams) {
@@ -5738,29 +5784,10 @@ func unpackListUninstallTasksParams(packed middleware.Parameters) (params ListUn
 		}
 		params.Name = packed[key].(string)
 	}
-	{
-		key := middleware.ParameterKey{
-			Name: "page",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.Page = v.(OptInt)
-		}
-	}
-	{
-		key := middleware.ParameterKey{
-			Name: "pageSize",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.PageSize = v.(OptPageSize)
-		}
-	}
 	return params
 }
 
 func decodeListUninstallTasksParams(args [1]string, argsEscaped bool, r *http.Request) (params ListUninstallTasksParams, _ error) {
-	q := uri.NewQueryDecoder(r.URL.Query())
 	// Decode path: name.
 	if err := func() error {
 		param := args[0]
@@ -5803,138 +5830,6 @@ func decodeListUninstallTasksParams(args [1]string, argsEscaped bool, r *http.Re
 		return params, &ogenerrors.DecodeParamError{
 			Name: "name",
 			In:   "path",
-			Err:  err,
-		}
-	}
-	// Set default value for query: page.
-	{
-		val := int(1)
-		params.Page.SetTo(val)
-	}
-	// Decode query: page.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "page",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotPageVal int
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToInt(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotPageVal = c
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.Page.SetTo(paramsDotPageVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if value, ok := params.Page.Get(); ok {
-					if err := func() error {
-						if err := (validate.Int{
-							MinSet:        true,
-							Min:           1,
-							MaxSet:        false,
-							Max:           0,
-							MinExclusive:  false,
-							MaxExclusive:  false,
-							MultipleOfSet: false,
-							MultipleOf:    0,
-							Pattern:       nil,
-						}).Validate(int64(value)); err != nil {
-							return errors.Wrap(err, "int")
-						}
-						return nil
-					}(); err != nil {
-						return err
-					}
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "page",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	// Set default value for query: pageSize.
-	{
-		val := PageSize(20)
-		params.PageSize.SetTo(val)
-	}
-	// Decode query: pageSize.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "pageSize",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotPageSizeVal PageSize
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToInt(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotPageSizeVal = PageSize(c)
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.PageSize.SetTo(paramsDotPageSizeVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if value, ok := params.PageSize.Get(); ok {
-					if err := func() error {
-						if err := value.Validate(); err != nil {
-							return err
-						}
-						return nil
-					}(); err != nil {
-						return err
-					}
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "pageSize",
-			In:   "query",
 			Err:  err,
 		}
 	}

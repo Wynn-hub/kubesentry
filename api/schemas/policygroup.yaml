@@ -69,10 +69,7 @@ components:
           description: 是否启用策略组
           example: true
         namespaceSelector:
-          type: object
-          additionalProperties: true
-          description: Kubernetes 命名空间标签选择器
-          example: {matchLabels: {environment: production}}
+          $ref: './common.yaml#/components/schemas/KubernetesLabelSelector'
         policies:
           $ref: '#/components/schemas/PolicyGroupPolicies'
         selectorEnforcementMode:

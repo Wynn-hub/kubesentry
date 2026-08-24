@@ -128,7 +128,7 @@ export interface paths {
         };
         /**
          * 查询集群卸载任务
-         * @description 分页查询指定集群的卸载任务及失败原因。
+         * @description 查询指定集群的全部卸载任务及失败原因。
          */
         get: operations["listUninstallTasks"];
         put?: never;
@@ -853,20 +853,20 @@ export interface components {
                 items: components["schemas"]["ClusterListItem"][];
             };
         };
+        /** @description 删除被引用资源时附带的引用方列表 */
+        ReferencedByData: {
+            /**
+             * @description 仍引用目标资源的对象名称
+             * @example [
+             *       "baseline-group"
+             *     ]
+             */
+            referencedBy: string[];
+        };
         ErrorResponse: components["schemas"]["Envelope"] & {
             /** @description 错误明细列表。参数校验失败时逐条列出问题字段 */
             details?: string[];
-            /**
-             * @description 失败时附带的结构化数据。例如删除被引用资源时的 referencedBy 列表
-             * @example {
-             *       "referencedBy": [
-             *         "baseline-group"
-             *       ]
-             *     }
-             */
-            data?: {
-                [key: string]: unknown;
-            };
+            data?: components["schemas"]["ReferencedByData"];
         };
         ImageParams: {
             /**
@@ -1055,7 +1055,7 @@ export interface components {
              * @example Pending
              * @enum {string}
              */
-            status: "Pending" | "Running" | "Failed" | "Completed";
+            status: "Pending" | "Received" | "Running" | "Succeeded" | "Failed";
             /**
              * @description 失败时的错误信息
              * @example connection timed out
@@ -1189,6 +1189,50 @@ export interface components {
                 items: components["schemas"]["DistributionListItem"][];
             };
         };
+        KubernetesLabelSelectorRequirement: {
+            /**
+             * @description Kubernetes 标签键
+             * @example environment
+             */
+            key: string;
+            /**
+             * @description 标签选择运算符
+             * @example In
+             * @enum {string}
+             */
+            operator: "In" | "NotIn" | "Exists" | "DoesNotExist";
+            /**
+             * @description In 或 NotIn 运算符使用的标签值
+             * @example [
+             *       "production"
+             *     ]
+             */
+            values?: string[];
+        };
+        /**
+         * @description Kubernetes LabelSelector，按标签精确值或表达式筛选资源
+         * @example {
+         *       "matchLabels": {
+         *         "environment": "production"
+         *       }
+         *     }
+         */
+        KubernetesLabelSelector: {
+            /**
+             * @description 精确匹配的标签映射
+             * @example {
+             *       "environment": "production"
+             *     }
+             */
+            matchLabels?: {
+                [key: string]: string;
+            };
+            /**
+             * @description 表达式形式的标签选择条件
+             * @example []
+             */
+            matchExpressions?: components["schemas"]["KubernetesLabelSelectorRequirement"][];
+        };
         DistributionSpec: {
             /**
              * @description 要分发的策略组名称
@@ -1225,49 +1269,7 @@ export interface components {
                  *     ]
                  */
                 byName?: string[];
-                /**
-                 * @description Kubernetes 标签选择器
-                 * @example {
-                 *       "matchLabels": {
-                 *         "environment": "production"
-                 *       }
-                 *     }
-                 */
-                clusterSelector?: {
-                    /**
-                     * @description 精确匹配的集群标签
-                     * @example {
-                     *       "environment": "production"
-                     *     }
-                     */
-                    matchLabels?: {
-                        [key: string]: string;
-                    };
-                    /**
-                     * @description 表达式形式的标签选择器
-                     * @example []
-                     */
-                    matchExpressions?: {
-                        /**
-                         * @description 标签键
-                         * @example environment
-                         */
-                        key?: string;
-                        /**
-                         * @description 标签选择运算符
-                         * @example In
-                         * @enum {string}
-                         */
-                        operator?: "In" | "NotIn" | "Exists" | "DoesNotExist";
-                        /**
-                         * @description 运算符使用的标签值
-                         * @example [
-                         *       "production"
-                         *     ]
-                         */
-                        values?: string[];
-                    }[];
-                };
+                clusterSelector?: components["schemas"]["KubernetesLabelSelector"];
             };
             /**
              * @description 对单个集群覆盖策略组执行模式的规则
@@ -1328,11 +1330,36 @@ export interface components {
         };
         DistributionEmptyResponse: components["schemas"]["Envelope"] & Record<string, never>;
         /**
-         * @description 平台组件健康状态
+         * @description 平台总览健康状态
          * @example ok
          * @enum {string}
          */
-        PlatformHealth: "ok" | "warning" | "critical" | "unavailable" | "disabled";
+        PlatformOverviewHealth: "ok" | "degraded" | "unavailable" | "disabled";
+        /**
+         * @description 平台组件聚合健康状态
+         * @example ok
+         * @enum {string}
+         */
+        PlatformComponentHealth: "ok" | "degraded" | "unavailable" | "pending";
+        /**
+         * @description 单个组件实例健康状态
+         * @example ok
+         * @enum {string}
+         */
+        PlatformInstanceHealth: "ok" | "degraded" | "no_data";
+        /**
+         * @description PostgreSQL 实例采集到的连接统计
+         * @example {
+         *       "connections": 4
+         *     }
+         */
+        DatabaseStats: {
+            /**
+             * @description 当前数据库连接数
+             * @example 4
+             */
+            connections?: number;
+        };
         PlatformInstance: {
             /**
              * @description 组件实例名称
@@ -1344,8 +1371,8 @@ export interface components {
              * @example leader
              * @enum {string}
              */
-            role: "leader" | "follower" | "standalone";
-            health: components["schemas"]["PlatformHealth"];
+            role: "leader" | "standby" | "none";
+            health: components["schemas"]["PlatformInstanceHealth"];
             /**
              * @description 健康状态原因
              * @example heartbeat is current
@@ -1397,15 +1424,7 @@ export interface components {
              * @example 2026-08-24T08:00:00Z
              */
             lastObservedAt: string;
-            /**
-             * @description PostgreSQL 组件的自由格式数据库统计快照
-             * @example {
-             *       "openConnections": 4
-             *     }
-             */
-            dbStats?: {
-                [key: string]: unknown;
-            };
+            dbStats?: components["schemas"]["DatabaseStats"];
         };
         PlatformComponent: {
             /**
@@ -1414,7 +1433,7 @@ export interface components {
              * @enum {string}
              */
             component: "gateway" | "postgres" | "console-api" | "console-web" | "operator" | "webhook";
-            health: components["schemas"]["PlatformHealth"];
+            health: components["schemas"]["PlatformComponentHealth"];
             /**
              * @description 组件健康状态原因
              * @example all instances are healthy
@@ -1447,6 +1466,12 @@ export interface components {
              */
             lastLeadershipChange?: string;
         };
+        /**
+         * @description 成员集群组件聚合健康状态
+         * @example ok
+         * @enum {string}
+         */
+        PlatformClusterHealth: "ok" | "degraded" | "unavailable";
         PlatformCluster: {
             /**
              * @description 成员集群名称
@@ -1459,7 +1484,7 @@ export interface components {
              * @enum {string}
              */
             phase: "Registering" | "Online" | "Offline" | "Uninstalling";
-            health: components["schemas"]["PlatformHealth"];
+            health: components["schemas"]["PlatformClusterHealth"];
             /**
              * @description 成员面组件状态
              * @example []
@@ -1472,7 +1497,7 @@ export interface components {
              * @example true
              */
             enabled: boolean;
-            platformHealth: components["schemas"]["PlatformHealth"];
+            platformHealth: components["schemas"]["PlatformOverviewHealth"];
             /**
              * @description Gateway 平面组件状态
              * @example []
@@ -2586,17 +2611,7 @@ export interface components {
              * @example true
              */
             enabled: boolean;
-            /**
-             * @description Kubernetes 命名空间标签选择器
-             * @example {
-             *       "matchLabels": {
-             *         "environment": "production"
-             *       }
-             *     }
-             */
-            namespaceSelector?: {
-                [key: string]: unknown;
-            };
+            namespaceSelector?: components["schemas"]["KubernetesLabelSelector"];
             policies: components["schemas"]["PolicyGroupPolicies"];
             /**
              * @description 标签选择器匹配策略的默认执行模式
@@ -3242,12 +3257,7 @@ export interface operations {
     };
     listUninstallTasks: {
         parameters: {
-            query?: {
-                /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
-                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
-            };
+            query?: never;
             header?: never;
             path: {
                 /** @description 集群名称 */
@@ -3335,7 +3345,9 @@ export interface operations {
                 page?: number;
                 /** @description 每页数量 */
                 pageSize?: 10 | 20 | 50 | 100;
+                /** @description 排序字段 */
                 sortBy?: "name";
+                /** @description 排序方向 */
                 sortOrder?: "asc" | "desc";
             };
             header?: never;
@@ -3473,7 +3485,8 @@ export interface operations {
                 page?: components["parameters"]["Page"];
                 /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
                 pageSize?: components["parameters"]["PageSize"];
-                health?: string;
+                /** @description 按成员集群聚合健康状态筛选 */
+                health?: "ok" | "degraded" | "unavailable";
             };
             header?: never;
             path?: never;
@@ -3497,13 +3510,18 @@ export interface operations {
     getPlatformInstanceTrend: {
         parameters: {
             query?: {
+                /** @description 成员面组件所属的集群名称；Gateway 平面组件省略 */
                 cluster?: string;
+                /** @description 查询起始时间，RFC3339 格式 */
                 from?: string;
+                /** @description 查询结束时间，RFC3339 格式 */
                 to?: string;
             };
             header?: never;
             path: {
-                component: string;
+                /** @description 平台组件名称 */
+                component: "webhook" | "operator" | "gateway" | "console-api" | "console-web" | "postgres";
+                /** @description 平台组件实例名称 */
                 instance: string;
             };
             cookie?: never;
@@ -3531,9 +3549,13 @@ export interface operations {
                 page?: components["parameters"]["Page"];
                 /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
                 pageSize?: components["parameters"]["PageSize"];
-                component?: string;
+                /** @description 按发生领导权变更的组件筛选 */
+                component?: "webhook" | "operator" | "gateway" | "console-api" | "console-web" | "postgres";
+                /** @description 按关联成员集群筛选；Gateway 平面事件省略 */
                 cluster?: string;
+                /** @description 查询起始时间，RFC3339 格式 */
                 from?: string;
+                /** @description 查询结束时间，RFC3339 格式 */
                 to?: string;
             };
             header?: never;

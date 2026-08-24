@@ -2598,6 +2598,23 @@ type CreateUninstallTaskNotFound ErrorResponse
 
 func (*CreateUninstallTaskNotFound) createUninstallTaskRes() {}
 
+// PostgreSQL 实例采集到的连接统计.
+// Ref: #/components/schemas/DatabaseStats
+type DatabaseStats struct {
+	// 当前数据库连接数.
+	Connections OptInt `json:"connections"`
+}
+
+// GetConnections returns the value of Connections.
+func (s *DatabaseStats) GetConnections() OptInt {
+	return s.Connections
+}
+
+// SetConnections sets the value of Connections.
+func (s *DatabaseStats) SetConnections(val OptInt) {
+	s.Connections = val
+}
+
 type DeleteClusterConflict ErrorResponse
 
 func (*DeleteClusterConflict) deleteClusterRes() {}
@@ -3069,9 +3086,8 @@ func (s *DistributionSpec) SetOverrides(val []DistributionSpecOverridesItem) {
 // 集群范围，可按名称和标签选择器并集匹配.
 type DistributionSpecClusters struct {
 	// 显式目标集群名称.
-	ByName []string `json:"byName"`
-	// Kubernetes 标签选择器.
-	ClusterSelector OptDistributionSpecClustersClusterSelector `json:"clusterSelector"`
+	ByName          []string                   `json:"byName"`
+	ClusterSelector OptKubernetesLabelSelector `json:"clusterSelector"`
 }
 
 // GetByName returns the value of ByName.
@@ -3080,7 +3096,7 @@ func (s *DistributionSpecClusters) GetByName() []string {
 }
 
 // GetClusterSelector returns the value of ClusterSelector.
-func (s *DistributionSpecClusters) GetClusterSelector() OptDistributionSpecClustersClusterSelector {
+func (s *DistributionSpecClusters) GetClusterSelector() OptKubernetesLabelSelector {
 	return s.ClusterSelector
 }
 
@@ -3090,144 +3106,8 @@ func (s *DistributionSpecClusters) SetByName(val []string) {
 }
 
 // SetClusterSelector sets the value of ClusterSelector.
-func (s *DistributionSpecClusters) SetClusterSelector(val OptDistributionSpecClustersClusterSelector) {
+func (s *DistributionSpecClusters) SetClusterSelector(val OptKubernetesLabelSelector) {
 	s.ClusterSelector = val
-}
-
-// Kubernetes 标签选择器.
-type DistributionSpecClustersClusterSelector struct {
-	// 精确匹配的集群标签.
-	MatchLabels OptDistributionSpecClustersClusterSelectorMatchLabels `json:"matchLabels"`
-	// 表达式形式的标签选择器.
-	MatchExpressions []DistributionSpecClustersClusterSelectorMatchExpressionsItem `json:"matchExpressions"`
-}
-
-// GetMatchLabels returns the value of MatchLabels.
-func (s *DistributionSpecClustersClusterSelector) GetMatchLabels() OptDistributionSpecClustersClusterSelectorMatchLabels {
-	return s.MatchLabels
-}
-
-// GetMatchExpressions returns the value of MatchExpressions.
-func (s *DistributionSpecClustersClusterSelector) GetMatchExpressions() []DistributionSpecClustersClusterSelectorMatchExpressionsItem {
-	return s.MatchExpressions
-}
-
-// SetMatchLabels sets the value of MatchLabels.
-func (s *DistributionSpecClustersClusterSelector) SetMatchLabels(val OptDistributionSpecClustersClusterSelectorMatchLabels) {
-	s.MatchLabels = val
-}
-
-// SetMatchExpressions sets the value of MatchExpressions.
-func (s *DistributionSpecClustersClusterSelector) SetMatchExpressions(val []DistributionSpecClustersClusterSelectorMatchExpressionsItem) {
-	s.MatchExpressions = val
-}
-
-// 单条 Kubernetes 标签选择表达式.
-type DistributionSpecClustersClusterSelectorMatchExpressionsItem struct {
-	// 标签键.
-	Key OptString `json:"key"`
-	// 标签选择运算符.
-	Operator OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator `json:"operator"`
-	// 运算符使用的标签值.
-	Values []string `json:"values"`
-}
-
-// GetKey returns the value of Key.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) GetKey() OptString {
-	return s.Key
-}
-
-// GetOperator returns the value of Operator.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) GetOperator() OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator {
-	return s.Operator
-}
-
-// GetValues returns the value of Values.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) GetValues() []string {
-	return s.Values
-}
-
-// SetKey sets the value of Key.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) SetKey(val OptString) {
-	s.Key = val
-}
-
-// SetOperator sets the value of Operator.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) SetOperator(val OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) {
-	s.Operator = val
-}
-
-// SetValues sets the value of Values.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) SetValues(val []string) {
-	s.Values = val
-}
-
-// 标签选择运算符.
-type DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator string
-
-const (
-	DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn           DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator = "In"
-	DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn        DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator = "NotIn"
-	DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists       DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator = "Exists"
-	DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator = "DoesNotExist"
-)
-
-// AllValues returns all DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator values.
-func (DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) AllValues() []DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator {
-	return []DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator{
-		DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn,
-		DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn,
-		DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists,
-		DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) MarshalText() ([]byte, error) {
-	switch s {
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn:
-		return []byte(s), nil
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn:
-		return []byte(s), nil
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists:
-		return []byte(s), nil
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) UnmarshalText(data []byte) error {
-	switch DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator(data) {
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn:
-		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn
-		return nil
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn:
-		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn
-		return nil
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists:
-		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists
-		return nil
-	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist:
-		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// 精确匹配的集群标签.
-type DistributionSpecClustersClusterSelectorMatchLabels map[string]string
-
-func (s *DistributionSpecClustersClusterSelectorMatchLabels) init() DistributionSpecClustersClusterSelectorMatchLabels {
-	m := *s
-	if m == nil {
-		m = map[string]string{}
-		*s = m
-	}
-	return m
 }
 
 // 单条集群执行模式覆盖.
@@ -3496,9 +3376,8 @@ type ErrorResponse struct {
 	// 结果描述。成功时固定为 success.
 	Message string `json:"message"`
 	// 错误明细列表。参数校验失败时逐条列出问题字段.
-	Details []string `json:"details"`
-	// 失败时附带的结构化数据。例如删除被引用资源时的 referencedBy 列表.
-	Data OptErrorResponseData `json:"data"`
+	Details []string            `json:"details"`
+	Data    OptReferencedByData `json:"data"`
 }
 
 // GetCode returns the value of Code.
@@ -3517,7 +3396,7 @@ func (s *ErrorResponse) GetDetails() []string {
 }
 
 // GetData returns the value of Data.
-func (s *ErrorResponse) GetData() OptErrorResponseData {
+func (s *ErrorResponse) GetData() OptReferencedByData {
 	return s.Data
 }
 
@@ -3537,7 +3416,7 @@ func (s *ErrorResponse) SetDetails(val []string) {
 }
 
 // SetData sets the value of Data.
-func (s *ErrorResponse) SetData(val OptErrorResponseData) {
+func (s *ErrorResponse) SetData(val OptReferencedByData) {
 	s.Data = val
 }
 
@@ -3547,18 +3426,6 @@ func (*ErrorResponse) listClustersRes()        {}
 func (*ErrorResponse) listDistributionsRes()   {}
 func (*ErrorResponse) listInstallRecordsRes()  {}
 func (*ErrorResponse) validatePolicyRegoRes()  {}
-
-// 失败时附带的结构化数据。例如删除被引用资源时的 referencedBy 列表.
-type ErrorResponseData map[string]jx.Raw
-
-func (s *ErrorResponseData) init() ErrorResponseData {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
 
 // Ref: #/components/schemas/ExceptionDetail
 type ExceptionDetail struct {
@@ -4604,6 +4471,76 @@ type GetPlatformInstanceTrendBadRequest ErrorResponse
 
 func (*GetPlatformInstanceTrendBadRequest) getPlatformInstanceTrendRes() {}
 
+// 平台组件名称.
+type GetPlatformInstanceTrendComponent string
+
+const (
+	GetPlatformInstanceTrendComponentWebhook    GetPlatformInstanceTrendComponent = "webhook"
+	GetPlatformInstanceTrendComponentOperator   GetPlatformInstanceTrendComponent = "operator"
+	GetPlatformInstanceTrendComponentGateway    GetPlatformInstanceTrendComponent = "gateway"
+	GetPlatformInstanceTrendComponentConsoleAPI GetPlatformInstanceTrendComponent = "console-api"
+	GetPlatformInstanceTrendComponentConsoleWeb GetPlatformInstanceTrendComponent = "console-web"
+	GetPlatformInstanceTrendComponentPostgres   GetPlatformInstanceTrendComponent = "postgres"
+)
+
+// AllValues returns all GetPlatformInstanceTrendComponent values.
+func (GetPlatformInstanceTrendComponent) AllValues() []GetPlatformInstanceTrendComponent {
+	return []GetPlatformInstanceTrendComponent{
+		GetPlatformInstanceTrendComponentWebhook,
+		GetPlatformInstanceTrendComponentOperator,
+		GetPlatformInstanceTrendComponentGateway,
+		GetPlatformInstanceTrendComponentConsoleAPI,
+		GetPlatformInstanceTrendComponentConsoleWeb,
+		GetPlatformInstanceTrendComponentPostgres,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s GetPlatformInstanceTrendComponent) MarshalText() ([]byte, error) {
+	switch s {
+	case GetPlatformInstanceTrendComponentWebhook:
+		return []byte(s), nil
+	case GetPlatformInstanceTrendComponentOperator:
+		return []byte(s), nil
+	case GetPlatformInstanceTrendComponentGateway:
+		return []byte(s), nil
+	case GetPlatformInstanceTrendComponentConsoleAPI:
+		return []byte(s), nil
+	case GetPlatformInstanceTrendComponentConsoleWeb:
+		return []byte(s), nil
+	case GetPlatformInstanceTrendComponentPostgres:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *GetPlatformInstanceTrendComponent) UnmarshalText(data []byte) error {
+	switch GetPlatformInstanceTrendComponent(data) {
+	case GetPlatformInstanceTrendComponentWebhook:
+		*s = GetPlatformInstanceTrendComponentWebhook
+		return nil
+	case GetPlatformInstanceTrendComponentOperator:
+		*s = GetPlatformInstanceTrendComponentOperator
+		return nil
+	case GetPlatformInstanceTrendComponentGateway:
+		*s = GetPlatformInstanceTrendComponentGateway
+		return nil
+	case GetPlatformInstanceTrendComponentConsoleAPI:
+		*s = GetPlatformInstanceTrendComponentConsoleAPI
+		return nil
+	case GetPlatformInstanceTrendComponentConsoleWeb:
+		*s = GetPlatformInstanceTrendComponentConsoleWeb
+		return nil
+	case GetPlatformInstanceTrendComponentPostgres:
+		*s = GetPlatformInstanceTrendComponentPostgres
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type GetPlatformInstanceTrendInternalServerError ErrorResponse
 
 func (*GetPlatformInstanceTrendInternalServerError) getPlatformInstanceTrendRes() {}
@@ -4615,6 +4552,55 @@ func (*GetPlatformInstanceTrendNotFound) getPlatformInstanceTrendRes() {}
 type GetPlatformOverviewBadRequest ErrorResponse
 
 func (*GetPlatformOverviewBadRequest) getPlatformOverviewRes() {}
+
+// 成员集群聚合健康状态.
+type GetPlatformOverviewHealth string
+
+const (
+	GetPlatformOverviewHealthOk          GetPlatformOverviewHealth = "ok"
+	GetPlatformOverviewHealthDegraded    GetPlatformOverviewHealth = "degraded"
+	GetPlatformOverviewHealthUnavailable GetPlatformOverviewHealth = "unavailable"
+)
+
+// AllValues returns all GetPlatformOverviewHealth values.
+func (GetPlatformOverviewHealth) AllValues() []GetPlatformOverviewHealth {
+	return []GetPlatformOverviewHealth{
+		GetPlatformOverviewHealthOk,
+		GetPlatformOverviewHealthDegraded,
+		GetPlatformOverviewHealthUnavailable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s GetPlatformOverviewHealth) MarshalText() ([]byte, error) {
+	switch s {
+	case GetPlatformOverviewHealthOk:
+		return []byte(s), nil
+	case GetPlatformOverviewHealthDegraded:
+		return []byte(s), nil
+	case GetPlatformOverviewHealthUnavailable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *GetPlatformOverviewHealth) UnmarshalText(data []byte) error {
+	switch GetPlatformOverviewHealth(data) {
+	case GetPlatformOverviewHealthOk:
+		*s = GetPlatformOverviewHealthOk
+		return nil
+	case GetPlatformOverviewHealthDegraded:
+		*s = GetPlatformOverviewHealthDegraded
+		return nil
+	case GetPlatformOverviewHealthUnavailable:
+		*s = GetPlatformOverviewHealthUnavailable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type GetPlatformOverviewInternalServerError ErrorResponse
 
@@ -5084,6 +5070,143 @@ func (InstallRecordListResponseDataPageSize) AllValues() []InstallRecordListResp
 		InstallRecordListResponseDataPageSize20,
 		InstallRecordListResponseDataPageSize50,
 		InstallRecordListResponseDataPageSize100,
+	}
+}
+
+// Kubernetes LabelSelector，按标签精确值或表达式筛选资源.
+// Ref: #/components/schemas/KubernetesLabelSelector
+type KubernetesLabelSelector struct {
+	// 精确匹配的标签映射.
+	MatchLabels OptKubernetesLabelSelectorMatchLabels `json:"matchLabels"`
+	// 表达式形式的标签选择条件.
+	MatchExpressions []KubernetesLabelSelectorRequirement `json:"matchExpressions"`
+}
+
+// GetMatchLabels returns the value of MatchLabels.
+func (s *KubernetesLabelSelector) GetMatchLabels() OptKubernetesLabelSelectorMatchLabels {
+	return s.MatchLabels
+}
+
+// GetMatchExpressions returns the value of MatchExpressions.
+func (s *KubernetesLabelSelector) GetMatchExpressions() []KubernetesLabelSelectorRequirement {
+	return s.MatchExpressions
+}
+
+// SetMatchLabels sets the value of MatchLabels.
+func (s *KubernetesLabelSelector) SetMatchLabels(val OptKubernetesLabelSelectorMatchLabels) {
+	s.MatchLabels = val
+}
+
+// SetMatchExpressions sets the value of MatchExpressions.
+func (s *KubernetesLabelSelector) SetMatchExpressions(val []KubernetesLabelSelectorRequirement) {
+	s.MatchExpressions = val
+}
+
+// 精确匹配的标签映射.
+type KubernetesLabelSelectorMatchLabels map[string]string
+
+func (s *KubernetesLabelSelectorMatchLabels) init() KubernetesLabelSelectorMatchLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/KubernetesLabelSelectorRequirement
+type KubernetesLabelSelectorRequirement struct {
+	// Kubernetes 标签键.
+	Key string `json:"key"`
+	// 标签选择运算符.
+	Operator KubernetesLabelSelectorRequirementOperator `json:"operator"`
+	// In 或 NotIn 运算符使用的标签值.
+	Values []string `json:"values"`
+}
+
+// GetKey returns the value of Key.
+func (s *KubernetesLabelSelectorRequirement) GetKey() string {
+	return s.Key
+}
+
+// GetOperator returns the value of Operator.
+func (s *KubernetesLabelSelectorRequirement) GetOperator() KubernetesLabelSelectorRequirementOperator {
+	return s.Operator
+}
+
+// GetValues returns the value of Values.
+func (s *KubernetesLabelSelectorRequirement) GetValues() []string {
+	return s.Values
+}
+
+// SetKey sets the value of Key.
+func (s *KubernetesLabelSelectorRequirement) SetKey(val string) {
+	s.Key = val
+}
+
+// SetOperator sets the value of Operator.
+func (s *KubernetesLabelSelectorRequirement) SetOperator(val KubernetesLabelSelectorRequirementOperator) {
+	s.Operator = val
+}
+
+// SetValues sets the value of Values.
+func (s *KubernetesLabelSelectorRequirement) SetValues(val []string) {
+	s.Values = val
+}
+
+// 标签选择运算符.
+type KubernetesLabelSelectorRequirementOperator string
+
+const (
+	KubernetesLabelSelectorRequirementOperatorIn           KubernetesLabelSelectorRequirementOperator = "In"
+	KubernetesLabelSelectorRequirementOperatorNotIn        KubernetesLabelSelectorRequirementOperator = "NotIn"
+	KubernetesLabelSelectorRequirementOperatorExists       KubernetesLabelSelectorRequirementOperator = "Exists"
+	KubernetesLabelSelectorRequirementOperatorDoesNotExist KubernetesLabelSelectorRequirementOperator = "DoesNotExist"
+)
+
+// AllValues returns all KubernetesLabelSelectorRequirementOperator values.
+func (KubernetesLabelSelectorRequirementOperator) AllValues() []KubernetesLabelSelectorRequirementOperator {
+	return []KubernetesLabelSelectorRequirementOperator{
+		KubernetesLabelSelectorRequirementOperatorIn,
+		KubernetesLabelSelectorRequirementOperatorNotIn,
+		KubernetesLabelSelectorRequirementOperatorExists,
+		KubernetesLabelSelectorRequirementOperatorDoesNotExist,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s KubernetesLabelSelectorRequirementOperator) MarshalText() ([]byte, error) {
+	switch s {
+	case KubernetesLabelSelectorRequirementOperatorIn:
+		return []byte(s), nil
+	case KubernetesLabelSelectorRequirementOperatorNotIn:
+		return []byte(s), nil
+	case KubernetesLabelSelectorRequirementOperatorExists:
+		return []byte(s), nil
+	case KubernetesLabelSelectorRequirementOperatorDoesNotExist:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *KubernetesLabelSelectorRequirementOperator) UnmarshalText(data []byte) error {
+	switch KubernetesLabelSelectorRequirementOperator(data) {
+	case KubernetesLabelSelectorRequirementOperatorIn:
+		*s = KubernetesLabelSelectorRequirementOperatorIn
+		return nil
+	case KubernetesLabelSelectorRequirementOperatorNotIn:
+		*s = KubernetesLabelSelectorRequirementOperatorNotIn
+		return nil
+	case KubernetesLabelSelectorRequirementOperatorExists:
+		*s = KubernetesLabelSelectorRequirementOperatorExists
+		return nil
+	case KubernetesLabelSelectorRequirementOperatorDoesNotExist:
+		*s = KubernetesLabelSelectorRequirementOperatorDoesNotExist
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
@@ -5927,6 +6050,7 @@ func (ListDistributionsPageSize) AllValues() []ListDistributionsPageSize {
 	}
 }
 
+// 策略分发列表排序字段.
 type ListDistributionsSortBy string
 
 const (
@@ -5961,6 +6085,7 @@ func (s *ListDistributionsSortBy) UnmarshalText(data []byte) error {
 	}
 }
 
+// 升序或降序.
 type ListDistributionsSortOrder string
 
 const (
@@ -6209,6 +6334,76 @@ func (s *ListInstallRecordsSortOrder) UnmarshalText(data []byte) error {
 type ListPlatformLeadershipEventsBadRequest ErrorResponse
 
 func (*ListPlatformLeadershipEventsBadRequest) listPlatformLeadershipEventsRes() {}
+
+// 平台组件名称.
+type ListPlatformLeadershipEventsComponent string
+
+const (
+	ListPlatformLeadershipEventsComponentWebhook    ListPlatformLeadershipEventsComponent = "webhook"
+	ListPlatformLeadershipEventsComponentOperator   ListPlatformLeadershipEventsComponent = "operator"
+	ListPlatformLeadershipEventsComponentGateway    ListPlatformLeadershipEventsComponent = "gateway"
+	ListPlatformLeadershipEventsComponentConsoleAPI ListPlatformLeadershipEventsComponent = "console-api"
+	ListPlatformLeadershipEventsComponentConsoleWeb ListPlatformLeadershipEventsComponent = "console-web"
+	ListPlatformLeadershipEventsComponentPostgres   ListPlatformLeadershipEventsComponent = "postgres"
+)
+
+// AllValues returns all ListPlatformLeadershipEventsComponent values.
+func (ListPlatformLeadershipEventsComponent) AllValues() []ListPlatformLeadershipEventsComponent {
+	return []ListPlatformLeadershipEventsComponent{
+		ListPlatformLeadershipEventsComponentWebhook,
+		ListPlatformLeadershipEventsComponentOperator,
+		ListPlatformLeadershipEventsComponentGateway,
+		ListPlatformLeadershipEventsComponentConsoleAPI,
+		ListPlatformLeadershipEventsComponentConsoleWeb,
+		ListPlatformLeadershipEventsComponentPostgres,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListPlatformLeadershipEventsComponent) MarshalText() ([]byte, error) {
+	switch s {
+	case ListPlatformLeadershipEventsComponentWebhook:
+		return []byte(s), nil
+	case ListPlatformLeadershipEventsComponentOperator:
+		return []byte(s), nil
+	case ListPlatformLeadershipEventsComponentGateway:
+		return []byte(s), nil
+	case ListPlatformLeadershipEventsComponentConsoleAPI:
+		return []byte(s), nil
+	case ListPlatformLeadershipEventsComponentConsoleWeb:
+		return []byte(s), nil
+	case ListPlatformLeadershipEventsComponentPostgres:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListPlatformLeadershipEventsComponent) UnmarshalText(data []byte) error {
+	switch ListPlatformLeadershipEventsComponent(data) {
+	case ListPlatformLeadershipEventsComponentWebhook:
+		*s = ListPlatformLeadershipEventsComponentWebhook
+		return nil
+	case ListPlatformLeadershipEventsComponentOperator:
+		*s = ListPlatformLeadershipEventsComponentOperator
+		return nil
+	case ListPlatformLeadershipEventsComponentGateway:
+		*s = ListPlatformLeadershipEventsComponentGateway
+		return nil
+	case ListPlatformLeadershipEventsComponentConsoleAPI:
+		*s = ListPlatformLeadershipEventsComponentConsoleAPI
+		return nil
+	case ListPlatformLeadershipEventsComponentConsoleWeb:
+		*s = ListPlatformLeadershipEventsComponentConsoleWeb
+		return nil
+	case ListPlatformLeadershipEventsComponentPostgres:
+		*s = ListPlatformLeadershipEventsComponentPostgres
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type ListPlatformLeadershipEventsInternalServerError ErrorResponse
 
@@ -6955,6 +7150,52 @@ func (o OptClusterCreateRequestLabels) Or(d ClusterCreateRequestLabels) ClusterC
 	return d
 }
 
+// NewOptDatabaseStats returns new OptDatabaseStats with value set to v.
+func NewOptDatabaseStats(v DatabaseStats) OptDatabaseStats {
+	return OptDatabaseStats{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDatabaseStats is optional DatabaseStats.
+type OptDatabaseStats struct {
+	Value DatabaseStats
+	Set   bool
+}
+
+// IsSet returns true if OptDatabaseStats was set.
+func (o OptDatabaseStats) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDatabaseStats) Reset() {
+	var v DatabaseStats
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDatabaseStats) SetTo(v DatabaseStats) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDatabaseStats) Get() (v DatabaseStats, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDatabaseStats) Or(d DatabaseStats) DatabaseStats {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptDateTime returns new OptDateTime with value set to v.
 func NewOptDateTime(v time.Time) OptDateTime {
 	return OptDateTime{
@@ -7041,192 +7282,6 @@ func (o OptDistributionSpecClusters) Get() (v DistributionSpecClusters, ok bool)
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDistributionSpecClusters) Or(d DistributionSpecClusters) DistributionSpecClusters {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptDistributionSpecClustersClusterSelector returns new OptDistributionSpecClustersClusterSelector with value set to v.
-func NewOptDistributionSpecClustersClusterSelector(v DistributionSpecClustersClusterSelector) OptDistributionSpecClustersClusterSelector {
-	return OptDistributionSpecClustersClusterSelector{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptDistributionSpecClustersClusterSelector is optional DistributionSpecClustersClusterSelector.
-type OptDistributionSpecClustersClusterSelector struct {
-	Value DistributionSpecClustersClusterSelector
-	Set   bool
-}
-
-// IsSet returns true if OptDistributionSpecClustersClusterSelector was set.
-func (o OptDistributionSpecClustersClusterSelector) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptDistributionSpecClustersClusterSelector) Reset() {
-	var v DistributionSpecClustersClusterSelector
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptDistributionSpecClustersClusterSelector) SetTo(v DistributionSpecClustersClusterSelector) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptDistributionSpecClustersClusterSelector) Get() (v DistributionSpecClustersClusterSelector, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptDistributionSpecClustersClusterSelector) Or(d DistributionSpecClustersClusterSelector) DistributionSpecClustersClusterSelector {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator returns new OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator with value set to v.
-func NewOptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator(v DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator {
-	return OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator is optional DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator.
-type OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator struct {
-	Value DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator
-	Set   bool
-}
-
-// IsSet returns true if OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator was set.
-func (o OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) IsSet() bool {
-	return o.Set
-}
-
-// Reset unsets value.
-func (o *OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Reset() {
-	var v DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) SetTo(v DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Get() (v DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Or(d DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptDistributionSpecClustersClusterSelectorMatchLabels returns new OptDistributionSpecClustersClusterSelectorMatchLabels with value set to v.
-func NewOptDistributionSpecClustersClusterSelectorMatchLabels(v DistributionSpecClustersClusterSelectorMatchLabels) OptDistributionSpecClustersClusterSelectorMatchLabels {
-	return OptDistributionSpecClustersClusterSelectorMatchLabels{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptDistributionSpecClustersClusterSelectorMatchLabels is optional DistributionSpecClustersClusterSelectorMatchLabels.
-type OptDistributionSpecClustersClusterSelectorMatchLabels struct {
-	Value DistributionSpecClustersClusterSelectorMatchLabels
-	Set   bool
-}
-
-// IsSet returns true if OptDistributionSpecClustersClusterSelectorMatchLabels was set.
-func (o OptDistributionSpecClustersClusterSelectorMatchLabels) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptDistributionSpecClustersClusterSelectorMatchLabels) Reset() {
-	var v DistributionSpecClustersClusterSelectorMatchLabels
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptDistributionSpecClustersClusterSelectorMatchLabels) SetTo(v DistributionSpecClustersClusterSelectorMatchLabels) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptDistributionSpecClustersClusterSelectorMatchLabels) Get() (v DistributionSpecClustersClusterSelectorMatchLabels, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptDistributionSpecClustersClusterSelectorMatchLabels) Or(d DistributionSpecClustersClusterSelectorMatchLabels) DistributionSpecClustersClusterSelectorMatchLabels {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptErrorResponseData returns new OptErrorResponseData with value set to v.
-func NewOptErrorResponseData(v ErrorResponseData) OptErrorResponseData {
-	return OptErrorResponseData{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptErrorResponseData is optional ErrorResponseData.
-type OptErrorResponseData struct {
-	Value ErrorResponseData
-	Set   bool
-}
-
-// IsSet returns true if OptErrorResponseData was set.
-func (o OptErrorResponseData) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptErrorResponseData) Reset() {
-	var v ErrorResponseData
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptErrorResponseData) SetTo(v ErrorResponseData) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptErrorResponseData) Get() (v ErrorResponseData, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptErrorResponseData) Or(d ErrorResponseData) ErrorResponseData {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -7371,6 +7426,52 @@ func (o OptExceptionNameResponseData) Or(d ExceptionNameResponseData) ExceptionN
 	return d
 }
 
+// NewOptGetPlatformOverviewHealth returns new OptGetPlatformOverviewHealth with value set to v.
+func NewOptGetPlatformOverviewHealth(v GetPlatformOverviewHealth) OptGetPlatformOverviewHealth {
+	return OptGetPlatformOverviewHealth{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptGetPlatformOverviewHealth is optional GetPlatformOverviewHealth.
+type OptGetPlatformOverviewHealth struct {
+	Value GetPlatformOverviewHealth
+	Set   bool
+}
+
+// IsSet returns true if OptGetPlatformOverviewHealth was set.
+func (o OptGetPlatformOverviewHealth) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptGetPlatformOverviewHealth) Reset() {
+	var v GetPlatformOverviewHealth
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptGetPlatformOverviewHealth) SetTo(v GetPlatformOverviewHealth) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptGetPlatformOverviewHealth) Get() (v GetPlatformOverviewHealth, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptGetPlatformOverviewHealth) Or(d GetPlatformOverviewHealth) GetPlatformOverviewHealth {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptInstallParams returns new OptInstallParams with value set to v.
 func NewOptInstallParams(v InstallParams) OptInstallParams {
 	return OptInstallParams{
@@ -7457,6 +7558,98 @@ func (o OptInt) Get() (v int, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptKubernetesLabelSelector returns new OptKubernetesLabelSelector with value set to v.
+func NewOptKubernetesLabelSelector(v KubernetesLabelSelector) OptKubernetesLabelSelector {
+	return OptKubernetesLabelSelector{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptKubernetesLabelSelector is optional KubernetesLabelSelector.
+type OptKubernetesLabelSelector struct {
+	Value KubernetesLabelSelector
+	Set   bool
+}
+
+// IsSet returns true if OptKubernetesLabelSelector was set.
+func (o OptKubernetesLabelSelector) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptKubernetesLabelSelector) Reset() {
+	var v KubernetesLabelSelector
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptKubernetesLabelSelector) SetTo(v KubernetesLabelSelector) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptKubernetesLabelSelector) Get() (v KubernetesLabelSelector, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptKubernetesLabelSelector) Or(d KubernetesLabelSelector) KubernetesLabelSelector {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptKubernetesLabelSelectorMatchLabels returns new OptKubernetesLabelSelectorMatchLabels with value set to v.
+func NewOptKubernetesLabelSelectorMatchLabels(v KubernetesLabelSelectorMatchLabels) OptKubernetesLabelSelectorMatchLabels {
+	return OptKubernetesLabelSelectorMatchLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptKubernetesLabelSelectorMatchLabels is optional KubernetesLabelSelectorMatchLabels.
+type OptKubernetesLabelSelectorMatchLabels struct {
+	Value KubernetesLabelSelectorMatchLabels
+	Set   bool
+}
+
+// IsSet returns true if OptKubernetesLabelSelectorMatchLabels was set.
+func (o OptKubernetesLabelSelectorMatchLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptKubernetesLabelSelectorMatchLabels) Reset() {
+	var v KubernetesLabelSelectorMatchLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptKubernetesLabelSelectorMatchLabels) SetTo(v KubernetesLabelSelectorMatchLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptKubernetesLabelSelectorMatchLabels) Get() (v KubernetesLabelSelectorMatchLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptKubernetesLabelSelectorMatchLabels) Or(d KubernetesLabelSelectorMatchLabels) KubernetesLabelSelectorMatchLabels {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -8107,6 +8300,52 @@ func (o OptListInstallRecordsSortOrder) Or(d ListInstallRecordsSortOrder) ListIn
 	return d
 }
 
+// NewOptListPlatformLeadershipEventsComponent returns new OptListPlatformLeadershipEventsComponent with value set to v.
+func NewOptListPlatformLeadershipEventsComponent(v ListPlatformLeadershipEventsComponent) OptListPlatformLeadershipEventsComponent {
+	return OptListPlatformLeadershipEventsComponent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListPlatformLeadershipEventsComponent is optional ListPlatformLeadershipEventsComponent.
+type OptListPlatformLeadershipEventsComponent struct {
+	Value ListPlatformLeadershipEventsComponent
+	Set   bool
+}
+
+// IsSet returns true if OptListPlatformLeadershipEventsComponent was set.
+func (o OptListPlatformLeadershipEventsComponent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListPlatformLeadershipEventsComponent) Reset() {
+	var v ListPlatformLeadershipEventsComponent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListPlatformLeadershipEventsComponent) SetTo(v ListPlatformLeadershipEventsComponent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListPlatformLeadershipEventsComponent) Get() (v ListPlatformLeadershipEventsComponent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListPlatformLeadershipEventsComponent) Or(d ListPlatformLeadershipEventsComponent) ListPlatformLeadershipEventsComponent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptListPoliciesSortBy returns new OptListPoliciesSortBy with value set to v.
 func NewOptListPoliciesSortBy(v ListPoliciesSortBy) OptListPoliciesSortBy {
 	return OptListPoliciesSortBy{
@@ -8331,52 +8570,6 @@ func (o OptPageSize) Get() (v PageSize, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptPageSize) Or(d PageSize) PageSize {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptPlatformInstanceDbStats returns new OptPlatformInstanceDbStats with value set to v.
-func NewOptPlatformInstanceDbStats(v PlatformInstanceDbStats) OptPlatformInstanceDbStats {
-	return OptPlatformInstanceDbStats{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptPlatformInstanceDbStats is optional PlatformInstanceDbStats.
-type OptPlatformInstanceDbStats struct {
-	Value PlatformInstanceDbStats
-	Set   bool
-}
-
-// IsSet returns true if OptPlatformInstanceDbStats was set.
-func (o OptPlatformInstanceDbStats) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptPlatformInstanceDbStats) Reset() {
-	var v PlatformInstanceDbStats
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptPlatformInstanceDbStats) SetTo(v PlatformInstanceDbStats) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptPlatformInstanceDbStats) Get() (v PlatformInstanceDbStats, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptPlatformInstanceDbStats) Or(d PlatformInstanceDbStats) PlatformInstanceDbStats {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -8659,52 +8852,6 @@ func (o OptPolicyGroupPoliciesBySelector) Or(d PolicyGroupPoliciesBySelector) Po
 	return d
 }
 
-// NewOptPolicyGroupRequestNamespaceSelector returns new OptPolicyGroupRequestNamespaceSelector with value set to v.
-func NewOptPolicyGroupRequestNamespaceSelector(v PolicyGroupRequestNamespaceSelector) OptPolicyGroupRequestNamespaceSelector {
-	return OptPolicyGroupRequestNamespaceSelector{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptPolicyGroupRequestNamespaceSelector is optional PolicyGroupRequestNamespaceSelector.
-type OptPolicyGroupRequestNamespaceSelector struct {
-	Value PolicyGroupRequestNamespaceSelector
-	Set   bool
-}
-
-// IsSet returns true if OptPolicyGroupRequestNamespaceSelector was set.
-func (o OptPolicyGroupRequestNamespaceSelector) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptPolicyGroupRequestNamespaceSelector) Reset() {
-	var v PolicyGroupRequestNamespaceSelector
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptPolicyGroupRequestNamespaceSelector) SetTo(v PolicyGroupRequestNamespaceSelector) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptPolicyGroupRequestNamespaceSelector) Get() (v PolicyGroupRequestNamespaceSelector, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptPolicyGroupRequestNamespaceSelector) Or(d PolicyGroupRequestNamespaceSelector) PolicyGroupRequestNamespaceSelector {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptPolicyGroupRequestSelectorEnforcementMode returns new OptPolicyGroupRequestSelectorEnforcementMode with value set to v.
 func NewOptPolicyGroupRequestSelectorEnforcementMode(v PolicyGroupRequestSelectorEnforcementMode) OptPolicyGroupRequestSelectorEnforcementMode {
 	return OptPolicyGroupRequestSelectorEnforcementMode{
@@ -8745,52 +8892,6 @@ func (o OptPolicyGroupRequestSelectorEnforcementMode) Get() (v PolicyGroupReques
 
 // Or returns value if set, or given parameter if does not.
 func (o OptPolicyGroupRequestSelectorEnforcementMode) Or(d PolicyGroupRequestSelectorEnforcementMode) PolicyGroupRequestSelectorEnforcementMode {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptPolicyGroupSpecNamespaceSelector returns new OptPolicyGroupSpecNamespaceSelector with value set to v.
-func NewOptPolicyGroupSpecNamespaceSelector(v PolicyGroupSpecNamespaceSelector) OptPolicyGroupSpecNamespaceSelector {
-	return OptPolicyGroupSpecNamespaceSelector{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptPolicyGroupSpecNamespaceSelector is optional PolicyGroupSpecNamespaceSelector.
-type OptPolicyGroupSpecNamespaceSelector struct {
-	Value PolicyGroupSpecNamespaceSelector
-	Set   bool
-}
-
-// IsSet returns true if OptPolicyGroupSpecNamespaceSelector was set.
-func (o OptPolicyGroupSpecNamespaceSelector) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptPolicyGroupSpecNamespaceSelector) Reset() {
-	var v PolicyGroupSpecNamespaceSelector
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptPolicyGroupSpecNamespaceSelector) SetTo(v PolicyGroupSpecNamespaceSelector) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptPolicyGroupSpecNamespaceSelector) Get() (v PolicyGroupSpecNamespaceSelector, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptPolicyGroupSpecNamespaceSelector) Or(d PolicyGroupSpecNamespaceSelector) PolicyGroupSpecNamespaceSelector {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -9119,6 +9220,52 @@ func (o OptPolicyVersionList) Or(d PolicyVersionList) PolicyVersionList {
 	return d
 }
 
+// NewOptReferencedByData returns new OptReferencedByData with value set to v.
+func NewOptReferencedByData(v ReferencedByData) OptReferencedByData {
+	return OptReferencedByData{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReferencedByData is optional ReferencedByData.
+type OptReferencedByData struct {
+	Value ReferencedByData
+	Set   bool
+}
+
+// IsSet returns true if OptReferencedByData was set.
+func (o OptReferencedByData) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReferencedByData) Reset() {
+	var v ReferencedByData
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReferencedByData) SetTo(v ReferencedByData) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReferencedByData) Get() (v ReferencedByData, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReferencedByData) Or(d ReferencedByData) ReferencedByData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptResourceID returns new OptResourceID with value set to v.
 func NewOptResourceID(v ResourceID) OptResourceID {
 	return OptResourceID{
@@ -9374,8 +9521,8 @@ type PlatformCluster struct {
 	// 成员集群名称.
 	Name string `json:"name"`
 	// 集群登记阶段.
-	Phase  PlatformClusterPhase `json:"phase"`
-	Health PlatformHealth       `json:"health"`
+	Phase  PlatformClusterPhase  `json:"phase"`
+	Health PlatformClusterHealth `json:"health"`
 	// 成员面组件状态.
 	Components []PlatformComponent `json:"components"`
 }
@@ -9391,7 +9538,7 @@ func (s *PlatformCluster) GetPhase() PlatformClusterPhase {
 }
 
 // GetHealth returns the value of Health.
-func (s *PlatformCluster) GetHealth() PlatformHealth {
+func (s *PlatformCluster) GetHealth() PlatformClusterHealth {
 	return s.Health
 }
 
@@ -9411,13 +9558,63 @@ func (s *PlatformCluster) SetPhase(val PlatformClusterPhase) {
 }
 
 // SetHealth sets the value of Health.
-func (s *PlatformCluster) SetHealth(val PlatformHealth) {
+func (s *PlatformCluster) SetHealth(val PlatformClusterHealth) {
 	s.Health = val
 }
 
 // SetComponents sets the value of Components.
 func (s *PlatformCluster) SetComponents(val []PlatformComponent) {
 	s.Components = val
+}
+
+// 成员集群组件聚合健康状态.
+// Ref: #/components/schemas/PlatformClusterHealth
+type PlatformClusterHealth string
+
+const (
+	PlatformClusterHealthOk          PlatformClusterHealth = "ok"
+	PlatformClusterHealthDegraded    PlatformClusterHealth = "degraded"
+	PlatformClusterHealthUnavailable PlatformClusterHealth = "unavailable"
+)
+
+// AllValues returns all PlatformClusterHealth values.
+func (PlatformClusterHealth) AllValues() []PlatformClusterHealth {
+	return []PlatformClusterHealth{
+		PlatformClusterHealthOk,
+		PlatformClusterHealthDegraded,
+		PlatformClusterHealthUnavailable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PlatformClusterHealth) MarshalText() ([]byte, error) {
+	switch s {
+	case PlatformClusterHealthOk:
+		return []byte(s), nil
+	case PlatformClusterHealthDegraded:
+		return []byte(s), nil
+	case PlatformClusterHealthUnavailable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PlatformClusterHealth) UnmarshalText(data []byte) error {
+	switch PlatformClusterHealth(data) {
+	case PlatformClusterHealthOk:
+		*s = PlatformClusterHealthOk
+		return nil
+	case PlatformClusterHealthDegraded:
+		*s = PlatformClusterHealthDegraded
+		return nil
+	case PlatformClusterHealthUnavailable:
+		*s = PlatformClusterHealthUnavailable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // 集群登记阶段.
@@ -9480,7 +9677,7 @@ func (s *PlatformClusterPhase) UnmarshalText(data []byte) error {
 type PlatformComponent struct {
 	// 平台组件名称.
 	Component PlatformComponentComponent `json:"component"`
-	Health    PlatformHealth             `json:"health"`
+	Health    PlatformComponentHealth    `json:"health"`
 	// 组件健康状态原因.
 	HealthReason string `json:"healthReason"`
 	// 组件是否使用领导选举.
@@ -9501,7 +9698,7 @@ func (s *PlatformComponent) GetComponent() PlatformComponentComponent {
 }
 
 // GetHealth returns the value of Health.
-func (s *PlatformComponent) GetHealth() PlatformHealth {
+func (s *PlatformComponent) GetHealth() PlatformComponentHealth {
 	return s.Health
 }
 
@@ -9541,7 +9738,7 @@ func (s *PlatformComponent) SetComponent(val PlatformComponentComponent) {
 }
 
 // SetHealth sets the value of Health.
-func (s *PlatformComponent) SetHealth(val PlatformHealth) {
+func (s *PlatformComponent) SetHealth(val PlatformComponentHealth) {
 	s.Health = val
 }
 
@@ -9645,41 +9842,37 @@ func (s *PlatformComponentComponent) UnmarshalText(data []byte) error {
 	}
 }
 
-// 平台组件健康状态.
-// Ref: #/components/schemas/PlatformHealth
-type PlatformHealth string
+// 平台组件聚合健康状态.
+// Ref: #/components/schemas/PlatformComponentHealth
+type PlatformComponentHealth string
 
 const (
-	PlatformHealthOk          PlatformHealth = "ok"
-	PlatformHealthWarning     PlatformHealth = "warning"
-	PlatformHealthCritical    PlatformHealth = "critical"
-	PlatformHealthUnavailable PlatformHealth = "unavailable"
-	PlatformHealthDisabled    PlatformHealth = "disabled"
+	PlatformComponentHealthOk          PlatformComponentHealth = "ok"
+	PlatformComponentHealthDegraded    PlatformComponentHealth = "degraded"
+	PlatformComponentHealthUnavailable PlatformComponentHealth = "unavailable"
+	PlatformComponentHealthPending     PlatformComponentHealth = "pending"
 )
 
-// AllValues returns all PlatformHealth values.
-func (PlatformHealth) AllValues() []PlatformHealth {
-	return []PlatformHealth{
-		PlatformHealthOk,
-		PlatformHealthWarning,
-		PlatformHealthCritical,
-		PlatformHealthUnavailable,
-		PlatformHealthDisabled,
+// AllValues returns all PlatformComponentHealth values.
+func (PlatformComponentHealth) AllValues() []PlatformComponentHealth {
+	return []PlatformComponentHealth{
+		PlatformComponentHealthOk,
+		PlatformComponentHealthDegraded,
+		PlatformComponentHealthUnavailable,
+		PlatformComponentHealthPending,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s PlatformHealth) MarshalText() ([]byte, error) {
+func (s PlatformComponentHealth) MarshalText() ([]byte, error) {
 	switch s {
-	case PlatformHealthOk:
+	case PlatformComponentHealthOk:
 		return []byte(s), nil
-	case PlatformHealthWarning:
+	case PlatformComponentHealthDegraded:
 		return []byte(s), nil
-	case PlatformHealthCritical:
+	case PlatformComponentHealthUnavailable:
 		return []byte(s), nil
-	case PlatformHealthUnavailable:
-		return []byte(s), nil
-	case PlatformHealthDisabled:
+	case PlatformComponentHealthPending:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -9687,22 +9880,19 @@ func (s PlatformHealth) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *PlatformHealth) UnmarshalText(data []byte) error {
-	switch PlatformHealth(data) {
-	case PlatformHealthOk:
-		*s = PlatformHealthOk
+func (s *PlatformComponentHealth) UnmarshalText(data []byte) error {
+	switch PlatformComponentHealth(data) {
+	case PlatformComponentHealthOk:
+		*s = PlatformComponentHealthOk
 		return nil
-	case PlatformHealthWarning:
-		*s = PlatformHealthWarning
+	case PlatformComponentHealthDegraded:
+		*s = PlatformComponentHealthDegraded
 		return nil
-	case PlatformHealthCritical:
-		*s = PlatformHealthCritical
+	case PlatformComponentHealthUnavailable:
+		*s = PlatformComponentHealthUnavailable
 		return nil
-	case PlatformHealthUnavailable:
-		*s = PlatformHealthUnavailable
-		return nil
-	case PlatformHealthDisabled:
-		*s = PlatformHealthDisabled
+	case PlatformComponentHealthPending:
+		*s = PlatformComponentHealthPending
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -9714,8 +9904,8 @@ type PlatformInstance struct {
 	// 组件实例名称.
 	Instance string `json:"instance"`
 	// 实例在领导选举中的角色.
-	Role   PlatformInstanceRole `json:"role"`
-	Health PlatformHealth       `json:"health"`
+	Role   PlatformInstanceRole   `json:"role"`
+	Health PlatformInstanceHealth `json:"health"`
 	// 健康状态原因.
 	HealthReason string `json:"healthReason"`
 	// 进程运行时长（秒）.
@@ -9735,9 +9925,8 @@ type PlatformInstance struct {
 	// Go 堆系统内存（字节）.
 	HeapSysBytes int `json:"heapSysBytes"`
 	// 最后采样时间.
-	LastObservedAt time.Time `json:"lastObservedAt"`
-	// PostgreSQL 组件的自由格式数据库统计快照.
-	DbStats OptPlatformInstanceDbStats `json:"dbStats"`
+	LastObservedAt time.Time        `json:"lastObservedAt"`
+	DbStats        OptDatabaseStats `json:"dbStats"`
 }
 
 // GetInstance returns the value of Instance.
@@ -9751,7 +9940,7 @@ func (s *PlatformInstance) GetRole() PlatformInstanceRole {
 }
 
 // GetHealth returns the value of Health.
-func (s *PlatformInstance) GetHealth() PlatformHealth {
+func (s *PlatformInstance) GetHealth() PlatformInstanceHealth {
 	return s.Health
 }
 
@@ -9806,7 +9995,7 @@ func (s *PlatformInstance) GetLastObservedAt() time.Time {
 }
 
 // GetDbStats returns the value of DbStats.
-func (s *PlatformInstance) GetDbStats() OptPlatformInstanceDbStats {
+func (s *PlatformInstance) GetDbStats() OptDatabaseStats {
 	return s.DbStats
 }
 
@@ -9821,7 +10010,7 @@ func (s *PlatformInstance) SetRole(val PlatformInstanceRole) {
 }
 
 // SetHealth sets the value of Health.
-func (s *PlatformInstance) SetHealth(val PlatformHealth) {
+func (s *PlatformInstance) SetHealth(val PlatformInstanceHealth) {
 	s.Health = val
 }
 
@@ -9876,37 +10065,75 @@ func (s *PlatformInstance) SetLastObservedAt(val time.Time) {
 }
 
 // SetDbStats sets the value of DbStats.
-func (s *PlatformInstance) SetDbStats(val OptPlatformInstanceDbStats) {
+func (s *PlatformInstance) SetDbStats(val OptDatabaseStats) {
 	s.DbStats = val
 }
 
-// PostgreSQL 组件的自由格式数据库统计快照.
-type PlatformInstanceDbStats map[string]jx.Raw
+// 单个组件实例健康状态.
+// Ref: #/components/schemas/PlatformInstanceHealth
+type PlatformInstanceHealth string
 
-func (s *PlatformInstanceDbStats) init() PlatformInstanceDbStats {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
+const (
+	PlatformInstanceHealthOk       PlatformInstanceHealth = "ok"
+	PlatformInstanceHealthDegraded PlatformInstanceHealth = "degraded"
+	PlatformInstanceHealthNoData   PlatformInstanceHealth = "no_data"
+)
+
+// AllValues returns all PlatformInstanceHealth values.
+func (PlatformInstanceHealth) AllValues() []PlatformInstanceHealth {
+	return []PlatformInstanceHealth{
+		PlatformInstanceHealthOk,
+		PlatformInstanceHealthDegraded,
+		PlatformInstanceHealthNoData,
 	}
-	return m
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PlatformInstanceHealth) MarshalText() ([]byte, error) {
+	switch s {
+	case PlatformInstanceHealthOk:
+		return []byte(s), nil
+	case PlatformInstanceHealthDegraded:
+		return []byte(s), nil
+	case PlatformInstanceHealthNoData:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PlatformInstanceHealth) UnmarshalText(data []byte) error {
+	switch PlatformInstanceHealth(data) {
+	case PlatformInstanceHealthOk:
+		*s = PlatformInstanceHealthOk
+		return nil
+	case PlatformInstanceHealthDegraded:
+		*s = PlatformInstanceHealthDegraded
+		return nil
+	case PlatformInstanceHealthNoData:
+		*s = PlatformInstanceHealthNoData
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // 实例在领导选举中的角色.
 type PlatformInstanceRole string
 
 const (
-	PlatformInstanceRoleLeader     PlatformInstanceRole = "leader"
-	PlatformInstanceRoleFollower   PlatformInstanceRole = "follower"
-	PlatformInstanceRoleStandalone PlatformInstanceRole = "standalone"
+	PlatformInstanceRoleLeader  PlatformInstanceRole = "leader"
+	PlatformInstanceRoleStandby PlatformInstanceRole = "standby"
+	PlatformInstanceRoleNone    PlatformInstanceRole = "none"
 )
 
 // AllValues returns all PlatformInstanceRole values.
 func (PlatformInstanceRole) AllValues() []PlatformInstanceRole {
 	return []PlatformInstanceRole{
 		PlatformInstanceRoleLeader,
-		PlatformInstanceRoleFollower,
-		PlatformInstanceRoleStandalone,
+		PlatformInstanceRoleStandby,
+		PlatformInstanceRoleNone,
 	}
 }
 
@@ -9915,9 +10142,9 @@ func (s PlatformInstanceRole) MarshalText() ([]byte, error) {
 	switch s {
 	case PlatformInstanceRoleLeader:
 		return []byte(s), nil
-	case PlatformInstanceRoleFollower:
+	case PlatformInstanceRoleStandby:
 		return []byte(s), nil
-	case PlatformInstanceRoleStandalone:
+	case PlatformInstanceRoleNone:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -9930,11 +10157,11 @@ func (s *PlatformInstanceRole) UnmarshalText(data []byte) error {
 	case PlatformInstanceRoleLeader:
 		*s = PlatformInstanceRoleLeader
 		return nil
-	case PlatformInstanceRoleFollower:
-		*s = PlatformInstanceRoleFollower
+	case PlatformInstanceRoleStandby:
+		*s = PlatformInstanceRoleStandby
 		return nil
-	case PlatformInstanceRoleStandalone:
-		*s = PlatformInstanceRoleStandalone
+	case PlatformInstanceRoleNone:
+		*s = PlatformInstanceRoleNone
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -9944,8 +10171,8 @@ func (s *PlatformInstanceRole) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/PlatformOverview
 type PlatformOverview struct {
 	// 是否启用了平台观测采样.
-	Enabled        bool           `json:"enabled"`
-	PlatformHealth PlatformHealth `json:"platformHealth"`
+	Enabled        bool                   `json:"enabled"`
+	PlatformHealth PlatformOverviewHealth `json:"platformHealth"`
 	// Gateway 平面组件状态.
 	GatewayPlane []PlatformComponent `json:"gatewayPlane"`
 	// 成员集群面按页汇总的组件状态.
@@ -9958,7 +10185,7 @@ func (s *PlatformOverview) GetEnabled() bool {
 }
 
 // GetPlatformHealth returns the value of PlatformHealth.
-func (s *PlatformOverview) GetPlatformHealth() PlatformHealth {
+func (s *PlatformOverview) GetPlatformHealth() PlatformOverviewHealth {
 	return s.PlatformHealth
 }
 
@@ -9978,7 +10205,7 @@ func (s *PlatformOverview) SetEnabled(val bool) {
 }
 
 // SetPlatformHealth sets the value of PlatformHealth.
-func (s *PlatformOverview) SetPlatformHealth(val PlatformHealth) {
+func (s *PlatformOverview) SetPlatformHealth(val PlatformOverviewHealth) {
 	s.PlatformHealth = val
 }
 
@@ -9990,6 +10217,63 @@ func (s *PlatformOverview) SetGatewayPlane(val []PlatformComponent) {
 // SetMemberPlane sets the value of MemberPlane.
 func (s *PlatformOverview) SetMemberPlane(val PlatformOverviewMemberPlane) {
 	s.MemberPlane = val
+}
+
+// 平台总览健康状态.
+// Ref: #/components/schemas/PlatformOverviewHealth
+type PlatformOverviewHealth string
+
+const (
+	PlatformOverviewHealthOk          PlatformOverviewHealth = "ok"
+	PlatformOverviewHealthDegraded    PlatformOverviewHealth = "degraded"
+	PlatformOverviewHealthUnavailable PlatformOverviewHealth = "unavailable"
+	PlatformOverviewHealthDisabled    PlatformOverviewHealth = "disabled"
+)
+
+// AllValues returns all PlatformOverviewHealth values.
+func (PlatformOverviewHealth) AllValues() []PlatformOverviewHealth {
+	return []PlatformOverviewHealth{
+		PlatformOverviewHealthOk,
+		PlatformOverviewHealthDegraded,
+		PlatformOverviewHealthUnavailable,
+		PlatformOverviewHealthDisabled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PlatformOverviewHealth) MarshalText() ([]byte, error) {
+	switch s {
+	case PlatformOverviewHealthOk:
+		return []byte(s), nil
+	case PlatformOverviewHealthDegraded:
+		return []byte(s), nil
+	case PlatformOverviewHealthUnavailable:
+		return []byte(s), nil
+	case PlatformOverviewHealthDisabled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PlatformOverviewHealth) UnmarshalText(data []byte) error {
+	switch PlatformOverviewHealth(data) {
+	case PlatformOverviewHealthOk:
+		*s = PlatformOverviewHealthOk
+		return nil
+	case PlatformOverviewHealthDegraded:
+		*s = PlatformOverviewHealthDegraded
+		return nil
+	case PlatformOverviewHealthUnavailable:
+		*s = PlatformOverviewHealthUnavailable
+		return nil
+	case PlatformOverviewHealthDisabled:
+		*s = PlatformOverviewHealthDisabled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // 成员集群面按页汇总的组件状态.
@@ -11343,10 +11627,9 @@ type PolicyGroupRequest struct {
 	// 策略组说明.
 	Description OptString `json:"description"`
 	// 是否启用策略组.
-	Enabled bool `json:"enabled"`
-	// Kubernetes 命名空间标签选择器.
-	NamespaceSelector OptPolicyGroupRequestNamespaceSelector `json:"namespaceSelector"`
-	Policies          PolicyGroupPolicies                    `json:"policies"`
+	Enabled           bool                       `json:"enabled"`
+	NamespaceSelector OptKubernetesLabelSelector `json:"namespaceSelector"`
+	Policies          PolicyGroupPolicies        `json:"policies"`
 	// 标签选择器匹配策略的默认执行模式.
 	SelectorEnforcementMode OptPolicyGroupRequestSelectorEnforcementMode `json:"selectorEnforcementMode"`
 	// 创建时的策略组名称，更新时忽略.
@@ -11375,7 +11658,7 @@ func (s *PolicyGroupRequest) GetEnabled() bool {
 }
 
 // GetNamespaceSelector returns the value of NamespaceSelector.
-func (s *PolicyGroupRequest) GetNamespaceSelector() OptPolicyGroupRequestNamespaceSelector {
+func (s *PolicyGroupRequest) GetNamespaceSelector() OptKubernetesLabelSelector {
 	return s.NamespaceSelector
 }
 
@@ -11425,7 +11708,7 @@ func (s *PolicyGroupRequest) SetEnabled(val bool) {
 }
 
 // SetNamespaceSelector sets the value of NamespaceSelector.
-func (s *PolicyGroupRequest) SetNamespaceSelector(val OptPolicyGroupRequestNamespaceSelector) {
+func (s *PolicyGroupRequest) SetNamespaceSelector(val OptKubernetesLabelSelector) {
 	s.NamespaceSelector = val
 }
 
@@ -11457,18 +11740,6 @@ func (s *PolicyGroupRequest) SetAllClusters(val OptBool) {
 // SetClusterNames sets the value of ClusterNames.
 func (s *PolicyGroupRequest) SetClusterNames(val []string) {
 	s.ClusterNames = val
-}
-
-// Kubernetes 命名空间标签选择器.
-type PolicyGroupRequestNamespaceSelector map[string]jx.Raw
-
-func (s *PolicyGroupRequestNamespaceSelector) init() PolicyGroupRequestNamespaceSelector {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // 标签选择器匹配策略的默认执行模式.
@@ -11548,10 +11819,9 @@ type PolicyGroupSpec struct {
 	// 策略组说明.
 	Description OptString `json:"description"`
 	// 是否启用策略组.
-	Enabled bool `json:"enabled"`
-	// Kubernetes 命名空间标签选择器.
-	NamespaceSelector OptPolicyGroupSpecNamespaceSelector `json:"namespaceSelector"`
-	Policies          PolicyGroupPolicies                 `json:"policies"`
+	Enabled           bool                       `json:"enabled"`
+	NamespaceSelector OptKubernetesLabelSelector `json:"namespaceSelector"`
+	Policies          PolicyGroupPolicies        `json:"policies"`
 	// 标签选择器匹配策略的默认执行模式.
 	SelectorEnforcementMode OptPolicyGroupSpecSelectorEnforcementMode `json:"selectorEnforcementMode"`
 }
@@ -11572,7 +11842,7 @@ func (s *PolicyGroupSpec) GetEnabled() bool {
 }
 
 // GetNamespaceSelector returns the value of NamespaceSelector.
-func (s *PolicyGroupSpec) GetNamespaceSelector() OptPolicyGroupSpecNamespaceSelector {
+func (s *PolicyGroupSpec) GetNamespaceSelector() OptKubernetesLabelSelector {
 	return s.NamespaceSelector
 }
 
@@ -11602,7 +11872,7 @@ func (s *PolicyGroupSpec) SetEnabled(val bool) {
 }
 
 // SetNamespaceSelector sets the value of NamespaceSelector.
-func (s *PolicyGroupSpec) SetNamespaceSelector(val OptPolicyGroupSpecNamespaceSelector) {
+func (s *PolicyGroupSpec) SetNamespaceSelector(val OptKubernetesLabelSelector) {
 	s.NamespaceSelector = val
 }
 
@@ -11614,18 +11884,6 @@ func (s *PolicyGroupSpec) SetPolicies(val PolicyGroupPolicies) {
 // SetSelectorEnforcementMode sets the value of SelectorEnforcementMode.
 func (s *PolicyGroupSpec) SetSelectorEnforcementMode(val OptPolicyGroupSpecSelectorEnforcementMode) {
 	s.SelectorEnforcementMode = val
-}
-
-// Kubernetes 命名空间标签选择器.
-type PolicyGroupSpecNamespaceSelector map[string]jx.Raw
-
-func (s *PolicyGroupSpecNamespaceSelector) init() PolicyGroupSpecNamespaceSelector {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }
 
 // 标签选择器匹配策略的默认执行模式.
@@ -12648,6 +12906,23 @@ func (s *PolicyVersionListResponse) SetData(val OptPolicyVersionList) {
 
 func (*PolicyVersionListResponse) listPolicyVersionsRes() {}
 
+// 删除被引用资源时附带的引用方列表.
+// Ref: #/components/schemas/ReferencedByData
+type ReferencedByData struct {
+	// 仍引用目标资源的对象名称.
+	ReferencedBy []string `json:"referencedBy"`
+}
+
+// GetReferencedBy returns the value of ReferencedBy.
+func (s *ReferencedByData) GetReferencedBy() []string {
+	return s.ReferencedBy
+}
+
+// SetReferencedBy sets the value of ReferencedBy.
+func (s *ReferencedByData) SetReferencedBy(val []string) {
+	s.ReferencedBy = val
+}
+
 type ReissueClusterTokenConflict ErrorResponse
 
 func (*ReissueClusterTokenConflict) reissueClusterTokenRes() {}
@@ -13366,18 +13641,20 @@ type UninstallTaskStatus string
 
 const (
 	UninstallTaskStatusPending   UninstallTaskStatus = "Pending"
+	UninstallTaskStatusReceived  UninstallTaskStatus = "Received"
 	UninstallTaskStatusRunning   UninstallTaskStatus = "Running"
+	UninstallTaskStatusSucceeded UninstallTaskStatus = "Succeeded"
 	UninstallTaskStatusFailed    UninstallTaskStatus = "Failed"
-	UninstallTaskStatusCompleted UninstallTaskStatus = "Completed"
 )
 
 // AllValues returns all UninstallTaskStatus values.
 func (UninstallTaskStatus) AllValues() []UninstallTaskStatus {
 	return []UninstallTaskStatus{
 		UninstallTaskStatusPending,
+		UninstallTaskStatusReceived,
 		UninstallTaskStatusRunning,
+		UninstallTaskStatusSucceeded,
 		UninstallTaskStatusFailed,
-		UninstallTaskStatusCompleted,
 	}
 }
 
@@ -13386,11 +13663,13 @@ func (s UninstallTaskStatus) MarshalText() ([]byte, error) {
 	switch s {
 	case UninstallTaskStatusPending:
 		return []byte(s), nil
+	case UninstallTaskStatusReceived:
+		return []byte(s), nil
 	case UninstallTaskStatusRunning:
 		return []byte(s), nil
-	case UninstallTaskStatusFailed:
+	case UninstallTaskStatusSucceeded:
 		return []byte(s), nil
-	case UninstallTaskStatusCompleted:
+	case UninstallTaskStatusFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -13403,14 +13682,17 @@ func (s *UninstallTaskStatus) UnmarshalText(data []byte) error {
 	case UninstallTaskStatusPending:
 		*s = UninstallTaskStatusPending
 		return nil
+	case UninstallTaskStatusReceived:
+		*s = UninstallTaskStatusReceived
+		return nil
 	case UninstallTaskStatusRunning:
 		*s = UninstallTaskStatusRunning
 		return nil
+	case UninstallTaskStatusSucceeded:
+		*s = UninstallTaskStatusSucceeded
+		return nil
 	case UninstallTaskStatusFailed:
 		*s = UninstallTaskStatusFailed
-		return nil
-	case UninstallTaskStatusCompleted:
-		*s = UninstallTaskStatusCompleted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

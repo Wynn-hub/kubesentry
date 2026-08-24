@@ -92,7 +92,7 @@ components:
       required: [id, status, requestedAt]
       properties:
         id: {$ref: './common.yaml#/components/schemas/ResourceID'}
-        status: {type: string, description: 卸载任务状态, enum: [Pending, Running, Failed, Completed], example: Pending}
+        status: {type: string, description: 卸载任务状态, enum: [Pending, Received, Running, Succeeded, Failed], example: Pending}
         error: {type: string, description: 失败时的错误信息, example: connection timed out}
         requestedAt: {type: string, format: date-time, description: 任务请求时间, example: '2026-08-24T08:00:00Z'}
         completedAt: {type: string, format: date-time, description: 任务完成时间, example: '2026-08-24T08:05:00Z'}

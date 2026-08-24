@@ -61,6 +61,24 @@ class ContractCheckerTest(unittest.TestCase):
             "unresolved reference",
         )
 
+    def test_rejects_unapproved_free_form_object(self):
+        self.assert_contract_error(
+            lambda: checker.check_free_form_objects(
+                {"type": "object", "additionalProperties": True},
+                "platform.yaml.components.schemas.PlatformInstance.properties.dbStats",
+            ),
+            "unapproved additionalProperties: true",
+        )
+
+    def test_rejects_parameter_without_schema_metadata(self):
+        self.assert_contract_error(
+            lambda: checker.check_parameter_metadata(
+                {"name": "health", "in": "query", "description": "健康状态筛选", "schema": {"type": "string"}},
+                "console GET /platform/overview parameter health",
+            ),
+            "parameter schema is missing description",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

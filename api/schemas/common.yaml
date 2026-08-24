@@ -27,10 +27,37 @@ components:
                 description: 单条错误明细
                 example: "invalid pageSize: must be one of 10, 20, 50, 100"
             data:
-              type: object
-              additionalProperties: true
-              description: 失败时附带的结构化数据。例如删除被引用资源时的 referencedBy 列表
-              example: { referencedBy: ["baseline-group"] }
+              $ref: '#/components/schemas/ReferencedByData'
+
+    ReferencedByData:
+      type: object
+      description: 删除被引用资源时附带的引用方列表
+      required: [referencedBy]
+      properties:
+        referencedBy:
+          type: array
+          description: 仍引用目标资源的对象名称
+          items:
+            type: string
+            description: 引用方名称
+            example: baseline-group
+          example: [baseline-group]
+
+    KubernetesLabelSelectorRequirement:
+      type: object
+      required: [key, operator]
+      properties:
+        key: {type: string, description: Kubernetes 标签键, example: environment}
+        operator: {type: string, description: 标签选择运算符, enum: [In, NotIn, Exists, DoesNotExist], example: In}
+        values: {type: array, description: In 或 NotIn 运算符使用的标签值, items: {type: string, description: 标签值, example: production}, example: [production]}
+
+    KubernetesLabelSelector:
+      type: object
+      description: Kubernetes LabelSelector，按标签精确值或表达式筛选资源
+      example: {matchLabels: {environment: production}}
+      properties:
+        matchLabels: {type: object, additionalProperties: {type: string}, description: 精确匹配的标签映射, example: {environment: production}}
+        matchExpressions: {type: array, description: 表达式形式的标签选择条件, items: {$ref: '#/components/schemas/KubernetesLabelSelectorRequirement'}, example: []}
 
     PageMeta:
       type: object

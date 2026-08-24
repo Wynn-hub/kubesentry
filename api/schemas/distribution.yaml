@@ -13,12 +13,7 @@ components:
           properties:
             byName: {type: array, description: 显式目标集群名称, items: {type: string, description: 集群名称, example: production-east}, example: [production-east]}
             clusterSelector:
-              type: object
-              description: Kubernetes 标签选择器
-              example: {matchLabels: {environment: production}}
-              properties:
-                matchLabels: {type: object, additionalProperties: {type: string}, description: 精确匹配的集群标签, example: {environment: production}}
-                matchExpressions: {type: array, description: 表达式形式的标签选择器, items: {type: object, description: 单条 Kubernetes 标签选择表达式, properties: {key: {type: string, description: 标签键, example: environment}, operator: {type: string, description: 标签选择运算符, enum: [In, NotIn, Exists, DoesNotExist], example: In}, values: {type: array, description: 运算符使用的标签值, items: {type: string, description: 标签值, example: production}, example: [production]}}, example: {key: environment, operator: In, values: [production]}}, example: []}
+              $ref: './common.yaml#/components/schemas/KubernetesLabelSelector'
         overrides: {type: array, description: 对单个集群覆盖策略组执行模式的规则, items: {type: object, description: 单条集群执行模式覆盖, required: [cluster, enforcementMode], properties: {cluster: {type: string, description: 目标集群名称, example: production-east}, enforcementMode: {type: string, description: 覆盖的执行模式, enum: [audit, enforce], example: enforce}}, example: {cluster: production-east, enforcementMode: enforce}}, example: []}
     DistributionRequest:
       type: object

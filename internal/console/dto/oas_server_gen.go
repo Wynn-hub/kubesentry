@@ -236,7 +236,7 @@ type Handler interface {
 	ListPolicyVersions(ctx context.Context, params ListPolicyVersionsParams) (ListPolicyVersionsRes, error)
 	// ListUninstallTasks implements listUninstallTasks operation.
 	//
-	// 分页查询指定集群的卸载任务及失败原因。.
+	// 查询指定集群的全部卸载任务及失败原因。.
 	//
 	// GET /clusters/{name}/uninstall-tasks
 	ListUninstallTasks(ctx context.Context, params ListUninstallTasksParams) (ListUninstallTasksRes, error)

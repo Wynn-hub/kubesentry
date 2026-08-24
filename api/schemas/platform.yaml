@@ -1,17 +1,38 @@
 components:
   schemas:
-    PlatformHealth:
+    PlatformInstanceHealth:
       type: string
-      description: 平台组件健康状态
-      enum: [ok, warning, critical, unavailable, disabled]
+      description: 单个组件实例健康状态
+      enum: [ok, degraded, no_data]
       example: ok
+    PlatformComponentHealth:
+      type: string
+      description: 平台组件聚合健康状态
+      enum: [ok, degraded, unavailable, pending]
+      example: ok
+    PlatformClusterHealth:
+      type: string
+      description: 成员集群组件聚合健康状态
+      enum: [ok, degraded, unavailable]
+      example: ok
+    PlatformOverviewHealth:
+      type: string
+      description: 平台总览健康状态
+      enum: [ok, degraded, unavailable, disabled]
+      example: ok
+    DatabaseStats:
+      type: object
+      description: PostgreSQL 实例采集到的连接统计
+      example: {connections: 4}
+      properties:
+        connections: {type: integer, description: 当前数据库连接数, example: 4}
     PlatformInstance:
       type: object
       required: [instance, role, health, healthReason, uptimeSeconds, restartCount, memoryBytes, memoryLimitBytes, cpuMillis, goroutines, heapAllocBytes, heapSysBytes, lastObservedAt]
       properties:
         instance: {type: string, description: 组件实例名称, example: gateway-0}
-        role: {type: string, description: 实例在领导选举中的角色, enum: [leader, follower, standalone], example: leader}
-        health: {$ref: '#/components/schemas/PlatformHealth'}
+        role: {type: string, description: 实例在领导选举中的角色, enum: [leader, standby, none], example: leader}
+        health: {$ref: '#/components/schemas/PlatformInstanceHealth'}
         healthReason: {type: string, description: 健康状态原因, example: heartbeat is current}
         uptimeSeconds: {type: integer, description: 进程运行时长（秒）, example: 3600}
         restartCount: {type: integer, description: 观察窗口内的重启次数, example: 0}
@@ -22,13 +43,13 @@ components:
         heapAllocBytes: {type: integer, description: Go 已分配堆内存（字节）, example: 31457280}
         heapSysBytes: {type: integer, description: Go 堆系统内存（字节）, example: 67108864}
         lastObservedAt: {type: string, format: date-time, description: 最后采样时间, example: '2026-08-24T08:00:00Z'}
-        dbStats: {type: object, additionalProperties: true, description: PostgreSQL 组件的自由格式数据库统计快照, example: {openConnections: 4}}
+        dbStats: {$ref: '#/components/schemas/DatabaseStats'}
     PlatformComponent:
       type: object
       required: [component, health, healthReason, hasLeadership, noLeader, singleReplica, instances]
       properties:
         component: {type: string, description: 平台组件名称, enum: [gateway, postgres, console-api, console-web, operator, webhook], example: gateway}
-        health: {$ref: '#/components/schemas/PlatformHealth'}
+        health: {$ref: '#/components/schemas/PlatformComponentHealth'}
         healthReason: {type: string, description: 组件健康状态原因, example: all instances are healthy}
         hasLeadership: {type: boolean, description: 组件是否使用领导选举, example: true}
         noLeader: {type: boolean, description: 是否检测到没有 leader, example: false}
@@ -41,14 +62,14 @@ components:
       properties:
         name: {type: string, description: 成员集群名称, example: production-east}
         phase: {type: string, description: 集群登记阶段, enum: [Registering, Online, Offline, Uninstalling], example: Online}
-        health: {$ref: '#/components/schemas/PlatformHealth'}
+        health: {$ref: '#/components/schemas/PlatformClusterHealth'}
         components: {type: array, description: 成员面组件状态, items: {$ref: '#/components/schemas/PlatformComponent'}, example: []}
     PlatformOverview:
       type: object
       required: [enabled, platformHealth, gatewayPlane, memberPlane]
       properties:
         enabled: {type: boolean, description: 是否启用了平台观测采样, example: true}
-        platformHealth: {$ref: '#/components/schemas/PlatformHealth'}
+        platformHealth: {$ref: '#/components/schemas/PlatformOverviewHealth'}
         gatewayPlane: {type: array, description: Gateway 平面组件状态, items: {$ref: '#/components/schemas/PlatformComponent'}, example: []}
         memberPlane:
           type: object

@@ -256,7 +256,7 @@ type Invoker interface {
 	ListPolicyVersions(ctx context.Context, params ListPolicyVersionsParams) (ListPolicyVersionsRes, error)
 	// ListUninstallTasks invokes listUninstallTasks operation.
 	//
-	// 分页查询指定集群的卸载任务及失败原因。.
+	// 查询指定集群的全部卸载任务及失败原因。.
 	//
 	// GET /clusters/{name}/uninstall-tasks
 	ListUninstallTasks(ctx context.Context, params ListUninstallTasksParams) (ListUninstallTasksRes, error)
@@ -2395,7 +2395,7 @@ func (c *Client) sendGetPlatformInstanceTrend(ctx context.Context, params GetPla
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.StringToString(params.Component))
+			return e.EncodeValue(conv.StringToString(string(params.Component)))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -2608,7 +2608,7 @@ func (c *Client) sendGetPlatformOverview(ctx context.Context, params GetPlatform
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Health.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
+				return e.EncodeValue(conv.StringToString(string(val)))
 			}
 			return nil
 		}); err != nil {
@@ -4349,7 +4349,7 @@ func (c *Client) sendListPlatformLeadershipEvents(ctx context.Context, params Li
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Component.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
+				return e.EncodeValue(conv.StringToString(string(val)))
 			}
 			return nil
 		}); err != nil {
@@ -4939,7 +4939,7 @@ func (c *Client) sendListPolicyVersions(ctx context.Context, params ListPolicyVe
 
 // ListUninstallTasks invokes listUninstallTasks operation.
 //
-// 分页查询指定集群的卸载任务及失败原因。.
+// 查询指定集群的全部卸载任务及失败原因。.
 //
 // GET /clusters/{name}/uninstall-tasks
 func (c *Client) ListUninstallTasks(ctx context.Context, params ListUninstallTasksParams) (ListUninstallTasksRes, error) {
@@ -5006,44 +5006,6 @@ func (c *Client) sendListUninstallTasks(ctx context.Context, params ListUninstal
 	}
 	pathParts[2] = "/uninstall-tasks"
 	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "page" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "page",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Page.Get(); ok {
-				return e.EncodeValue(conv.IntToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "pageSize" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "pageSize",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.PageSize.Get(); ok {
-				return e.EncodeValue(conv.IntToString(int(val)))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "GET", u)

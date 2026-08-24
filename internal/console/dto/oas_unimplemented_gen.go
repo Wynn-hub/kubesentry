@@ -352,7 +352,7 @@ func (UnimplementedHandler) ListPolicyVersions(ctx context.Context, params ListP
 
 // ListUninstallTasks implements listUninstallTasks operation.
 //
-// 分页查询指定集群的卸载任务及失败原因。.
+// 查询指定集群的全部卸载任务及失败原因。.
 //
 // GET /clusters/{name}/uninstall-tasks
 func (UnimplementedHandler) ListUninstallTasks(ctx context.Context, params ListUninstallTasksParams) (r ListUninstallTasksRes, _ error) {

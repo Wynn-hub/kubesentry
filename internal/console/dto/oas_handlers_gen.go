@@ -5482,7 +5482,7 @@ func (s *Server) handleListPolicyVersionsRequest(args [1]string, argsEscaped boo
 
 // handleListUninstallTasksRequest handles listUninstallTasks operation.
 //
-// 分页查询指定集群的卸载任务及失败原因。.
+// 查询指定集群的全部卸载任务及失败原因。.
 //
 // GET /clusters/{name}/uninstall-tasks
 func (s *Server) handleListUninstallTasksRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5583,14 +5583,6 @@ func (s *Server) handleListUninstallTasksRequest(args [1]string, argsEscaped boo
 					Name: "name",
 					In:   "path",
 				}: params.Name,
-				{
-					Name: "page",
-					In:   "query",
-				}: params.Page,
-				{
-					Name: "pageSize",
-					In:   "query",
-				}: params.PageSize,
 			},
 			Raw: r,
 		}

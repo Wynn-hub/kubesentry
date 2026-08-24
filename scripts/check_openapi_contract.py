@@ -29,9 +29,25 @@ def check_operations(document: dict, source: str, *, enforce_body_schemas: bool 
             for key in ("tags", "operationId", "summary", "description", "responses"):
                 if not operation.get(key):
                     fail(f"{source} {method.upper()} {path} is missing {key}")
+            if path.startswith(("/distributions", "/platform")):
+                for parameter in operation.get("parameters", []):
+                    if isinstance(parameter, dict) and "$ref" not in parameter:
+                        check_parameter_metadata(parameter, f"{source} {method.upper()} {path} parameter {parameter.get('name', '<unnamed>')}")
             if enforce_body_schemas:
                 check_operation_bodies(operation, f"{source} {method.upper()} {path}")
     return operations
+
+
+def check_parameter_metadata(parameter: dict, location: str) -> None:
+    if not parameter.get("description"):
+        fail(f"{location} is missing description")
+    schema = parameter.get("schema")
+    if not isinstance(schema, dict) or "$ref" in schema:
+        return
+    if not schema.get("description"):
+        fail(f"{location} parameter schema is missing description")
+    if schema.get("type") not in ("object", "array") and "example" not in schema:
+        fail(f"{location} parameter schema is missing example")
 
 
 def is_schema_ref(schema: object) -> bool:
@@ -76,6 +92,25 @@ def check_schema_properties(node: object, location: str) -> None:
     elif isinstance(node, list):
         for index, child in enumerate(node):
             check_schema_properties(child, f"{location}[{index}]")
+
+
+def check_free_form_objects(node: object, location: str) -> None:
+    """Allow raw JSON only for admission resource snapshots.
+
+    Contracts for all other objects must expose their fields or, for typed maps,
+    declare the value schema through ``additionalProperties: { ... }``.
+    """
+    if isinstance(node, dict):
+        if node.get("additionalProperties") is True and not (
+            location.startswith("admission.yaml.")
+            and (location.endswith(".metadataSnapshot") or location.endswith(".specSnapshot"))
+        ):
+            fail(f"{location} has unapproved additionalProperties: true")
+        for name, child in node.items():
+            check_free_form_objects(child, f"{location}.{name}")
+    elif isinstance(node, list):
+        for index, child in enumerate(node):
+            check_free_form_objects(child, f"{location}[{index}]")
 
 
 def load(path: Path) -> dict:
@@ -141,7 +176,9 @@ def main() -> None:
         checked.add(source_path)
     check_schema_properties(console, "console")
     for schema in (ROOT / "api/schemas").glob("*.yaml"):
-        check_schema_properties(load(schema), schema.name)
+        document = load(schema)
+        check_schema_properties(document, schema.name)
+        check_free_form_objects(document, schema.name)
     print(f"OpenAPI contract OK: {console_count} console operations, {gateway_count} gateway operations")
 
 
