@@ -15,7 +15,7 @@ import (
 )
 
 func (s *Server) decodeCreateClusterRequest(r *http.Request) (
-	req CreateClusterReq,
+	req *ClusterCreateRequest,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -62,7 +62,7 @@ func (s *Server) decodeCreateClusterRequest(r *http.Request) (
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request CreateClusterReq
+		var request ClusterCreateRequest
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -79,14 +79,22 @@ func (s *Server) decodeCreateClusterRequest(r *http.Request) (
 			}
 			return req, rawBody, close, err
 		}
-		return request, rawBody, close, nil
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, rawBody, close, errors.Wrap(err, "validate")
+		}
+		return &request, rawBody, close, nil
 	default:
 		return req, rawBody, close, validate.InvalidContentType(ct)
 	}
 }
 
 func (s *Server) decodeCreateDistributionRequest(r *http.Request) (
-	req CreateDistributionReq,
+	req *DistributionRequest,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -133,7 +141,7 @@ func (s *Server) decodeCreateDistributionRequest(r *http.Request) (
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request CreateDistributionReq
+		var request DistributionRequest
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -150,7 +158,15 @@ func (s *Server) decodeCreateDistributionRequest(r *http.Request) (
 			}
 			return req, rawBody, close, err
 		}
-		return request, rawBody, close, nil
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, rawBody, close, errors.Wrap(err, "validate")
+		}
+		return &request, rawBody, close, nil
 	default:
 		return req, rawBody, close, validate.InvalidContentType(ct)
 	}
@@ -394,7 +410,7 @@ func (s *Server) decodeCreatePolicyGroupRequest(r *http.Request) (
 }
 
 func (s *Server) decodeReissueClusterTokenRequest(r *http.Request) (
-	req ReissueClusterTokenReq,
+	req *ClusterTokenRequest,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -441,7 +457,7 @@ func (s *Server) decodeReissueClusterTokenRequest(r *http.Request) (
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request ReissueClusterTokenReq
+		var request ClusterTokenRequest
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -458,7 +474,15 @@ func (s *Server) decodeReissueClusterTokenRequest(r *http.Request) (
 			}
 			return req, rawBody, close, err
 		}
-		return request, rawBody, close, nil
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, rawBody, close, errors.Wrap(err, "validate")
+		}
+		return &request, rawBody, close, nil
 	default:
 		return req, rawBody, close, validate.InvalidContentType(ct)
 	}
@@ -694,7 +718,7 @@ func (s *Server) decodeUpdateAdmissionEventSettingsRequest(r *http.Request) (
 }
 
 func (s *Server) decodeUpdateClusterRequest(r *http.Request) (
-	req UpdateClusterReq,
+	req *ClusterLabelsRequest,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -741,7 +765,7 @@ func (s *Server) decodeUpdateClusterRequest(r *http.Request) (
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request UpdateClusterReq
+		var request ClusterLabelsRequest
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -758,14 +782,14 @@ func (s *Server) decodeUpdateClusterRequest(r *http.Request) (
 			}
 			return req, rawBody, close, err
 		}
-		return request, rawBody, close, nil
+		return &request, rawBody, close, nil
 	default:
 		return req, rawBody, close, validate.InvalidContentType(ct)
 	}
 }
 
 func (s *Server) decodeUpdateDistributionRequest(r *http.Request) (
-	req UpdateDistributionReq,
+	req *DistributionRequest,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -812,7 +836,7 @@ func (s *Server) decodeUpdateDistributionRequest(r *http.Request) (
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request UpdateDistributionReq
+		var request DistributionRequest
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -829,7 +853,15 @@ func (s *Server) decodeUpdateDistributionRequest(r *http.Request) (
 			}
 			return req, rawBody, close, err
 		}
-		return request, rawBody, close, nil
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, rawBody, close, errors.Wrap(err, "validate")
+		}
+		return &request, rawBody, close, nil
 	default:
 		return req, rawBody, close, validate.InvalidContentType(ct)
 	}
@@ -915,7 +947,7 @@ func (s *Server) decodeUpdateExceptionRequest(r *http.Request) (
 }
 
 func (s *Server) decodeUpdatePlatformSettingsRequest(r *http.Request) (
-	req *UpdatePlatformSettingsReq,
+	req *PlatformSettingsRequest,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -962,7 +994,7 @@ func (s *Server) decodeUpdatePlatformSettingsRequest(r *http.Request) (
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request UpdatePlatformSettingsReq
+		var request PlatformSettingsRequest
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err

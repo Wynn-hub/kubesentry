@@ -18,7 +18,7 @@ import (
 
 // CreateUninstallTaskParams is parameters of createUninstallTask operation.
 type CreateUninstallTaskParams struct {
-	// 策略名称.
+	// 集群名称.
 	Name string
 }
 
@@ -84,7 +84,7 @@ func decodeCreateUninstallTaskParams(args [1]string, argsEscaped bool, r *http.R
 
 // DeleteClusterParams is parameters of deleteCluster operation.
 type DeleteClusterParams struct {
-	// 策略名称.
+	// 集群名称.
 	Name string
 }
 
@@ -150,7 +150,7 @@ func decodeDeleteClusterParams(args [1]string, argsEscaped bool, r *http.Request
 
 // DeleteDistributionParams is parameters of deleteDistribution operation.
 type DeleteDistributionParams struct {
-	// 策略名称.
+	// 策略分发名称.
 	Name string
 }
 
@@ -735,7 +735,7 @@ func decodeGetAdmissionLinkIncidentParams(args [1]string, argsEscaped bool, r *h
 
 // GetClusterParams is parameters of getCluster operation.
 type GetClusterParams struct {
-	// 策略名称.
+	// 集群名称.
 	Name string
 }
 
@@ -801,7 +801,7 @@ func decodeGetClusterParams(args [1]string, argsEscaped bool, r *http.Request) (
 
 // GetDistributionParams is parameters of getDistribution operation.
 type GetDistributionParams struct {
-	// 策略名称.
+	// 策略分发名称.
 	Name string
 }
 
@@ -1145,7 +1145,7 @@ func decodeGetFieldSchemaParams(args [0]string, argsEscaped bool, r *http.Reques
 
 // GetLatestInstallParamsParams is parameters of getLatestInstallParams operation.
 type GetLatestInstallParamsParams struct {
-	// 策略名称.
+	// 集群名称.
 	Name string
 }
 
@@ -3156,8 +3156,10 @@ type ListClustersParams struct {
 	// 页码，从 1 开始。省略时为 1.
 	Page OptInt `json:",omitempty,omitzero"`
 	// 每页记录数。仅接受 10、20、50、100。省略时为 20.
-	PageSize  OptPageSize              `json:",omitempty,omitzero"`
-	SortBy    OptListClustersSortBy    `json:",omitempty,omitzero"`
+	PageSize OptPageSize `json:",omitempty,omitzero"`
+	// 排序字段.
+	SortBy OptListClustersSortBy `json:",omitempty,omitzero"`
+	// 排序方向.
 	SortOrder OptListClustersSortOrder `json:",omitempty,omitzero"`
 }
 
@@ -3457,7 +3459,9 @@ func decodeListClustersParams(args [0]string, argsEscaped bool, r *http.Request)
 
 // ListDistributionsParams is parameters of listDistributions operation.
 type ListDistributionsParams struct {
-	Page      OptInt                        `json:",omitempty,omitzero"`
+	// 页码，从 1 开始.
+	Page OptInt `json:",omitempty,omitzero"`
+	// 每页数量.
 	PageSize  OptListDistributionsPageSize  `json:",omitempty,omitzero"`
 	SortBy    OptListDistributionsSortBy    `json:",omitempty,omitzero"`
 	SortOrder OptListDistributionsSortOrder `json:",omitempty,omitzero"`
@@ -4073,8 +4077,10 @@ type ListInstallRecordsParams struct {
 	// 页码，从 1 开始。省略时为 1.
 	Page OptInt `json:",omitempty,omitzero"`
 	// 每页记录数。仅接受 10、20、50、100。省略时为 20.
-	PageSize  OptPageSize                    `json:",omitempty,omitzero"`
-	SortBy    OptListInstallRecordsSortBy    `json:",omitempty,omitzero"`
+	PageSize OptPageSize `json:",omitempty,omitzero"`
+	// 排序字段.
+	SortBy OptListInstallRecordsSortBy `json:",omitempty,omitzero"`
+	// 排序方向.
 	SortOrder OptListInstallRecordsSortOrder `json:",omitempty,omitzero"`
 }
 
@@ -5716,7 +5722,7 @@ func decodeListPolicyVersionsParams(args [1]string, argsEscaped bool, r *http.Re
 
 // ListUninstallTasksParams is parameters of listUninstallTasks operation.
 type ListUninstallTasksParams struct {
-	// 策略名称.
+	// 集群名称.
 	Name string
 	// 页码，从 1 开始。省略时为 1.
 	Page OptInt `json:",omitempty,omitzero"`
@@ -5937,7 +5943,7 @@ func decodeListUninstallTasksParams(args [1]string, argsEscaped bool, r *http.Re
 
 // ReissueClusterTokenParams is parameters of reissueClusterToken operation.
 type ReissueClusterTokenParams struct {
-	// 策略名称.
+	// 集群名称.
 	Name string
 }
 
@@ -6003,9 +6009,10 @@ func decodeReissueClusterTokenParams(args [1]string, argsEscaped bool, r *http.R
 
 // RetryUninstallTaskParams is parameters of retryUninstallTask operation.
 type RetryUninstallTaskParams struct {
-	// 策略名称.
-	Name   string
-	TaskID int64
+	// 集群名称.
+	Name string
+	// 卸载任务 ID.
+	TaskID ResourceID
 }
 
 func unpackRetryUninstallTaskParams(packed middleware.Parameters) (params RetryUninstallTaskParams) {
@@ -6021,7 +6028,7 @@ func unpackRetryUninstallTaskParams(packed middleware.Parameters) (params RetryU
 			Name: "taskID",
 			In:   "path",
 		}
-		params.TaskID = packed[key].(int64)
+		params.TaskID = packed[key].(ResourceID)
 	}
 	return params
 }
@@ -6091,17 +6098,32 @@ func decodeRetryUninstallTaskParams(args [2]string, argsEscaped bool, r *http.Re
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotTaskIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotTaskIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToInt64(val)
-				if err != nil {
+				params.TaskID = ResourceID(paramsDotTaskIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.TaskID.Validate(); err != nil {
 					return err
 				}
-
-				params.TaskID = c
 				return nil
 			}(); err != nil {
 				return err
@@ -6254,7 +6276,7 @@ func decodeSetPolicyGroupEnabledParams(args [1]string, argsEscaped bool, r *http
 
 // UpdateClusterParams is parameters of updateCluster operation.
 type UpdateClusterParams struct {
-	// 策略名称.
+	// 集群名称.
 	Name string
 }
 
@@ -6320,7 +6342,7 @@ func decodeUpdateClusterParams(args [1]string, argsEscaped bool, r *http.Request
 
 // UpdateDistributionParams is parameters of updateDistribution operation.
 type UpdateDistributionParams struct {
-	// 策略名称.
+	// 策略分发名称.
 	Name string
 }
 

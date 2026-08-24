@@ -15,21 +15,25 @@ var _ Handler = UnimplementedHandler{}
 
 // CreateCluster implements createCluster operation.
 //
+// 创建集群登记记录并生成一次性 Helm 安装命令。.
+//
 // POST /clusters
-func (UnimplementedHandler) CreateCluster(ctx context.Context, req CreateClusterReq) (r CreateClusterRes, _ error) {
+func (UnimplementedHandler) CreateCluster(ctx context.Context, req *ClusterCreateRequest) (r CreateClusterRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CreateDistribution implements createDistribution operation.
 //
+// 创建策略组到指定集群范围的分发配置。.
+//
 // POST /distributions
-func (UnimplementedHandler) CreateDistribution(ctx context.Context, req CreateDistributionReq) (r CreateDistributionRes, _ error) {
+func (UnimplementedHandler) CreateDistribution(ctx context.Context, req *DistributionRequest) (r CreateDistributionRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CreateException implements createException operation.
 //
-// 创建策略例外.
+// 创建针对资源、命名空间或集群范围的策略例外。.
 //
 // POST /exceptions
 func (UnimplementedHandler) CreateException(ctx context.Context, req *ExceptionRequest) (r CreateExceptionRes, _ error) {
@@ -48,7 +52,7 @@ func (UnimplementedHandler) CreatePolicy(ctx context.Context, req *PolicyRequest
 
 // CreatePolicyGroup implements createPolicyGroup operation.
 //
-// 创建策略组.
+// 创建策略组并配置其集群作用范围和策略选择规则。.
 //
 // POST /policygroups
 func (UnimplementedHandler) CreatePolicyGroup(ctx context.Context, req *PolicyGroupRequest) (r CreatePolicyGroupRes, _ error) {
@@ -57,12 +61,16 @@ func (UnimplementedHandler) CreatePolicyGroup(ctx context.Context, req *PolicyGr
 
 // CreateUninstallTask implements createUninstallTask operation.
 //
+// 向在线集群下发卸载其成员组件的持久化任务。.
+//
 // POST /clusters/{name}/uninstall
 func (UnimplementedHandler) CreateUninstallTask(ctx context.Context, params CreateUninstallTaskParams) (r CreateUninstallTaskRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // DeleteCluster implements deleteCluster operation.
+//
+// 删除已卸载的集群登记；在线集群不能删除。.
 //
 // DELETE /clusters/{name}
 func (UnimplementedHandler) DeleteCluster(ctx context.Context, params DeleteClusterParams) (r DeleteClusterRes, _ error) {
@@ -71,6 +79,8 @@ func (UnimplementedHandler) DeleteCluster(ctx context.Context, params DeleteClus
 
 // DeleteDistribution implements deleteDistribution operation.
 //
+// 删除指定策略分发配置。.
+//
 // DELETE /distributions/{name}
 func (UnimplementedHandler) DeleteDistribution(ctx context.Context, params DeleteDistributionParams) (r DeleteDistributionRes, _ error) {
 	return r, ht.ErrNotImplemented
@@ -78,7 +88,7 @@ func (UnimplementedHandler) DeleteDistribution(ctx context.Context, params Delet
 
 // DeleteException implements deleteException operation.
 //
-// 删除策略例外.
+// 删除指定策略例外。.
 //
 // DELETE /exceptions/{name}
 func (UnimplementedHandler) DeleteException(ctx context.Context, params DeleteExceptionParams) (r DeleteExceptionRes, _ error) {
@@ -97,7 +107,7 @@ func (UnimplementedHandler) DeletePolicy(ctx context.Context, params DeletePolic
 
 // DeletePolicyGroup implements deletePolicyGroup operation.
 //
-// 删除策略组.
+// 删除非内置策略组。.
 //
 // DELETE /policygroups/{name}
 func (UnimplementedHandler) DeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (r DeletePolicyGroupRes, _ error) {
@@ -106,7 +116,7 @@ func (UnimplementedHandler) DeletePolicyGroup(ctx context.Context, params Delete
 
 // GetAdmissionEvent implements getAdmissionEvent operation.
 //
-// 查询准入事件详情.
+// 查询准入事件及其原始 metadata/spec 快照。.
 //
 // GET /admission-events/{id}
 func (UnimplementedHandler) GetAdmissionEvent(ctx context.Context, params GetAdmissionEventParams) (r GetAdmissionEventRes, _ error) {
@@ -115,7 +125,7 @@ func (UnimplementedHandler) GetAdmissionEvent(ctx context.Context, params GetAdm
 
 // GetAdmissionEventSettings implements getAdmissionEventSettings operation.
 //
-// 获取准入事件设置.
+// 查询准入事件留存、重试、队列和存储策略配置。.
 //
 // GET /admission-event-settings
 func (UnimplementedHandler) GetAdmissionEventSettings(ctx context.Context) (r GetAdmissionEventSettingsRes, _ error) {
@@ -124,7 +134,7 @@ func (UnimplementedHandler) GetAdmissionEventSettings(ctx context.Context) (r Ge
 
 // GetAdmissionEventTrend implements getAdmissionEventTrend operation.
 //
-// 查询准入事件趋势.
+// 按时间范围返回准入事件的 audit/deny 趋势数据。.
 //
 // GET /admission-events/trend
 func (UnimplementedHandler) GetAdmissionEventTrend(ctx context.Context, params GetAdmissionEventTrendParams) (r GetAdmissionEventTrendRes, _ error) {
@@ -133,7 +143,7 @@ func (UnimplementedHandler) GetAdmissionEventTrend(ctx context.Context, params G
 
 // GetAdmissionLinkIncident implements getAdmissionLinkIncident operation.
 //
-// 查询准入链路异常详情.
+// 查询单条准入事件链路异常及其样本事件。.
 //
 // GET /admission-link-incidents/{id}
 func (UnimplementedHandler) GetAdmissionLinkIncident(ctx context.Context, params GetAdmissionLinkIncidentParams) (r GetAdmissionLinkIncidentRes, _ error) {
@@ -142,12 +152,16 @@ func (UnimplementedHandler) GetAdmissionLinkIncident(ctx context.Context, params
 
 // GetCluster implements getCluster operation.
 //
+// 查询指定集群的连接状态、版本和节点信息。.
+//
 // GET /clusters/{name}
 func (UnimplementedHandler) GetCluster(ctx context.Context, params GetClusterParams) (r GetClusterRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetDistribution implements getDistribution operation.
+//
+// 查询指定策略分发的集群范围和策略组配置。.
 //
 // GET /distributions/{name}
 func (UnimplementedHandler) GetDistribution(ctx context.Context, params GetDistributionParams) (r GetDistributionRes, _ error) {
@@ -156,7 +170,7 @@ func (UnimplementedHandler) GetDistribution(ctx context.Context, params GetDistr
 
 // GetException implements getException operation.
 //
-// 查询策略例外详情.
+// 查询策略例外的匹配条件、作用范围和过期时间。.
 //
 // GET /exceptions/{name}
 func (UnimplementedHandler) GetException(ctx context.Context, params GetExceptionParams) (r GetExceptionRes, _ error) {
@@ -165,7 +179,7 @@ func (UnimplementedHandler) GetException(ctx context.Context, params GetExceptio
 
 // GetFieldSchema implements getFieldSchema operation.
 //
-// 获取 Kubernetes 资源字段树.
+// 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。.
 //
 // GET /schema/fields
 func (UnimplementedHandler) GetFieldSchema(ctx context.Context, params GetFieldSchemaParams) (r GetFieldSchemaRes, _ error) {
@@ -174,6 +188,8 @@ func (UnimplementedHandler) GetFieldSchema(ctx context.Context, params GetFieldS
 
 // GetLatestInstallParams implements getLatestInstallParams operation.
 //
+// 查询指定集群最近一次生成的非敏感安装参数。.
+//
 // GET /clusters/{name}/latest-install-params
 func (UnimplementedHandler) GetLatestInstallParams(ctx context.Context, params GetLatestInstallParamsParams) (r GetLatestInstallParamsRes, _ error) {
 	return r, ht.ErrNotImplemented
@@ -181,7 +197,7 @@ func (UnimplementedHandler) GetLatestInstallParams(ctx context.Context, params G
 
 // GetPlatformInstanceTrend implements getPlatformInstanceTrend operation.
 //
-// 获取平台实例趋势.
+// 查询指定平台组件实例在时间范围内的资源趋势。.
 //
 // GET /platform/instances/{component}/{instance}/trend
 func (UnimplementedHandler) GetPlatformInstanceTrend(ctx context.Context, params GetPlatformInstanceTrendParams) (r GetPlatformInstanceTrendRes, _ error) {
@@ -190,7 +206,7 @@ func (UnimplementedHandler) GetPlatformInstanceTrend(ctx context.Context, params
 
 // GetPlatformOverview implements getPlatformOverview operation.
 //
-// 获取平台运行概览.
+// 查询控制面和成员集群的组件健康、实例和资源摘要。.
 //
 // GET /platform/overview
 func (UnimplementedHandler) GetPlatformOverview(ctx context.Context, params GetPlatformOverviewParams) (r GetPlatformOverviewRes, _ error) {
@@ -199,7 +215,7 @@ func (UnimplementedHandler) GetPlatformOverview(ctx context.Context, params GetP
 
 // GetPlatformSettings implements getPlatformSettings operation.
 //
-// 获取平台可观测性设置.
+// 查询平台组件采样和历史保存配置。.
 //
 // GET /platform/settings
 func (UnimplementedHandler) GetPlatformSettings(ctx context.Context) (r GetPlatformSettingsRes, _ error) {
@@ -217,7 +233,7 @@ func (UnimplementedHandler) GetPolicy(ctx context.Context, params GetPolicyParam
 
 // GetPolicyGroup implements getPolicyGroup operation.
 //
-// 查询策略组详情.
+// 查询策略组配置、集群作用范围和解析状态。.
 //
 // GET /policygroups/{name}
 func (UnimplementedHandler) GetPolicyGroup(ctx context.Context, params GetPolicyGroupParams) (r GetPolicyGroupRes, _ error) {
@@ -236,7 +252,7 @@ func (UnimplementedHandler) GetResourceSuggestions(ctx context.Context) (r GetRe
 
 // GetSummary implements getSummary operation.
 //
-// 获取平台资源摘要.
+// 查询策略、策略组、例外和集群的汇总数量。.
 //
 // GET /summary
 func (UnimplementedHandler) GetSummary(ctx context.Context) (r GetSummaryRes, _ error) {
@@ -245,7 +261,7 @@ func (UnimplementedHandler) GetSummary(ctx context.Context) (r GetSummaryRes, _ 
 
 // ListAdmissionEvents implements listAdmissionEvents operation.
 //
-// 分页查询准入事件.
+// 按集群、判决、策略、命名空间和资源条件分页检索准入事件。.
 //
 // GET /admission-events
 func (UnimplementedHandler) ListAdmissionEvents(ctx context.Context, params ListAdmissionEventsParams) (r ListAdmissionEventsRes, _ error) {
@@ -254,7 +270,7 @@ func (UnimplementedHandler) ListAdmissionEvents(ctx context.Context, params List
 
 // ListAdmissionLinkIncidents implements listAdmissionLinkIncidents operation.
 //
-// 分页查询准入链路异常.
+// 按集群、组件、原因和状态检索准入事件链路异常。.
 //
 // GET /admission-link-incidents
 func (UnimplementedHandler) ListAdmissionLinkIncidents(ctx context.Context, params ListAdmissionLinkIncidentsParams) (r ListAdmissionLinkIncidentsRes, _ error) {
@@ -263,12 +279,16 @@ func (UnimplementedHandler) ListAdmissionLinkIncidents(ctx context.Context, para
 
 // ListClusters implements listClusters operation.
 //
+// 查询平台已登记的集群及其在线状态和节点摘要。.
+//
 // GET /clusters
 func (UnimplementedHandler) ListClusters(ctx context.Context, params ListClustersParams) (r ListClustersRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // ListDistributions implements listDistributions operation.
+//
+// 查询策略组到集群的分发配置。.
 //
 // GET /distributions
 func (UnimplementedHandler) ListDistributions(ctx context.Context, params ListDistributionsParams) (r ListDistributionsRes, _ error) {
@@ -277,7 +297,7 @@ func (UnimplementedHandler) ListDistributions(ctx context.Context, params ListDi
 
 // ListExceptions implements listExceptions operation.
 //
-// 分页查询策略例外.
+// 分页查询策略例外及其生效状态。.
 //
 // GET /exceptions
 func (UnimplementedHandler) ListExceptions(ctx context.Context, params ListExceptionsParams) (r ListExceptionsRes, _ error) {
@@ -286,6 +306,8 @@ func (UnimplementedHandler) ListExceptions(ctx context.Context, params ListExcep
 
 // ListInstallRecords implements listInstallRecords operation.
 //
+// 分页查询平台生成的集群安装参数记录。.
+//
 // GET /install-records
 func (UnimplementedHandler) ListInstallRecords(ctx context.Context, params ListInstallRecordsParams) (r ListInstallRecordsRes, _ error) {
 	return r, ht.ErrNotImplemented
@@ -293,7 +315,7 @@ func (UnimplementedHandler) ListInstallRecords(ctx context.Context, params ListI
 
 // ListPlatformLeadershipEvents implements listPlatformLeadershipEvents operation.
 //
-// 查询平台领导权事件.
+// 分页查询平台组件 Leader 变更记录。.
 //
 // GET /platform/leadership-events
 func (UnimplementedHandler) ListPlatformLeadershipEvents(ctx context.Context, params ListPlatformLeadershipEventsParams) (r ListPlatformLeadershipEventsRes, _ error) {
@@ -312,7 +334,7 @@ func (UnimplementedHandler) ListPolicies(ctx context.Context, params ListPolicie
 
 // ListPolicyGroups implements listPolicyGroups operation.
 //
-// 分页查询策略组列表.
+// 分页查询策略组及其当前解析出的策略数量。.
 //
 // GET /policygroups
 func (UnimplementedHandler) ListPolicyGroups(ctx context.Context, params ListPolicyGroupsParams) (r ListPolicyGroupsRes, _ error) {
@@ -330,6 +352,8 @@ func (UnimplementedHandler) ListPolicyVersions(ctx context.Context, params ListP
 
 // ListUninstallTasks implements listUninstallTasks operation.
 //
+// 分页查询指定集群的卸载任务及失败原因。.
+//
 // GET /clusters/{name}/uninstall-tasks
 func (UnimplementedHandler) ListUninstallTasks(ctx context.Context, params ListUninstallTasksParams) (r ListUninstallTasksRes, _ error) {
 	return r, ht.ErrNotImplemented
@@ -337,12 +361,16 @@ func (UnimplementedHandler) ListUninstallTasks(ctx context.Context, params ListU
 
 // ReissueClusterToken implements reissueClusterToken operation.
 //
+// 为尚未完成注册的集群重新签发一次性安装令牌。.
+//
 // POST /clusters/{name}/reissue-token
-func (UnimplementedHandler) ReissueClusterToken(ctx context.Context, req ReissueClusterTokenReq, params ReissueClusterTokenParams) (r ReissueClusterTokenRes, _ error) {
+func (UnimplementedHandler) ReissueClusterToken(ctx context.Context, req *ClusterTokenRequest, params ReissueClusterTokenParams) (r ReissueClusterTokenRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // RetryUninstallTask implements retryUninstallTask operation.
+//
+// 重新投递失败的集群卸载任务。.
 //
 // POST /clusters/{name}/uninstall-tasks/{taskID}/retry
 func (UnimplementedHandler) RetryUninstallTask(ctx context.Context, params RetryUninstallTaskParams) (r RetryUninstallTaskRes, _ error) {
@@ -362,7 +390,7 @@ func (UnimplementedHandler) RollbackPolicy(ctx context.Context, req *RollbackReq
 
 // SetPolicyGroupEnabled implements setPolicyGroupEnabled operation.
 //
-// 设置策略组启用状态.
+// 启用或关闭指定策略组，不改变其成员选择规则。.
 //
 // PUT /policygroups/{name}/enabled
 func (UnimplementedHandler) SetPolicyGroupEnabled(ctx context.Context, req *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (r SetPolicyGroupEnabledRes, _ error) {
@@ -371,7 +399,7 @@ func (UnimplementedHandler) SetPolicyGroupEnabled(ctx context.Context, req *Poli
 
 // UpdateAdmissionEventSettings implements updateAdmissionEventSettings operation.
 //
-// 更新准入事件设置.
+// 更新准入事件留存、重试、队列和存储策略配置。.
 //
 // PUT /admission-event-settings
 func (UnimplementedHandler) UpdateAdmissionEventSettings(ctx context.Context, req *AdmissionEventSettingsRequest) (r UpdateAdmissionEventSettingsRes, _ error) {
@@ -380,21 +408,25 @@ func (UnimplementedHandler) UpdateAdmissionEventSettings(ctx context.Context, re
 
 // UpdateCluster implements updateCluster operation.
 //
+// 更新指定集群的控制台标签。.
+//
 // PUT /clusters/{name}
-func (UnimplementedHandler) UpdateCluster(ctx context.Context, req UpdateClusterReq, params UpdateClusterParams) (r UpdateClusterRes, _ error) {
+func (UnimplementedHandler) UpdateCluster(ctx context.Context, req *ClusterLabelsRequest, params UpdateClusterParams) (r UpdateClusterRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdateDistribution implements updateDistribution operation.
 //
+// 更新策略分发的集群范围和策略组配置。.
+//
 // PUT /distributions/{name}
-func (UnimplementedHandler) UpdateDistribution(ctx context.Context, req UpdateDistributionReq, params UpdateDistributionParams) (r UpdateDistributionRes, _ error) {
+func (UnimplementedHandler) UpdateDistribution(ctx context.Context, req *DistributionRequest, params UpdateDistributionParams) (r UpdateDistributionRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdateException implements updateException operation.
 //
-// 更新策略例外.
+// 更新策略例外的匹配条件和作用范围。.
 //
 // PUT /exceptions/{name}
 func (UnimplementedHandler) UpdateException(ctx context.Context, req *ExceptionRequest, params UpdateExceptionParams) (r UpdateExceptionRes, _ error) {
@@ -403,10 +435,10 @@ func (UnimplementedHandler) UpdateException(ctx context.Context, req *ExceptionR
 
 // UpdatePlatformSettings implements updatePlatformSettings operation.
 //
-// 更新平台可观测性设置.
+// 更新平台组件采样和历史保存配置。.
 //
 // PUT /platform/settings
-func (UnimplementedHandler) UpdatePlatformSettings(ctx context.Context, req *UpdatePlatformSettingsReq) (r UpdatePlatformSettingsRes, _ error) {
+func (UnimplementedHandler) UpdatePlatformSettings(ctx context.Context, req *PlatformSettingsRequest) (r UpdatePlatformSettingsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -423,7 +455,7 @@ func (UnimplementedHandler) UpdatePolicy(ctx context.Context, req *PolicyRequest
 
 // UpdatePolicyGroup implements updatePolicyGroup operation.
 //
-// 更新策略组.
+// 更新策略组配置及其集群作用范围。.
 //
 // PUT /policygroups/{name}
 func (UnimplementedHandler) UpdatePolicyGroup(ctx context.Context, req *PolicyGroupRequest, params UpdatePolicyGroupParams) (r UpdatePolicyGroupRes, _ error) {

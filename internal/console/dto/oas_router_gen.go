@@ -253,6 +253,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 								return
 							}
+
 						}
 
 					}
@@ -316,6 +317,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 							return
 						}
+
 					}
 
 				}
@@ -555,12 +557,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 											return
 										}
+
 									}
+
 								}
+
 							}
 
 						}
+
 					}
+
 				}
 
 			case 'd': // Prefix: "distributions"
@@ -632,6 +639,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 						return
 					}
+
 				}
 
 			case 'e': // Prefix: "exceptions"
@@ -703,6 +711,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 						return
 					}
+
 				}
 
 			case 'i': // Prefix: "install-records"
@@ -823,7 +832,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									return
 								}
+
 							}
+
 						}
 
 					case 'l': // Prefix: "leadership-events"
@@ -1110,7 +1121,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									}
 
 								}
+
 							}
+
 						}
 
 					case 'y': // Prefix: "ygroups"
@@ -1208,7 +1221,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									return
 								}
+
 							}
+
 						}
 
 					}
@@ -1280,6 +1295,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 
 			}
+
 		}
 	}
 	s.notFound(w, r)
@@ -1524,6 +1540,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									return
 								}
 							}
+
 						}
 
 					}
@@ -1585,6 +1602,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								return
 							}
 						}
+
 					}
 
 				}
@@ -1601,7 +1619,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					switch method {
 					case "GET":
 						r.name = ListClustersOperation
-						r.summary = ""
+						r.summary = "分页查询集群"
 						r.operationID = "listClusters"
 						r.operationGroup = ""
 						r.pathPattern = "/clusters"
@@ -1610,7 +1628,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						return r, true
 					case "POST":
 						r.name = CreateClusterOperation
-						r.summary = ""
+						r.summary = "创建集群登记"
 						r.operationID = "createCluster"
 						r.operationGroup = ""
 						r.pathPattern = "/clusters"
@@ -1643,7 +1661,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "DELETE":
 							r.name = DeleteClusterOperation
-							r.summary = ""
+							r.summary = "删除集群登记"
 							r.operationID = "deleteCluster"
 							r.operationGroup = ""
 							r.pathPattern = "/clusters/{name}"
@@ -1652,7 +1670,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return r, true
 						case "GET":
 							r.name = GetClusterOperation
-							r.summary = ""
+							r.summary = "查询集群详情"
 							r.operationID = "getCluster"
 							r.operationGroup = ""
 							r.pathPattern = "/clusters/{name}"
@@ -1661,7 +1679,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return r, true
 						case "PUT":
 							r.name = UpdateClusterOperation
-							r.summary = ""
+							r.summary = "更新集群标签"
 							r.operationID = "updateCluster"
 							r.operationGroup = ""
 							r.pathPattern = "/clusters/{name}"
@@ -1698,7 +1716,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = GetLatestInstallParamsOperation
-									r.summary = ""
+									r.summary = "查询最新安装参数"
 									r.operationID = "getLatestInstallParams"
 									r.operationGroup = ""
 									r.pathPattern = "/clusters/{name}/latest-install-params"
@@ -1723,7 +1741,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = ReissueClusterTokenOperation
-									r.summary = ""
+									r.summary = "重新签发集群令牌"
 									r.operationID = "reissueClusterToken"
 									r.operationGroup = ""
 									r.pathPattern = "/clusters/{name}/reissue-token"
@@ -1747,7 +1765,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = CreateUninstallTaskOperation
-									r.summary = ""
+									r.summary = "创建集群卸载任务"
 									r.operationID = "createUninstallTask"
 									r.operationGroup = ""
 									r.pathPattern = "/clusters/{name}/uninstall"
@@ -1771,7 +1789,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "GET":
 										r.name = ListUninstallTasksOperation
-										r.summary = ""
+										r.summary = "查询集群卸载任务"
 										r.operationID = "listUninstallTasks"
 										r.operationGroup = ""
 										r.pathPattern = "/clusters/{name}/uninstall-tasks"
@@ -1817,7 +1835,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											switch method {
 											case "POST":
 												r.name = RetryUninstallTaskOperation
-												r.summary = ""
+												r.summary = "重试集群卸载任务"
 												r.operationID = "retryUninstallTask"
 												r.operationGroup = ""
 												r.pathPattern = "/clusters/{name}/uninstall-tasks/{taskID}/retry"
@@ -1828,12 +1846,17 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												return
 											}
 										}
+
 									}
+
 								}
+
 							}
 
 						}
+
 					}
+
 				}
 
 			case 'd': // Prefix: "distributions"
@@ -1848,7 +1871,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					switch method {
 					case "GET":
 						r.name = ListDistributionsOperation
-						r.summary = ""
+						r.summary = "分页查询策略分发"
 						r.operationID = "listDistributions"
 						r.operationGroup = ""
 						r.pathPattern = "/distributions"
@@ -1857,7 +1880,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						return r, true
 					case "POST":
 						r.name = CreateDistributionOperation
-						r.summary = ""
+						r.summary = "创建策略分发"
 						r.operationID = "createDistribution"
 						r.operationGroup = ""
 						r.pathPattern = "/distributions"
@@ -1891,7 +1914,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "DELETE":
 							r.name = DeleteDistributionOperation
-							r.summary = ""
+							r.summary = "删除策略分发"
 							r.operationID = "deleteDistribution"
 							r.operationGroup = ""
 							r.pathPattern = "/distributions/{name}"
@@ -1900,7 +1923,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return r, true
 						case "GET":
 							r.name = GetDistributionOperation
-							r.summary = ""
+							r.summary = "查询策略分发详情"
 							r.operationID = "getDistribution"
 							r.operationGroup = ""
 							r.pathPattern = "/distributions/{name}"
@@ -1909,7 +1932,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return r, true
 						case "PUT":
 							r.name = UpdateDistributionOperation
-							r.summary = ""
+							r.summary = "更新策略分发"
 							r.operationID = "updateDistribution"
 							r.operationGroup = ""
 							r.pathPattern = "/distributions/{name}"
@@ -1920,6 +1943,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return
 						}
 					}
+
 				}
 
 			case 'e': // Prefix: "exceptions"
@@ -2006,6 +2030,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return
 						}
 					}
+
 				}
 
 			case 'i': // Prefix: "install-records"
@@ -2021,7 +2046,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					switch method {
 					case "GET":
 						r.name = ListInstallRecordsOperation
-						r.summary = ""
+						r.summary = "查询安装记录"
 						r.operationID = "listInstallRecords"
 						r.operationGroup = ""
 						r.pathPattern = "/install-records"
@@ -2123,7 +2148,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return
 									}
 								}
+
 							}
+
 						}
 
 					case 'l': // Prefix: "leadership-events"
@@ -2428,7 +2455,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 
 								}
+
 							}
+
 						}
 
 					case 'y': // Prefix: "ygroups"
@@ -2539,7 +2568,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return
 									}
 								}
+
 							}
+
 						}
 
 					}
@@ -2611,6 +2642,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				}
 
 			}
+
 		}
 	}
 	return r, false

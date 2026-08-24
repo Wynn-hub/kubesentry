@@ -1,0 +1,122 @@
+components:
+  schemas:
+    PlatformHealth:
+      type: string
+      description: 平台组件健康状态
+      enum: [ok, warning, critical, unavailable, disabled]
+      example: ok
+    PlatformInstance:
+      type: object
+      required: [instance, role, health, healthReason, uptimeSeconds, restartCount, memoryBytes, memoryLimitBytes, cpuMillis, goroutines, heapAllocBytes, heapSysBytes, lastObservedAt]
+      properties:
+        instance: {type: string, description: 组件实例名称, example: gateway-0}
+        role: {type: string, description: 实例在领导选举中的角色, enum: [leader, follower, standalone], example: leader}
+        health: {$ref: '#/components/schemas/PlatformHealth'}
+        healthReason: {type: string, description: 健康状态原因, example: heartbeat is current}
+        uptimeSeconds: {type: integer, description: 进程运行时长（秒）, example: 3600}
+        restartCount: {type: integer, description: 观察窗口内的重启次数, example: 0}
+        memoryBytes: {type: integer, description: 当前内存用量（字节）, example: 104857600}
+        memoryLimitBytes: {type: integer, description: 容器内存限制（字节）, example: 536870912}
+        cpuMillis: {type: integer, description: 当前 CPU 用量（毫核）, example: 50}
+        goroutines: {type: integer, description: 当前 goroutine 数, example: 82}
+        heapAllocBytes: {type: integer, description: Go 已分配堆内存（字节）, example: 31457280}
+        heapSysBytes: {type: integer, description: Go 堆系统内存（字节）, example: 67108864}
+        lastObservedAt: {type: string, format: date-time, description: 最后采样时间, example: '2026-08-24T08:00:00Z'}
+        dbStats: {type: object, additionalProperties: true, description: PostgreSQL 组件的自由格式数据库统计快照, example: {openConnections: 4}}
+    PlatformComponent:
+      type: object
+      required: [component, health, healthReason, hasLeadership, noLeader, singleReplica, instances]
+      properties:
+        component: {type: string, description: 平台组件名称, enum: [gateway, postgres, console-api, console-web, operator, webhook], example: gateway}
+        health: {$ref: '#/components/schemas/PlatformHealth'}
+        healthReason: {type: string, description: 组件健康状态原因, example: all instances are healthy}
+        hasLeadership: {type: boolean, description: 组件是否使用领导选举, example: true}
+        noLeader: {type: boolean, description: 是否检测到没有 leader, example: false}
+        singleReplica: {type: boolean, description: 是否只有一个副本, example: false}
+        instances: {type: array, description: 组件实例列表, items: {$ref: '#/components/schemas/PlatformInstance'}, example: []}
+        lastLeadershipChange: {type: string, format: date-time, description: 最近一次领导权变更时间, example: '2026-08-24T07:00:00Z'}
+    PlatformCluster:
+      type: object
+      required: [name, phase, health, components]
+      properties:
+        name: {type: string, description: 成员集群名称, example: production-east}
+        phase: {type: string, description: 集群登记阶段, enum: [Registering, Online, Offline, Uninstalling], example: Online}
+        health: {$ref: '#/components/schemas/PlatformHealth'}
+        components: {type: array, description: 成员面组件状态, items: {$ref: '#/components/schemas/PlatformComponent'}, example: []}
+    PlatformOverview:
+      type: object
+      required: [enabled, platformHealth, gatewayPlane, memberPlane]
+      properties:
+        enabled: {type: boolean, description: 是否启用了平台观测采样, example: true}
+        platformHealth: {$ref: '#/components/schemas/PlatformHealth'}
+        gatewayPlane: {type: array, description: Gateway 平面组件状态, items: {$ref: '#/components/schemas/PlatformComponent'}, example: []}
+        memberPlane:
+          type: object
+          description: 成员集群面按页汇总的组件状态
+          example: {clusters: [], total: 3, page: 1, pageSize: 20}
+          required: [clusters, total, page, pageSize]
+          properties:
+            clusters: {type: array, description: 当前页成员集群状态, items: {$ref: '#/components/schemas/PlatformCluster'}, example: []}
+            total: {type: integer, description: 符合筛选条件的成员集群总数, example: 3}
+            page: {type: integer, description: 当前页码, example: 1}
+            pageSize: {type: integer, description: 每页集群数, example: 20}
+    PlatformTrendPoint:
+      type: object
+      required: [bucketStartedAt, memoryBytes, cpuUsageMicros, goroutines, gcPauseMicros]
+      properties:
+        bucketStartedAt: {type: string, format: date-time, description: 聚合桶开始时间, example: '2026-08-24T08:00:00Z'}
+        cpuUsageMicros: {type: integer, description: CPU 累积使用时间（微秒）, example: 5000000}
+        memoryBytes: {type: integer, description: 内存用量（字节）, example: 104857600}
+        goroutines: {type: integer, description: 当前 goroutine 数, example: 82}
+        gcPauseMicros: {type: integer, description: GC 暂停累计时间（微秒）, example: 2300}
+    PlatformTrend:
+      type: object
+      required: [items, stepSeconds, from, to]
+      properties:
+        items: {type: array, description: 时间序列采样点, items: {$ref: '#/components/schemas/PlatformTrendPoint'}, example: []}
+        stepSeconds: {type: integer, description: 相邻聚合桶时间间隔（秒）, example: 300}
+        from: {type: string, format: date-time, description: 实际查询起始时间, example: '2026-08-24T07:00:00Z'}
+        to: {type: string, format: date-time, description: 实际查询结束时间, example: '2026-08-24T08:00:00Z'}
+    LeadershipEvent:
+      type: object
+      required: [id, component, clusterId, clusterName, instance, roleFrom, roleTo, changedAt, detectedBy, createdAt]
+      properties:
+        id: {$ref: './common.yaml#/components/schemas/ResourceID'}
+        component: {type: string, description: 发生领导权变更的组件, example: gateway}
+        clusterId: {$ref: './common.yaml#/components/schemas/ResourceID'}
+        instance: {type: string, description: 组件实例名称, example: gateway-0}
+        clusterName: {type: string, description: 关联成员集群名称，平台平面为空字符串, example: production-east}
+        roleFrom: {type: string, description: 变更前领导角色, enum: [leader, standby, standalone], example: standby}
+        roleTo: {type: string, description: 变更后领导角色, enum: [leader, standby, standalone], example: leader}
+        changedAt: {type: string, format: date-time, description: 领导权变更时间, example: '2026-08-24T08:00:00Z'}
+        detectedBy: {type: string, description: 检测到事件的实例名称, example: gateway-0}
+        createdAt: {type: string, format: date-time, description: 事件记录创建时间, example: '2026-08-24T08:00:00Z'}
+    PlatformSettings:
+      type: object
+      required: [enabled, retentionDays, maxRetentionDays]
+      properties:
+        enabled: {type: boolean, description: 是否启用平台观测, example: true}
+        retentionDays: {type: integer, minimum: 1, description: 历史数据保存天数, example: 30}
+        maxRetentionDays: {type: integer, description: 系统允许的最长历史保存天数, example: 30}
+    PlatformSettingsRequest:
+      type: object
+      required: [enabled, retentionDays]
+      properties:
+        enabled: {type: boolean, description: 是否启用平台观测, example: true}
+        retentionDays: {type: integer, minimum: 1, description: 历史数据保存天数, example: 30}
+    PlatformOverviewResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/PlatformOverview'}}}]}
+    PlatformTrendResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/PlatformTrend'}}}]}
+    LeadershipEventListResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              allOf:
+                - $ref: './common.yaml#/components/schemas/PageMeta'
+                - type: object
+                  required: [items]
+                  properties:
+                    items: {type: array, description: 领导权事件列表, items: {$ref: '#/components/schemas/LeadershipEvent'}, example: []}
+    PlatformSettingsResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/PlatformSettings'}}}]}

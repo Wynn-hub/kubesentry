@@ -29,7 +29,7 @@ func decodeCreateClusterResponse(resp *http.Response) (res CreateClusterRes, _ e
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response CreateClusterOK
+			var response ClusterCommandResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -175,7 +175,7 @@ func decodeCreateDistributionResponse(resp *http.Response) (res CreateDistributi
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response CreateDistributionOK
+			var response DistributionNameResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -759,7 +759,7 @@ func decodeCreateUninstallTaskResponse(resp *http.Response) (res CreateUninstall
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response CreateUninstallTaskOK
+			var response UninstallTaskResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -775,6 +775,15 @@ func decodeCreateUninstallTaskResponse(resp *http.Response) (res CreateUninstall
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -905,7 +914,7 @@ func decodeDeleteClusterResponse(resp *http.Response) (res DeleteClusterRes, _ e
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response DeleteClusterOK
+			var response EmptyResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -1086,7 +1095,7 @@ func decodeDeleteDistributionResponse(resp *http.Response) (res DeleteDistributi
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response DeleteDistributionOK
+			var response DistributionEmptyResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -2255,7 +2264,7 @@ func decodeGetClusterResponse(resp *http.Response) (res GetClusterRes, _ error) 
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response GetClusterOK
+			var response ClusterDetailResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -2271,6 +2280,15 @@ func decodeGetClusterResponse(resp *http.Response) (res GetClusterRes, _ error) 
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -2366,7 +2384,7 @@ func decodeGetDistributionResponse(resp *http.Response) (res GetDistributionRes,
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response GetDistributionOK
+			var response DistributionDetailResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -2382,6 +2400,15 @@ func decodeGetDistributionResponse(resp *http.Response) (res GetDistributionRes,
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -2717,7 +2744,7 @@ func decodeGetLatestInstallParamsResponse(resp *http.Response) (res GetLatestIns
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response GetLatestInstallParamsOK
+			var response InstallParamsResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -2733,6 +2760,15 @@ func decodeGetLatestInstallParamsResponse(resp *http.Response) (res GetLatestIns
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -2828,7 +2864,7 @@ func decodeGetPlatformInstanceTrendResponse(resp *http.Response) (res GetPlatfor
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response GetPlatformInstanceTrendOK
+			var response PlatformTrendResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -2844,6 +2880,15 @@ func decodeGetPlatformInstanceTrendResponse(resp *http.Response) (res GetPlatfor
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -2974,7 +3019,7 @@ func decodeGetPlatformOverviewResponse(resp *http.Response) (res GetPlatformOver
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response GetPlatformOverviewOK
+			var response PlatformOverviewResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -2990,6 +3035,15 @@ func decodeGetPlatformOverviewResponse(resp *http.Response) (res GetPlatformOver
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -3085,7 +3139,7 @@ func decodeGetPlatformSettingsResponse(resp *http.Response) (res GetPlatformSett
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response GetPlatformSettingsOK
+			var response PlatformSettingsResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -3101,6 +3155,15 @@ func decodeGetPlatformSettingsResponse(resp *http.Response) (res GetPlatformSett
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -3881,7 +3944,7 @@ func decodeListClustersResponse(resp *http.Response) (res ListClustersRes, _ err
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response ListClustersOK
+			var response ClusterListResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -3897,6 +3960,15 @@ func decodeListClustersResponse(resp *http.Response) (res ListClustersRes, _ err
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -3957,7 +4029,7 @@ func decodeListDistributionsResponse(resp *http.Response) (res ListDistributions
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response ListDistributionsOK
+			var response DistributionListResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -3973,6 +4045,15 @@ func decodeListDistributionsResponse(resp *http.Response) (res ListDistributions
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -4153,7 +4234,7 @@ func decodeListInstallRecordsResponse(resp *http.Response) (res ListInstallRecor
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response ListInstallRecordsOK
+			var response InstallRecordListResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -4169,6 +4250,15 @@ func decodeListInstallRecordsResponse(resp *http.Response) (res ListInstallRecor
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -4229,7 +4319,7 @@ func decodeListPlatformLeadershipEventsResponse(resp *http.Response) (res ListPl
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response ListPlatformLeadershipEventsOK
+			var response LeadershipEventListResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -4245,6 +4335,15 @@ func decodeListPlatformLeadershipEventsResponse(resp *http.Response) (res ListPl
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -4735,7 +4834,7 @@ func decodeListUninstallTasksResponse(resp *http.Response) (res ListUninstallTas
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response ListUninstallTasksOK
+			var response UninstallTaskListResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -4751,6 +4850,15 @@ func decodeListUninstallTasksResponse(resp *http.Response) (res ListUninstallTas
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -4846,7 +4954,7 @@ func decodeReissueClusterTokenResponse(resp *http.Response) (res ReissueClusterT
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response ReissueClusterTokenOK
+			var response ClusterCommandResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -4992,7 +5100,7 @@ func decodeRetryUninstallTaskResponse(resp *http.Response) (res RetryUninstallTa
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response RetryUninstallTaskOK
+			var response UninstallTaskIDResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -5008,6 +5116,15 @@ func decodeRetryUninstallTaskResponse(resp *http.Response) (res RetryUninstallTa
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:
@@ -5655,7 +5772,7 @@ func decodeUpdateClusterResponse(resp *http.Response) (res UpdateClusterRes, _ e
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response UpdateClusterOK
+			var response ClusterNameResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -5766,7 +5883,7 @@ func decodeUpdateDistributionResponse(resp *http.Response) (res UpdateDistributi
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response UpdateDistributionOK
+			var response DistributionNameResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -6128,7 +6245,7 @@ func decodeUpdatePlatformSettingsResponse(resp *http.Response) (res UpdatePlatfo
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response UpdatePlatformSettingsOK
+			var response PlatformSettingsResponse
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -6144,6 +6261,15 @@ func decodeUpdatePlatformSettingsResponse(resp *http.Response) (res UpdatePlatfo
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:

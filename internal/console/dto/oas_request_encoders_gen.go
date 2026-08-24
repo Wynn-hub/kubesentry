@@ -11,7 +11,7 @@ import (
 )
 
 func encodeCreateClusterRequest(
-	req CreateClusterReq,
+	req *ClusterCreateRequest,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -25,7 +25,7 @@ func encodeCreateClusterRequest(
 }
 
 func encodeCreateDistributionRequest(
-	req CreateDistributionReq,
+	req *DistributionRequest,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -81,7 +81,7 @@ func encodeCreatePolicyGroupRequest(
 }
 
 func encodeReissueClusterTokenRequest(
-	req ReissueClusterTokenReq,
+	req *ClusterTokenRequest,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -137,7 +137,7 @@ func encodeUpdateAdmissionEventSettingsRequest(
 }
 
 func encodeUpdateClusterRequest(
-	req UpdateClusterReq,
+	req *ClusterLabelsRequest,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -151,7 +151,7 @@ func encodeUpdateClusterRequest(
 }
 
 func encodeUpdateDistributionRequest(
-	req UpdateDistributionReq,
+	req *DistributionRequest,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -179,7 +179,7 @@ func encodeUpdateExceptionRequest(
 }
 
 func encodeUpdatePlatformSettingsRequest(
-	req *UpdatePlatformSettingsReq,
+	req *PlatformSettingsRequest,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

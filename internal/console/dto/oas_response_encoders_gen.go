@@ -13,7 +13,7 @@ import (
 
 func encodeCreateClusterResponse(response CreateClusterRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *CreateClusterOK:
+	case *ClusterCommandResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -69,7 +69,7 @@ func encodeCreateClusterResponse(response CreateClusterRes, w http.ResponseWrite
 
 func encodeCreateDistributionResponse(response CreateDistributionRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *CreateDistributionOK:
+	case *DistributionNameResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -293,7 +293,7 @@ func encodeCreatePolicyGroupResponse(response CreatePolicyGroupRes, w http.Respo
 
 func encodeCreateUninstallTaskResponse(response CreateUninstallTaskRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *CreateUninstallTaskOK:
+	case *UninstallTaskResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -349,7 +349,7 @@ func encodeCreateUninstallTaskResponse(response CreateUninstallTaskRes, w http.R
 
 func encodeDeleteClusterResponse(response DeleteClusterRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *DeleteClusterOK:
+	case *EmptyResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -417,7 +417,7 @@ func encodeDeleteClusterResponse(response DeleteClusterRes, w http.ResponseWrite
 
 func encodeDeleteDistributionResponse(response DeleteDistributionRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *DeleteDistributionOK:
+	case *DistributionEmptyResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -855,7 +855,7 @@ func encodeGetAdmissionLinkIncidentResponse(response GetAdmissionLinkIncidentRes
 
 func encodeGetClusterResponse(response GetClusterRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *GetClusterOK:
+	case *ClusterDetailResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -899,7 +899,7 @@ func encodeGetClusterResponse(response GetClusterRes, w http.ResponseWriter, spa
 
 func encodeGetDistributionResponse(response GetDistributionRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *GetDistributionOK:
+	case *DistributionDetailResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1031,7 +1031,7 @@ func encodeGetFieldSchemaResponse(response GetFieldSchemaRes, w http.ResponseWri
 
 func encodeGetLatestInstallParamsResponse(response GetLatestInstallParamsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *GetLatestInstallParamsOK:
+	case *InstallParamsResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1075,7 +1075,7 @@ func encodeGetLatestInstallParamsResponse(response GetLatestInstallParamsRes, w 
 
 func encodeGetPlatformInstanceTrendResponse(response GetPlatformInstanceTrendRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *GetPlatformInstanceTrendOK:
+	case *PlatformTrendResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1131,7 +1131,7 @@ func encodeGetPlatformInstanceTrendResponse(response GetPlatformInstanceTrendRes
 
 func encodeGetPlatformOverviewResponse(response GetPlatformOverviewRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *GetPlatformOverviewOK:
+	case *PlatformOverviewResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1175,7 +1175,7 @@ func encodeGetPlatformOverviewResponse(response GetPlatformOverviewRes, w http.R
 
 func encodeGetPlatformSettingsResponse(response GetPlatformSettingsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *GetPlatformSettingsOK:
+	case *PlatformSettingsResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1472,7 +1472,7 @@ func encodeListAdmissionLinkIncidentsResponse(response ListAdmissionLinkIncident
 
 func encodeListClustersResponse(response ListClustersRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *ListClustersOK:
+	case *ClusterListResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1504,7 +1504,7 @@ func encodeListClustersResponse(response ListClustersRes, w http.ResponseWriter,
 
 func encodeListDistributionsResponse(response ListDistributionsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *ListDistributionsOK:
+	case *DistributionListResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1580,7 +1580,7 @@ func encodeListExceptionsResponse(response ListExceptionsRes, w http.ResponseWri
 
 func encodeListInstallRecordsResponse(response ListInstallRecordsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *ListInstallRecordsOK:
+	case *InstallRecordListResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1612,7 +1612,7 @@ func encodeListInstallRecordsResponse(response ListInstallRecordsRes, w http.Res
 
 func encodeListPlatformLeadershipEventsResponse(response ListPlatformLeadershipEventsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *ListPlatformLeadershipEventsOK:
+	case *LeadershipEventListResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1800,7 +1800,7 @@ func encodeListPolicyVersionsResponse(response ListPolicyVersionsRes, w http.Res
 
 func encodeListUninstallTasksResponse(response ListUninstallTasksRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *ListUninstallTasksOK:
+	case *UninstallTaskListResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1844,7 +1844,7 @@ func encodeListUninstallTasksResponse(response ListUninstallTasksRes, w http.Res
 
 func encodeReissueClusterTokenResponse(response ReissueClusterTokenRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *ReissueClusterTokenOK:
+	case *ClusterCommandResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -1900,7 +1900,7 @@ func encodeReissueClusterTokenResponse(response ReissueClusterTokenRes, w http.R
 
 func encodeRetryUninstallTaskResponse(response RetryUninstallTaskRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *RetryUninstallTaskOK:
+	case *UninstallTaskIDResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -2148,7 +2148,7 @@ func encodeUpdateAdmissionEventSettingsResponse(response UpdateAdmissionEventSet
 
 func encodeUpdateClusterResponse(response UpdateClusterRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *UpdateClusterOK:
+	case *ClusterNameResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -2192,7 +2192,7 @@ func encodeUpdateClusterResponse(response UpdateClusterRes, w http.ResponseWrite
 
 func encodeUpdateDistributionResponse(response UpdateDistributionRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *UpdateDistributionOK:
+	case *DistributionNameResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 
@@ -2328,7 +2328,7 @@ func encodeUpdateExceptionResponse(response UpdateExceptionRes, w http.ResponseW
 
 func encodeUpdatePlatformSettingsResponse(response UpdatePlatformSettingsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *UpdatePlatformSettingsOK:
+	case *PlatformSettingsResponse:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(200)
 

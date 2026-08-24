@@ -1,0 +1,63 @@
+components:
+  schemas:
+    DistributionSpec:
+      type: object
+      required: [policyGroups]
+      properties:
+        policyGroups: {type: array, description: 要分发的策略组名称, items: {type: string, description: 策略组名称, example: baseline}, example: [baseline]}
+        policyExceptions: {type: array, description: 要分发的策略例外名称, items: {type: string, description: 策略例外名称, example: emergency-maintenance}, example: [emergency-maintenance]}
+        clusters:
+          type: object
+          description: 集群范围，可按名称和标签选择器并集匹配
+          example: {byName: [production-east], clusterSelector: {matchLabels: {environment: production}}}
+          properties:
+            byName: {type: array, description: 显式目标集群名称, items: {type: string, description: 集群名称, example: production-east}, example: [production-east]}
+            clusterSelector:
+              type: object
+              description: Kubernetes 标签选择器
+              example: {matchLabels: {environment: production}}
+              properties:
+                matchLabels: {type: object, additionalProperties: {type: string}, description: 精确匹配的集群标签, example: {environment: production}}
+                matchExpressions: {type: array, description: 表达式形式的标签选择器, items: {type: object, description: 单条 Kubernetes 标签选择表达式, properties: {key: {type: string, description: 标签键, example: environment}, operator: {type: string, description: 标签选择运算符, enum: [In, NotIn, Exists, DoesNotExist], example: In}, values: {type: array, description: 运算符使用的标签值, items: {type: string, description: 标签值, example: production}, example: [production]}}, example: {key: environment, operator: In, values: [production]}}, example: []}
+        overrides: {type: array, description: 对单个集群覆盖策略组执行模式的规则, items: {type: object, description: 单条集群执行模式覆盖, required: [cluster, enforcementMode], properties: {cluster: {type: string, description: 目标集群名称, example: production-east}, enforcementMode: {type: string, description: 覆盖的执行模式, enum: [audit, enforce], example: enforce}}, example: {cluster: production-east, enforcementMode: enforce}}, example: []}
+    DistributionRequest:
+      type: object
+      required: [spec]
+      properties:
+        name: {type: string, description: 创建时使用的策略分发名称, example: production-baseline}
+        spec: {$ref: '#/components/schemas/DistributionSpec'}
+        resourceVersion: {type: string, description: 更新时使用的乐观并发版本, example: '1785920264123456789'}
+    DistributionListItem:
+      type: object
+      required: [name, policyGroups]
+      properties:
+        name: {type: string, description: 策略分发名称, example: production-baseline}
+        policyGroups: {type: array, description: 分发的策略组名称, items: {type: string, description: 策略组名称, example: baseline}, example: [baseline]}
+    DistributionDetail:
+      type: object
+      required: [name, resourceVersion, spec]
+      properties:
+        name: {type: string, description: 策略分发名称, example: production-baseline}
+        resourceVersion: {type: string, description: 乐观并发版本, example: '1785920264123456789'}
+        spec: {$ref: '#/components/schemas/DistributionSpec'}
+    DistributionNameData:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, description: 操作目标策略分发名称, example: production-baseline}
+    DistributionListResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              allOf:
+                - $ref: './common.yaml#/components/schemas/PageMeta'
+                - type: object
+                  required: [items]
+                  properties:
+                    items: {type: array, description: 策略分发列表, items: {$ref: '#/components/schemas/DistributionListItem'}, example: [{name: production-baseline, policyGroups: [baseline]}]}
+    DistributionDetailResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/DistributionDetail'}}}]}
+    DistributionNameResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/DistributionNameData'}}}]}
+    DistributionEmptyResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, description: 成功但无返回数据的响应}]}

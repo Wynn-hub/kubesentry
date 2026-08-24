@@ -1,0 +1,148 @@
+components:
+  schemas:
+    ClusterPhase:
+      type: string
+      description: 集群连接与卸载阶段
+      enum: [Registering, Online, Offline, Uninstalling]
+      example: Online
+    ImageParams:
+      type: object
+      required: [repository, tag, pullPolicy]
+      properties:
+        repository: {type: string, description: 容器镜像仓库, example: ghcr.io/wynn-hub/kubesentry-webhook}
+        tag: {type: string, description: 容器镜像标签, example: v1.0.0}
+        pullPolicy: {type: string, description: Kubernetes 镜像拉取策略, enum: [Always, IfNotPresent, Never], example: IfNotPresent}
+    InstallParams:
+      type: object
+      required: [namespace, webhookImage, operatorImage, highAvailability, gatewayAddress]
+      properties:
+        namespace: {type: string, description: 安装的 Kubernetes 命名空间, example: kubesentry-system}
+        webhookImage: {$ref: '#/components/schemas/ImageParams'}
+        operatorImage: {$ref: '#/components/schemas/ImageParams'}
+        highAvailability: {type: boolean, description: 是否启用 webhook 和 operator 高可用, example: true}
+        gatewayAddress: {type: string, description: Gateway gRPC 服务地址, example: kubesentry-gateway.default.svc:8443}
+        gatewayTlsServerName: {type: string, description: Gateway TLS 服务名称, example: kubesentry-gateway}
+        gatewayCaBundle: {type: string, description: Gateway CA PEM 内容, example: '-----BEGIN CERTIFICATE-----'}
+    ClusterCreateRequest:
+      type: object
+      required: [name, installParams]
+      properties:
+        name: {type: string, description: DNS 子域格式的集群名称, example: production-east}
+        labels: {type: object, additionalProperties: {type: string}, description: 控制台管理的集群标签映射, example: {environment: production}}
+        installParams: {$ref: '#/components/schemas/InstallParams'}
+    ClusterLabelsRequest:
+      type: object
+      required: [labels]
+      properties:
+        labels: {type: object, additionalProperties: {type: string}, description: 替换后的集群标签映射, example: {environment: production}}
+    ClusterTokenRequest:
+      type: object
+      required: [installParams]
+      properties:
+        installParams: {$ref: '#/components/schemas/InstallParams'}
+    ClusterListItem:
+      type: object
+      required: [name, phase, operatorVersion, kubernetesVersion, nodeCount, readyNodeCount, createdAt]
+      properties:
+        name: {type: string, description: 集群名称, example: production-east}
+        phase: {$ref: '#/components/schemas/ClusterPhase'}
+        operatorVersion: {type: string, description: 成员 operator 版本, example: v1.0.0}
+        kubernetesVersion: {type: string, description: 成员 Kubernetes 版本, example: v1.31.0}
+        nodeCount: {type: integer, description: 上报的节点总数, example: 12}
+        readyNodeCount: {type: integer, description: Ready 节点数量, example: 11}
+        lastHeartbeatAt: {type: string, format: date-time, description: 最近一次心跳时间, example: '2026-08-24T08:00:00Z'}
+        createdAt: {type: string, format: date-time, description: 登记创建时间, example: '2026-08-24T07:00:00Z'}
+    ClusterDetail:
+      type: object
+      required: [name, clusterUid, phase, operatorVersion, kubernetesVersion, apiServerAddress, nodeCount, readyNodeCount, labels, createdAt, updatedAt]
+      properties:
+        name: {type: string, description: 集群名称, example: production-east}
+        clusterUid: {type: string, description: Kubernetes 集群 UID, example: 0f1e2d3c-4b5a-6978-9abc-def012345678}
+        phase: {$ref: '#/components/schemas/ClusterPhase'}
+        operatorVersion: {type: string, description: 成员 operator 版本, example: v1.0.0}
+        lastHeartbeatAt: {type: string, format: date-time, description: 最近一次心跳时间, example: '2026-08-24T08:00:00Z'}
+        kubernetesVersion: {type: string, description: 成员 Kubernetes 版本, example: v1.31.0}
+        apiServerAddress: {type: string, description: 成员 API Server 地址, example: https://10.0.0.1:6443}
+        nodeCount: {type: integer, description: 上报的节点总数, example: 12}
+        readyNodeCount: {type: integer, description: Ready 节点数量, example: 11}
+        labels: {type: object, additionalProperties: {type: string}, description: 控制台管理的集群标签映射, example: {environment: production}}
+        createdAt: {type: string, format: date-time, description: 登记创建时间, example: '2026-08-24T07:00:00Z'}
+        updatedAt: {type: string, format: date-time, description: 最近更新时间, example: '2026-08-24T08:00:00Z'}
+    ClusterCommand:
+      type: object
+      required: [name, command]
+      properties:
+        name: {type: string, description: 已创建或重新签发令牌的集群名称, example: production-east}
+        command: {type: string, description: 含一次性登记令牌的 Helm 安装命令, example: 'helm upgrade --install kubesentry charts/kubesentry'}
+    InstallRecord:
+      type: object
+      required: [clusterName, namespace, webhookRepository, webhookTag, operatorRepository, operatorTag, highAvailability, gatewayAddress, createdAt]
+      properties:
+        clusterName: {type: string, description: 关联的集群名称, example: production-east}
+        namespace: {type: string, description: 安装命名空间, example: kubesentry-system}
+        webhookRepository: {type: string, description: webhook 镜像仓库, example: ghcr.io/wynn-hub/kubesentry-webhook}
+        webhookTag: {type: string, description: webhook 镜像标签, example: v1.0.0}
+        operatorRepository: {type: string, description: operator 镜像仓库, example: ghcr.io/wynn-hub/kubesentry-operator}
+        operatorTag: {type: string, description: operator 镜像标签, example: v1.0.0}
+        highAvailability: {type: boolean, description: 是否启用高可用, example: true}
+        gatewayAddress: {type: string, description: Gateway 地址, example: kubesentry-gateway.default.svc:8443}
+        createdAt: {type: string, format: date-time, description: 安装记录创建时间, example: '2026-08-24T07:00:00Z'}
+    UninstallTask:
+      type: object
+      required: [id, status, requestedAt]
+      properties:
+        id: {$ref: './common.yaml#/components/schemas/ResourceID'}
+        status: {type: string, description: 卸载任务状态, enum: [Pending, Running, Failed, Completed], example: Pending}
+        error: {type: string, description: 失败时的错误信息, example: connection timed out}
+        requestedAt: {type: string, format: date-time, description: 任务请求时间, example: '2026-08-24T08:00:00Z'}
+        completedAt: {type: string, format: date-time, description: 任务完成时间, example: '2026-08-24T08:05:00Z'}
+    ClusterNameData:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, description: 操作目标集群名称, example: production-east}
+    UninstallTaskIDData:
+      type: object
+      required: [id]
+      properties:
+        id: {$ref: './common.yaml#/components/schemas/ResourceID'}
+    ClusterListResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              allOf:
+                - $ref: './common.yaml#/components/schemas/PageMeta'
+                - type: object
+                  required: [items]
+                  properties:
+                    items: {type: array, description: 集群列表, items: {$ref: '#/components/schemas/ClusterListItem'}, example: [{name: production-east, phase: Online, operatorVersion: v1.0.0, kubernetesVersion: v1.31.0, nodeCount: 12, readyNodeCount: 11, createdAt: '2026-08-24T07:00:00Z'}]}
+    InstallRecordListResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              allOf:
+                - $ref: './common.yaml#/components/schemas/PageMeta'
+                - type: object
+                  required: [items]
+                  properties:
+                    items: {type: array, description: 安装记录列表, items: {$ref: '#/components/schemas/InstallRecord'}, example: [{clusterName: production-east, namespace: kubesentry-system, webhookRepository: ghcr.io/wynn-hub/kubesentry-webhook, webhookTag: v1.0.0, operatorRepository: ghcr.io/wynn-hub/kubesentry-operator, operatorTag: v1.0.0, highAvailability: true, gatewayAddress: kubesentry-gateway.default.svc:8443, createdAt: '2026-08-24T07:00:00Z'}]}
+    UninstallTaskListResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          required: [data]
+          properties:
+            data: {type: array, description: 集群的卸载任务列表, items: {$ref: '#/components/schemas/UninstallTask'}, example: []}
+    ClusterDetailResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/ClusterDetail'}}}]}
+    ClusterCommandResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/ClusterCommand'}}}]}
+    InstallParamsResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/InstallParams'}}}]}
+    ClusterNameResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/ClusterNameData'}}}]}
+    UninstallTaskResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/UninstallTask'}}}]}
+    UninstallTaskIDResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/UninstallTaskIDData'}}}]}
+    EmptyResponse: {allOf: [{$ref: './common.yaml#/components/schemas/Envelope'}, {type: object, description: 成功但无返回数据的响应}]}

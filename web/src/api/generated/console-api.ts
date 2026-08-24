@@ -770,6 +770,89 @@ export interface components {
              */
             message: string;
         };
+        PageMeta: {
+            /**
+             * @description 符合筛选条件的记录总数，不受分页限制
+             * @example 137
+             */
+            total: number;
+            /**
+             * @description 当前页码，从 1 开始
+             * @example 1
+             */
+            page: number;
+            /**
+             * @description 每页记录数。仅接受 10、20、50、100
+             * @example 20
+             * @enum {integer}
+             */
+            pageSize: 10 | 20 | 50 | 100;
+        };
+        /**
+         * @description 集群连接与卸载阶段
+         * @example Online
+         * @enum {string}
+         */
+        ClusterPhase: "Registering" | "Online" | "Offline" | "Uninstalling";
+        ClusterListItem: {
+            /**
+             * @description 集群名称
+             * @example production-east
+             */
+            name: string;
+            phase: components["schemas"]["ClusterPhase"];
+            /**
+             * @description 成员 operator 版本
+             * @example v1.0.0
+             */
+            operatorVersion: string;
+            /**
+             * @description 成员 Kubernetes 版本
+             * @example v1.31.0
+             */
+            kubernetesVersion: string;
+            /**
+             * @description 上报的节点总数
+             * @example 12
+             */
+            nodeCount: number;
+            /**
+             * @description Ready 节点数量
+             * @example 11
+             */
+            readyNodeCount: number;
+            /**
+             * Format: date-time
+             * @description 最近一次心跳时间
+             * @example 2026-08-24T08:00:00Z
+             */
+            lastHeartbeatAt?: string;
+            /**
+             * Format: date-time
+             * @description 登记创建时间
+             * @example 2026-08-24T07:00:00Z
+             */
+            createdAt: string;
+        };
+        ClusterListResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["PageMeta"] & {
+                /**
+                 * @description 集群列表
+                 * @example [
+                 *       {
+                 *         "name": "production-east",
+                 *         "phase": "Online",
+                 *         "operatorVersion": "v1.0.0",
+                 *         "kubernetesVersion": "v1.31.0",
+                 *         "nodeCount": 12,
+                 *         "readyNodeCount": 11,
+                 *         "createdAt": "2026-08-24T07:00:00Z"
+                 *       }
+                 *     ]
+                 */
+                items: components["schemas"]["ClusterListItem"][];
+            };
+        };
         ErrorResponse: components["schemas"]["Envelope"] & {
             /** @description 错误明细列表。参数校验失败时逐条列出问题字段 */
             details?: string[];
@@ -784,6 +867,795 @@ export interface components {
             data?: {
                 [key: string]: unknown;
             };
+        };
+        ImageParams: {
+            /**
+             * @description 容器镜像仓库
+             * @example ghcr.io/wynn-hub/kubesentry-webhook
+             */
+            repository: string;
+            /**
+             * @description 容器镜像标签
+             * @example v1.0.0
+             */
+            tag: string;
+            /**
+             * @description Kubernetes 镜像拉取策略
+             * @example IfNotPresent
+             * @enum {string}
+             */
+            pullPolicy: "Always" | "IfNotPresent" | "Never";
+        };
+        InstallParams: {
+            /**
+             * @description 安装的 Kubernetes 命名空间
+             * @example kubesentry-system
+             */
+            namespace: string;
+            webhookImage: components["schemas"]["ImageParams"];
+            operatorImage: components["schemas"]["ImageParams"];
+            /**
+             * @description 是否启用 webhook 和 operator 高可用
+             * @example true
+             */
+            highAvailability: boolean;
+            /**
+             * @description Gateway gRPC 服务地址
+             * @example kubesentry-gateway.default.svc:8443
+             */
+            gatewayAddress: string;
+            /**
+             * @description Gateway TLS 服务名称
+             * @example kubesentry-gateway
+             */
+            gatewayTlsServerName?: string;
+            /**
+             * @description Gateway CA PEM 内容
+             * @example -----BEGIN CERTIFICATE-----
+             */
+            gatewayCaBundle?: string;
+        };
+        ClusterCreateRequest: {
+            /**
+             * @description DNS 子域格式的集群名称
+             * @example production-east
+             */
+            name: string;
+            /**
+             * @description 控制台管理的集群标签映射
+             * @example {
+             *       "environment": "production"
+             *     }
+             */
+            labels?: {
+                [key: string]: string;
+            };
+            installParams: components["schemas"]["InstallParams"];
+        };
+        ClusterCommand: {
+            /**
+             * @description 已创建或重新签发令牌的集群名称
+             * @example production-east
+             */
+            name: string;
+            /**
+             * @description 含一次性登记令牌的 Helm 安装命令
+             * @example helm upgrade --install kubesentry charts/kubesentry
+             */
+            command: string;
+        };
+        ClusterCommandResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["ClusterCommand"];
+        };
+        ClusterDetail: {
+            /**
+             * @description 集群名称
+             * @example production-east
+             */
+            name: string;
+            /**
+             * @description Kubernetes 集群 UID
+             * @example 0f1e2d3c-4b5a-6978-9abc-def012345678
+             */
+            clusterUid: string;
+            phase: components["schemas"]["ClusterPhase"];
+            /**
+             * @description 成员 operator 版本
+             * @example v1.0.0
+             */
+            operatorVersion: string;
+            /**
+             * Format: date-time
+             * @description 最近一次心跳时间
+             * @example 2026-08-24T08:00:00Z
+             */
+            lastHeartbeatAt?: string;
+            /**
+             * @description 成员 Kubernetes 版本
+             * @example v1.31.0
+             */
+            kubernetesVersion: string;
+            /**
+             * @description 成员 API Server 地址
+             * @example https://10.0.0.1:6443
+             */
+            apiServerAddress: string;
+            /**
+             * @description 上报的节点总数
+             * @example 12
+             */
+            nodeCount: number;
+            /**
+             * @description Ready 节点数量
+             * @example 11
+             */
+            readyNodeCount: number;
+            /**
+             * @description 控制台管理的集群标签映射
+             * @example {
+             *       "environment": "production"
+             *     }
+             */
+            labels: {
+                [key: string]: string;
+            };
+            /**
+             * Format: date-time
+             * @description 登记创建时间
+             * @example 2026-08-24T07:00:00Z
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description 最近更新时间
+             * @example 2026-08-24T08:00:00Z
+             */
+            updatedAt: string;
+        };
+        ClusterDetailResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["ClusterDetail"];
+        };
+        ClusterLabelsRequest: {
+            /**
+             * @description 替换后的集群标签映射
+             * @example {
+             *       "environment": "production"
+             *     }
+             */
+            labels: {
+                [key: string]: string;
+            };
+        };
+        ClusterNameData: {
+            /**
+             * @description 操作目标集群名称
+             * @example production-east
+             */
+            name: string;
+        };
+        ClusterNameResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["ClusterNameData"];
+        };
+        EmptyResponse: components["schemas"]["Envelope"] & Record<string, never>;
+        ClusterTokenRequest: {
+            installParams: components["schemas"]["InstallParams"];
+        };
+        InstallParamsResponse: components["schemas"]["Envelope"] & {
+            data?: components["schemas"]["InstallParams"];
+        };
+        /**
+         * @description Snowflake 生成的 64 位整数 ID，以字符串传输避免 JavaScript 数字精度丢失
+         * @example 7234567890123456789
+         */
+        ResourceID: string;
+        UninstallTask: {
+            id: components["schemas"]["ResourceID"];
+            /**
+             * @description 卸载任务状态
+             * @example Pending
+             * @enum {string}
+             */
+            status: "Pending" | "Running" | "Failed" | "Completed";
+            /**
+             * @description 失败时的错误信息
+             * @example connection timed out
+             */
+            error?: string;
+            /**
+             * Format: date-time
+             * @description 任务请求时间
+             * @example 2026-08-24T08:00:00Z
+             */
+            requestedAt: string;
+            /**
+             * Format: date-time
+             * @description 任务完成时间
+             * @example 2026-08-24T08:05:00Z
+             */
+            completedAt?: string;
+        };
+        UninstallTaskResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["UninstallTask"];
+        };
+        UninstallTaskListResponse: components["schemas"]["Envelope"] & {
+            /**
+             * @description 集群的卸载任务列表
+             * @example []
+             */
+            data: components["schemas"]["UninstallTask"][];
+        };
+        UninstallTaskIDData: {
+            id: components["schemas"]["ResourceID"];
+        };
+        UninstallTaskIDResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["UninstallTaskIDData"];
+        };
+        InstallRecord: {
+            /**
+             * @description 关联的集群名称
+             * @example production-east
+             */
+            clusterName: string;
+            /**
+             * @description 安装命名空间
+             * @example kubesentry-system
+             */
+            namespace: string;
+            /**
+             * @description webhook 镜像仓库
+             * @example ghcr.io/wynn-hub/kubesentry-webhook
+             */
+            webhookRepository: string;
+            /**
+             * @description webhook 镜像标签
+             * @example v1.0.0
+             */
+            webhookTag: string;
+            /**
+             * @description operator 镜像仓库
+             * @example ghcr.io/wynn-hub/kubesentry-operator
+             */
+            operatorRepository: string;
+            /**
+             * @description operator 镜像标签
+             * @example v1.0.0
+             */
+            operatorTag: string;
+            /**
+             * @description 是否启用高可用
+             * @example true
+             */
+            highAvailability: boolean;
+            /**
+             * @description Gateway 地址
+             * @example kubesentry-gateway.default.svc:8443
+             */
+            gatewayAddress: string;
+            /**
+             * Format: date-time
+             * @description 安装记录创建时间
+             * @example 2026-08-24T07:00:00Z
+             */
+            createdAt: string;
+        };
+        InstallRecordListResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["PageMeta"] & {
+                /**
+                 * @description 安装记录列表
+                 * @example [
+                 *       {
+                 *         "clusterName": "production-east",
+                 *         "namespace": "kubesentry-system",
+                 *         "webhookRepository": "ghcr.io/wynn-hub/kubesentry-webhook",
+                 *         "webhookTag": "v1.0.0",
+                 *         "operatorRepository": "ghcr.io/wynn-hub/kubesentry-operator",
+                 *         "operatorTag": "v1.0.0",
+                 *         "highAvailability": true,
+                 *         "gatewayAddress": "kubesentry-gateway.default.svc:8443",
+                 *         "createdAt": "2026-08-24T07:00:00Z"
+                 *       }
+                 *     ]
+                 */
+                items: components["schemas"]["InstallRecord"][];
+            };
+        };
+        DistributionListItem: {
+            /**
+             * @description 策略分发名称
+             * @example production-baseline
+             */
+            name: string;
+            /**
+             * @description 分发的策略组名称
+             * @example [
+             *       "baseline"
+             *     ]
+             */
+            policyGroups: string[];
+        };
+        DistributionListResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["PageMeta"] & {
+                /**
+                 * @description 策略分发列表
+                 * @example [
+                 *       {
+                 *         "name": "production-baseline",
+                 *         "policyGroups": [
+                 *           "baseline"
+                 *         ]
+                 *       }
+                 *     ]
+                 */
+                items: components["schemas"]["DistributionListItem"][];
+            };
+        };
+        DistributionSpec: {
+            /**
+             * @description 要分发的策略组名称
+             * @example [
+             *       "baseline"
+             *     ]
+             */
+            policyGroups: string[];
+            /**
+             * @description 要分发的策略例外名称
+             * @example [
+             *       "emergency-maintenance"
+             *     ]
+             */
+            policyExceptions?: string[];
+            /**
+             * @description 集群范围，可按名称和标签选择器并集匹配
+             * @example {
+             *       "byName": [
+             *         "production-east"
+             *       ],
+             *       "clusterSelector": {
+             *         "matchLabels": {
+             *           "environment": "production"
+             *         }
+             *       }
+             *     }
+             */
+            clusters?: {
+                /**
+                 * @description 显式目标集群名称
+                 * @example [
+                 *       "production-east"
+                 *     ]
+                 */
+                byName?: string[];
+                /**
+                 * @description Kubernetes 标签选择器
+                 * @example {
+                 *       "matchLabels": {
+                 *         "environment": "production"
+                 *       }
+                 *     }
+                 */
+                clusterSelector?: {
+                    /**
+                     * @description 精确匹配的集群标签
+                     * @example {
+                     *       "environment": "production"
+                     *     }
+                     */
+                    matchLabels?: {
+                        [key: string]: string;
+                    };
+                    /**
+                     * @description 表达式形式的标签选择器
+                     * @example []
+                     */
+                    matchExpressions?: {
+                        /**
+                         * @description 标签键
+                         * @example environment
+                         */
+                        key?: string;
+                        /**
+                         * @description 标签选择运算符
+                         * @example In
+                         * @enum {string}
+                         */
+                        operator?: "In" | "NotIn" | "Exists" | "DoesNotExist";
+                        /**
+                         * @description 运算符使用的标签值
+                         * @example [
+                         *       "production"
+                         *     ]
+                         */
+                        values?: string[];
+                    }[];
+                };
+            };
+            /**
+             * @description 对单个集群覆盖策略组执行模式的规则
+             * @example []
+             */
+            overrides?: {
+                /**
+                 * @description 目标集群名称
+                 * @example production-east
+                 */
+                cluster: string;
+                /**
+                 * @description 覆盖的执行模式
+                 * @example enforce
+                 * @enum {string}
+                 */
+                enforcementMode: "audit" | "enforce";
+            }[];
+        };
+        DistributionRequest: {
+            /**
+             * @description 创建时使用的策略分发名称
+             * @example production-baseline
+             */
+            name?: string;
+            spec: components["schemas"]["DistributionSpec"];
+            /**
+             * @description 更新时使用的乐观并发版本
+             * @example 1785920264123456789
+             */
+            resourceVersion?: string;
+        };
+        DistributionNameData: {
+            /**
+             * @description 操作目标策略分发名称
+             * @example production-baseline
+             */
+            name: string;
+        };
+        DistributionNameResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["DistributionNameData"];
+        };
+        DistributionDetail: {
+            /**
+             * @description 策略分发名称
+             * @example production-baseline
+             */
+            name: string;
+            /**
+             * @description 乐观并发版本
+             * @example 1785920264123456789
+             */
+            resourceVersion: string;
+            spec: components["schemas"]["DistributionSpec"];
+        };
+        DistributionDetailResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["DistributionDetail"];
+        };
+        DistributionEmptyResponse: components["schemas"]["Envelope"] & Record<string, never>;
+        /**
+         * @description 平台组件健康状态
+         * @example ok
+         * @enum {string}
+         */
+        PlatformHealth: "ok" | "warning" | "critical" | "unavailable" | "disabled";
+        PlatformInstance: {
+            /**
+             * @description 组件实例名称
+             * @example gateway-0
+             */
+            instance: string;
+            /**
+             * @description 实例在领导选举中的角色
+             * @example leader
+             * @enum {string}
+             */
+            role: "leader" | "follower" | "standalone";
+            health: components["schemas"]["PlatformHealth"];
+            /**
+             * @description 健康状态原因
+             * @example heartbeat is current
+             */
+            healthReason: string;
+            /**
+             * @description 进程运行时长（秒）
+             * @example 3600
+             */
+            uptimeSeconds: number;
+            /**
+             * @description 观察窗口内的重启次数
+             * @example 0
+             */
+            restartCount: number;
+            /**
+             * @description 当前内存用量（字节）
+             * @example 104857600
+             */
+            memoryBytes: number;
+            /**
+             * @description 容器内存限制（字节）
+             * @example 536870912
+             */
+            memoryLimitBytes: number;
+            /**
+             * @description 当前 CPU 用量（毫核）
+             * @example 50
+             */
+            cpuMillis: number;
+            /**
+             * @description 当前 goroutine 数
+             * @example 82
+             */
+            goroutines: number;
+            /**
+             * @description Go 已分配堆内存（字节）
+             * @example 31457280
+             */
+            heapAllocBytes: number;
+            /**
+             * @description Go 堆系统内存（字节）
+             * @example 67108864
+             */
+            heapSysBytes: number;
+            /**
+             * Format: date-time
+             * @description 最后采样时间
+             * @example 2026-08-24T08:00:00Z
+             */
+            lastObservedAt: string;
+            /**
+             * @description PostgreSQL 组件的自由格式数据库统计快照
+             * @example {
+             *       "openConnections": 4
+             *     }
+             */
+            dbStats?: {
+                [key: string]: unknown;
+            };
+        };
+        PlatformComponent: {
+            /**
+             * @description 平台组件名称
+             * @example gateway
+             * @enum {string}
+             */
+            component: "gateway" | "postgres" | "console-api" | "console-web" | "operator" | "webhook";
+            health: components["schemas"]["PlatformHealth"];
+            /**
+             * @description 组件健康状态原因
+             * @example all instances are healthy
+             */
+            healthReason: string;
+            /**
+             * @description 组件是否使用领导选举
+             * @example true
+             */
+            hasLeadership: boolean;
+            /**
+             * @description 是否检测到没有 leader
+             * @example false
+             */
+            noLeader: boolean;
+            /**
+             * @description 是否只有一个副本
+             * @example false
+             */
+            singleReplica: boolean;
+            /**
+             * @description 组件实例列表
+             * @example []
+             */
+            instances: components["schemas"]["PlatformInstance"][];
+            /**
+             * Format: date-time
+             * @description 最近一次领导权变更时间
+             * @example 2026-08-24T07:00:00Z
+             */
+            lastLeadershipChange?: string;
+        };
+        PlatformCluster: {
+            /**
+             * @description 成员集群名称
+             * @example production-east
+             */
+            name: string;
+            /**
+             * @description 集群登记阶段
+             * @example Online
+             * @enum {string}
+             */
+            phase: "Registering" | "Online" | "Offline" | "Uninstalling";
+            health: components["schemas"]["PlatformHealth"];
+            /**
+             * @description 成员面组件状态
+             * @example []
+             */
+            components: components["schemas"]["PlatformComponent"][];
+        };
+        PlatformOverview: {
+            /**
+             * @description 是否启用了平台观测采样
+             * @example true
+             */
+            enabled: boolean;
+            platformHealth: components["schemas"]["PlatformHealth"];
+            /**
+             * @description Gateway 平面组件状态
+             * @example []
+             */
+            gatewayPlane: components["schemas"]["PlatformComponent"][];
+            /**
+             * @description 成员集群面按页汇总的组件状态
+             * @example {
+             *       "clusters": [],
+             *       "total": 3,
+             *       "page": 1,
+             *       "pageSize": 20
+             *     }
+             */
+            memberPlane: {
+                /**
+                 * @description 当前页成员集群状态
+                 * @example []
+                 */
+                clusters: components["schemas"]["PlatformCluster"][];
+                /**
+                 * @description 符合筛选条件的成员集群总数
+                 * @example 3
+                 */
+                total: number;
+                /**
+                 * @description 当前页码
+                 * @example 1
+                 */
+                page: number;
+                /**
+                 * @description 每页集群数
+                 * @example 20
+                 */
+                pageSize: number;
+            };
+        };
+        PlatformOverviewResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["PlatformOverview"];
+        };
+        PlatformTrendPoint: {
+            /**
+             * Format: date-time
+             * @description 聚合桶开始时间
+             * @example 2026-08-24T08:00:00Z
+             */
+            bucketStartedAt: string;
+            /**
+             * @description CPU 累积使用时间（微秒）
+             * @example 5000000
+             */
+            cpuUsageMicros: number;
+            /**
+             * @description 内存用量（字节）
+             * @example 104857600
+             */
+            memoryBytes: number;
+            /**
+             * @description 当前 goroutine 数
+             * @example 82
+             */
+            goroutines: number;
+            /**
+             * @description GC 暂停累计时间（微秒）
+             * @example 2300
+             */
+            gcPauseMicros: number;
+        };
+        PlatformTrend: {
+            /**
+             * @description 时间序列采样点
+             * @example []
+             */
+            items: components["schemas"]["PlatformTrendPoint"][];
+            /**
+             * @description 相邻聚合桶时间间隔（秒）
+             * @example 300
+             */
+            stepSeconds: number;
+            /**
+             * Format: date-time
+             * @description 实际查询起始时间
+             * @example 2026-08-24T07:00:00Z
+             */
+            from: string;
+            /**
+             * Format: date-time
+             * @description 实际查询结束时间
+             * @example 2026-08-24T08:00:00Z
+             */
+            to: string;
+        };
+        PlatformTrendResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["PlatformTrend"];
+        };
+        LeadershipEvent: {
+            id: components["schemas"]["ResourceID"];
+            /**
+             * @description 发生领导权变更的组件
+             * @example gateway
+             */
+            component: string;
+            clusterId: components["schemas"]["ResourceID"];
+            /**
+             * @description 组件实例名称
+             * @example gateway-0
+             */
+            instance: string;
+            /**
+             * @description 关联成员集群名称，平台平面为空字符串
+             * @example production-east
+             */
+            clusterName: string;
+            /**
+             * @description 变更前领导角色
+             * @example standby
+             * @enum {string}
+             */
+            roleFrom: "leader" | "standby" | "standalone";
+            /**
+             * @description 变更后领导角色
+             * @example leader
+             * @enum {string}
+             */
+            roleTo: "leader" | "standby" | "standalone";
+            /**
+             * Format: date-time
+             * @description 领导权变更时间
+             * @example 2026-08-24T08:00:00Z
+             */
+            changedAt: string;
+            /**
+             * @description 检测到事件的实例名称
+             * @example gateway-0
+             */
+            detectedBy: string;
+            /**
+             * Format: date-time
+             * @description 事件记录创建时间
+             * @example 2026-08-24T08:00:00Z
+             */
+            createdAt: string;
+        };
+        LeadershipEventListResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["PageMeta"] & {
+                /**
+                 * @description 领导权事件列表
+                 * @example []
+                 */
+                items: components["schemas"]["LeadershipEvent"][];
+            };
+        };
+        PlatformSettings: {
+            /**
+             * @description 是否启用平台观测
+             * @example true
+             */
+            enabled: boolean;
+            /**
+             * @description 历史数据保存天数
+             * @example 30
+             */
+            retentionDays: number;
+            /**
+             * @description 系统允许的最长历史保存天数
+             * @example 30
+             */
+            maxRetentionDays: number;
+        };
+        PlatformSettingsResponse: components["schemas"]["Envelope"] & {
+            data: components["schemas"]["PlatformSettings"];
+        };
+        PlatformSettingsRequest: {
+            /**
+             * @description 是否启用平台观测
+             * @example true
+             */
+            enabled: boolean;
+            /**
+             * @description 历史数据保存天数
+             * @example 30
+             */
+            retentionDays: number;
         };
         FieldNode: {
             /**
@@ -888,29 +1760,6 @@ export interface components {
         SummaryResponse: components["schemas"]["Envelope"] & {
             data?: components["schemas"]["SummaryData"];
         };
-        PageMeta: {
-            /**
-             * @description 符合筛选条件的记录总数，不受分页限制
-             * @example 137
-             */
-            total: number;
-            /**
-             * @description 当前页码，从 1 开始
-             * @example 1
-             */
-            page: number;
-            /**
-             * @description 每页记录数。仅接受 10、20、50、100
-             * @example 20
-             * @enum {integer}
-             */
-            pageSize: 10 | 20 | 50 | 100;
-        };
-        /**
-         * @description Snowflake 生成的 64 位整数 ID，以字符串传输避免 JavaScript 数字精度丢失
-         * @example 7234567890123456789
-         */
-        ResourceID: string;
         AdmissionEventItem: {
             id: components["schemas"]["ResourceID"];
             /**
@@ -1479,7 +2328,7 @@ export interface components {
             rego: string;
         };
         /** @description 无数据体的成功响应。data 字段被省略 */
-        EmptyResponse: components["schemas"]["Envelope"];
+        "schemas-EmptyResponse": components["schemas"]["Envelope"];
         PolicyDetail: {
             /**
              * @description 策略名称，集群内唯一
@@ -2196,9 +3045,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ClusterListResponse"];
                 };
             };
             500: components["responses"]["InternalError"];
@@ -2213,9 +3060,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["ClusterCreateRequest"];
             };
         };
         responses: {
@@ -2225,9 +3070,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ClusterCommandResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -2253,9 +3096,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ClusterDetailResponse"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -2274,9 +3115,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["ClusterLabelsRequest"];
             };
         };
         responses: {
@@ -2286,9 +3125,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ClusterNameResponse"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -2313,9 +3150,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["EmptyResponse"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -2336,9 +3171,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["ClusterTokenRequest"];
             };
         };
         responses: {
@@ -2348,9 +3181,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ClusterCommandResponse"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -2376,9 +3207,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["InstallParamsResponse"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -2403,9 +3232,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UninstallTaskResponse"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -2436,9 +3263,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UninstallTaskListResponse"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -2453,7 +3278,7 @@ export interface operations {
                 /** @description 集群名称 */
                 name: components["parameters"]["ClusterName"];
                 /** @description 卸载任务 ID */
-                taskID: number;
+                taskID: components["schemas"]["ResourceID"];
             };
             cookie?: never;
         };
@@ -2465,9 +3290,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UninstallTaskIDResponse"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -2499,9 +3322,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["InstallRecordListResponse"];
                 };
             };
             500: components["responses"]["InternalError"];
@@ -2529,9 +3350,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DistributionListResponse"];
                 };
             };
             500: components["responses"]["InternalError"];
@@ -2546,9 +3365,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["DistributionRequest"];
             };
         };
         responses: {
@@ -2558,9 +3375,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DistributionNameResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -2586,9 +3401,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DistributionDetailResponse"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -2607,9 +3420,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["DistributionRequest"];
             };
         };
         responses: {
@@ -2619,9 +3430,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DistributionNameResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -2648,9 +3457,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DistributionEmptyResponse"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -2680,9 +3487,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PlatformOverviewResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -2711,9 +3516,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PlatformTrendResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -2745,9 +3548,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["LeadershipEventListResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -2770,9 +3571,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PlatformSettingsResponse"];
                 };
             };
             500: components["responses"]["InternalError"];
@@ -2787,18 +3586,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /**
-                     * @description 是否启用平台观测
-                     * @example true
-                     */
-                    enabled: boolean;
-                    /**
-                     * @description 历史数据保存天数
-                     * @example 30
-                     */
-                    retentionDays: number;
-                };
+                "application/json": components["schemas"]["PlatformSettingsRequest"];
             };
         };
         responses: {
@@ -2808,9 +3596,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PlatformSettingsResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -3182,7 +3968,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmptyResponse"];
+                    "application/json": components["schemas"]["schemas-EmptyResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -3265,7 +4051,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmptyResponse"];
+                    "application/json": components["schemas"]["schemas-EmptyResponse"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3463,7 +4249,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmptyResponse"];
+                    "application/json": components["schemas"]["schemas-EmptyResponse"];
                 };
             };
             403: components["responses"]["Conflict"];
@@ -3634,7 +4420,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmptyResponse"];
+                    "application/json": components["schemas"]["schemas-EmptyResponse"];
                 };
             };
             404: components["responses"]["NotFound"];

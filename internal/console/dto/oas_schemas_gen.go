@@ -12,26 +12,45 @@ import (
 // Merged schema.
 // Ref: #/components/schemas/AdmissionEventDetail
 type AdmissionEventDetail struct {
-	ID                   ResourceID                           `json:"id"`
-	EventId              string                               `json:"eventId"`
-	ClusterName          string                               `json:"clusterName"`
-	OccurredAt           time.Time                            `json:"occurredAt"`
-	Verdict              AdmissionEventDetailVerdict          `json:"verdict"`
-	ApiGroup             string                               `json:"apiGroup"`
-	ApiVersion           string                               `json:"apiVersion"`
-	Resource             string                               `json:"resource"`
-	Operation            string                               `json:"operation"`
-	Namespace            string                               `json:"namespace"`
-	ResourceName         string                               `json:"resourceName"`
-	Username             string                               `json:"username"`
-	PolicyNames          []string                             `json:"policyNames"`
-	Violations           []string                             `json:"violations"`
-	RequestUid           string                               `json:"requestUid"`
-	UserGroups           []string                             `json:"userGroups"`
-	PolicyGroupNames     []string                             `json:"policyGroupNames"`
-	MetadataSnapshot     AdmissionEventDetailMetadataSnapshot `json:"metadataSnapshot"`
-	SpecSnapshot         AdmissionEventDetailSpecSnapshot     `json:"specSnapshot"`
-	StoragePolicyVersion string                               `json:"storagePolicyVersion"`
+	ID ResourceID `json:"id"`
+	// 成员侧事件 ID.
+	EventId string `json:"eventId"`
+	// 集群名称.
+	ClusterName string `json:"clusterName"`
+	// 事件发生时间.
+	OccurredAt time.Time `json:"occurredAt"`
+	// 判决类型.
+	Verdict AdmissionEventDetailVerdict `json:"verdict"`
+	// API 组.
+	ApiGroup string `json:"apiGroup"`
+	// API 版本.
+	ApiVersion string `json:"apiVersion"`
+	// 资源复数名.
+	Resource string `json:"resource"`
+	// 准入操作.
+	Operation string `json:"operation"`
+	// 命名空间.
+	Namespace string `json:"namespace"`
+	// 资源名称.
+	ResourceName string `json:"resourceName"`
+	// 请求用户.
+	Username string `json:"username"`
+	// 命中的策略名称.
+	PolicyNames []string `json:"policyNames"`
+	// 违规信息.
+	Violations []string `json:"violations"`
+	// Kubernetes 请求 UID.
+	RequestUid string `json:"requestUid"`
+	// 请求用户所属组.
+	UserGroups []string `json:"userGroups"`
+	// 命中的策略组名称.
+	PolicyGroupNames []string `json:"policyGroupNames"`
+	// 原始资源 metadata 快照.
+	MetadataSnapshot AdmissionEventDetailMetadataSnapshot `json:"metadataSnapshot"`
+	// 原始资源 spec 快照.
+	SpecSnapshot AdmissionEventDetailSpecSnapshot `json:"specSnapshot"`
+	// 事件判定时使用的存储策略版本.
+	StoragePolicyVersion string `json:"storagePolicyVersion"`
 }
 
 // GetID returns the value of ID.
@@ -234,6 +253,7 @@ func (s *AdmissionEventDetail) SetStoragePolicyVersion(val string) {
 	s.StoragePolicyVersion = val
 }
 
+// 原始资源 metadata 快照.
 type AdmissionEventDetailMetadataSnapshot map[string]jx.Raw
 
 func (s *AdmissionEventDetailMetadataSnapshot) init() AdmissionEventDetailMetadataSnapshot {
@@ -287,6 +307,7 @@ func (s *AdmissionEventDetailResponse) SetData(val OptAdmissionEventDetail) {
 
 func (*AdmissionEventDetailResponse) getAdmissionEventRes() {}
 
+// 原始资源 spec 快照.
 type AdmissionEventDetailSpecSnapshot map[string]jx.Raw
 
 func (s *AdmissionEventDetailSpecSnapshot) init() AdmissionEventDetailSpecSnapshot {
@@ -298,6 +319,7 @@ func (s *AdmissionEventDetailSpecSnapshot) init() AdmissionEventDetailSpecSnapsh
 	return m
 }
 
+// 判决类型.
 type AdmissionEventDetailVerdict string
 
 const (
@@ -341,20 +363,33 @@ func (s *AdmissionEventDetailVerdict) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/AdmissionEventItem
 type AdmissionEventItem struct {
-	ID           ResourceID                `json:"id"`
-	EventId      string                    `json:"eventId"`
-	ClusterName  string                    `json:"clusterName"`
-	OccurredAt   time.Time                 `json:"occurredAt"`
-	Verdict      AdmissionEventItemVerdict `json:"verdict"`
-	ApiGroup     string                    `json:"apiGroup"`
-	ApiVersion   string                    `json:"apiVersion"`
-	Resource     string                    `json:"resource"`
-	Operation    string                    `json:"operation"`
-	Namespace    string                    `json:"namespace"`
-	ResourceName string                    `json:"resourceName"`
-	Username     string                    `json:"username"`
-	PolicyNames  []string                  `json:"policyNames"`
-	Violations   []string                  `json:"violations"`
+	ID ResourceID `json:"id"`
+	// 成员侧事件 ID.
+	EventId string `json:"eventId"`
+	// 集群名称.
+	ClusterName string `json:"clusterName"`
+	// 事件发生时间.
+	OccurredAt time.Time `json:"occurredAt"`
+	// 判决类型.
+	Verdict AdmissionEventItemVerdict `json:"verdict"`
+	// API 组.
+	ApiGroup string `json:"apiGroup"`
+	// API 版本.
+	ApiVersion string `json:"apiVersion"`
+	// 资源复数名.
+	Resource string `json:"resource"`
+	// 准入操作.
+	Operation string `json:"operation"`
+	// 命名空间.
+	Namespace string `json:"namespace"`
+	// 资源名称.
+	ResourceName string `json:"resourceName"`
+	// 请求用户.
+	Username string `json:"username"`
+	// 命中的策略名称.
+	PolicyNames []string `json:"policyNames"`
+	// 违规信息.
+	Violations []string `json:"violations"`
 }
 
 // GetID returns the value of ID.
@@ -497,6 +532,7 @@ func (s *AdmissionEventItem) SetViolations(val []string) {
 	s.Violations = val
 }
 
+// 判决类型.
 type AdmissionEventItemVerdict string
 
 const (
@@ -547,7 +583,8 @@ type AdmissionEventListData struct {
 	Page int `json:"page"`
 	// 每页记录数。仅接受 10、20、50、100.
 	PageSize AdmissionEventListDataPageSize `json:"pageSize"`
-	Items    []AdmissionEventItem           `json:"items"`
+	// 准入事件列表.
+	Items []AdmissionEventItem `json:"items"`
 }
 
 // GetTotal returns the value of Total.
@@ -654,14 +691,22 @@ func (*AdmissionEventListResponse) listAdmissionEventsRes() {}
 
 // Ref: #/components/schemas/AdmissionEventSettings
 type AdmissionEventSettings struct {
-	DefaultRetentionDays  int                      `json:"defaultRetentionDays"`
-	RetryEnabled          bool                     `json:"retryEnabled"`
-	MaxRetryAttempts      int                      `json:"maxRetryAttempts"`
-	QueueCapacity         int                      `json:"queueCapacity"`
-	IncidentRetentionDays int                      `json:"incidentRetentionDays"`
-	ObservationEnabled    bool                     `json:"observationEnabled"`
-	StoragePolicyVersion  int64                    `json:"storagePolicyVersion"`
-	StoragePolicies       []AdmissionStoragePolicy `json:"storagePolicies"`
+	// 默认事件保存天数.
+	DefaultRetentionDays int `json:"defaultRetentionDays"`
+	// 是否重试上报失败事件.
+	RetryEnabled bool `json:"retryEnabled"`
+	// 最大重试次数.
+	MaxRetryAttempts int `json:"maxRetryAttempts"`
+	// Operator 内存队列容量.
+	QueueCapacity int `json:"queueCapacity"`
+	// 链路异常保存天数.
+	IncidentRetentionDays int `json:"incidentRetentionDays"`
+	// 是否启用准入事件观测.
+	ObservationEnabled bool `json:"observationEnabled"`
+	// 存储策略版本.
+	StoragePolicyVersion int64 `json:"storagePolicyVersion"`
+	// 事件存储匹配规则.
+	StoragePolicies []AdmissionStoragePolicy `json:"storagePolicies"`
 }
 
 // GetDefaultRetentionDays returns the value of DefaultRetentionDays.
@@ -746,13 +791,20 @@ func (s *AdmissionEventSettings) SetStoragePolicies(val []AdmissionStoragePolicy
 
 // Ref: #/components/schemas/AdmissionEventSettingsRequest
 type AdmissionEventSettingsRequest struct {
-	DefaultRetentionDays  int                      `json:"defaultRetentionDays"`
-	RetryEnabled          OptBool                  `json:"retryEnabled"`
-	MaxRetryAttempts      OptInt                   `json:"maxRetryAttempts"`
-	QueueCapacity         OptInt                   `json:"queueCapacity"`
-	IncidentRetentionDays OptInt                   `json:"incidentRetentionDays"`
-	ObservationEnabled    OptBool                  `json:"observationEnabled"`
-	StoragePolicies       []AdmissionStoragePolicy `json:"storagePolicies"`
+	// 默认事件保存天数.
+	DefaultRetentionDays int `json:"defaultRetentionDays"`
+	// 是否重试上报失败事件.
+	RetryEnabled OptBool `json:"retryEnabled"`
+	// 最大重试次数.
+	MaxRetryAttempts OptInt `json:"maxRetryAttempts"`
+	// Operator 内存队列容量.
+	QueueCapacity OptInt `json:"queueCapacity"`
+	// 链路异常保存天数.
+	IncidentRetentionDays OptInt `json:"incidentRetentionDays"`
+	// 是否启用准入事件观测.
+	ObservationEnabled OptBool `json:"observationEnabled"`
+	// 事件存储匹配规则.
+	StoragePolicies []AdmissionStoragePolicy `json:"storagePolicies"`
 }
 
 // GetDefaultRetentionDays returns the value of DefaultRetentionDays.
@@ -870,9 +922,12 @@ func (*AdmissionEventSettingsResponse) updateAdmissionEventSettingsRes() {}
 
 // Ref: #/components/schemas/AdmissionEventTrendItem
 type AdmissionEventTrendItem struct {
-	Bucket  time.Time                      `json:"bucket"`
+	// 趋势时间桶起点.
+	Bucket time.Time `json:"bucket"`
+	// 判决类型.
 	Verdict AdmissionEventTrendItemVerdict `json:"verdict"`
-	Count   int64                          `json:"count"`
+	// 事件数量.
+	Count int64 `json:"count"`
 }
 
 // GetBucket returns the value of Bucket.
@@ -905,6 +960,7 @@ func (s *AdmissionEventTrendItem) SetCount(val int64) {
 	s.Count = val
 }
 
+// 判决类型.
 type AdmissionEventTrendItemVerdict string
 
 const (
@@ -952,8 +1008,9 @@ type AdmissionEventTrendResponse struct {
 	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
 	Code int `json:"code"`
 	// 结果描述。成功时固定为 success.
-	Message string                    `json:"message"`
-	Data    []AdmissionEventTrendItem `json:"data"`
+	Message string `json:"message"`
+	// 准入事件趋势数据.
+	Data []AdmissionEventTrendItem `json:"data"`
 }
 
 // GetCode returns the value of Code.
@@ -1482,7 +1539,8 @@ type AdmissionLinkIncidentListData struct {
 	Page int `json:"page"`
 	// 每页记录数。仅接受 10、20、50、100.
 	PageSize AdmissionLinkIncidentListDataPageSize `json:"pageSize"`
-	Items    []AdmissionLinkIncidentItem           `json:"items"`
+	// 链路异常列表.
+	Items []AdmissionLinkIncidentItem `json:"items"`
 }
 
 // GetTotal returns the value of Total.
@@ -1628,11 +1686,16 @@ func (s *AdmissionLinkIncidentSample) SetExpired(val bool) {
 
 // Ref: #/components/schemas/AdmissionStoragePolicy
 type AdmissionStoragePolicy struct {
-	Verdicts   []AdmissionStoragePolicyVerdictsItem `json:"verdicts"`
-	Clusters   []string                             `json:"clusters"`
-	Gvks       []string                             `json:"gvks"`
-	Namespaces []string                             `json:"namespaces"`
-	MatchMode  AdmissionStoragePolicyMatchMode      `json:"matchMode"`
+	// 事件判决条件.
+	Verdicts []AdmissionStoragePolicyVerdictsItem `json:"verdicts"`
+	// 集群名称条件.
+	Clusters []string `json:"clusters"`
+	// 资源 GVK 条件.
+	Gvks []string `json:"gvks"`
+	// 命名空间条件.
+	Namespaces []string `json:"namespaces"`
+	// 规则匹配模式.
+	MatchMode AdmissionStoragePolicyMatchMode `json:"matchMode"`
 }
 
 // GetVerdicts returns the value of Verdicts.
@@ -1685,6 +1748,7 @@ func (s *AdmissionStoragePolicy) SetMatchMode(val AdmissionStoragePolicyMatchMod
 	s.MatchMode = val
 }
 
+// 规则匹配模式.
 type AdmissionStoragePolicyMatchMode string
 
 const (
@@ -1726,6 +1790,7 @@ func (s *AdmissionStoragePolicyMatchMode) UnmarshalText(data []byte) error {
 	}
 }
 
+// 判决类型.
 type AdmissionStoragePolicyVerdictsItem string
 
 const (
@@ -1767,6 +1832,700 @@ func (s *AdmissionStoragePolicyVerdictsItem) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/ClusterCommand
+type ClusterCommand struct {
+	// 已创建或重新签发令牌的集群名称.
+	Name string `json:"name"`
+	// 含一次性登记令牌的 Helm 安装命令.
+	Command string `json:"command"`
+}
+
+// GetName returns the value of Name.
+func (s *ClusterCommand) GetName() string {
+	return s.Name
+}
+
+// GetCommand returns the value of Command.
+func (s *ClusterCommand) GetCommand() string {
+	return s.Command
+}
+
+// SetName sets the value of Name.
+func (s *ClusterCommand) SetName(val string) {
+	s.Name = val
+}
+
+// SetCommand sets the value of Command.
+func (s *ClusterCommand) SetCommand(val string) {
+	s.Command = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/ClusterCommandResponse
+type ClusterCommandResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string         `json:"message"`
+	Data    ClusterCommand `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *ClusterCommandResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ClusterCommandResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *ClusterCommandResponse) GetData() ClusterCommand {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *ClusterCommandResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ClusterCommandResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *ClusterCommandResponse) SetData(val ClusterCommand) {
+	s.Data = val
+}
+
+func (*ClusterCommandResponse) createClusterRes()       {}
+func (*ClusterCommandResponse) reissueClusterTokenRes() {}
+
+// Ref: #/components/schemas/ClusterCreateRequest
+type ClusterCreateRequest struct {
+	// DNS 子域格式的集群名称.
+	Name string `json:"name"`
+	// 控制台管理的集群标签映射.
+	Labels        OptClusterCreateRequestLabels `json:"labels"`
+	InstallParams InstallParams                 `json:"installParams"`
+}
+
+// GetName returns the value of Name.
+func (s *ClusterCreateRequest) GetName() string {
+	return s.Name
+}
+
+// GetLabels returns the value of Labels.
+func (s *ClusterCreateRequest) GetLabels() OptClusterCreateRequestLabels {
+	return s.Labels
+}
+
+// GetInstallParams returns the value of InstallParams.
+func (s *ClusterCreateRequest) GetInstallParams() InstallParams {
+	return s.InstallParams
+}
+
+// SetName sets the value of Name.
+func (s *ClusterCreateRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *ClusterCreateRequest) SetLabels(val OptClusterCreateRequestLabels) {
+	s.Labels = val
+}
+
+// SetInstallParams sets the value of InstallParams.
+func (s *ClusterCreateRequest) SetInstallParams(val InstallParams) {
+	s.InstallParams = val
+}
+
+// 控制台管理的集群标签映射.
+type ClusterCreateRequestLabels map[string]string
+
+func (s *ClusterCreateRequestLabels) init() ClusterCreateRequestLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/ClusterDetail
+type ClusterDetail struct {
+	// 集群名称.
+	Name string `json:"name"`
+	// Kubernetes 集群 UID.
+	ClusterUid string       `json:"clusterUid"`
+	Phase      ClusterPhase `json:"phase"`
+	// 成员 operator 版本.
+	OperatorVersion string `json:"operatorVersion"`
+	// 最近一次心跳时间.
+	LastHeartbeatAt OptDateTime `json:"lastHeartbeatAt"`
+	// 成员 Kubernetes 版本.
+	KubernetesVersion string `json:"kubernetesVersion"`
+	// 成员 API Server 地址.
+	ApiServerAddress string `json:"apiServerAddress"`
+	// 上报的节点总数.
+	NodeCount int `json:"nodeCount"`
+	// Ready 节点数量.
+	ReadyNodeCount int `json:"readyNodeCount"`
+	// 控制台管理的集群标签映射.
+	Labels ClusterDetailLabels `json:"labels"`
+	// 登记创建时间.
+	CreatedAt time.Time `json:"createdAt"`
+	// 最近更新时间.
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// GetName returns the value of Name.
+func (s *ClusterDetail) GetName() string {
+	return s.Name
+}
+
+// GetClusterUid returns the value of ClusterUid.
+func (s *ClusterDetail) GetClusterUid() string {
+	return s.ClusterUid
+}
+
+// GetPhase returns the value of Phase.
+func (s *ClusterDetail) GetPhase() ClusterPhase {
+	return s.Phase
+}
+
+// GetOperatorVersion returns the value of OperatorVersion.
+func (s *ClusterDetail) GetOperatorVersion() string {
+	return s.OperatorVersion
+}
+
+// GetLastHeartbeatAt returns the value of LastHeartbeatAt.
+func (s *ClusterDetail) GetLastHeartbeatAt() OptDateTime {
+	return s.LastHeartbeatAt
+}
+
+// GetKubernetesVersion returns the value of KubernetesVersion.
+func (s *ClusterDetail) GetKubernetesVersion() string {
+	return s.KubernetesVersion
+}
+
+// GetApiServerAddress returns the value of ApiServerAddress.
+func (s *ClusterDetail) GetApiServerAddress() string {
+	return s.ApiServerAddress
+}
+
+// GetNodeCount returns the value of NodeCount.
+func (s *ClusterDetail) GetNodeCount() int {
+	return s.NodeCount
+}
+
+// GetReadyNodeCount returns the value of ReadyNodeCount.
+func (s *ClusterDetail) GetReadyNodeCount() int {
+	return s.ReadyNodeCount
+}
+
+// GetLabels returns the value of Labels.
+func (s *ClusterDetail) GetLabels() ClusterDetailLabels {
+	return s.Labels
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ClusterDetail) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ClusterDetail) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetName sets the value of Name.
+func (s *ClusterDetail) SetName(val string) {
+	s.Name = val
+}
+
+// SetClusterUid sets the value of ClusterUid.
+func (s *ClusterDetail) SetClusterUid(val string) {
+	s.ClusterUid = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ClusterDetail) SetPhase(val ClusterPhase) {
+	s.Phase = val
+}
+
+// SetOperatorVersion sets the value of OperatorVersion.
+func (s *ClusterDetail) SetOperatorVersion(val string) {
+	s.OperatorVersion = val
+}
+
+// SetLastHeartbeatAt sets the value of LastHeartbeatAt.
+func (s *ClusterDetail) SetLastHeartbeatAt(val OptDateTime) {
+	s.LastHeartbeatAt = val
+}
+
+// SetKubernetesVersion sets the value of KubernetesVersion.
+func (s *ClusterDetail) SetKubernetesVersion(val string) {
+	s.KubernetesVersion = val
+}
+
+// SetApiServerAddress sets the value of ApiServerAddress.
+func (s *ClusterDetail) SetApiServerAddress(val string) {
+	s.ApiServerAddress = val
+}
+
+// SetNodeCount sets the value of NodeCount.
+func (s *ClusterDetail) SetNodeCount(val int) {
+	s.NodeCount = val
+}
+
+// SetReadyNodeCount sets the value of ReadyNodeCount.
+func (s *ClusterDetail) SetReadyNodeCount(val int) {
+	s.ReadyNodeCount = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *ClusterDetail) SetLabels(val ClusterDetailLabels) {
+	s.Labels = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ClusterDetail) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ClusterDetail) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// 控制台管理的集群标签映射.
+type ClusterDetailLabels map[string]string
+
+func (s *ClusterDetailLabels) init() ClusterDetailLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Merged schema.
+// Ref: #/components/schemas/ClusterDetailResponse
+type ClusterDetailResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string        `json:"message"`
+	Data    ClusterDetail `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *ClusterDetailResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ClusterDetailResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *ClusterDetailResponse) GetData() ClusterDetail {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *ClusterDetailResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ClusterDetailResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *ClusterDetailResponse) SetData(val ClusterDetail) {
+	s.Data = val
+}
+
+func (*ClusterDetailResponse) getClusterRes() {}
+
+// Ref: #/components/schemas/ClusterLabelsRequest
+type ClusterLabelsRequest struct {
+	// 替换后的集群标签映射.
+	Labels ClusterLabelsRequestLabels `json:"labels"`
+}
+
+// GetLabels returns the value of Labels.
+func (s *ClusterLabelsRequest) GetLabels() ClusterLabelsRequestLabels {
+	return s.Labels
+}
+
+// SetLabels sets the value of Labels.
+func (s *ClusterLabelsRequest) SetLabels(val ClusterLabelsRequestLabels) {
+	s.Labels = val
+}
+
+// 替换后的集群标签映射.
+type ClusterLabelsRequestLabels map[string]string
+
+func (s *ClusterLabelsRequestLabels) init() ClusterLabelsRequestLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/ClusterListItem
+type ClusterListItem struct {
+	// 集群名称.
+	Name  string       `json:"name"`
+	Phase ClusterPhase `json:"phase"`
+	// 成员 operator 版本.
+	OperatorVersion string `json:"operatorVersion"`
+	// 成员 Kubernetes 版本.
+	KubernetesVersion string `json:"kubernetesVersion"`
+	// 上报的节点总数.
+	NodeCount int `json:"nodeCount"`
+	// Ready 节点数量.
+	ReadyNodeCount int `json:"readyNodeCount"`
+	// 最近一次心跳时间.
+	LastHeartbeatAt OptDateTime `json:"lastHeartbeatAt"`
+	// 登记创建时间.
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// GetName returns the value of Name.
+func (s *ClusterListItem) GetName() string {
+	return s.Name
+}
+
+// GetPhase returns the value of Phase.
+func (s *ClusterListItem) GetPhase() ClusterPhase {
+	return s.Phase
+}
+
+// GetOperatorVersion returns the value of OperatorVersion.
+func (s *ClusterListItem) GetOperatorVersion() string {
+	return s.OperatorVersion
+}
+
+// GetKubernetesVersion returns the value of KubernetesVersion.
+func (s *ClusterListItem) GetKubernetesVersion() string {
+	return s.KubernetesVersion
+}
+
+// GetNodeCount returns the value of NodeCount.
+func (s *ClusterListItem) GetNodeCount() int {
+	return s.NodeCount
+}
+
+// GetReadyNodeCount returns the value of ReadyNodeCount.
+func (s *ClusterListItem) GetReadyNodeCount() int {
+	return s.ReadyNodeCount
+}
+
+// GetLastHeartbeatAt returns the value of LastHeartbeatAt.
+func (s *ClusterListItem) GetLastHeartbeatAt() OptDateTime {
+	return s.LastHeartbeatAt
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ClusterListItem) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetName sets the value of Name.
+func (s *ClusterListItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ClusterListItem) SetPhase(val ClusterPhase) {
+	s.Phase = val
+}
+
+// SetOperatorVersion sets the value of OperatorVersion.
+func (s *ClusterListItem) SetOperatorVersion(val string) {
+	s.OperatorVersion = val
+}
+
+// SetKubernetesVersion sets the value of KubernetesVersion.
+func (s *ClusterListItem) SetKubernetesVersion(val string) {
+	s.KubernetesVersion = val
+}
+
+// SetNodeCount sets the value of NodeCount.
+func (s *ClusterListItem) SetNodeCount(val int) {
+	s.NodeCount = val
+}
+
+// SetReadyNodeCount sets the value of ReadyNodeCount.
+func (s *ClusterListItem) SetReadyNodeCount(val int) {
+	s.ReadyNodeCount = val
+}
+
+// SetLastHeartbeatAt sets the value of LastHeartbeatAt.
+func (s *ClusterListItem) SetLastHeartbeatAt(val OptDateTime) {
+	s.LastHeartbeatAt = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ClusterListItem) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/ClusterListResponse
+type ClusterListResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                  `json:"message"`
+	Data    ClusterListResponseData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *ClusterListResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ClusterListResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *ClusterListResponse) GetData() ClusterListResponseData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *ClusterListResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ClusterListResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *ClusterListResponse) SetData(val ClusterListResponseData) {
+	s.Data = val
+}
+
+func (*ClusterListResponse) listClustersRes() {}
+
+// Merged schema.
+type ClusterListResponseData struct {
+	// 符合筛选条件的记录总数，不受分页限制.
+	Total int `json:"total"`
+	// 当前页码，从 1 开始.
+	Page int `json:"page"`
+	// 每页记录数。仅接受 10、20、50、100.
+	PageSize ClusterListResponseDataPageSize `json:"pageSize"`
+	// 集群列表.
+	Items []ClusterListItem `json:"items"`
+}
+
+// GetTotal returns the value of Total.
+func (s *ClusterListResponseData) GetTotal() int {
+	return s.Total
+}
+
+// GetPage returns the value of Page.
+func (s *ClusterListResponseData) GetPage() int {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *ClusterListResponseData) GetPageSize() ClusterListResponseDataPageSize {
+	return s.PageSize
+}
+
+// GetItems returns the value of Items.
+func (s *ClusterListResponseData) GetItems() []ClusterListItem {
+	return s.Items
+}
+
+// SetTotal sets the value of Total.
+func (s *ClusterListResponseData) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetPage sets the value of Page.
+func (s *ClusterListResponseData) SetPage(val int) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *ClusterListResponseData) SetPageSize(val ClusterListResponseDataPageSize) {
+	s.PageSize = val
+}
+
+// SetItems sets the value of Items.
+func (s *ClusterListResponseData) SetItems(val []ClusterListItem) {
+	s.Items = val
+}
+
+// 每页记录数。仅接受 10、20、50、100.
+type ClusterListResponseDataPageSize int
+
+const (
+	ClusterListResponseDataPageSize10  ClusterListResponseDataPageSize = 10
+	ClusterListResponseDataPageSize20  ClusterListResponseDataPageSize = 20
+	ClusterListResponseDataPageSize50  ClusterListResponseDataPageSize = 50
+	ClusterListResponseDataPageSize100 ClusterListResponseDataPageSize = 100
+)
+
+// AllValues returns all ClusterListResponseDataPageSize values.
+func (ClusterListResponseDataPageSize) AllValues() []ClusterListResponseDataPageSize {
+	return []ClusterListResponseDataPageSize{
+		ClusterListResponseDataPageSize10,
+		ClusterListResponseDataPageSize20,
+		ClusterListResponseDataPageSize50,
+		ClusterListResponseDataPageSize100,
+	}
+}
+
+// Ref: #/components/schemas/ClusterNameData
+type ClusterNameData struct {
+	// 操作目标集群名称.
+	Name string `json:"name"`
+}
+
+// GetName returns the value of Name.
+func (s *ClusterNameData) GetName() string {
+	return s.Name
+}
+
+// SetName sets the value of Name.
+func (s *ClusterNameData) SetName(val string) {
+	s.Name = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/ClusterNameResponse
+type ClusterNameResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string          `json:"message"`
+	Data    ClusterNameData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *ClusterNameResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ClusterNameResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *ClusterNameResponse) GetData() ClusterNameData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *ClusterNameResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ClusterNameResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *ClusterNameResponse) SetData(val ClusterNameData) {
+	s.Data = val
+}
+
+func (*ClusterNameResponse) updateClusterRes() {}
+
+// 集群连接与卸载阶段.
+// Ref: #/components/schemas/ClusterPhase
+type ClusterPhase string
+
+const (
+	ClusterPhaseRegistering  ClusterPhase = "Registering"
+	ClusterPhaseOnline       ClusterPhase = "Online"
+	ClusterPhaseOffline      ClusterPhase = "Offline"
+	ClusterPhaseUninstalling ClusterPhase = "Uninstalling"
+)
+
+// AllValues returns all ClusterPhase values.
+func (ClusterPhase) AllValues() []ClusterPhase {
+	return []ClusterPhase{
+		ClusterPhaseRegistering,
+		ClusterPhaseOnline,
+		ClusterPhaseOffline,
+		ClusterPhaseUninstalling,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ClusterPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ClusterPhaseRegistering:
+		return []byte(s), nil
+	case ClusterPhaseOnline:
+		return []byte(s), nil
+	case ClusterPhaseOffline:
+		return []byte(s), nil
+	case ClusterPhaseUninstalling:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ClusterPhase) UnmarshalText(data []byte) error {
+	switch ClusterPhase(data) {
+	case ClusterPhaseRegistering:
+		*s = ClusterPhaseRegistering
+		return nil
+	case ClusterPhaseOnline:
+		*s = ClusterPhaseOnline
+		return nil
+	case ClusterPhaseOffline:
+		*s = ClusterPhaseOffline
+		return nil
+	case ClusterPhaseUninstalling:
+		*s = ClusterPhaseUninstalling
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ClusterTokenRequest
+type ClusterTokenRequest struct {
+	InstallParams InstallParams `json:"installParams"`
+}
+
+// GetInstallParams returns the value of InstallParams.
+func (s *ClusterTokenRequest) GetInstallParams() InstallParams {
+	return s.InstallParams
+}
+
+// SetInstallParams sets the value of InstallParams.
+func (s *ClusterTokenRequest) SetInstallParams(val InstallParams) {
+	s.InstallParams = val
+}
+
 type CreateClusterBadRequest ErrorResponse
 
 func (*CreateClusterBadRequest) createClusterRes() {}
@@ -1779,30 +2538,6 @@ type CreateClusterInternalServerError ErrorResponse
 
 func (*CreateClusterInternalServerError) createClusterRes() {}
 
-type CreateClusterOK map[string]jx.Raw
-
-func (s *CreateClusterOK) init() CreateClusterOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*CreateClusterOK) createClusterRes() {}
-
-type CreateClusterReq map[string]jx.Raw
-
-func (s *CreateClusterReq) init() CreateClusterReq {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
 type CreateDistributionBadRequest ErrorResponse
 
 func (*CreateDistributionBadRequest) createDistributionRes() {}
@@ -1814,30 +2549,6 @@ func (*CreateDistributionConflict) createDistributionRes() {}
 type CreateDistributionInternalServerError ErrorResponse
 
 func (*CreateDistributionInternalServerError) createDistributionRes() {}
-
-type CreateDistributionOK map[string]jx.Raw
-
-func (s *CreateDistributionOK) init() CreateDistributionOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*CreateDistributionOK) createDistributionRes() {}
-
-type CreateDistributionReq map[string]jx.Raw
-
-func (s *CreateDistributionReq) init() CreateDistributionReq {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
 
 type CreateExceptionBadRequest ErrorResponse
 
@@ -1887,19 +2598,6 @@ type CreateUninstallTaskNotFound ErrorResponse
 
 func (*CreateUninstallTaskNotFound) createUninstallTaskRes() {}
 
-type CreateUninstallTaskOK map[string]jx.Raw
-
-func (s *CreateUninstallTaskOK) init() CreateUninstallTaskOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*CreateUninstallTaskOK) createUninstallTaskRes() {}
-
 type DeleteClusterConflict ErrorResponse
 
 func (*DeleteClusterConflict) deleteClusterRes() {}
@@ -1916,19 +2614,6 @@ type DeleteClusterNotFound ErrorResponse
 
 func (*DeleteClusterNotFound) deleteClusterRes() {}
 
-type DeleteClusterOK map[string]jx.Raw
-
-func (s *DeleteClusterOK) init() DeleteClusterOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*DeleteClusterOK) deleteClusterRes() {}
-
 type DeleteDistributionConflict ErrorResponse
 
 func (*DeleteDistributionConflict) deleteDistributionRes() {}
@@ -1944,19 +2629,6 @@ func (*DeleteDistributionInternalServerError) deleteDistributionRes() {}
 type DeleteDistributionNotFound ErrorResponse
 
 func (*DeleteDistributionNotFound) deleteDistributionRes() {}
-
-type DeleteDistributionOK map[string]jx.Raw
-
-func (s *DeleteDistributionOK) init() DeleteDistributionOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*DeleteDistributionOK) deleteDistributionRes() {}
 
 type DeleteExceptionInternalServerError ErrorResponse
 
@@ -1989,6 +2661,644 @@ func (*DeletePolicyInternalServerError) deletePolicyRes() {}
 type DeletePolicyNotFound ErrorResponse
 
 func (*DeletePolicyNotFound) deletePolicyRes() {}
+
+// Ref: #/components/schemas/DistributionDetail
+type DistributionDetail struct {
+	// 策略分发名称.
+	Name string `json:"name"`
+	// 乐观并发版本.
+	ResourceVersion string           `json:"resourceVersion"`
+	Spec            DistributionSpec `json:"spec"`
+}
+
+// GetName returns the value of Name.
+func (s *DistributionDetail) GetName() string {
+	return s.Name
+}
+
+// GetResourceVersion returns the value of ResourceVersion.
+func (s *DistributionDetail) GetResourceVersion() string {
+	return s.ResourceVersion
+}
+
+// GetSpec returns the value of Spec.
+func (s *DistributionDetail) GetSpec() DistributionSpec {
+	return s.Spec
+}
+
+// SetName sets the value of Name.
+func (s *DistributionDetail) SetName(val string) {
+	s.Name = val
+}
+
+// SetResourceVersion sets the value of ResourceVersion.
+func (s *DistributionDetail) SetResourceVersion(val string) {
+	s.ResourceVersion = val
+}
+
+// SetSpec sets the value of Spec.
+func (s *DistributionDetail) SetSpec(val DistributionSpec) {
+	s.Spec = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/DistributionDetailResponse
+type DistributionDetailResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string             `json:"message"`
+	Data    DistributionDetail `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *DistributionDetailResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *DistributionDetailResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *DistributionDetailResponse) GetData() DistributionDetail {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *DistributionDetailResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *DistributionDetailResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *DistributionDetailResponse) SetData(val DistributionDetail) {
+	s.Data = val
+}
+
+func (*DistributionDetailResponse) getDistributionRes() {}
+
+// Merged schema.
+// Ref: #/components/schemas/DistributionEmptyResponse
+type DistributionEmptyResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string `json:"message"`
+}
+
+// GetCode returns the value of Code.
+func (s *DistributionEmptyResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *DistributionEmptyResponse) GetMessage() string {
+	return s.Message
+}
+
+// SetCode sets the value of Code.
+func (s *DistributionEmptyResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *DistributionEmptyResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+func (*DistributionEmptyResponse) deleteDistributionRes() {}
+
+// Ref: #/components/schemas/DistributionListItem
+type DistributionListItem struct {
+	// 策略分发名称.
+	Name string `json:"name"`
+	// 分发的策略组名称.
+	PolicyGroups []string `json:"policyGroups"`
+}
+
+// GetName returns the value of Name.
+func (s *DistributionListItem) GetName() string {
+	return s.Name
+}
+
+// GetPolicyGroups returns the value of PolicyGroups.
+func (s *DistributionListItem) GetPolicyGroups() []string {
+	return s.PolicyGroups
+}
+
+// SetName sets the value of Name.
+func (s *DistributionListItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetPolicyGroups sets the value of PolicyGroups.
+func (s *DistributionListItem) SetPolicyGroups(val []string) {
+	s.PolicyGroups = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/DistributionListResponse
+type DistributionListResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                       `json:"message"`
+	Data    DistributionListResponseData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *DistributionListResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *DistributionListResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *DistributionListResponse) GetData() DistributionListResponseData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *DistributionListResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *DistributionListResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *DistributionListResponse) SetData(val DistributionListResponseData) {
+	s.Data = val
+}
+
+func (*DistributionListResponse) listDistributionsRes() {}
+
+// Merged schema.
+type DistributionListResponseData struct {
+	// 符合筛选条件的记录总数，不受分页限制.
+	Total int `json:"total"`
+	// 当前页码，从 1 开始.
+	Page int `json:"page"`
+	// 每页记录数。仅接受 10、20、50、100.
+	PageSize DistributionListResponseDataPageSize `json:"pageSize"`
+	// 策略分发列表.
+	Items []DistributionListItem `json:"items"`
+}
+
+// GetTotal returns the value of Total.
+func (s *DistributionListResponseData) GetTotal() int {
+	return s.Total
+}
+
+// GetPage returns the value of Page.
+func (s *DistributionListResponseData) GetPage() int {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *DistributionListResponseData) GetPageSize() DistributionListResponseDataPageSize {
+	return s.PageSize
+}
+
+// GetItems returns the value of Items.
+func (s *DistributionListResponseData) GetItems() []DistributionListItem {
+	return s.Items
+}
+
+// SetTotal sets the value of Total.
+func (s *DistributionListResponseData) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetPage sets the value of Page.
+func (s *DistributionListResponseData) SetPage(val int) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *DistributionListResponseData) SetPageSize(val DistributionListResponseDataPageSize) {
+	s.PageSize = val
+}
+
+// SetItems sets the value of Items.
+func (s *DistributionListResponseData) SetItems(val []DistributionListItem) {
+	s.Items = val
+}
+
+// 每页记录数。仅接受 10、20、50、100.
+type DistributionListResponseDataPageSize int
+
+const (
+	DistributionListResponseDataPageSize10  DistributionListResponseDataPageSize = 10
+	DistributionListResponseDataPageSize20  DistributionListResponseDataPageSize = 20
+	DistributionListResponseDataPageSize50  DistributionListResponseDataPageSize = 50
+	DistributionListResponseDataPageSize100 DistributionListResponseDataPageSize = 100
+)
+
+// AllValues returns all DistributionListResponseDataPageSize values.
+func (DistributionListResponseDataPageSize) AllValues() []DistributionListResponseDataPageSize {
+	return []DistributionListResponseDataPageSize{
+		DistributionListResponseDataPageSize10,
+		DistributionListResponseDataPageSize20,
+		DistributionListResponseDataPageSize50,
+		DistributionListResponseDataPageSize100,
+	}
+}
+
+// Ref: #/components/schemas/DistributionNameData
+type DistributionNameData struct {
+	// 操作目标策略分发名称.
+	Name string `json:"name"`
+}
+
+// GetName returns the value of Name.
+func (s *DistributionNameData) GetName() string {
+	return s.Name
+}
+
+// SetName sets the value of Name.
+func (s *DistributionNameData) SetName(val string) {
+	s.Name = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/DistributionNameResponse
+type DistributionNameResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string               `json:"message"`
+	Data    DistributionNameData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *DistributionNameResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *DistributionNameResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *DistributionNameResponse) GetData() DistributionNameData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *DistributionNameResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *DistributionNameResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *DistributionNameResponse) SetData(val DistributionNameData) {
+	s.Data = val
+}
+
+func (*DistributionNameResponse) createDistributionRes() {}
+func (*DistributionNameResponse) updateDistributionRes() {}
+
+// Ref: #/components/schemas/DistributionRequest
+type DistributionRequest struct {
+	// 创建时使用的策略分发名称.
+	Name OptString        `json:"name"`
+	Spec DistributionSpec `json:"spec"`
+	// 更新时使用的乐观并发版本.
+	ResourceVersion OptString `json:"resourceVersion"`
+}
+
+// GetName returns the value of Name.
+func (s *DistributionRequest) GetName() OptString {
+	return s.Name
+}
+
+// GetSpec returns the value of Spec.
+func (s *DistributionRequest) GetSpec() DistributionSpec {
+	return s.Spec
+}
+
+// GetResourceVersion returns the value of ResourceVersion.
+func (s *DistributionRequest) GetResourceVersion() OptString {
+	return s.ResourceVersion
+}
+
+// SetName sets the value of Name.
+func (s *DistributionRequest) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetSpec sets the value of Spec.
+func (s *DistributionRequest) SetSpec(val DistributionSpec) {
+	s.Spec = val
+}
+
+// SetResourceVersion sets the value of ResourceVersion.
+func (s *DistributionRequest) SetResourceVersion(val OptString) {
+	s.ResourceVersion = val
+}
+
+// Ref: #/components/schemas/DistributionSpec
+type DistributionSpec struct {
+	// 要分发的策略组名称.
+	PolicyGroups []string `json:"policyGroups"`
+	// 要分发的策略例外名称.
+	PolicyExceptions []string `json:"policyExceptions"`
+	// 集群范围，可按名称和标签选择器并集匹配.
+	Clusters OptDistributionSpecClusters `json:"clusters"`
+	// 对单个集群覆盖策略组执行模式的规则.
+	Overrides []DistributionSpecOverridesItem `json:"overrides"`
+}
+
+// GetPolicyGroups returns the value of PolicyGroups.
+func (s *DistributionSpec) GetPolicyGroups() []string {
+	return s.PolicyGroups
+}
+
+// GetPolicyExceptions returns the value of PolicyExceptions.
+func (s *DistributionSpec) GetPolicyExceptions() []string {
+	return s.PolicyExceptions
+}
+
+// GetClusters returns the value of Clusters.
+func (s *DistributionSpec) GetClusters() OptDistributionSpecClusters {
+	return s.Clusters
+}
+
+// GetOverrides returns the value of Overrides.
+func (s *DistributionSpec) GetOverrides() []DistributionSpecOverridesItem {
+	return s.Overrides
+}
+
+// SetPolicyGroups sets the value of PolicyGroups.
+func (s *DistributionSpec) SetPolicyGroups(val []string) {
+	s.PolicyGroups = val
+}
+
+// SetPolicyExceptions sets the value of PolicyExceptions.
+func (s *DistributionSpec) SetPolicyExceptions(val []string) {
+	s.PolicyExceptions = val
+}
+
+// SetClusters sets the value of Clusters.
+func (s *DistributionSpec) SetClusters(val OptDistributionSpecClusters) {
+	s.Clusters = val
+}
+
+// SetOverrides sets the value of Overrides.
+func (s *DistributionSpec) SetOverrides(val []DistributionSpecOverridesItem) {
+	s.Overrides = val
+}
+
+// 集群范围，可按名称和标签选择器并集匹配.
+type DistributionSpecClusters struct {
+	// 显式目标集群名称.
+	ByName []string `json:"byName"`
+	// Kubernetes 标签选择器.
+	ClusterSelector OptDistributionSpecClustersClusterSelector `json:"clusterSelector"`
+}
+
+// GetByName returns the value of ByName.
+func (s *DistributionSpecClusters) GetByName() []string {
+	return s.ByName
+}
+
+// GetClusterSelector returns the value of ClusterSelector.
+func (s *DistributionSpecClusters) GetClusterSelector() OptDistributionSpecClustersClusterSelector {
+	return s.ClusterSelector
+}
+
+// SetByName sets the value of ByName.
+func (s *DistributionSpecClusters) SetByName(val []string) {
+	s.ByName = val
+}
+
+// SetClusterSelector sets the value of ClusterSelector.
+func (s *DistributionSpecClusters) SetClusterSelector(val OptDistributionSpecClustersClusterSelector) {
+	s.ClusterSelector = val
+}
+
+// Kubernetes 标签选择器.
+type DistributionSpecClustersClusterSelector struct {
+	// 精确匹配的集群标签.
+	MatchLabels OptDistributionSpecClustersClusterSelectorMatchLabels `json:"matchLabels"`
+	// 表达式形式的标签选择器.
+	MatchExpressions []DistributionSpecClustersClusterSelectorMatchExpressionsItem `json:"matchExpressions"`
+}
+
+// GetMatchLabels returns the value of MatchLabels.
+func (s *DistributionSpecClustersClusterSelector) GetMatchLabels() OptDistributionSpecClustersClusterSelectorMatchLabels {
+	return s.MatchLabels
+}
+
+// GetMatchExpressions returns the value of MatchExpressions.
+func (s *DistributionSpecClustersClusterSelector) GetMatchExpressions() []DistributionSpecClustersClusterSelectorMatchExpressionsItem {
+	return s.MatchExpressions
+}
+
+// SetMatchLabels sets the value of MatchLabels.
+func (s *DistributionSpecClustersClusterSelector) SetMatchLabels(val OptDistributionSpecClustersClusterSelectorMatchLabels) {
+	s.MatchLabels = val
+}
+
+// SetMatchExpressions sets the value of MatchExpressions.
+func (s *DistributionSpecClustersClusterSelector) SetMatchExpressions(val []DistributionSpecClustersClusterSelectorMatchExpressionsItem) {
+	s.MatchExpressions = val
+}
+
+// 单条 Kubernetes 标签选择表达式.
+type DistributionSpecClustersClusterSelectorMatchExpressionsItem struct {
+	// 标签键.
+	Key OptString `json:"key"`
+	// 标签选择运算符.
+	Operator OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator `json:"operator"`
+	// 运算符使用的标签值.
+	Values []string `json:"values"`
+}
+
+// GetKey returns the value of Key.
+func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) GetKey() OptString {
+	return s.Key
+}
+
+// GetOperator returns the value of Operator.
+func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) GetOperator() OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator {
+	return s.Operator
+}
+
+// GetValues returns the value of Values.
+func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) GetValues() []string {
+	return s.Values
+}
+
+// SetKey sets the value of Key.
+func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) SetKey(val OptString) {
+	s.Key = val
+}
+
+// SetOperator sets the value of Operator.
+func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) SetOperator(val OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) {
+	s.Operator = val
+}
+
+// SetValues sets the value of Values.
+func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItem) SetValues(val []string) {
+	s.Values = val
+}
+
+// 标签选择运算符.
+type DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator string
+
+const (
+	DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn           DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator = "In"
+	DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn        DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator = "NotIn"
+	DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists       DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator = "Exists"
+	DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator = "DoesNotExist"
+)
+
+// AllValues returns all DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator values.
+func (DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) AllValues() []DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator {
+	return []DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator{
+		DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn,
+		DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn,
+		DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists,
+		DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) MarshalText() ([]byte, error) {
+	switch s {
+	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn:
+		return []byte(s), nil
+	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn:
+		return []byte(s), nil
+	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists:
+		return []byte(s), nil
+	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) UnmarshalText(data []byte) error {
+	switch DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator(data) {
+	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn:
+		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorIn
+		return nil
+	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn:
+		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorNotIn
+		return nil
+	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists:
+		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorExists
+		return nil
+	case DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist:
+		*s = DistributionSpecClustersClusterSelectorMatchExpressionsItemOperatorDoesNotExist
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// 精确匹配的集群标签.
+type DistributionSpecClustersClusterSelectorMatchLabels map[string]string
+
+func (s *DistributionSpecClustersClusterSelectorMatchLabels) init() DistributionSpecClustersClusterSelectorMatchLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// 单条集群执行模式覆盖.
+type DistributionSpecOverridesItem struct {
+	// 目标集群名称.
+	Cluster string `json:"cluster"`
+	// 覆盖的执行模式.
+	EnforcementMode DistributionSpecOverridesItemEnforcementMode `json:"enforcementMode"`
+}
+
+// GetCluster returns the value of Cluster.
+func (s *DistributionSpecOverridesItem) GetCluster() string {
+	return s.Cluster
+}
+
+// GetEnforcementMode returns the value of EnforcementMode.
+func (s *DistributionSpecOverridesItem) GetEnforcementMode() DistributionSpecOverridesItemEnforcementMode {
+	return s.EnforcementMode
+}
+
+// SetCluster sets the value of Cluster.
+func (s *DistributionSpecOverridesItem) SetCluster(val string) {
+	s.Cluster = val
+}
+
+// SetEnforcementMode sets the value of EnforcementMode.
+func (s *DistributionSpecOverridesItem) SetEnforcementMode(val DistributionSpecOverridesItemEnforcementMode) {
+	s.EnforcementMode = val
+}
+
+// 覆盖的执行模式.
+type DistributionSpecOverridesItemEnforcementMode string
+
+const (
+	DistributionSpecOverridesItemEnforcementModeAudit   DistributionSpecOverridesItemEnforcementMode = "audit"
+	DistributionSpecOverridesItemEnforcementModeEnforce DistributionSpecOverridesItemEnforcementMode = "enforce"
+)
+
+// AllValues returns all DistributionSpecOverridesItemEnforcementMode values.
+func (DistributionSpecOverridesItemEnforcementMode) AllValues() []DistributionSpecOverridesItemEnforcementMode {
+	return []DistributionSpecOverridesItemEnforcementMode{
+		DistributionSpecOverridesItemEnforcementModeAudit,
+		DistributionSpecOverridesItemEnforcementModeEnforce,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DistributionSpecOverridesItemEnforcementMode) MarshalText() ([]byte, error) {
+	switch s {
+	case DistributionSpecOverridesItemEnforcementModeAudit:
+		return []byte(s), nil
+	case DistributionSpecOverridesItemEnforcementModeEnforce:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DistributionSpecOverridesItemEnforcementMode) UnmarshalText(data []byte) error {
+	switch DistributionSpecOverridesItemEnforcementMode(data) {
+	case DistributionSpecOverridesItemEnforcementModeAudit:
+		*s = DistributionSpecOverridesItemEnforcementModeAudit
+		return nil
+	case DistributionSpecOverridesItemEnforcementModeEnforce:
+		*s = DistributionSpecOverridesItemEnforcementModeEnforce
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Ref: #/components/schemas/EffectiveMember
 type EffectiveMember struct {
@@ -2113,6 +3423,37 @@ func (s *EffectiveMemberSource) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// Merged schema.
+// Ref: #/components/schemas/EmptyResponse
+type EmptyResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string `json:"message"`
+}
+
+// GetCode returns the value of Code.
+func (s *EmptyResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *EmptyResponse) GetMessage() string {
+	return s.Message
+}
+
+// SetCode sets the value of Code.
+func (s *EmptyResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *EmptyResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+func (*EmptyResponse) deleteClusterRes() {}
 
 // Ref: #/components/schemas/Envelope
 type Envelope struct {
@@ -2599,8 +3940,9 @@ type ExceptionNameResponse struct {
 	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
 	Code int `json:"code"`
 	// 结果描述。成功时固定为 success.
-	Message string                       `json:"message"`
-	Data    OptExceptionNameResponseData `json:"data"`
+	Message string `json:"message"`
+	// 新建或更新后的例外名称.
+	Data OptExceptionNameResponseData `json:"data"`
 }
 
 // GetCode returns the value of Code.
@@ -2636,6 +3978,7 @@ func (s *ExceptionNameResponse) SetData(val OptExceptionNameResponseData) {
 func (*ExceptionNameResponse) createExceptionRes() {}
 func (*ExceptionNameResponse) updateExceptionRes() {}
 
+// 新建或更新后的例外名称.
 type ExceptionNameResponseData struct {
 	// 例外名称.
 	Name string `json:"name"`
@@ -3225,19 +4568,6 @@ type GetClusterNotFound ErrorResponse
 
 func (*GetClusterNotFound) getClusterRes() {}
 
-type GetClusterOK map[string]jx.Raw
-
-func (s *GetClusterOK) init() GetClusterOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*GetClusterOK) getClusterRes() {}
-
 type GetDistributionInternalServerError ErrorResponse
 
 func (*GetDistributionInternalServerError) getDistributionRes() {}
@@ -3245,19 +4575,6 @@ func (*GetDistributionInternalServerError) getDistributionRes() {}
 type GetDistributionNotFound ErrorResponse
 
 func (*GetDistributionNotFound) getDistributionRes() {}
-
-type GetDistributionOK map[string]jx.Raw
-
-func (s *GetDistributionOK) init() GetDistributionOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*GetDistributionOK) getDistributionRes() {}
 
 type GetExceptionInternalServerError ErrorResponse
 
@@ -3283,19 +4600,6 @@ type GetLatestInstallParamsNotFound ErrorResponse
 
 func (*GetLatestInstallParamsNotFound) getLatestInstallParamsRes() {}
 
-type GetLatestInstallParamsOK map[string]jx.Raw
-
-func (s *GetLatestInstallParamsOK) init() GetLatestInstallParamsOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*GetLatestInstallParamsOK) getLatestInstallParamsRes() {}
-
 type GetPlatformInstanceTrendBadRequest ErrorResponse
 
 func (*GetPlatformInstanceTrendBadRequest) getPlatformInstanceTrendRes() {}
@@ -3308,19 +4612,6 @@ type GetPlatformInstanceTrendNotFound ErrorResponse
 
 func (*GetPlatformInstanceTrendNotFound) getPlatformInstanceTrendRes() {}
 
-type GetPlatformInstanceTrendOK map[string]jx.Raw
-
-func (s *GetPlatformInstanceTrendOK) init() GetPlatformInstanceTrendOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*GetPlatformInstanceTrendOK) getPlatformInstanceTrendRes() {}
-
 type GetPlatformOverviewBadRequest ErrorResponse
 
 func (*GetPlatformOverviewBadRequest) getPlatformOverviewRes() {}
@@ -3328,32 +4619,6 @@ func (*GetPlatformOverviewBadRequest) getPlatformOverviewRes() {}
 type GetPlatformOverviewInternalServerError ErrorResponse
 
 func (*GetPlatformOverviewInternalServerError) getPlatformOverviewRes() {}
-
-type GetPlatformOverviewOK map[string]jx.Raw
-
-func (s *GetPlatformOverviewOK) init() GetPlatformOverviewOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*GetPlatformOverviewOK) getPlatformOverviewRes() {}
-
-type GetPlatformSettingsOK map[string]jx.Raw
-
-func (s *GetPlatformSettingsOK) init() GetPlatformSettingsOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*GetPlatformSettingsOK) getPlatformSettingsRes() {}
 
 type GetPolicyGroupInternalServerError ErrorResponse
 
@@ -3378,6 +4643,449 @@ func (*GetResourceSuggestionsBadRequest) getResourceSuggestionsRes() {}
 type GetResourceSuggestionsInternalServerError ErrorResponse
 
 func (*GetResourceSuggestionsInternalServerError) getResourceSuggestionsRes() {}
+
+// Ref: #/components/schemas/ImageParams
+type ImageParams struct {
+	// 容器镜像仓库.
+	Repository string `json:"repository"`
+	// 容器镜像标签.
+	Tag string `json:"tag"`
+	// Kubernetes 镜像拉取策略.
+	PullPolicy ImageParamsPullPolicy `json:"pullPolicy"`
+}
+
+// GetRepository returns the value of Repository.
+func (s *ImageParams) GetRepository() string {
+	return s.Repository
+}
+
+// GetTag returns the value of Tag.
+func (s *ImageParams) GetTag() string {
+	return s.Tag
+}
+
+// GetPullPolicy returns the value of PullPolicy.
+func (s *ImageParams) GetPullPolicy() ImageParamsPullPolicy {
+	return s.PullPolicy
+}
+
+// SetRepository sets the value of Repository.
+func (s *ImageParams) SetRepository(val string) {
+	s.Repository = val
+}
+
+// SetTag sets the value of Tag.
+func (s *ImageParams) SetTag(val string) {
+	s.Tag = val
+}
+
+// SetPullPolicy sets the value of PullPolicy.
+func (s *ImageParams) SetPullPolicy(val ImageParamsPullPolicy) {
+	s.PullPolicy = val
+}
+
+// Kubernetes 镜像拉取策略.
+type ImageParamsPullPolicy string
+
+const (
+	ImageParamsPullPolicyAlways       ImageParamsPullPolicy = "Always"
+	ImageParamsPullPolicyIfNotPresent ImageParamsPullPolicy = "IfNotPresent"
+	ImageParamsPullPolicyNever        ImageParamsPullPolicy = "Never"
+)
+
+// AllValues returns all ImageParamsPullPolicy values.
+func (ImageParamsPullPolicy) AllValues() []ImageParamsPullPolicy {
+	return []ImageParamsPullPolicy{
+		ImageParamsPullPolicyAlways,
+		ImageParamsPullPolicyIfNotPresent,
+		ImageParamsPullPolicyNever,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ImageParamsPullPolicy) MarshalText() ([]byte, error) {
+	switch s {
+	case ImageParamsPullPolicyAlways:
+		return []byte(s), nil
+	case ImageParamsPullPolicyIfNotPresent:
+		return []byte(s), nil
+	case ImageParamsPullPolicyNever:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ImageParamsPullPolicy) UnmarshalText(data []byte) error {
+	switch ImageParamsPullPolicy(data) {
+	case ImageParamsPullPolicyAlways:
+		*s = ImageParamsPullPolicyAlways
+		return nil
+	case ImageParamsPullPolicyIfNotPresent:
+		*s = ImageParamsPullPolicyIfNotPresent
+		return nil
+	case ImageParamsPullPolicyNever:
+		*s = ImageParamsPullPolicyNever
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/InstallParams
+type InstallParams struct {
+	// 安装的 Kubernetes 命名空间.
+	Namespace     string      `json:"namespace"`
+	WebhookImage  ImageParams `json:"webhookImage"`
+	OperatorImage ImageParams `json:"operatorImage"`
+	// 是否启用 webhook 和 operator 高可用.
+	HighAvailability bool `json:"highAvailability"`
+	// Gateway gRPC 服务地址.
+	GatewayAddress string `json:"gatewayAddress"`
+	// Gateway TLS 服务名称.
+	GatewayTlsServerName OptString `json:"gatewayTlsServerName"`
+	// Gateway CA PEM 内容.
+	GatewayCaBundle OptString `json:"gatewayCaBundle"`
+}
+
+// GetNamespace returns the value of Namespace.
+func (s *InstallParams) GetNamespace() string {
+	return s.Namespace
+}
+
+// GetWebhookImage returns the value of WebhookImage.
+func (s *InstallParams) GetWebhookImage() ImageParams {
+	return s.WebhookImage
+}
+
+// GetOperatorImage returns the value of OperatorImage.
+func (s *InstallParams) GetOperatorImage() ImageParams {
+	return s.OperatorImage
+}
+
+// GetHighAvailability returns the value of HighAvailability.
+func (s *InstallParams) GetHighAvailability() bool {
+	return s.HighAvailability
+}
+
+// GetGatewayAddress returns the value of GatewayAddress.
+func (s *InstallParams) GetGatewayAddress() string {
+	return s.GatewayAddress
+}
+
+// GetGatewayTlsServerName returns the value of GatewayTlsServerName.
+func (s *InstallParams) GetGatewayTlsServerName() OptString {
+	return s.GatewayTlsServerName
+}
+
+// GetGatewayCaBundle returns the value of GatewayCaBundle.
+func (s *InstallParams) GetGatewayCaBundle() OptString {
+	return s.GatewayCaBundle
+}
+
+// SetNamespace sets the value of Namespace.
+func (s *InstallParams) SetNamespace(val string) {
+	s.Namespace = val
+}
+
+// SetWebhookImage sets the value of WebhookImage.
+func (s *InstallParams) SetWebhookImage(val ImageParams) {
+	s.WebhookImage = val
+}
+
+// SetOperatorImage sets the value of OperatorImage.
+func (s *InstallParams) SetOperatorImage(val ImageParams) {
+	s.OperatorImage = val
+}
+
+// SetHighAvailability sets the value of HighAvailability.
+func (s *InstallParams) SetHighAvailability(val bool) {
+	s.HighAvailability = val
+}
+
+// SetGatewayAddress sets the value of GatewayAddress.
+func (s *InstallParams) SetGatewayAddress(val string) {
+	s.GatewayAddress = val
+}
+
+// SetGatewayTlsServerName sets the value of GatewayTlsServerName.
+func (s *InstallParams) SetGatewayTlsServerName(val OptString) {
+	s.GatewayTlsServerName = val
+}
+
+// SetGatewayCaBundle sets the value of GatewayCaBundle.
+func (s *InstallParams) SetGatewayCaBundle(val OptString) {
+	s.GatewayCaBundle = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/InstallParamsResponse
+type InstallParamsResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string           `json:"message"`
+	Data    OptInstallParams `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *InstallParamsResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *InstallParamsResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *InstallParamsResponse) GetData() OptInstallParams {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *InstallParamsResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InstallParamsResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *InstallParamsResponse) SetData(val OptInstallParams) {
+	s.Data = val
+}
+
+func (*InstallParamsResponse) getLatestInstallParamsRes() {}
+
+// Ref: #/components/schemas/InstallRecord
+type InstallRecord struct {
+	// 关联的集群名称.
+	ClusterName string `json:"clusterName"`
+	// 安装命名空间.
+	Namespace string `json:"namespace"`
+	// Webhook 镜像仓库.
+	WebhookRepository string `json:"webhookRepository"`
+	// Webhook 镜像标签.
+	WebhookTag string `json:"webhookTag"`
+	// Operator 镜像仓库.
+	OperatorRepository string `json:"operatorRepository"`
+	// Operator 镜像标签.
+	OperatorTag string `json:"operatorTag"`
+	// 是否启用高可用.
+	HighAvailability bool `json:"highAvailability"`
+	// Gateway 地址.
+	GatewayAddress string `json:"gatewayAddress"`
+	// 安装记录创建时间.
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// GetClusterName returns the value of ClusterName.
+func (s *InstallRecord) GetClusterName() string {
+	return s.ClusterName
+}
+
+// GetNamespace returns the value of Namespace.
+func (s *InstallRecord) GetNamespace() string {
+	return s.Namespace
+}
+
+// GetWebhookRepository returns the value of WebhookRepository.
+func (s *InstallRecord) GetWebhookRepository() string {
+	return s.WebhookRepository
+}
+
+// GetWebhookTag returns the value of WebhookTag.
+func (s *InstallRecord) GetWebhookTag() string {
+	return s.WebhookTag
+}
+
+// GetOperatorRepository returns the value of OperatorRepository.
+func (s *InstallRecord) GetOperatorRepository() string {
+	return s.OperatorRepository
+}
+
+// GetOperatorTag returns the value of OperatorTag.
+func (s *InstallRecord) GetOperatorTag() string {
+	return s.OperatorTag
+}
+
+// GetHighAvailability returns the value of HighAvailability.
+func (s *InstallRecord) GetHighAvailability() bool {
+	return s.HighAvailability
+}
+
+// GetGatewayAddress returns the value of GatewayAddress.
+func (s *InstallRecord) GetGatewayAddress() string {
+	return s.GatewayAddress
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *InstallRecord) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetClusterName sets the value of ClusterName.
+func (s *InstallRecord) SetClusterName(val string) {
+	s.ClusterName = val
+}
+
+// SetNamespace sets the value of Namespace.
+func (s *InstallRecord) SetNamespace(val string) {
+	s.Namespace = val
+}
+
+// SetWebhookRepository sets the value of WebhookRepository.
+func (s *InstallRecord) SetWebhookRepository(val string) {
+	s.WebhookRepository = val
+}
+
+// SetWebhookTag sets the value of WebhookTag.
+func (s *InstallRecord) SetWebhookTag(val string) {
+	s.WebhookTag = val
+}
+
+// SetOperatorRepository sets the value of OperatorRepository.
+func (s *InstallRecord) SetOperatorRepository(val string) {
+	s.OperatorRepository = val
+}
+
+// SetOperatorTag sets the value of OperatorTag.
+func (s *InstallRecord) SetOperatorTag(val string) {
+	s.OperatorTag = val
+}
+
+// SetHighAvailability sets the value of HighAvailability.
+func (s *InstallRecord) SetHighAvailability(val bool) {
+	s.HighAvailability = val
+}
+
+// SetGatewayAddress sets the value of GatewayAddress.
+func (s *InstallRecord) SetGatewayAddress(val string) {
+	s.GatewayAddress = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *InstallRecord) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/InstallRecordListResponse
+type InstallRecordListResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                        `json:"message"`
+	Data    InstallRecordListResponseData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *InstallRecordListResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *InstallRecordListResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *InstallRecordListResponse) GetData() InstallRecordListResponseData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *InstallRecordListResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InstallRecordListResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *InstallRecordListResponse) SetData(val InstallRecordListResponseData) {
+	s.Data = val
+}
+
+func (*InstallRecordListResponse) listInstallRecordsRes() {}
+
+// Merged schema.
+type InstallRecordListResponseData struct {
+	// 符合筛选条件的记录总数，不受分页限制.
+	Total int `json:"total"`
+	// 当前页码，从 1 开始.
+	Page int `json:"page"`
+	// 每页记录数。仅接受 10、20、50、100.
+	PageSize InstallRecordListResponseDataPageSize `json:"pageSize"`
+	// 安装记录列表.
+	Items []InstallRecord `json:"items"`
+}
+
+// GetTotal returns the value of Total.
+func (s *InstallRecordListResponseData) GetTotal() int {
+	return s.Total
+}
+
+// GetPage returns the value of Page.
+func (s *InstallRecordListResponseData) GetPage() int {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *InstallRecordListResponseData) GetPageSize() InstallRecordListResponseDataPageSize {
+	return s.PageSize
+}
+
+// GetItems returns the value of Items.
+func (s *InstallRecordListResponseData) GetItems() []InstallRecord {
+	return s.Items
+}
+
+// SetTotal sets the value of Total.
+func (s *InstallRecordListResponseData) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetPage sets the value of Page.
+func (s *InstallRecordListResponseData) SetPage(val int) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *InstallRecordListResponseData) SetPageSize(val InstallRecordListResponseDataPageSize) {
+	s.PageSize = val
+}
+
+// SetItems sets the value of Items.
+func (s *InstallRecordListResponseData) SetItems(val []InstallRecord) {
+	s.Items = val
+}
+
+// 每页记录数。仅接受 10、20、50、100.
+type InstallRecordListResponseDataPageSize int
+
+const (
+	InstallRecordListResponseDataPageSize10  InstallRecordListResponseDataPageSize = 10
+	InstallRecordListResponseDataPageSize20  InstallRecordListResponseDataPageSize = 20
+	InstallRecordListResponseDataPageSize50  InstallRecordListResponseDataPageSize = 50
+	InstallRecordListResponseDataPageSize100 InstallRecordListResponseDataPageSize = 100
+)
+
+// AllValues returns all InstallRecordListResponseDataPageSize values.
+func (InstallRecordListResponseDataPageSize) AllValues() []InstallRecordListResponseDataPageSize {
+	return []InstallRecordListResponseDataPageSize{
+		InstallRecordListResponseDataPageSize10,
+		InstallRecordListResponseDataPageSize20,
+		InstallRecordListResponseDataPageSize50,
+		InstallRecordListResponseDataPageSize100,
+	}
+}
 
 // Ref: #/components/schemas/LabelSelector
 type LabelSelector struct {
@@ -3512,6 +5220,340 @@ func (s *LabelSelectorMatchLabels) init() LabelSelectorMatchLabels {
 		*s = m
 	}
 	return m
+}
+
+// Ref: #/components/schemas/LeadershipEvent
+type LeadershipEvent struct {
+	ID ResourceID `json:"id"`
+	// 发生领导权变更的组件.
+	Component string     `json:"component"`
+	ClusterId ResourceID `json:"clusterId"`
+	// 组件实例名称.
+	Instance string `json:"instance"`
+	// 关联成员集群名称，平台平面为空字符串.
+	ClusterName string `json:"clusterName"`
+	// 变更前领导角色.
+	RoleFrom LeadershipEventRoleFrom `json:"roleFrom"`
+	// 变更后领导角色.
+	RoleTo LeadershipEventRoleTo `json:"roleTo"`
+	// 领导权变更时间.
+	ChangedAt time.Time `json:"changedAt"`
+	// 检测到事件的实例名称.
+	DetectedBy string `json:"detectedBy"`
+	// 事件记录创建时间.
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *LeadershipEvent) GetID() ResourceID {
+	return s.ID
+}
+
+// GetComponent returns the value of Component.
+func (s *LeadershipEvent) GetComponent() string {
+	return s.Component
+}
+
+// GetClusterId returns the value of ClusterId.
+func (s *LeadershipEvent) GetClusterId() ResourceID {
+	return s.ClusterId
+}
+
+// GetInstance returns the value of Instance.
+func (s *LeadershipEvent) GetInstance() string {
+	return s.Instance
+}
+
+// GetClusterName returns the value of ClusterName.
+func (s *LeadershipEvent) GetClusterName() string {
+	return s.ClusterName
+}
+
+// GetRoleFrom returns the value of RoleFrom.
+func (s *LeadershipEvent) GetRoleFrom() LeadershipEventRoleFrom {
+	return s.RoleFrom
+}
+
+// GetRoleTo returns the value of RoleTo.
+func (s *LeadershipEvent) GetRoleTo() LeadershipEventRoleTo {
+	return s.RoleTo
+}
+
+// GetChangedAt returns the value of ChangedAt.
+func (s *LeadershipEvent) GetChangedAt() time.Time {
+	return s.ChangedAt
+}
+
+// GetDetectedBy returns the value of DetectedBy.
+func (s *LeadershipEvent) GetDetectedBy() string {
+	return s.DetectedBy
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *LeadershipEvent) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *LeadershipEvent) SetID(val ResourceID) {
+	s.ID = val
+}
+
+// SetComponent sets the value of Component.
+func (s *LeadershipEvent) SetComponent(val string) {
+	s.Component = val
+}
+
+// SetClusterId sets the value of ClusterId.
+func (s *LeadershipEvent) SetClusterId(val ResourceID) {
+	s.ClusterId = val
+}
+
+// SetInstance sets the value of Instance.
+func (s *LeadershipEvent) SetInstance(val string) {
+	s.Instance = val
+}
+
+// SetClusterName sets the value of ClusterName.
+func (s *LeadershipEvent) SetClusterName(val string) {
+	s.ClusterName = val
+}
+
+// SetRoleFrom sets the value of RoleFrom.
+func (s *LeadershipEvent) SetRoleFrom(val LeadershipEventRoleFrom) {
+	s.RoleFrom = val
+}
+
+// SetRoleTo sets the value of RoleTo.
+func (s *LeadershipEvent) SetRoleTo(val LeadershipEventRoleTo) {
+	s.RoleTo = val
+}
+
+// SetChangedAt sets the value of ChangedAt.
+func (s *LeadershipEvent) SetChangedAt(val time.Time) {
+	s.ChangedAt = val
+}
+
+// SetDetectedBy sets the value of DetectedBy.
+func (s *LeadershipEvent) SetDetectedBy(val string) {
+	s.DetectedBy = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *LeadershipEvent) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/LeadershipEventListResponse
+type LeadershipEventListResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                          `json:"message"`
+	Data    LeadershipEventListResponseData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *LeadershipEventListResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *LeadershipEventListResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *LeadershipEventListResponse) GetData() LeadershipEventListResponseData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *LeadershipEventListResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *LeadershipEventListResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *LeadershipEventListResponse) SetData(val LeadershipEventListResponseData) {
+	s.Data = val
+}
+
+func (*LeadershipEventListResponse) listPlatformLeadershipEventsRes() {}
+
+// Merged schema.
+type LeadershipEventListResponseData struct {
+	// 符合筛选条件的记录总数，不受分页限制.
+	Total int `json:"total"`
+	// 当前页码，从 1 开始.
+	Page int `json:"page"`
+	// 每页记录数。仅接受 10、20、50、100.
+	PageSize LeadershipEventListResponseDataPageSize `json:"pageSize"`
+	// 领导权事件列表.
+	Items []LeadershipEvent `json:"items"`
+}
+
+// GetTotal returns the value of Total.
+func (s *LeadershipEventListResponseData) GetTotal() int {
+	return s.Total
+}
+
+// GetPage returns the value of Page.
+func (s *LeadershipEventListResponseData) GetPage() int {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *LeadershipEventListResponseData) GetPageSize() LeadershipEventListResponseDataPageSize {
+	return s.PageSize
+}
+
+// GetItems returns the value of Items.
+func (s *LeadershipEventListResponseData) GetItems() []LeadershipEvent {
+	return s.Items
+}
+
+// SetTotal sets the value of Total.
+func (s *LeadershipEventListResponseData) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetPage sets the value of Page.
+func (s *LeadershipEventListResponseData) SetPage(val int) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *LeadershipEventListResponseData) SetPageSize(val LeadershipEventListResponseDataPageSize) {
+	s.PageSize = val
+}
+
+// SetItems sets the value of Items.
+func (s *LeadershipEventListResponseData) SetItems(val []LeadershipEvent) {
+	s.Items = val
+}
+
+// 每页记录数。仅接受 10、20、50、100.
+type LeadershipEventListResponseDataPageSize int
+
+const (
+	LeadershipEventListResponseDataPageSize10  LeadershipEventListResponseDataPageSize = 10
+	LeadershipEventListResponseDataPageSize20  LeadershipEventListResponseDataPageSize = 20
+	LeadershipEventListResponseDataPageSize50  LeadershipEventListResponseDataPageSize = 50
+	LeadershipEventListResponseDataPageSize100 LeadershipEventListResponseDataPageSize = 100
+)
+
+// AllValues returns all LeadershipEventListResponseDataPageSize values.
+func (LeadershipEventListResponseDataPageSize) AllValues() []LeadershipEventListResponseDataPageSize {
+	return []LeadershipEventListResponseDataPageSize{
+		LeadershipEventListResponseDataPageSize10,
+		LeadershipEventListResponseDataPageSize20,
+		LeadershipEventListResponseDataPageSize50,
+		LeadershipEventListResponseDataPageSize100,
+	}
+}
+
+// 变更前领导角色.
+type LeadershipEventRoleFrom string
+
+const (
+	LeadershipEventRoleFromLeader     LeadershipEventRoleFrom = "leader"
+	LeadershipEventRoleFromStandby    LeadershipEventRoleFrom = "standby"
+	LeadershipEventRoleFromStandalone LeadershipEventRoleFrom = "standalone"
+)
+
+// AllValues returns all LeadershipEventRoleFrom values.
+func (LeadershipEventRoleFrom) AllValues() []LeadershipEventRoleFrom {
+	return []LeadershipEventRoleFrom{
+		LeadershipEventRoleFromLeader,
+		LeadershipEventRoleFromStandby,
+		LeadershipEventRoleFromStandalone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LeadershipEventRoleFrom) MarshalText() ([]byte, error) {
+	switch s {
+	case LeadershipEventRoleFromLeader:
+		return []byte(s), nil
+	case LeadershipEventRoleFromStandby:
+		return []byte(s), nil
+	case LeadershipEventRoleFromStandalone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LeadershipEventRoleFrom) UnmarshalText(data []byte) error {
+	switch LeadershipEventRoleFrom(data) {
+	case LeadershipEventRoleFromLeader:
+		*s = LeadershipEventRoleFromLeader
+		return nil
+	case LeadershipEventRoleFromStandby:
+		*s = LeadershipEventRoleFromStandby
+		return nil
+	case LeadershipEventRoleFromStandalone:
+		*s = LeadershipEventRoleFromStandalone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// 变更后领导角色.
+type LeadershipEventRoleTo string
+
+const (
+	LeadershipEventRoleToLeader     LeadershipEventRoleTo = "leader"
+	LeadershipEventRoleToStandby    LeadershipEventRoleTo = "standby"
+	LeadershipEventRoleToStandalone LeadershipEventRoleTo = "standalone"
+)
+
+// AllValues returns all LeadershipEventRoleTo values.
+func (LeadershipEventRoleTo) AllValues() []LeadershipEventRoleTo {
+	return []LeadershipEventRoleTo{
+		LeadershipEventRoleToLeader,
+		LeadershipEventRoleToStandby,
+		LeadershipEventRoleToStandalone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LeadershipEventRoleTo) MarshalText() ([]byte, error) {
+	switch s {
+	case LeadershipEventRoleToLeader:
+		return []byte(s), nil
+	case LeadershipEventRoleToStandby:
+		return []byte(s), nil
+	case LeadershipEventRoleToStandalone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LeadershipEventRoleTo) UnmarshalText(data []byte) error {
+	switch LeadershipEventRoleTo(data) {
+	case LeadershipEventRoleToLeader:
+		*s = LeadershipEventRoleToLeader
+		return nil
+	case LeadershipEventRoleToStandby:
+		*s = LeadershipEventRoleToStandby
+		return nil
+	case LeadershipEventRoleToStandalone:
+		*s = LeadershipEventRoleToStandalone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ListAdmissionEventsBadRequest ErrorResponse
@@ -3760,19 +5802,7 @@ func (s *ListAdmissionLinkIncidentsStatusItem) UnmarshalText(data []byte) error 
 	}
 }
 
-type ListClustersOK map[string]jx.Raw
-
-func (s *ListClustersOK) init() ListClustersOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*ListClustersOK) listClustersRes() {}
-
+// 集群列表排序字段.
 type ListClustersSortBy string
 
 const (
@@ -3835,6 +5865,7 @@ func (s *ListClustersSortBy) UnmarshalText(data []byte) error {
 	}
 }
 
+// 升序或降序.
 type ListClustersSortOrder string
 
 const (
@@ -3876,19 +5907,7 @@ func (s *ListClustersSortOrder) UnmarshalText(data []byte) error {
 	}
 }
 
-type ListDistributionsOK map[string]jx.Raw
-
-func (s *ListDistributionsOK) init() ListDistributionsOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*ListDistributionsOK) listDistributionsRes() {}
-
+// 每页记录数.
 type ListDistributionsPageSize int
 
 const (
@@ -4096,19 +6115,7 @@ func (s *ListExceptionsSortOrder) UnmarshalText(data []byte) error {
 	}
 }
 
-type ListInstallRecordsOK map[string]jx.Raw
-
-func (s *ListInstallRecordsOK) init() ListInstallRecordsOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*ListInstallRecordsOK) listInstallRecordsRes() {}
-
+// 安装记录排序字段.
 type ListInstallRecordsSortBy string
 
 const (
@@ -4157,6 +6164,7 @@ func (s *ListInstallRecordsSortBy) UnmarshalText(data []byte) error {
 	}
 }
 
+// 升序或降序.
 type ListInstallRecordsSortOrder string
 
 const (
@@ -4209,19 +6217,6 @@ func (*ListPlatformLeadershipEventsInternalServerError) listPlatformLeadershipEv
 type ListPlatformLeadershipEventsNotFound ErrorResponse
 
 func (*ListPlatformLeadershipEventsNotFound) listPlatformLeadershipEventsRes() {}
-
-type ListPlatformLeadershipEventsOK map[string]jx.Raw
-
-func (s *ListPlatformLeadershipEventsOK) init() ListPlatformLeadershipEventsOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*ListPlatformLeadershipEventsOK) listPlatformLeadershipEventsRes() {}
 
 type ListPoliciesBadRequest ErrorResponse
 
@@ -4596,19 +6591,6 @@ type ListUninstallTasksNotFound ErrorResponse
 
 func (*ListUninstallTasksNotFound) listUninstallTasksRes() {}
 
-type ListUninstallTasksOK map[string]jx.Raw
-
-func (s *ListUninstallTasksOK) init() ListUninstallTasksOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*ListUninstallTasksOK) listUninstallTasksRes() {}
-
 // Ref: #/components/schemas/MatchResource
 type MatchResource struct {
 	// 匹配的 API 组。核心组用空字符串表示，星号 * 匹配全部组 （见
@@ -4927,6 +6909,52 @@ func (o OptBool) Or(d bool) bool {
 	return d
 }
 
+// NewOptClusterCreateRequestLabels returns new OptClusterCreateRequestLabels with value set to v.
+func NewOptClusterCreateRequestLabels(v ClusterCreateRequestLabels) OptClusterCreateRequestLabels {
+	return OptClusterCreateRequestLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptClusterCreateRequestLabels is optional ClusterCreateRequestLabels.
+type OptClusterCreateRequestLabels struct {
+	Value ClusterCreateRequestLabels
+	Set   bool
+}
+
+// IsSet returns true if OptClusterCreateRequestLabels was set.
+func (o OptClusterCreateRequestLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptClusterCreateRequestLabels) Reset() {
+	var v ClusterCreateRequestLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptClusterCreateRequestLabels) SetTo(v ClusterCreateRequestLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptClusterCreateRequestLabels) Get() (v ClusterCreateRequestLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptClusterCreateRequestLabels) Or(d ClusterCreateRequestLabels) ClusterCreateRequestLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptDateTime returns new OptDateTime with value set to v.
 func NewOptDateTime(v time.Time) OptDateTime {
 	return OptDateTime{
@@ -4967,6 +6995,192 @@ func (o OptDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDistributionSpecClusters returns new OptDistributionSpecClusters with value set to v.
+func NewOptDistributionSpecClusters(v DistributionSpecClusters) OptDistributionSpecClusters {
+	return OptDistributionSpecClusters{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDistributionSpecClusters is optional DistributionSpecClusters.
+type OptDistributionSpecClusters struct {
+	Value DistributionSpecClusters
+	Set   bool
+}
+
+// IsSet returns true if OptDistributionSpecClusters was set.
+func (o OptDistributionSpecClusters) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDistributionSpecClusters) Reset() {
+	var v DistributionSpecClusters
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDistributionSpecClusters) SetTo(v DistributionSpecClusters) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDistributionSpecClusters) Get() (v DistributionSpecClusters, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDistributionSpecClusters) Or(d DistributionSpecClusters) DistributionSpecClusters {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDistributionSpecClustersClusterSelector returns new OptDistributionSpecClustersClusterSelector with value set to v.
+func NewOptDistributionSpecClustersClusterSelector(v DistributionSpecClustersClusterSelector) OptDistributionSpecClustersClusterSelector {
+	return OptDistributionSpecClustersClusterSelector{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDistributionSpecClustersClusterSelector is optional DistributionSpecClustersClusterSelector.
+type OptDistributionSpecClustersClusterSelector struct {
+	Value DistributionSpecClustersClusterSelector
+	Set   bool
+}
+
+// IsSet returns true if OptDistributionSpecClustersClusterSelector was set.
+func (o OptDistributionSpecClustersClusterSelector) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDistributionSpecClustersClusterSelector) Reset() {
+	var v DistributionSpecClustersClusterSelector
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDistributionSpecClustersClusterSelector) SetTo(v DistributionSpecClustersClusterSelector) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDistributionSpecClustersClusterSelector) Get() (v DistributionSpecClustersClusterSelector, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDistributionSpecClustersClusterSelector) Or(d DistributionSpecClustersClusterSelector) DistributionSpecClustersClusterSelector {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator returns new OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator with value set to v.
+func NewOptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator(v DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator {
+	return OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator is optional DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator.
+type OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator struct {
+	Value DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator
+	Set   bool
+}
+
+// IsSet returns true if OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator was set.
+func (o OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) IsSet() bool {
+	return o.Set
+}
+
+// Reset unsets value.
+func (o *OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Reset() {
+	var v DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) SetTo(v DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Get() (v DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) Or(d DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator) DistributionSpecClustersClusterSelectorMatchExpressionsItemOperator {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDistributionSpecClustersClusterSelectorMatchLabels returns new OptDistributionSpecClustersClusterSelectorMatchLabels with value set to v.
+func NewOptDistributionSpecClustersClusterSelectorMatchLabels(v DistributionSpecClustersClusterSelectorMatchLabels) OptDistributionSpecClustersClusterSelectorMatchLabels {
+	return OptDistributionSpecClustersClusterSelectorMatchLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDistributionSpecClustersClusterSelectorMatchLabels is optional DistributionSpecClustersClusterSelectorMatchLabels.
+type OptDistributionSpecClustersClusterSelectorMatchLabels struct {
+	Value DistributionSpecClustersClusterSelectorMatchLabels
+	Set   bool
+}
+
+// IsSet returns true if OptDistributionSpecClustersClusterSelectorMatchLabels was set.
+func (o OptDistributionSpecClustersClusterSelectorMatchLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDistributionSpecClustersClusterSelectorMatchLabels) Reset() {
+	var v DistributionSpecClustersClusterSelectorMatchLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDistributionSpecClustersClusterSelectorMatchLabels) SetTo(v DistributionSpecClustersClusterSelectorMatchLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDistributionSpecClustersClusterSelectorMatchLabels) Get() (v DistributionSpecClustersClusterSelectorMatchLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDistributionSpecClustersClusterSelectorMatchLabels) Or(d DistributionSpecClustersClusterSelectorMatchLabels) DistributionSpecClustersClusterSelectorMatchLabels {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -5151,6 +7365,52 @@ func (o OptExceptionNameResponseData) Get() (v ExceptionNameResponseData, ok boo
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExceptionNameResponseData) Or(d ExceptionNameResponseData) ExceptionNameResponseData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInstallParams returns new OptInstallParams with value set to v.
+func NewOptInstallParams(v InstallParams) OptInstallParams {
+	return OptInstallParams{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInstallParams is optional InstallParams.
+type OptInstallParams struct {
+	Value InstallParams
+	Set   bool
+}
+
+// IsSet returns true if OptInstallParams was set.
+func (o OptInstallParams) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInstallParams) Reset() {
+	var v InstallParams
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInstallParams) SetTo(v InstallParams) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInstallParams) Get() (v InstallParams, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInstallParams) Or(d InstallParams) InstallParams {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -6071,6 +8331,52 @@ func (o OptPageSize) Get() (v PageSize, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptPageSize) Or(d PageSize) PageSize {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPlatformInstanceDbStats returns new OptPlatformInstanceDbStats with value set to v.
+func NewOptPlatformInstanceDbStats(v PlatformInstanceDbStats) OptPlatformInstanceDbStats {
+	return OptPlatformInstanceDbStats{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPlatformInstanceDbStats is optional PlatformInstanceDbStats.
+type OptPlatformInstanceDbStats struct {
+	Value PlatformInstanceDbStats
+	Set   bool
+}
+
+// IsSet returns true if OptPlatformInstanceDbStats was set.
+func (o OptPlatformInstanceDbStats) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPlatformInstanceDbStats) Reset() {
+	var v PlatformInstanceDbStats
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPlatformInstanceDbStats) SetTo(v PlatformInstanceDbStats) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPlatformInstanceDbStats) Get() (v PlatformInstanceDbStats, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPlatformInstanceDbStats) Or(d PlatformInstanceDbStats) PlatformInstanceDbStats {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -7062,6 +9368,992 @@ func (PageSize) AllValues() []PageSize {
 		PageSize100,
 	}
 }
+
+// Ref: #/components/schemas/PlatformCluster
+type PlatformCluster struct {
+	// 成员集群名称.
+	Name string `json:"name"`
+	// 集群登记阶段.
+	Phase  PlatformClusterPhase `json:"phase"`
+	Health PlatformHealth       `json:"health"`
+	// 成员面组件状态.
+	Components []PlatformComponent `json:"components"`
+}
+
+// GetName returns the value of Name.
+func (s *PlatformCluster) GetName() string {
+	return s.Name
+}
+
+// GetPhase returns the value of Phase.
+func (s *PlatformCluster) GetPhase() PlatformClusterPhase {
+	return s.Phase
+}
+
+// GetHealth returns the value of Health.
+func (s *PlatformCluster) GetHealth() PlatformHealth {
+	return s.Health
+}
+
+// GetComponents returns the value of Components.
+func (s *PlatformCluster) GetComponents() []PlatformComponent {
+	return s.Components
+}
+
+// SetName sets the value of Name.
+func (s *PlatformCluster) SetName(val string) {
+	s.Name = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *PlatformCluster) SetPhase(val PlatformClusterPhase) {
+	s.Phase = val
+}
+
+// SetHealth sets the value of Health.
+func (s *PlatformCluster) SetHealth(val PlatformHealth) {
+	s.Health = val
+}
+
+// SetComponents sets the value of Components.
+func (s *PlatformCluster) SetComponents(val []PlatformComponent) {
+	s.Components = val
+}
+
+// 集群登记阶段.
+type PlatformClusterPhase string
+
+const (
+	PlatformClusterPhaseRegistering  PlatformClusterPhase = "Registering"
+	PlatformClusterPhaseOnline       PlatformClusterPhase = "Online"
+	PlatformClusterPhaseOffline      PlatformClusterPhase = "Offline"
+	PlatformClusterPhaseUninstalling PlatformClusterPhase = "Uninstalling"
+)
+
+// AllValues returns all PlatformClusterPhase values.
+func (PlatformClusterPhase) AllValues() []PlatformClusterPhase {
+	return []PlatformClusterPhase{
+		PlatformClusterPhaseRegistering,
+		PlatformClusterPhaseOnline,
+		PlatformClusterPhaseOffline,
+		PlatformClusterPhaseUninstalling,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PlatformClusterPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case PlatformClusterPhaseRegistering:
+		return []byte(s), nil
+	case PlatformClusterPhaseOnline:
+		return []byte(s), nil
+	case PlatformClusterPhaseOffline:
+		return []byte(s), nil
+	case PlatformClusterPhaseUninstalling:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PlatformClusterPhase) UnmarshalText(data []byte) error {
+	switch PlatformClusterPhase(data) {
+	case PlatformClusterPhaseRegistering:
+		*s = PlatformClusterPhaseRegistering
+		return nil
+	case PlatformClusterPhaseOnline:
+		*s = PlatformClusterPhaseOnline
+		return nil
+	case PlatformClusterPhaseOffline:
+		*s = PlatformClusterPhaseOffline
+		return nil
+	case PlatformClusterPhaseUninstalling:
+		*s = PlatformClusterPhaseUninstalling
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/PlatformComponent
+type PlatformComponent struct {
+	// 平台组件名称.
+	Component PlatformComponentComponent `json:"component"`
+	Health    PlatformHealth             `json:"health"`
+	// 组件健康状态原因.
+	HealthReason string `json:"healthReason"`
+	// 组件是否使用领导选举.
+	HasLeadership bool `json:"hasLeadership"`
+	// 是否检测到没有 leader.
+	NoLeader bool `json:"noLeader"`
+	// 是否只有一个副本.
+	SingleReplica bool `json:"singleReplica"`
+	// 组件实例列表.
+	Instances []PlatformInstance `json:"instances"`
+	// 最近一次领导权变更时间.
+	LastLeadershipChange OptDateTime `json:"lastLeadershipChange"`
+}
+
+// GetComponent returns the value of Component.
+func (s *PlatformComponent) GetComponent() PlatformComponentComponent {
+	return s.Component
+}
+
+// GetHealth returns the value of Health.
+func (s *PlatformComponent) GetHealth() PlatformHealth {
+	return s.Health
+}
+
+// GetHealthReason returns the value of HealthReason.
+func (s *PlatformComponent) GetHealthReason() string {
+	return s.HealthReason
+}
+
+// GetHasLeadership returns the value of HasLeadership.
+func (s *PlatformComponent) GetHasLeadership() bool {
+	return s.HasLeadership
+}
+
+// GetNoLeader returns the value of NoLeader.
+func (s *PlatformComponent) GetNoLeader() bool {
+	return s.NoLeader
+}
+
+// GetSingleReplica returns the value of SingleReplica.
+func (s *PlatformComponent) GetSingleReplica() bool {
+	return s.SingleReplica
+}
+
+// GetInstances returns the value of Instances.
+func (s *PlatformComponent) GetInstances() []PlatformInstance {
+	return s.Instances
+}
+
+// GetLastLeadershipChange returns the value of LastLeadershipChange.
+func (s *PlatformComponent) GetLastLeadershipChange() OptDateTime {
+	return s.LastLeadershipChange
+}
+
+// SetComponent sets the value of Component.
+func (s *PlatformComponent) SetComponent(val PlatformComponentComponent) {
+	s.Component = val
+}
+
+// SetHealth sets the value of Health.
+func (s *PlatformComponent) SetHealth(val PlatformHealth) {
+	s.Health = val
+}
+
+// SetHealthReason sets the value of HealthReason.
+func (s *PlatformComponent) SetHealthReason(val string) {
+	s.HealthReason = val
+}
+
+// SetHasLeadership sets the value of HasLeadership.
+func (s *PlatformComponent) SetHasLeadership(val bool) {
+	s.HasLeadership = val
+}
+
+// SetNoLeader sets the value of NoLeader.
+func (s *PlatformComponent) SetNoLeader(val bool) {
+	s.NoLeader = val
+}
+
+// SetSingleReplica sets the value of SingleReplica.
+func (s *PlatformComponent) SetSingleReplica(val bool) {
+	s.SingleReplica = val
+}
+
+// SetInstances sets the value of Instances.
+func (s *PlatformComponent) SetInstances(val []PlatformInstance) {
+	s.Instances = val
+}
+
+// SetLastLeadershipChange sets the value of LastLeadershipChange.
+func (s *PlatformComponent) SetLastLeadershipChange(val OptDateTime) {
+	s.LastLeadershipChange = val
+}
+
+// 平台组件名称.
+type PlatformComponentComponent string
+
+const (
+	PlatformComponentComponentGateway    PlatformComponentComponent = "gateway"
+	PlatformComponentComponentPostgres   PlatformComponentComponent = "postgres"
+	PlatformComponentComponentConsoleAPI PlatformComponentComponent = "console-api"
+	PlatformComponentComponentConsoleWeb PlatformComponentComponent = "console-web"
+	PlatformComponentComponentOperator   PlatformComponentComponent = "operator"
+	PlatformComponentComponentWebhook    PlatformComponentComponent = "webhook"
+)
+
+// AllValues returns all PlatformComponentComponent values.
+func (PlatformComponentComponent) AllValues() []PlatformComponentComponent {
+	return []PlatformComponentComponent{
+		PlatformComponentComponentGateway,
+		PlatformComponentComponentPostgres,
+		PlatformComponentComponentConsoleAPI,
+		PlatformComponentComponentConsoleWeb,
+		PlatformComponentComponentOperator,
+		PlatformComponentComponentWebhook,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PlatformComponentComponent) MarshalText() ([]byte, error) {
+	switch s {
+	case PlatformComponentComponentGateway:
+		return []byte(s), nil
+	case PlatformComponentComponentPostgres:
+		return []byte(s), nil
+	case PlatformComponentComponentConsoleAPI:
+		return []byte(s), nil
+	case PlatformComponentComponentConsoleWeb:
+		return []byte(s), nil
+	case PlatformComponentComponentOperator:
+		return []byte(s), nil
+	case PlatformComponentComponentWebhook:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PlatformComponentComponent) UnmarshalText(data []byte) error {
+	switch PlatformComponentComponent(data) {
+	case PlatformComponentComponentGateway:
+		*s = PlatformComponentComponentGateway
+		return nil
+	case PlatformComponentComponentPostgres:
+		*s = PlatformComponentComponentPostgres
+		return nil
+	case PlatformComponentComponentConsoleAPI:
+		*s = PlatformComponentComponentConsoleAPI
+		return nil
+	case PlatformComponentComponentConsoleWeb:
+		*s = PlatformComponentComponentConsoleWeb
+		return nil
+	case PlatformComponentComponentOperator:
+		*s = PlatformComponentComponentOperator
+		return nil
+	case PlatformComponentComponentWebhook:
+		*s = PlatformComponentComponentWebhook
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// 平台组件健康状态.
+// Ref: #/components/schemas/PlatformHealth
+type PlatformHealth string
+
+const (
+	PlatformHealthOk          PlatformHealth = "ok"
+	PlatformHealthWarning     PlatformHealth = "warning"
+	PlatformHealthCritical    PlatformHealth = "critical"
+	PlatformHealthUnavailable PlatformHealth = "unavailable"
+	PlatformHealthDisabled    PlatformHealth = "disabled"
+)
+
+// AllValues returns all PlatformHealth values.
+func (PlatformHealth) AllValues() []PlatformHealth {
+	return []PlatformHealth{
+		PlatformHealthOk,
+		PlatformHealthWarning,
+		PlatformHealthCritical,
+		PlatformHealthUnavailable,
+		PlatformHealthDisabled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PlatformHealth) MarshalText() ([]byte, error) {
+	switch s {
+	case PlatformHealthOk:
+		return []byte(s), nil
+	case PlatformHealthWarning:
+		return []byte(s), nil
+	case PlatformHealthCritical:
+		return []byte(s), nil
+	case PlatformHealthUnavailable:
+		return []byte(s), nil
+	case PlatformHealthDisabled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PlatformHealth) UnmarshalText(data []byte) error {
+	switch PlatformHealth(data) {
+	case PlatformHealthOk:
+		*s = PlatformHealthOk
+		return nil
+	case PlatformHealthWarning:
+		*s = PlatformHealthWarning
+		return nil
+	case PlatformHealthCritical:
+		*s = PlatformHealthCritical
+		return nil
+	case PlatformHealthUnavailable:
+		*s = PlatformHealthUnavailable
+		return nil
+	case PlatformHealthDisabled:
+		*s = PlatformHealthDisabled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/PlatformInstance
+type PlatformInstance struct {
+	// 组件实例名称.
+	Instance string `json:"instance"`
+	// 实例在领导选举中的角色.
+	Role   PlatformInstanceRole `json:"role"`
+	Health PlatformHealth       `json:"health"`
+	// 健康状态原因.
+	HealthReason string `json:"healthReason"`
+	// 进程运行时长（秒）.
+	UptimeSeconds int `json:"uptimeSeconds"`
+	// 观察窗口内的重启次数.
+	RestartCount int `json:"restartCount"`
+	// 当前内存用量（字节）.
+	MemoryBytes int `json:"memoryBytes"`
+	// 容器内存限制（字节）.
+	MemoryLimitBytes int `json:"memoryLimitBytes"`
+	// 当前 CPU 用量（毫核）.
+	CpuMillis int `json:"cpuMillis"`
+	// 当前 goroutine 数.
+	Goroutines int `json:"goroutines"`
+	// Go 已分配堆内存（字节）.
+	HeapAllocBytes int `json:"heapAllocBytes"`
+	// Go 堆系统内存（字节）.
+	HeapSysBytes int `json:"heapSysBytes"`
+	// 最后采样时间.
+	LastObservedAt time.Time `json:"lastObservedAt"`
+	// PostgreSQL 组件的自由格式数据库统计快照.
+	DbStats OptPlatformInstanceDbStats `json:"dbStats"`
+}
+
+// GetInstance returns the value of Instance.
+func (s *PlatformInstance) GetInstance() string {
+	return s.Instance
+}
+
+// GetRole returns the value of Role.
+func (s *PlatformInstance) GetRole() PlatformInstanceRole {
+	return s.Role
+}
+
+// GetHealth returns the value of Health.
+func (s *PlatformInstance) GetHealth() PlatformHealth {
+	return s.Health
+}
+
+// GetHealthReason returns the value of HealthReason.
+func (s *PlatformInstance) GetHealthReason() string {
+	return s.HealthReason
+}
+
+// GetUptimeSeconds returns the value of UptimeSeconds.
+func (s *PlatformInstance) GetUptimeSeconds() int {
+	return s.UptimeSeconds
+}
+
+// GetRestartCount returns the value of RestartCount.
+func (s *PlatformInstance) GetRestartCount() int {
+	return s.RestartCount
+}
+
+// GetMemoryBytes returns the value of MemoryBytes.
+func (s *PlatformInstance) GetMemoryBytes() int {
+	return s.MemoryBytes
+}
+
+// GetMemoryLimitBytes returns the value of MemoryLimitBytes.
+func (s *PlatformInstance) GetMemoryLimitBytes() int {
+	return s.MemoryLimitBytes
+}
+
+// GetCpuMillis returns the value of CpuMillis.
+func (s *PlatformInstance) GetCpuMillis() int {
+	return s.CpuMillis
+}
+
+// GetGoroutines returns the value of Goroutines.
+func (s *PlatformInstance) GetGoroutines() int {
+	return s.Goroutines
+}
+
+// GetHeapAllocBytes returns the value of HeapAllocBytes.
+func (s *PlatformInstance) GetHeapAllocBytes() int {
+	return s.HeapAllocBytes
+}
+
+// GetHeapSysBytes returns the value of HeapSysBytes.
+func (s *PlatformInstance) GetHeapSysBytes() int {
+	return s.HeapSysBytes
+}
+
+// GetLastObservedAt returns the value of LastObservedAt.
+func (s *PlatformInstance) GetLastObservedAt() time.Time {
+	return s.LastObservedAt
+}
+
+// GetDbStats returns the value of DbStats.
+func (s *PlatformInstance) GetDbStats() OptPlatformInstanceDbStats {
+	return s.DbStats
+}
+
+// SetInstance sets the value of Instance.
+func (s *PlatformInstance) SetInstance(val string) {
+	s.Instance = val
+}
+
+// SetRole sets the value of Role.
+func (s *PlatformInstance) SetRole(val PlatformInstanceRole) {
+	s.Role = val
+}
+
+// SetHealth sets the value of Health.
+func (s *PlatformInstance) SetHealth(val PlatformHealth) {
+	s.Health = val
+}
+
+// SetHealthReason sets the value of HealthReason.
+func (s *PlatformInstance) SetHealthReason(val string) {
+	s.HealthReason = val
+}
+
+// SetUptimeSeconds sets the value of UptimeSeconds.
+func (s *PlatformInstance) SetUptimeSeconds(val int) {
+	s.UptimeSeconds = val
+}
+
+// SetRestartCount sets the value of RestartCount.
+func (s *PlatformInstance) SetRestartCount(val int) {
+	s.RestartCount = val
+}
+
+// SetMemoryBytes sets the value of MemoryBytes.
+func (s *PlatformInstance) SetMemoryBytes(val int) {
+	s.MemoryBytes = val
+}
+
+// SetMemoryLimitBytes sets the value of MemoryLimitBytes.
+func (s *PlatformInstance) SetMemoryLimitBytes(val int) {
+	s.MemoryLimitBytes = val
+}
+
+// SetCpuMillis sets the value of CpuMillis.
+func (s *PlatformInstance) SetCpuMillis(val int) {
+	s.CpuMillis = val
+}
+
+// SetGoroutines sets the value of Goroutines.
+func (s *PlatformInstance) SetGoroutines(val int) {
+	s.Goroutines = val
+}
+
+// SetHeapAllocBytes sets the value of HeapAllocBytes.
+func (s *PlatformInstance) SetHeapAllocBytes(val int) {
+	s.HeapAllocBytes = val
+}
+
+// SetHeapSysBytes sets the value of HeapSysBytes.
+func (s *PlatformInstance) SetHeapSysBytes(val int) {
+	s.HeapSysBytes = val
+}
+
+// SetLastObservedAt sets the value of LastObservedAt.
+func (s *PlatformInstance) SetLastObservedAt(val time.Time) {
+	s.LastObservedAt = val
+}
+
+// SetDbStats sets the value of DbStats.
+func (s *PlatformInstance) SetDbStats(val OptPlatformInstanceDbStats) {
+	s.DbStats = val
+}
+
+// PostgreSQL 组件的自由格式数据库统计快照.
+type PlatformInstanceDbStats map[string]jx.Raw
+
+func (s *PlatformInstanceDbStats) init() PlatformInstanceDbStats {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// 实例在领导选举中的角色.
+type PlatformInstanceRole string
+
+const (
+	PlatformInstanceRoleLeader     PlatformInstanceRole = "leader"
+	PlatformInstanceRoleFollower   PlatformInstanceRole = "follower"
+	PlatformInstanceRoleStandalone PlatformInstanceRole = "standalone"
+)
+
+// AllValues returns all PlatformInstanceRole values.
+func (PlatformInstanceRole) AllValues() []PlatformInstanceRole {
+	return []PlatformInstanceRole{
+		PlatformInstanceRoleLeader,
+		PlatformInstanceRoleFollower,
+		PlatformInstanceRoleStandalone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PlatformInstanceRole) MarshalText() ([]byte, error) {
+	switch s {
+	case PlatformInstanceRoleLeader:
+		return []byte(s), nil
+	case PlatformInstanceRoleFollower:
+		return []byte(s), nil
+	case PlatformInstanceRoleStandalone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PlatformInstanceRole) UnmarshalText(data []byte) error {
+	switch PlatformInstanceRole(data) {
+	case PlatformInstanceRoleLeader:
+		*s = PlatformInstanceRoleLeader
+		return nil
+	case PlatformInstanceRoleFollower:
+		*s = PlatformInstanceRoleFollower
+		return nil
+	case PlatformInstanceRoleStandalone:
+		*s = PlatformInstanceRoleStandalone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/PlatformOverview
+type PlatformOverview struct {
+	// 是否启用了平台观测采样.
+	Enabled        bool           `json:"enabled"`
+	PlatformHealth PlatformHealth `json:"platformHealth"`
+	// Gateway 平面组件状态.
+	GatewayPlane []PlatformComponent `json:"gatewayPlane"`
+	// 成员集群面按页汇总的组件状态.
+	MemberPlane PlatformOverviewMemberPlane `json:"memberPlane"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *PlatformOverview) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetPlatformHealth returns the value of PlatformHealth.
+func (s *PlatformOverview) GetPlatformHealth() PlatformHealth {
+	return s.PlatformHealth
+}
+
+// GetGatewayPlane returns the value of GatewayPlane.
+func (s *PlatformOverview) GetGatewayPlane() []PlatformComponent {
+	return s.GatewayPlane
+}
+
+// GetMemberPlane returns the value of MemberPlane.
+func (s *PlatformOverview) GetMemberPlane() PlatformOverviewMemberPlane {
+	return s.MemberPlane
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *PlatformOverview) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetPlatformHealth sets the value of PlatformHealth.
+func (s *PlatformOverview) SetPlatformHealth(val PlatformHealth) {
+	s.PlatformHealth = val
+}
+
+// SetGatewayPlane sets the value of GatewayPlane.
+func (s *PlatformOverview) SetGatewayPlane(val []PlatformComponent) {
+	s.GatewayPlane = val
+}
+
+// SetMemberPlane sets the value of MemberPlane.
+func (s *PlatformOverview) SetMemberPlane(val PlatformOverviewMemberPlane) {
+	s.MemberPlane = val
+}
+
+// 成员集群面按页汇总的组件状态.
+type PlatformOverviewMemberPlane struct {
+	// 当前页成员集群状态.
+	Clusters []PlatformCluster `json:"clusters"`
+	// 符合筛选条件的成员集群总数.
+	Total int `json:"total"`
+	// 当前页码.
+	Page int `json:"page"`
+	// 每页集群数.
+	PageSize int `json:"pageSize"`
+}
+
+// GetClusters returns the value of Clusters.
+func (s *PlatformOverviewMemberPlane) GetClusters() []PlatformCluster {
+	return s.Clusters
+}
+
+// GetTotal returns the value of Total.
+func (s *PlatformOverviewMemberPlane) GetTotal() int {
+	return s.Total
+}
+
+// GetPage returns the value of Page.
+func (s *PlatformOverviewMemberPlane) GetPage() int {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *PlatformOverviewMemberPlane) GetPageSize() int {
+	return s.PageSize
+}
+
+// SetClusters sets the value of Clusters.
+func (s *PlatformOverviewMemberPlane) SetClusters(val []PlatformCluster) {
+	s.Clusters = val
+}
+
+// SetTotal sets the value of Total.
+func (s *PlatformOverviewMemberPlane) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetPage sets the value of Page.
+func (s *PlatformOverviewMemberPlane) SetPage(val int) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *PlatformOverviewMemberPlane) SetPageSize(val int) {
+	s.PageSize = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/PlatformOverviewResponse
+type PlatformOverviewResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string           `json:"message"`
+	Data    PlatformOverview `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *PlatformOverviewResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *PlatformOverviewResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *PlatformOverviewResponse) GetData() PlatformOverview {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *PlatformOverviewResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *PlatformOverviewResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *PlatformOverviewResponse) SetData(val PlatformOverview) {
+	s.Data = val
+}
+
+func (*PlatformOverviewResponse) getPlatformOverviewRes() {}
+
+// Ref: #/components/schemas/PlatformSettings
+type PlatformSettings struct {
+	// 是否启用平台观测.
+	Enabled bool `json:"enabled"`
+	// 历史数据保存天数.
+	RetentionDays int `json:"retentionDays"`
+	// 系统允许的最长历史保存天数.
+	MaxRetentionDays int `json:"maxRetentionDays"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *PlatformSettings) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetRetentionDays returns the value of RetentionDays.
+func (s *PlatformSettings) GetRetentionDays() int {
+	return s.RetentionDays
+}
+
+// GetMaxRetentionDays returns the value of MaxRetentionDays.
+func (s *PlatformSettings) GetMaxRetentionDays() int {
+	return s.MaxRetentionDays
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *PlatformSettings) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetRetentionDays sets the value of RetentionDays.
+func (s *PlatformSettings) SetRetentionDays(val int) {
+	s.RetentionDays = val
+}
+
+// SetMaxRetentionDays sets the value of MaxRetentionDays.
+func (s *PlatformSettings) SetMaxRetentionDays(val int) {
+	s.MaxRetentionDays = val
+}
+
+// Ref: #/components/schemas/PlatformSettingsRequest
+type PlatformSettingsRequest struct {
+	// 是否启用平台观测.
+	Enabled bool `json:"enabled"`
+	// 历史数据保存天数.
+	RetentionDays int `json:"retentionDays"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *PlatformSettingsRequest) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetRetentionDays returns the value of RetentionDays.
+func (s *PlatformSettingsRequest) GetRetentionDays() int {
+	return s.RetentionDays
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *PlatformSettingsRequest) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetRetentionDays sets the value of RetentionDays.
+func (s *PlatformSettingsRequest) SetRetentionDays(val int) {
+	s.RetentionDays = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/PlatformSettingsResponse
+type PlatformSettingsResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string           `json:"message"`
+	Data    PlatformSettings `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *PlatformSettingsResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *PlatformSettingsResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *PlatformSettingsResponse) GetData() PlatformSettings {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *PlatformSettingsResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *PlatformSettingsResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *PlatformSettingsResponse) SetData(val PlatformSettings) {
+	s.Data = val
+}
+
+func (*PlatformSettingsResponse) getPlatformSettingsRes()    {}
+func (*PlatformSettingsResponse) updatePlatformSettingsRes() {}
+
+// Ref: #/components/schemas/PlatformTrend
+type PlatformTrend struct {
+	// 时间序列采样点.
+	Items []PlatformTrendPoint `json:"items"`
+	// 相邻聚合桶时间间隔（秒）.
+	StepSeconds int `json:"stepSeconds"`
+	// 实际查询起始时间.
+	From time.Time `json:"from"`
+	// 实际查询结束时间.
+	To time.Time `json:"to"`
+}
+
+// GetItems returns the value of Items.
+func (s *PlatformTrend) GetItems() []PlatformTrendPoint {
+	return s.Items
+}
+
+// GetStepSeconds returns the value of StepSeconds.
+func (s *PlatformTrend) GetStepSeconds() int {
+	return s.StepSeconds
+}
+
+// GetFrom returns the value of From.
+func (s *PlatformTrend) GetFrom() time.Time {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *PlatformTrend) GetTo() time.Time {
+	return s.To
+}
+
+// SetItems sets the value of Items.
+func (s *PlatformTrend) SetItems(val []PlatformTrendPoint) {
+	s.Items = val
+}
+
+// SetStepSeconds sets the value of StepSeconds.
+func (s *PlatformTrend) SetStepSeconds(val int) {
+	s.StepSeconds = val
+}
+
+// SetFrom sets the value of From.
+func (s *PlatformTrend) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *PlatformTrend) SetTo(val time.Time) {
+	s.To = val
+}
+
+// Ref: #/components/schemas/PlatformTrendPoint
+type PlatformTrendPoint struct {
+	// 聚合桶开始时间.
+	BucketStartedAt time.Time `json:"bucketStartedAt"`
+	// CPU 累积使用时间（微秒）.
+	CpuUsageMicros int `json:"cpuUsageMicros"`
+	// 内存用量（字节）.
+	MemoryBytes int `json:"memoryBytes"`
+	// 当前 goroutine 数.
+	Goroutines int `json:"goroutines"`
+	// GC 暂停累计时间（微秒）.
+	GcPauseMicros int `json:"gcPauseMicros"`
+}
+
+// GetBucketStartedAt returns the value of BucketStartedAt.
+func (s *PlatformTrendPoint) GetBucketStartedAt() time.Time {
+	return s.BucketStartedAt
+}
+
+// GetCpuUsageMicros returns the value of CpuUsageMicros.
+func (s *PlatformTrendPoint) GetCpuUsageMicros() int {
+	return s.CpuUsageMicros
+}
+
+// GetMemoryBytes returns the value of MemoryBytes.
+func (s *PlatformTrendPoint) GetMemoryBytes() int {
+	return s.MemoryBytes
+}
+
+// GetGoroutines returns the value of Goroutines.
+func (s *PlatformTrendPoint) GetGoroutines() int {
+	return s.Goroutines
+}
+
+// GetGcPauseMicros returns the value of GcPauseMicros.
+func (s *PlatformTrendPoint) GetGcPauseMicros() int {
+	return s.GcPauseMicros
+}
+
+// SetBucketStartedAt sets the value of BucketStartedAt.
+func (s *PlatformTrendPoint) SetBucketStartedAt(val time.Time) {
+	s.BucketStartedAt = val
+}
+
+// SetCpuUsageMicros sets the value of CpuUsageMicros.
+func (s *PlatformTrendPoint) SetCpuUsageMicros(val int) {
+	s.CpuUsageMicros = val
+}
+
+// SetMemoryBytes sets the value of MemoryBytes.
+func (s *PlatformTrendPoint) SetMemoryBytes(val int) {
+	s.MemoryBytes = val
+}
+
+// SetGoroutines sets the value of Goroutines.
+func (s *PlatformTrendPoint) SetGoroutines(val int) {
+	s.Goroutines = val
+}
+
+// SetGcPauseMicros sets the value of GcPauseMicros.
+func (s *PlatformTrendPoint) SetGcPauseMicros(val int) {
+	s.GcPauseMicros = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/PlatformTrendResponse
+type PlatformTrendResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string        `json:"message"`
+	Data    PlatformTrend `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *PlatformTrendResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *PlatformTrendResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *PlatformTrendResponse) GetData() PlatformTrend {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *PlatformTrendResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *PlatformTrendResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *PlatformTrendResponse) SetData(val PlatformTrend) {
+	s.Data = val
+}
+
+func (*PlatformTrendResponse) getPlatformInstanceTrendRes() {}
 
 // Ref: #/components/schemas/PolicyDetail
 type PolicyDetail struct {
@@ -9368,30 +12660,6 @@ type ReissueClusterTokenNotFound ErrorResponse
 
 func (*ReissueClusterTokenNotFound) reissueClusterTokenRes() {}
 
-type ReissueClusterTokenOK map[string]jx.Raw
-
-func (s *ReissueClusterTokenOK) init() ReissueClusterTokenOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*ReissueClusterTokenOK) reissueClusterTokenRes() {}
-
-type ReissueClusterTokenReq map[string]jx.Raw
-
-func (s *ReissueClusterTokenReq) init() ReissueClusterTokenReq {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
 type ResourceID string
 
 // Ref: #/components/schemas/ResourceSuggestions
@@ -9511,19 +12779,6 @@ func (*RetryUninstallTaskInternalServerError) retryUninstallTaskRes() {}
 type RetryUninstallTaskNotFound ErrorResponse
 
 func (*RetryUninstallTaskNotFound) retryUninstallTaskRes() {}
-
-type RetryUninstallTaskOK map[string]jx.Raw
-
-func (s *RetryUninstallTaskOK) init() RetryUninstallTaskOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*RetryUninstallTaskOK) retryUninstallTaskRes() {}
 
 type RollbackPolicyBadRequest ErrorResponse
 
@@ -9694,7 +12949,8 @@ func (*SetPolicyGroupEnabledNotFound) setPolicyGroupEnabledRes() {}
 // Ref: #/components/schemas/SummaryData
 type SummaryData struct {
 	// 平台资源总数.
-	Totals        SummaryDataTotals        `json:"totals"`
+	Totals SummaryDataTotals `json:"totals"`
+	// 集群生命周期状态统计.
 	ClusterPhases SummaryDataClusterPhases `json:"clusterPhases"`
 	// 策略组摘要.
 	Groups []SummaryGroup `json:"groups"`
@@ -9730,6 +12986,7 @@ func (s *SummaryData) SetGroups(val []SummaryGroup) {
 	s.Groups = val
 }
 
+// 集群生命周期状态统计.
 type SummaryDataClusterPhases struct {
 	// 在线集群数.
 	Online int `json:"online"`
@@ -9899,6 +13156,267 @@ func (s *SummaryResponse) SetData(val OptSummaryData) {
 
 func (*SummaryResponse) getSummaryRes() {}
 
+// Ref: #/components/schemas/UninstallTask
+type UninstallTask struct {
+	ID ResourceID `json:"id"`
+	// 卸载任务状态.
+	Status UninstallTaskStatus `json:"status"`
+	// 失败时的错误信息.
+	Error OptString `json:"error"`
+	// 任务请求时间.
+	RequestedAt time.Time `json:"requestedAt"`
+	// 任务完成时间.
+	CompletedAt OptDateTime `json:"completedAt"`
+}
+
+// GetID returns the value of ID.
+func (s *UninstallTask) GetID() ResourceID {
+	return s.ID
+}
+
+// GetStatus returns the value of Status.
+func (s *UninstallTask) GetStatus() UninstallTaskStatus {
+	return s.Status
+}
+
+// GetError returns the value of Error.
+func (s *UninstallTask) GetError() OptString {
+	return s.Error
+}
+
+// GetRequestedAt returns the value of RequestedAt.
+func (s *UninstallTask) GetRequestedAt() time.Time {
+	return s.RequestedAt
+}
+
+// GetCompletedAt returns the value of CompletedAt.
+func (s *UninstallTask) GetCompletedAt() OptDateTime {
+	return s.CompletedAt
+}
+
+// SetID sets the value of ID.
+func (s *UninstallTask) SetID(val ResourceID) {
+	s.ID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *UninstallTask) SetStatus(val UninstallTaskStatus) {
+	s.Status = val
+}
+
+// SetError sets the value of Error.
+func (s *UninstallTask) SetError(val OptString) {
+	s.Error = val
+}
+
+// SetRequestedAt sets the value of RequestedAt.
+func (s *UninstallTask) SetRequestedAt(val time.Time) {
+	s.RequestedAt = val
+}
+
+// SetCompletedAt sets the value of CompletedAt.
+func (s *UninstallTask) SetCompletedAt(val OptDateTime) {
+	s.CompletedAt = val
+}
+
+// Ref: #/components/schemas/UninstallTaskIDData
+type UninstallTaskIDData struct {
+	ID ResourceID `json:"id"`
+}
+
+// GetID returns the value of ID.
+func (s *UninstallTaskIDData) GetID() ResourceID {
+	return s.ID
+}
+
+// SetID sets the value of ID.
+func (s *UninstallTaskIDData) SetID(val ResourceID) {
+	s.ID = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/UninstallTaskIDResponse
+type UninstallTaskIDResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string              `json:"message"`
+	Data    UninstallTaskIDData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *UninstallTaskIDResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *UninstallTaskIDResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *UninstallTaskIDResponse) GetData() UninstallTaskIDData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *UninstallTaskIDResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *UninstallTaskIDResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *UninstallTaskIDResponse) SetData(val UninstallTaskIDData) {
+	s.Data = val
+}
+
+func (*UninstallTaskIDResponse) retryUninstallTaskRes() {}
+
+// Merged schema.
+// Ref: #/components/schemas/UninstallTaskListResponse
+type UninstallTaskListResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string `json:"message"`
+	// 集群的卸载任务列表.
+	Data []UninstallTask `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *UninstallTaskListResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *UninstallTaskListResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *UninstallTaskListResponse) GetData() []UninstallTask {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *UninstallTaskListResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *UninstallTaskListResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *UninstallTaskListResponse) SetData(val []UninstallTask) {
+	s.Data = val
+}
+
+func (*UninstallTaskListResponse) listUninstallTasksRes() {}
+
+// Merged schema.
+// Ref: #/components/schemas/UninstallTaskResponse
+type UninstallTaskResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string        `json:"message"`
+	Data    UninstallTask `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *UninstallTaskResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *UninstallTaskResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *UninstallTaskResponse) GetData() UninstallTask {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *UninstallTaskResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *UninstallTaskResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *UninstallTaskResponse) SetData(val UninstallTask) {
+	s.Data = val
+}
+
+func (*UninstallTaskResponse) createUninstallTaskRes() {}
+
+// 卸载任务状态.
+type UninstallTaskStatus string
+
+const (
+	UninstallTaskStatusPending   UninstallTaskStatus = "Pending"
+	UninstallTaskStatusRunning   UninstallTaskStatus = "Running"
+	UninstallTaskStatusFailed    UninstallTaskStatus = "Failed"
+	UninstallTaskStatusCompleted UninstallTaskStatus = "Completed"
+)
+
+// AllValues returns all UninstallTaskStatus values.
+func (UninstallTaskStatus) AllValues() []UninstallTaskStatus {
+	return []UninstallTaskStatus{
+		UninstallTaskStatusPending,
+		UninstallTaskStatusRunning,
+		UninstallTaskStatusFailed,
+		UninstallTaskStatusCompleted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s UninstallTaskStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case UninstallTaskStatusPending:
+		return []byte(s), nil
+	case UninstallTaskStatusRunning:
+		return []byte(s), nil
+	case UninstallTaskStatusFailed:
+		return []byte(s), nil
+	case UninstallTaskStatusCompleted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *UninstallTaskStatus) UnmarshalText(data []byte) error {
+	switch UninstallTaskStatus(data) {
+	case UninstallTaskStatusPending:
+		*s = UninstallTaskStatusPending
+		return nil
+	case UninstallTaskStatusRunning:
+		*s = UninstallTaskStatusRunning
+		return nil
+	case UninstallTaskStatusFailed:
+		*s = UninstallTaskStatusFailed
+		return nil
+	case UninstallTaskStatusCompleted:
+		*s = UninstallTaskStatusCompleted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type UpdateAdmissionEventSettingsBadRequest ErrorResponse
 
 func (*UpdateAdmissionEventSettingsBadRequest) updateAdmissionEventSettingsRes() {}
@@ -9915,30 +13433,6 @@ type UpdateClusterNotFound ErrorResponse
 
 func (*UpdateClusterNotFound) updateClusterRes() {}
 
-type UpdateClusterOK map[string]jx.Raw
-
-func (s *UpdateClusterOK) init() UpdateClusterOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*UpdateClusterOK) updateClusterRes() {}
-
-type UpdateClusterReq map[string]jx.Raw
-
-func (s *UpdateClusterReq) init() UpdateClusterReq {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
 type UpdateDistributionBadRequest ErrorResponse
 
 func (*UpdateDistributionBadRequest) updateDistributionRes() {}
@@ -9954,30 +13448,6 @@ func (*UpdateDistributionInternalServerError) updateDistributionRes() {}
 type UpdateDistributionNotFound ErrorResponse
 
 func (*UpdateDistributionNotFound) updateDistributionRes() {}
-
-type UpdateDistributionOK map[string]jx.Raw
-
-func (s *UpdateDistributionOK) init() UpdateDistributionOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*UpdateDistributionOK) updateDistributionRes() {}
-
-type UpdateDistributionReq map[string]jx.Raw
-
-func (s *UpdateDistributionReq) init() UpdateDistributionReq {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
 
 type UpdateExceptionBadRequest ErrorResponse
 
@@ -10002,44 +13472,6 @@ func (*UpdatePlatformSettingsBadRequest) updatePlatformSettingsRes() {}
 type UpdatePlatformSettingsInternalServerError ErrorResponse
 
 func (*UpdatePlatformSettingsInternalServerError) updatePlatformSettingsRes() {}
-
-type UpdatePlatformSettingsOK map[string]jx.Raw
-
-func (s *UpdatePlatformSettingsOK) init() UpdatePlatformSettingsOK {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-func (*UpdatePlatformSettingsOK) updatePlatformSettingsRes() {}
-
-type UpdatePlatformSettingsReq struct {
-	Enabled       bool `json:"enabled"`
-	RetentionDays int  `json:"retentionDays"`
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *UpdatePlatformSettingsReq) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetRetentionDays returns the value of RetentionDays.
-func (s *UpdatePlatformSettingsReq) GetRetentionDays() int {
-	return s.RetentionDays
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *UpdatePlatformSettingsReq) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetRetentionDays sets the value of RetentionDays.
-func (s *UpdatePlatformSettingsReq) SetRetentionDays(val int) {
-	s.RetentionDays = val
-}
 
 type UpdatePolicyBadRequest ErrorResponse
 

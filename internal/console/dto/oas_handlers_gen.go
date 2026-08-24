@@ -35,6 +35,8 @@ func (c *codeRecorder) Unwrap() http.ResponseWriter {
 
 // handleCreateClusterRequest handles createCluster operation.
 //
+// 创建集群登记记录并生成一次性 Helm 安装命令。.
+//
 // POST /clusters
 func (s *Server) handleCreateClusterRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -130,7 +132,7 @@ func (s *Server) handleCreateClusterRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateClusterOperation,
-			OperationSummary: "",
+			OperationSummary: "创建集群登记",
 			OperationID:      "createCluster",
 			Body:             request,
 			RawBody:          rawBody,
@@ -139,7 +141,7 @@ func (s *Server) handleCreateClusterRequest(args [0]string, argsEscaped bool, w 
 		}
 
 		type (
-			Request  = CreateClusterReq
+			Request  = *ClusterCreateRequest
 			Params   = struct{}
 			Response = CreateClusterRes
 		)
@@ -175,6 +177,8 @@ func (s *Server) handleCreateClusterRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleCreateDistributionRequest handles createDistribution operation.
+//
+// 创建策略组到指定集群范围的分发配置。.
 //
 // POST /distributions
 func (s *Server) handleCreateDistributionRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -271,7 +275,7 @@ func (s *Server) handleCreateDistributionRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateDistributionOperation,
-			OperationSummary: "",
+			OperationSummary: "创建策略分发",
 			OperationID:      "createDistribution",
 			Body:             request,
 			RawBody:          rawBody,
@@ -280,7 +284,7 @@ func (s *Server) handleCreateDistributionRequest(args [0]string, argsEscaped boo
 		}
 
 		type (
-			Request  = CreateDistributionReq
+			Request  = *DistributionRequest
 			Params   = struct{}
 			Response = CreateDistributionRes
 		)
@@ -317,7 +321,7 @@ func (s *Server) handleCreateDistributionRequest(args [0]string, argsEscaped boo
 
 // handleCreateExceptionRequest handles createException operation.
 //
-// 创建策略例外.
+// 创建针对资源、命名空间或集群范围的策略例外。.
 //
 // POST /exceptions
 func (s *Server) handleCreateExceptionRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -604,7 +608,7 @@ func (s *Server) handleCreatePolicyRequest(args [0]string, argsEscaped bool, w h
 
 // handleCreatePolicyGroupRequest handles createPolicyGroup operation.
 //
-// 创建策略组.
+// 创建策略组并配置其集群作用范围和策略选择规则。.
 //
 // POST /policygroups
 func (s *Server) handleCreatePolicyGroupRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -747,6 +751,8 @@ func (s *Server) handleCreatePolicyGroupRequest(args [0]string, argsEscaped bool
 
 // handleCreateUninstallTaskRequest handles createUninstallTask operation.
 //
+// 向在线集群下发卸载其成员组件的持久化任务。.
+//
 // POST /clusters/{name}/uninstall
 func (s *Server) handleCreateUninstallTaskRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -837,7 +843,7 @@ func (s *Server) handleCreateUninstallTaskRequest(args [1]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateUninstallTaskOperation,
-			OperationSummary: "",
+			OperationSummary: "创建集群卸载任务",
 			OperationID:      "createUninstallTask",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -887,6 +893,8 @@ func (s *Server) handleCreateUninstallTaskRequest(args [1]string, argsEscaped bo
 }
 
 // handleDeleteClusterRequest handles deleteCluster operation.
+//
+// 删除已卸载的集群登记；在线集群不能删除。.
 //
 // DELETE /clusters/{name}
 func (s *Server) handleDeleteClusterRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -978,7 +986,7 @@ func (s *Server) handleDeleteClusterRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteClusterOperation,
-			OperationSummary: "",
+			OperationSummary: "删除集群登记",
 			OperationID:      "deleteCluster",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -1028,6 +1036,8 @@ func (s *Server) handleDeleteClusterRequest(args [1]string, argsEscaped bool, w 
 }
 
 // handleDeleteDistributionRequest handles deleteDistribution operation.
+//
+// 删除指定策略分发配置。.
 //
 // DELETE /distributions/{name}
 func (s *Server) handleDeleteDistributionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1119,7 +1129,7 @@ func (s *Server) handleDeleteDistributionRequest(args [1]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteDistributionOperation,
-			OperationSummary: "",
+			OperationSummary: "删除策略分发",
 			OperationID:      "deleteDistribution",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -1170,7 +1180,7 @@ func (s *Server) handleDeleteDistributionRequest(args [1]string, argsEscaped boo
 
 // handleDeleteExceptionRequest handles deleteException operation.
 //
-// 删除策略例外.
+// 删除指定策略例外。.
 //
 // DELETE /exceptions/{name}
 func (s *Server) handleDeleteExceptionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1461,7 +1471,7 @@ func (s *Server) handleDeletePolicyRequest(args [1]string, argsEscaped bool, w h
 
 // handleDeletePolicyGroupRequest handles deletePolicyGroup operation.
 //
-// 删除策略组.
+// 删除非内置策略组。.
 //
 // DELETE /policygroups/{name}
 func (s *Server) handleDeletePolicyGroupRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1604,7 +1614,7 @@ func (s *Server) handleDeletePolicyGroupRequest(args [1]string, argsEscaped bool
 
 // handleGetAdmissionEventRequest handles getAdmissionEvent operation.
 //
-// 查询准入事件详情.
+// 查询准入事件及其原始 metadata/spec 快照。.
 //
 // GET /admission-events/{id}
 func (s *Server) handleGetAdmissionEventRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1747,7 +1757,7 @@ func (s *Server) handleGetAdmissionEventRequest(args [1]string, argsEscaped bool
 
 // handleGetAdmissionEventSettingsRequest handles getAdmissionEventSettings operation.
 //
-// 获取准入事件设置.
+// 查询准入事件留存、重试、队列和存储策略配置。.
 //
 // GET /admission-event-settings
 func (s *Server) handleGetAdmissionEventSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1871,7 +1881,7 @@ func (s *Server) handleGetAdmissionEventSettingsRequest(args [0]string, argsEsca
 
 // handleGetAdmissionEventTrendRequest handles getAdmissionEventTrend operation.
 //
-// 查询准入事件趋势.
+// 按时间范围返回准入事件的 audit/deny 趋势数据。.
 //
 // GET /admission-events/trend
 func (s *Server) handleGetAdmissionEventTrendRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2018,7 +2028,7 @@ func (s *Server) handleGetAdmissionEventTrendRequest(args [0]string, argsEscaped
 
 // handleGetAdmissionLinkIncidentRequest handles getAdmissionLinkIncident operation.
 //
-// 查询准入链路异常详情.
+// 查询单条准入事件链路异常及其样本事件。.
 //
 // GET /admission-link-incidents/{id}
 func (s *Server) handleGetAdmissionLinkIncidentRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2161,6 +2171,8 @@ func (s *Server) handleGetAdmissionLinkIncidentRequest(args [1]string, argsEscap
 
 // handleGetClusterRequest handles getCluster operation.
 //
+// 查询指定集群的连接状态、版本和节点信息。.
+//
 // GET /clusters/{name}
 func (s *Server) handleGetClusterRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -2251,7 +2263,7 @@ func (s *Server) handleGetClusterRequest(args [1]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetClusterOperation,
-			OperationSummary: "",
+			OperationSummary: "查询集群详情",
 			OperationID:      "getCluster",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -2301,6 +2313,8 @@ func (s *Server) handleGetClusterRequest(args [1]string, argsEscaped bool, w htt
 }
 
 // handleGetDistributionRequest handles getDistribution operation.
+//
+// 查询指定策略分发的集群范围和策略组配置。.
 //
 // GET /distributions/{name}
 func (s *Server) handleGetDistributionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2392,7 +2406,7 @@ func (s *Server) handleGetDistributionRequest(args [1]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetDistributionOperation,
-			OperationSummary: "",
+			OperationSummary: "查询策略分发详情",
 			OperationID:      "getDistribution",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -2443,7 +2457,7 @@ func (s *Server) handleGetDistributionRequest(args [1]string, argsEscaped bool, 
 
 // handleGetExceptionRequest handles getException operation.
 //
-// 查询策略例外详情.
+// 查询策略例外的匹配条件、作用范围和过期时间。.
 //
 // GET /exceptions/{name}
 func (s *Server) handleGetExceptionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2586,7 +2600,7 @@ func (s *Server) handleGetExceptionRequest(args [1]string, argsEscaped bool, w h
 
 // handleGetFieldSchemaRequest handles getFieldSchema operation.
 //
-// 获取 Kubernetes 资源字段树.
+// 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。.
 //
 // GET /schema/fields
 func (s *Server) handleGetFieldSchemaRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2741,6 +2755,8 @@ func (s *Server) handleGetFieldSchemaRequest(args [0]string, argsEscaped bool, w
 
 // handleGetLatestInstallParamsRequest handles getLatestInstallParams operation.
 //
+// 查询指定集群最近一次生成的非敏感安装参数。.
+//
 // GET /clusters/{name}/latest-install-params
 func (s *Server) handleGetLatestInstallParamsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -2831,7 +2847,7 @@ func (s *Server) handleGetLatestInstallParamsRequest(args [1]string, argsEscaped
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetLatestInstallParamsOperation,
-			OperationSummary: "",
+			OperationSummary: "查询最新安装参数",
 			OperationID:      "getLatestInstallParams",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -2882,7 +2898,7 @@ func (s *Server) handleGetLatestInstallParamsRequest(args [1]string, argsEscaped
 
 // handleGetPlatformInstanceTrendRequest handles getPlatformInstanceTrend operation.
 //
-// 获取平台实例趋势.
+// 查询指定平台组件实例在时间范围内的资源趋势。.
 //
 // GET /platform/instances/{component}/{instance}/trend
 func (s *Server) handleGetPlatformInstanceTrendRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3041,7 +3057,7 @@ func (s *Server) handleGetPlatformInstanceTrendRequest(args [2]string, argsEscap
 
 // handleGetPlatformOverviewRequest handles getPlatformOverview operation.
 //
-// 获取平台运行概览.
+// 查询控制面和成员集群的组件健康、实例和资源摘要。.
 //
 // GET /platform/overview
 func (s *Server) handleGetPlatformOverviewRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3192,7 +3208,7 @@ func (s *Server) handleGetPlatformOverviewRequest(args [0]string, argsEscaped bo
 
 // handleGetPlatformSettingsRequest handles getPlatformSettings operation.
 //
-// 获取平台可观测性设置.
+// 查询平台组件采样和历史保存配置。.
 //
 // GET /platform/settings
 func (s *Server) handleGetPlatformSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3459,7 +3475,7 @@ func (s *Server) handleGetPolicyRequest(args [1]string, argsEscaped bool, w http
 
 // handleGetPolicyGroupRequest handles getPolicyGroup operation.
 //
-// 查询策略组详情.
+// 查询策略组配置、集群作用范围和解析状态。.
 //
 // GET /policygroups/{name}
 func (s *Server) handleGetPolicyGroupRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3727,7 +3743,7 @@ func (s *Server) handleGetResourceSuggestionsRequest(args [0]string, argsEscaped
 
 // handleGetSummaryRequest handles getSummary operation.
 //
-// 获取平台资源摘要.
+// 查询策略、策略组、例外和集群的汇总数量。.
 //
 // GET /summary
 func (s *Server) handleGetSummaryRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3851,7 +3867,7 @@ func (s *Server) handleGetSummaryRequest(args [0]string, argsEscaped bool, w htt
 
 // handleListAdmissionEventsRequest handles listAdmissionEvents operation.
 //
-// 分页查询准入事件.
+// 按集群、判决、策略、命名空间和资源条件分页检索准入事件。.
 //
 // GET /admission-events
 func (s *Server) handleListAdmissionEventsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4042,7 +4058,7 @@ func (s *Server) handleListAdmissionEventsRequest(args [0]string, argsEscaped bo
 
 // handleListAdmissionLinkIncidentsRequest handles listAdmissionLinkIncidents operation.
 //
-// 分页查询准入链路异常.
+// 按集群、组件、原因和状态检索准入事件链路异常。.
 //
 // GET /admission-link-incidents
 func (s *Server) handleListAdmissionLinkIncidentsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4213,6 +4229,8 @@ func (s *Server) handleListAdmissionLinkIncidentsRequest(args [0]string, argsEsc
 
 // handleListClustersRequest handles listClusters operation.
 //
+// 查询平台已登记的集群及其在线状态和节点摘要。.
+//
 // GET /clusters
 func (s *Server) handleListClustersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -4303,7 +4321,7 @@ func (s *Server) handleListClustersRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ListClustersOperation,
-			OperationSummary: "",
+			OperationSummary: "分页查询集群",
 			OperationID:      "listClusters",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -4365,6 +4383,8 @@ func (s *Server) handleListClustersRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleListDistributionsRequest handles listDistributions operation.
+//
+// 查询策略组到集群的分发配置。.
 //
 // GET /distributions
 func (s *Server) handleListDistributionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4456,7 +4476,7 @@ func (s *Server) handleListDistributionsRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ListDistributionsOperation,
-			OperationSummary: "",
+			OperationSummary: "分页查询策略分发",
 			OperationID:      "listDistributions",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -4519,7 +4539,7 @@ func (s *Server) handleListDistributionsRequest(args [0]string, argsEscaped bool
 
 // handleListExceptionsRequest handles listExceptions operation.
 //
-// 分页查询策略例外.
+// 分页查询策略例外及其生效状态。.
 //
 // GET /exceptions
 func (s *Server) handleListExceptionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4674,6 +4694,8 @@ func (s *Server) handleListExceptionsRequest(args [0]string, argsEscaped bool, w
 
 // handleListInstallRecordsRequest handles listInstallRecords operation.
 //
+// 分页查询平台生成的集群安装参数记录。.
+//
 // GET /install-records
 func (s *Server) handleListInstallRecordsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -4764,7 +4786,7 @@ func (s *Server) handleListInstallRecordsRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ListInstallRecordsOperation,
-			OperationSummary: "",
+			OperationSummary: "查询安装记录",
 			OperationID:      "listInstallRecords",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -4827,7 +4849,7 @@ func (s *Server) handleListInstallRecordsRequest(args [0]string, argsEscaped boo
 
 // handleListPlatformLeadershipEventsRequest handles listPlatformLeadershipEvents operation.
 //
-// 查询平台领导权事件.
+// 分页查询平台组件 Leader 变更记录。.
 //
 // GET /platform/leadership-events
 func (s *Server) handleListPlatformLeadershipEventsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5162,7 +5184,7 @@ func (s *Server) handleListPoliciesRequest(args [0]string, argsEscaped bool, w h
 
 // handleListPolicyGroupsRequest handles listPolicyGroups operation.
 //
-// 分页查询策略组列表.
+// 分页查询策略组及其当前解析出的策略数量。.
 //
 // GET /policygroups
 func (s *Server) handleListPolicyGroupsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5460,6 +5482,8 @@ func (s *Server) handleListPolicyVersionsRequest(args [1]string, argsEscaped boo
 
 // handleListUninstallTasksRequest handles listUninstallTasks operation.
 //
+// 分页查询指定集群的卸载任务及失败原因。.
+//
 // GET /clusters/{name}/uninstall-tasks
 func (s *Server) handleListUninstallTasksRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -5550,7 +5574,7 @@ func (s *Server) handleListUninstallTasksRequest(args [1]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ListUninstallTasksOperation,
-			OperationSummary: "",
+			OperationSummary: "查询集群卸载任务",
 			OperationID:      "listUninstallTasks",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -5608,6 +5632,8 @@ func (s *Server) handleListUninstallTasksRequest(args [1]string, argsEscaped boo
 }
 
 // handleReissueClusterTokenRequest handles reissueClusterToken operation.
+//
+// 为尚未完成注册的集群重新签发一次性安装令牌。.
 //
 // POST /clusters/{name}/reissue-token
 func (s *Server) handleReissueClusterTokenRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5714,7 +5740,7 @@ func (s *Server) handleReissueClusterTokenRequest(args [1]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ReissueClusterTokenOperation,
-			OperationSummary: "",
+			OperationSummary: "重新签发集群令牌",
 			OperationID:      "reissueClusterToken",
 			Body:             request,
 			RawBody:          rawBody,
@@ -5728,7 +5754,7 @@ func (s *Server) handleReissueClusterTokenRequest(args [1]string, argsEscaped bo
 		}
 
 		type (
-			Request  = ReissueClusterTokenReq
+			Request  = *ClusterTokenRequest
 			Params   = ReissueClusterTokenParams
 			Response = ReissueClusterTokenRes
 		)
@@ -5764,6 +5790,8 @@ func (s *Server) handleReissueClusterTokenRequest(args [1]string, argsEscaped bo
 }
 
 // handleRetryUninstallTaskRequest handles retryUninstallTask operation.
+//
+// 重新投递失败的集群卸载任务。.
 //
 // POST /clusters/{name}/uninstall-tasks/{taskID}/retry
 func (s *Server) handleRetryUninstallTaskRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5855,7 +5883,7 @@ func (s *Server) handleRetryUninstallTaskRequest(args [2]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RetryUninstallTaskOperation,
-			OperationSummary: "",
+			OperationSummary: "重试集群卸载任务",
 			OperationID:      "retryUninstallTask",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -6070,7 +6098,7 @@ func (s *Server) handleRollbackPolicyRequest(args [1]string, argsEscaped bool, w
 
 // handleSetPolicyGroupEnabledRequest handles setPolicyGroupEnabled operation.
 //
-// 设置策略组启用状态.
+// 启用或关闭指定策略组，不改变其成员选择规则。.
 //
 // PUT /policygroups/{name}/enabled
 func (s *Server) handleSetPolicyGroupEnabledRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6228,7 +6256,7 @@ func (s *Server) handleSetPolicyGroupEnabledRequest(args [1]string, argsEscaped 
 
 // handleUpdateAdmissionEventSettingsRequest handles updateAdmissionEventSettings operation.
 //
-// 更新准入事件设置.
+// 更新准入事件留存、重试、队列和存储策略配置。.
 //
 // PUT /admission-event-settings
 func (s *Server) handleUpdateAdmissionEventSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6371,6 +6399,8 @@ func (s *Server) handleUpdateAdmissionEventSettingsRequest(args [0]string, argsE
 
 // handleUpdateClusterRequest handles updateCluster operation.
 //
+// 更新指定集群的控制台标签。.
+//
 // PUT /clusters/{name}
 func (s *Server) handleUpdateClusterRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -6476,7 +6506,7 @@ func (s *Server) handleUpdateClusterRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateClusterOperation,
-			OperationSummary: "",
+			OperationSummary: "更新集群标签",
 			OperationID:      "updateCluster",
 			Body:             request,
 			RawBody:          rawBody,
@@ -6490,7 +6520,7 @@ func (s *Server) handleUpdateClusterRequest(args [1]string, argsEscaped bool, w 
 		}
 
 		type (
-			Request  = UpdateClusterReq
+			Request  = *ClusterLabelsRequest
 			Params   = UpdateClusterParams
 			Response = UpdateClusterRes
 		)
@@ -6526,6 +6556,8 @@ func (s *Server) handleUpdateClusterRequest(args [1]string, argsEscaped bool, w 
 }
 
 // handleUpdateDistributionRequest handles updateDistribution operation.
+//
+// 更新策略分发的集群范围和策略组配置。.
 //
 // PUT /distributions/{name}
 func (s *Server) handleUpdateDistributionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6632,7 +6664,7 @@ func (s *Server) handleUpdateDistributionRequest(args [1]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateDistributionOperation,
-			OperationSummary: "",
+			OperationSummary: "更新策略分发",
 			OperationID:      "updateDistribution",
 			Body:             request,
 			RawBody:          rawBody,
@@ -6646,7 +6678,7 @@ func (s *Server) handleUpdateDistributionRequest(args [1]string, argsEscaped boo
 		}
 
 		type (
-			Request  = UpdateDistributionReq
+			Request  = *DistributionRequest
 			Params   = UpdateDistributionParams
 			Response = UpdateDistributionRes
 		)
@@ -6683,7 +6715,7 @@ func (s *Server) handleUpdateDistributionRequest(args [1]string, argsEscaped boo
 
 // handleUpdateExceptionRequest handles updateException operation.
 //
-// 更新策略例外.
+// 更新策略例外的匹配条件和作用范围。.
 //
 // PUT /exceptions/{name}
 func (s *Server) handleUpdateExceptionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6841,7 +6873,7 @@ func (s *Server) handleUpdateExceptionRequest(args [1]string, argsEscaped bool, 
 
 // handleUpdatePlatformSettingsRequest handles updatePlatformSettings operation.
 //
-// 更新平台可观测性设置.
+// 更新平台组件采样和历史保存配置。.
 //
 // PUT /platform/settings
 func (s *Server) handleUpdatePlatformSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6947,7 +6979,7 @@ func (s *Server) handleUpdatePlatformSettingsRequest(args [0]string, argsEscaped
 		}
 
 		type (
-			Request  = *UpdatePlatformSettingsReq
+			Request  = *PlatformSettingsRequest
 			Params   = struct{}
 			Response = UpdatePlatformSettingsRes
 		)
@@ -7144,7 +7176,7 @@ func (s *Server) handleUpdatePolicyRequest(args [1]string, argsEscaped bool, w h
 
 // handleUpdatePolicyGroupRequest handles updatePolicyGroup operation.
 //
-// 更新策略组.
+// 更新策略组配置及其集群作用范围。.
 //
 // PUT /policygroups/{name}
 func (s *Server) handleUpdatePolicyGroupRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

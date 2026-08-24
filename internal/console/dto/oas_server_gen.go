@@ -10,15 +10,19 @@ import (
 type Handler interface {
 	// CreateCluster implements createCluster operation.
 	//
+	// 创建集群登记记录并生成一次性 Helm 安装命令。.
+	//
 	// POST /clusters
-	CreateCluster(ctx context.Context, req CreateClusterReq) (CreateClusterRes, error)
+	CreateCluster(ctx context.Context, req *ClusterCreateRequest) (CreateClusterRes, error)
 	// CreateDistribution implements createDistribution operation.
 	//
+	// 创建策略组到指定集群范围的分发配置。.
+	//
 	// POST /distributions
-	CreateDistribution(ctx context.Context, req CreateDistributionReq) (CreateDistributionRes, error)
+	CreateDistribution(ctx context.Context, req *DistributionRequest) (CreateDistributionRes, error)
 	// CreateException implements createException operation.
 	//
-	// 创建策略例外.
+	// 创建针对资源、命名空间或集群范围的策略例外。.
 	//
 	// POST /exceptions
 	CreateException(ctx context.Context, req *ExceptionRequest) (CreateExceptionRes, error)
@@ -31,25 +35,31 @@ type Handler interface {
 	CreatePolicy(ctx context.Context, req *PolicyRequest) (CreatePolicyRes, error)
 	// CreatePolicyGroup implements createPolicyGroup operation.
 	//
-	// 创建策略组.
+	// 创建策略组并配置其集群作用范围和策略选择规则。.
 	//
 	// POST /policygroups
 	CreatePolicyGroup(ctx context.Context, req *PolicyGroupRequest) (CreatePolicyGroupRes, error)
 	// CreateUninstallTask implements createUninstallTask operation.
 	//
+	// 向在线集群下发卸载其成员组件的持久化任务。.
+	//
 	// POST /clusters/{name}/uninstall
 	CreateUninstallTask(ctx context.Context, params CreateUninstallTaskParams) (CreateUninstallTaskRes, error)
 	// DeleteCluster implements deleteCluster operation.
+	//
+	// 删除已卸载的集群登记；在线集群不能删除。.
 	//
 	// DELETE /clusters/{name}
 	DeleteCluster(ctx context.Context, params DeleteClusterParams) (DeleteClusterRes, error)
 	// DeleteDistribution implements deleteDistribution operation.
 	//
+	// 删除指定策略分发配置。.
+	//
 	// DELETE /distributions/{name}
 	DeleteDistribution(ctx context.Context, params DeleteDistributionParams) (DeleteDistributionRes, error)
 	// DeleteException implements deleteException operation.
 	//
-	// 删除策略例外.
+	// 删除指定策略例外。.
 	//
 	// DELETE /exceptions/{name}
 	DeleteException(ctx context.Context, params DeleteExceptionParams) (DeleteExceptionRes, error)
@@ -62,73 +72,79 @@ type Handler interface {
 	DeletePolicy(ctx context.Context, params DeletePolicyParams) (DeletePolicyRes, error)
 	// DeletePolicyGroup implements deletePolicyGroup operation.
 	//
-	// 删除策略组.
+	// 删除非内置策略组。.
 	//
 	// DELETE /policygroups/{name}
 	DeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (DeletePolicyGroupRes, error)
 	// GetAdmissionEvent implements getAdmissionEvent operation.
 	//
-	// 查询准入事件详情.
+	// 查询准入事件及其原始 metadata/spec 快照。.
 	//
 	// GET /admission-events/{id}
 	GetAdmissionEvent(ctx context.Context, params GetAdmissionEventParams) (GetAdmissionEventRes, error)
 	// GetAdmissionEventSettings implements getAdmissionEventSettings operation.
 	//
-	// 获取准入事件设置.
+	// 查询准入事件留存、重试、队列和存储策略配置。.
 	//
 	// GET /admission-event-settings
 	GetAdmissionEventSettings(ctx context.Context) (GetAdmissionEventSettingsRes, error)
 	// GetAdmissionEventTrend implements getAdmissionEventTrend operation.
 	//
-	// 查询准入事件趋势.
+	// 按时间范围返回准入事件的 audit/deny 趋势数据。.
 	//
 	// GET /admission-events/trend
 	GetAdmissionEventTrend(ctx context.Context, params GetAdmissionEventTrendParams) (GetAdmissionEventTrendRes, error)
 	// GetAdmissionLinkIncident implements getAdmissionLinkIncident operation.
 	//
-	// 查询准入链路异常详情.
+	// 查询单条准入事件链路异常及其样本事件。.
 	//
 	// GET /admission-link-incidents/{id}
 	GetAdmissionLinkIncident(ctx context.Context, params GetAdmissionLinkIncidentParams) (GetAdmissionLinkIncidentRes, error)
 	// GetCluster implements getCluster operation.
 	//
+	// 查询指定集群的连接状态、版本和节点信息。.
+	//
 	// GET /clusters/{name}
 	GetCluster(ctx context.Context, params GetClusterParams) (GetClusterRes, error)
 	// GetDistribution implements getDistribution operation.
+	//
+	// 查询指定策略分发的集群范围和策略组配置。.
 	//
 	// GET /distributions/{name}
 	GetDistribution(ctx context.Context, params GetDistributionParams) (GetDistributionRes, error)
 	// GetException implements getException operation.
 	//
-	// 查询策略例外详情.
+	// 查询策略例外的匹配条件、作用范围和过期时间。.
 	//
 	// GET /exceptions/{name}
 	GetException(ctx context.Context, params GetExceptionParams) (GetExceptionRes, error)
 	// GetFieldSchema implements getFieldSchema operation.
 	//
-	// 获取 Kubernetes 资源字段树.
+	// 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。.
 	//
 	// GET /schema/fields
 	GetFieldSchema(ctx context.Context, params GetFieldSchemaParams) (GetFieldSchemaRes, error)
 	// GetLatestInstallParams implements getLatestInstallParams operation.
 	//
+	// 查询指定集群最近一次生成的非敏感安装参数。.
+	//
 	// GET /clusters/{name}/latest-install-params
 	GetLatestInstallParams(ctx context.Context, params GetLatestInstallParamsParams) (GetLatestInstallParamsRes, error)
 	// GetPlatformInstanceTrend implements getPlatformInstanceTrend operation.
 	//
-	// 获取平台实例趋势.
+	// 查询指定平台组件实例在时间范围内的资源趋势。.
 	//
 	// GET /platform/instances/{component}/{instance}/trend
 	GetPlatformInstanceTrend(ctx context.Context, params GetPlatformInstanceTrendParams) (GetPlatformInstanceTrendRes, error)
 	// GetPlatformOverview implements getPlatformOverview operation.
 	//
-	// 获取平台运行概览.
+	// 查询控制面和成员集群的组件健康、实例和资源摘要。.
 	//
 	// GET /platform/overview
 	GetPlatformOverview(ctx context.Context, params GetPlatformOverviewParams) (GetPlatformOverviewRes, error)
 	// GetPlatformSettings implements getPlatformSettings operation.
 	//
-	// 获取平台可观测性设置.
+	// 查询平台组件采样和历史保存配置。.
 	//
 	// GET /platform/settings
 	GetPlatformSettings(ctx context.Context) (GetPlatformSettingsRes, error)
@@ -140,7 +156,7 @@ type Handler interface {
 	GetPolicy(ctx context.Context, params GetPolicyParams) (GetPolicyRes, error)
 	// GetPolicyGroup implements getPolicyGroup operation.
 	//
-	// 查询策略组详情.
+	// 查询策略组配置、集群作用范围和解析状态。.
 	//
 	// GET /policygroups/{name}
 	GetPolicyGroup(ctx context.Context, params GetPolicyGroupParams) (GetPolicyGroupRes, error)
@@ -153,43 +169,49 @@ type Handler interface {
 	GetResourceSuggestions(ctx context.Context) (GetResourceSuggestionsRes, error)
 	// GetSummary implements getSummary operation.
 	//
-	// 获取平台资源摘要.
+	// 查询策略、策略组、例外和集群的汇总数量。.
 	//
 	// GET /summary
 	GetSummary(ctx context.Context) (GetSummaryRes, error)
 	// ListAdmissionEvents implements listAdmissionEvents operation.
 	//
-	// 分页查询准入事件.
+	// 按集群、判决、策略、命名空间和资源条件分页检索准入事件。.
 	//
 	// GET /admission-events
 	ListAdmissionEvents(ctx context.Context, params ListAdmissionEventsParams) (ListAdmissionEventsRes, error)
 	// ListAdmissionLinkIncidents implements listAdmissionLinkIncidents operation.
 	//
-	// 分页查询准入链路异常.
+	// 按集群、组件、原因和状态检索准入事件链路异常。.
 	//
 	// GET /admission-link-incidents
 	ListAdmissionLinkIncidents(ctx context.Context, params ListAdmissionLinkIncidentsParams) (ListAdmissionLinkIncidentsRes, error)
 	// ListClusters implements listClusters operation.
 	//
+	// 查询平台已登记的集群及其在线状态和节点摘要。.
+	//
 	// GET /clusters
 	ListClusters(ctx context.Context, params ListClustersParams) (ListClustersRes, error)
 	// ListDistributions implements listDistributions operation.
+	//
+	// 查询策略组到集群的分发配置。.
 	//
 	// GET /distributions
 	ListDistributions(ctx context.Context, params ListDistributionsParams) (ListDistributionsRes, error)
 	// ListExceptions implements listExceptions operation.
 	//
-	// 分页查询策略例外.
+	// 分页查询策略例外及其生效状态。.
 	//
 	// GET /exceptions
 	ListExceptions(ctx context.Context, params ListExceptionsParams) (ListExceptionsRes, error)
 	// ListInstallRecords implements listInstallRecords operation.
 	//
+	// 分页查询平台生成的集群安装参数记录。.
+	//
 	// GET /install-records
 	ListInstallRecords(ctx context.Context, params ListInstallRecordsParams) (ListInstallRecordsRes, error)
 	// ListPlatformLeadershipEvents implements listPlatformLeadershipEvents operation.
 	//
-	// 查询平台领导权事件.
+	// 分页查询平台组件 Leader 变更记录。.
 	//
 	// GET /platform/leadership-events
 	ListPlatformLeadershipEvents(ctx context.Context, params ListPlatformLeadershipEventsParams) (ListPlatformLeadershipEventsRes, error)
@@ -202,7 +224,7 @@ type Handler interface {
 	ListPolicies(ctx context.Context, params ListPoliciesParams) (ListPoliciesRes, error)
 	// ListPolicyGroups implements listPolicyGroups operation.
 	//
-	// 分页查询策略组列表.
+	// 分页查询策略组及其当前解析出的策略数量。.
 	//
 	// GET /policygroups
 	ListPolicyGroups(ctx context.Context, params ListPolicyGroupsParams) (ListPolicyGroupsRes, error)
@@ -214,13 +236,19 @@ type Handler interface {
 	ListPolicyVersions(ctx context.Context, params ListPolicyVersionsParams) (ListPolicyVersionsRes, error)
 	// ListUninstallTasks implements listUninstallTasks operation.
 	//
+	// 分页查询指定集群的卸载任务及失败原因。.
+	//
 	// GET /clusters/{name}/uninstall-tasks
 	ListUninstallTasks(ctx context.Context, params ListUninstallTasksParams) (ListUninstallTasksRes, error)
 	// ReissueClusterToken implements reissueClusterToken operation.
 	//
+	// 为尚未完成注册的集群重新签发一次性安装令牌。.
+	//
 	// POST /clusters/{name}/reissue-token
-	ReissueClusterToken(ctx context.Context, req ReissueClusterTokenReq, params ReissueClusterTokenParams) (ReissueClusterTokenRes, error)
+	ReissueClusterToken(ctx context.Context, req *ClusterTokenRequest, params ReissueClusterTokenParams) (ReissueClusterTokenRes, error)
 	// RetryUninstallTask implements retryUninstallTask operation.
+	//
+	// 重新投递失败的集群卸载任务。.
 	//
 	// POST /clusters/{name}/uninstall-tasks/{taskID}/retry
 	RetryUninstallTask(ctx context.Context, params RetryUninstallTaskParams) (RetryUninstallTaskRes, error)
@@ -234,36 +262,40 @@ type Handler interface {
 	RollbackPolicy(ctx context.Context, req *RollbackRequest, params RollbackPolicyParams) (RollbackPolicyRes, error)
 	// SetPolicyGroupEnabled implements setPolicyGroupEnabled operation.
 	//
-	// 设置策略组启用状态.
+	// 启用或关闭指定策略组，不改变其成员选择规则。.
 	//
 	// PUT /policygroups/{name}/enabled
 	SetPolicyGroupEnabled(ctx context.Context, req *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (SetPolicyGroupEnabledRes, error)
 	// UpdateAdmissionEventSettings implements updateAdmissionEventSettings operation.
 	//
-	// 更新准入事件设置.
+	// 更新准入事件留存、重试、队列和存储策略配置。.
 	//
 	// PUT /admission-event-settings
 	UpdateAdmissionEventSettings(ctx context.Context, req *AdmissionEventSettingsRequest) (UpdateAdmissionEventSettingsRes, error)
 	// UpdateCluster implements updateCluster operation.
 	//
+	// 更新指定集群的控制台标签。.
+	//
 	// PUT /clusters/{name}
-	UpdateCluster(ctx context.Context, req UpdateClusterReq, params UpdateClusterParams) (UpdateClusterRes, error)
+	UpdateCluster(ctx context.Context, req *ClusterLabelsRequest, params UpdateClusterParams) (UpdateClusterRes, error)
 	// UpdateDistribution implements updateDistribution operation.
 	//
+	// 更新策略分发的集群范围和策略组配置。.
+	//
 	// PUT /distributions/{name}
-	UpdateDistribution(ctx context.Context, req UpdateDistributionReq, params UpdateDistributionParams) (UpdateDistributionRes, error)
+	UpdateDistribution(ctx context.Context, req *DistributionRequest, params UpdateDistributionParams) (UpdateDistributionRes, error)
 	// UpdateException implements updateException operation.
 	//
-	// 更新策略例外.
+	// 更新策略例外的匹配条件和作用范围。.
 	//
 	// PUT /exceptions/{name}
 	UpdateException(ctx context.Context, req *ExceptionRequest, params UpdateExceptionParams) (UpdateExceptionRes, error)
 	// UpdatePlatformSettings implements updatePlatformSettings operation.
 	//
-	// 更新平台可观测性设置.
+	// 更新平台组件采样和历史保存配置。.
 	//
 	// PUT /platform/settings
-	UpdatePlatformSettings(ctx context.Context, req *UpdatePlatformSettingsReq) (UpdatePlatformSettingsRes, error)
+	UpdatePlatformSettings(ctx context.Context, req *PlatformSettingsRequest) (UpdatePlatformSettingsRes, error)
 	// UpdatePolicy implements updatePolicy operation.
 	//
 	// 更新策略并追加新版本快照，两者在同一事务内提交。 labels
@@ -274,7 +306,7 @@ type Handler interface {
 	UpdatePolicy(ctx context.Context, req *PolicyRequest, params UpdatePolicyParams) (UpdatePolicyRes, error)
 	// UpdatePolicyGroup implements updatePolicyGroup operation.
 	//
-	// 更新策略组.
+	// 更新策略组配置及其集群作用范围。.
 	//
 	// PUT /policygroups/{name}
 	UpdatePolicyGroup(ctx context.Context, req *PolicyGroupRequest, params UpdatePolicyGroupParams) (UpdatePolicyGroupRes, error)
