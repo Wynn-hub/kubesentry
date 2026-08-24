@@ -29,7 +29,7 @@ func (h *Handler) CreateDistribution(ctx context.Context, req dto.CreateDistribu
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return createDistributionError(status), nil
 	}
 	return (*dto.CreateDistributionOK)(&v), nil
 }
@@ -40,7 +40,7 @@ func (h *Handler) GetDistribution(ctx context.Context, p dto.GetDistributionPara
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return getDistributionError(status), nil
 	}
 	return (*dto.GetDistributionOK)(&v), nil
 }
@@ -55,7 +55,7 @@ func (h *Handler) UpdateDistribution(ctx context.Context, req dto.UpdateDistribu
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return updateDistributionError(status), nil
 	}
 	return (*dto.UpdateDistributionOK)(&v), nil
 }
@@ -66,7 +66,7 @@ func (h *Handler) DeleteDistribution(ctx context.Context, p dto.DeleteDistributi
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return deleteDistributionError(status), nil
 	}
 	return (*dto.DeleteDistributionOK)(&v), nil
 }

@@ -23,6 +23,9 @@ func (h *Handler) platformInvoke(ctx context.Context, method, path string, body 
 }
 
 func platformResult(values map[string]jx.Raw, status int) (dto.GetPlatformOverviewRes, error) {
+	if status == 400 {
+		return &dto.GetPlatformOverviewBadRequest{Code: 40000, Message: "request failed"}, nil
+	}
 	if status >= 400 {
 		return &dto.GetPlatformOverviewInternalServerError{Code: status * 100, Message: "request failed"}, nil
 	}
@@ -74,6 +77,9 @@ func (h *Handler) GetPlatformInstanceTrend(ctx context.Context, p dto.GetPlatfor
 		return &dto.GetPlatformInstanceTrendNotFound{Code: 40400, Message: "cluster not found"}, nil
 	}
 	if status >= 400 {
+		if status == 400 {
+			return &dto.GetPlatformInstanceTrendBadRequest{Code: 40000, Message: "request failed"}, nil
+		}
 		return &dto.GetPlatformInstanceTrendInternalServerError{Code: status * 100, Message: "request failed"}, nil
 	}
 	return (*dto.GetPlatformInstanceTrendOK)(&values), nil
@@ -111,6 +117,9 @@ func (h *Handler) ListPlatformLeadershipEvents(ctx context.Context, p dto.ListPl
 		return &dto.ListPlatformLeadershipEventsNotFound{Code: 40400, Message: "cluster not found"}, nil
 	}
 	if status >= 400 {
+		if status == 400 {
+			return &dto.ListPlatformLeadershipEventsBadRequest{Code: 40000, Message: "request failed"}, nil
+		}
 		return &dto.ListPlatformLeadershipEventsInternalServerError{Code: status * 100, Message: "request failed"}, nil
 	}
 	return (*dto.ListPlatformLeadershipEventsOK)(&values), nil
@@ -137,6 +146,9 @@ func (h *Handler) UpdatePlatformSettings(ctx context.Context, req *dto.UpdatePla
 		return nil, err
 	}
 	if status >= 400 {
+		if status == 400 {
+			return &dto.UpdatePlatformSettingsBadRequest{Code: 40000, Message: "request failed"}, nil
+		}
 		return &dto.UpdatePlatformSettingsInternalServerError{Code: status * 100, Message: "request failed"}, nil
 	}
 	return (*dto.UpdatePlatformSettingsOK)(&values), nil

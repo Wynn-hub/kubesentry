@@ -108,6 +108,7 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 			handler.New(svcs),
 			dto.WithPathPrefix("/api/v1"),
 			dto.WithMiddleware(TraceIDMiddleware()),
+			dto.WithErrorHandler(ogenErrorHandler),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("construct policy ogen server: %w", err)
@@ -151,4 +152,12 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 	})
 
 	return &Server{Handler: mux}, nil
+}
+
+// ogenErrorHandler keeps parser and validator failures in the same envelope
+// used by legacy console handlers. Generated ogen handlers otherwise emit a
+// separate {"error_message": ...} payload, which would break the console API
+// contract and frontend error handling.
+func ogenErrorHandler(_ context.Context, w http.ResponseWriter, _ *http.Request, err error) {
+	writeErr(w, http.StatusBadRequest, err.Error())
 }

@@ -57,7 +57,7 @@ func (h *Handler) CreateCluster(ctx context.Context, req dto.CreateClusterReq) (
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return createClusterError(status), nil
 	}
 	return (*dto.CreateClusterOK)(&v), nil
 }
@@ -68,7 +68,7 @@ func (h *Handler) GetCluster(ctx context.Context, p dto.GetClusterParams) (dto.G
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return getClusterError(status), nil
 	}
 	return (*dto.GetClusterOK)(&v), nil
 }
@@ -83,7 +83,7 @@ func (h *Handler) UpdateCluster(ctx context.Context, req dto.UpdateClusterReq, p
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return updateClusterError(status), nil
 	}
 	return (*dto.UpdateClusterOK)(&v), nil
 }
@@ -94,7 +94,7 @@ func (h *Handler) DeleteCluster(ctx context.Context, p dto.DeleteClusterParams) 
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return deleteClusterError(status), nil
 	}
 	return (*dto.DeleteClusterOK)(&v), nil
 }
@@ -105,7 +105,7 @@ func (h *Handler) ReissueClusterToken(ctx context.Context, p dto.ReissueClusterT
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return reissueClusterError(status), nil
 	}
 	return (*dto.ReissueClusterTokenOK)(&v), nil
 }
@@ -116,7 +116,7 @@ func (h *Handler) GetLatestInstallParams(ctx context.Context, p dto.GetLatestIns
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return latestInstallParamsError(status), nil
 	}
 	return (*dto.GetLatestInstallParamsOK)(&v), nil
 }
@@ -127,7 +127,7 @@ func (h *Handler) CreateUninstallTask(ctx context.Context, p dto.CreateUninstall
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return createUninstallError(status), nil
 	}
 	return (*dto.CreateUninstallTaskOK)(&v), nil
 }
@@ -144,7 +144,7 @@ func (h *Handler) ListUninstallTasks(ctx context.Context, p dto.ListUninstallTas
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return listUninstallError(status), nil
 	}
 	return (*dto.ListUninstallTasksOK)(&v), nil
 }
@@ -156,7 +156,7 @@ func (h *Handler) RetryUninstallTask(ctx context.Context, p dto.RetryUninstallTa
 		return nil, err
 	}
 	if status >= 400 {
-		return objectError(status), nil
+		return retryUninstallError(status), nil
 	}
 	return (*dto.RetryUninstallTaskOK)(&v), nil
 }
