@@ -107,5 +107,6 @@ components:
           properties:
             data:
               type: object
+              description: 新建或更新后的例外名称
               required: [name]
               properties: {name: {type: string, description: 例外名称, example: emergency-maintenance}}

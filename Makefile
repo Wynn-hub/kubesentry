@@ -114,6 +114,10 @@ api-gen: $(OGEN)
 	$(OGEN) --target internal/console/dto --package dto --clean \
 	  api/console/console-api.yaml
 
+api-lint:
+	python3 scripts/check_openapi_contract.py
+	cd web && npm run generate:api
+
 # ── Test & Lint ───────────────────────────────────────────────────────────────
 # Quick run for local development — no report files produced.
 test:

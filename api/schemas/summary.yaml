@@ -21,6 +21,7 @@ components:
           example: {clusters: 3, policies: 12, policygroups: 2, exceptions: 1}
         clusterPhases:
           type: object
+          description: 集群生命周期状态统计
           required: [online, offline, registering]
           properties:
             online: {type: integer, description: 在线集群数, example: 2}

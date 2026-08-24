@@ -390,6 +390,7 @@ paths:
       tags: [Platform]
       operationId: getPlatformOverview
       summary: 获取平台运行概览
+      description: 查询控制面和成员集群的组件健康、实例和资源摘要。
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -406,6 +407,7 @@ paths:
       tags: [Platform]
       operationId: getPlatformInstanceTrend
       summary: 获取平台实例趋势
+      description: 查询指定平台组件实例在时间范围内的资源趋势。
       parameters:
         - name: component
           in: path
@@ -435,6 +437,7 @@ paths:
       tags: [Platform]
       operationId: listPlatformLeadershipEvents
       summary: 查询平台领导权事件
+      description: 分页查询平台组件 Leader 变更记录。
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -461,6 +464,7 @@ paths:
       tags: [Platform]
       operationId: getPlatformSettings
       summary: 获取平台可观测性设置
+      description: 查询平台组件采样和历史保存配置。
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -468,9 +472,10 @@ paths:
       tags: [Platform]
       operationId: updatePlatformSettings
       summary: 更新平台可观测性设置
+      description: 更新平台组件采样和历史保存配置。
       requestBody:
         required: true
-        content: {application/json: {schema: {type: object, required: [enabled, retentionDays], properties: {enabled: {type: boolean}, retentionDays: {type: integer, minimum: 1}}}}}
+        content: {application/json: {schema: {type: object, required: [enabled, retentionDays], properties: {enabled: {type: boolean, description: 是否启用平台观测, example: true}, retentionDays: {type: integer, minimum: 1, description: 历史数据保存天数, example: 30}}}}}
       responses:
         '200': {description: 更新成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
@@ -481,6 +486,7 @@ paths:
       tags: [Summary]
       operationId: getFieldSchema
       summary: 获取 Kubernetes 资源字段树
+      description: 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。
       parameters:
         - name: group
           in: query
@@ -510,6 +516,7 @@ paths:
       tags: [Summary]
       operationId: getSummary
       summary: 获取平台资源摘要
+      description: 查询策略、策略组、例外和集群的汇总数量。
       responses:
         '200':
           description: 查询成功
@@ -523,6 +530,7 @@ paths:
       tags: [Admission]
       operationId: listAdmissionEvents
       summary: 分页查询准入事件
+      description: 按集群、判决、策略、命名空间和资源条件分页检索准入事件。
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -571,6 +579,7 @@ paths:
       tags: [Admission]
       operationId: getAdmissionEvent
       summary: 查询准入事件详情
+      description: 查询准入事件及其原始 metadata/spec 快照。
       parameters: [{ $ref: '#/components/parameters/AdmissionEventID' }]
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/admission.yaml#/components/schemas/AdmissionEventDetailResponse'}}}}
@@ -583,6 +592,7 @@ paths:
       tags: [Admission]
       operationId: getAdmissionEventTrend
       summary: 查询准入事件趋势
+      description: 按时间范围返回准入事件的 audit/deny 趋势数据。
       parameters:
         - name: from
           in: query
@@ -602,6 +612,7 @@ paths:
       tags: [Admission]
       operationId: getAdmissionEventSettings
       summary: 获取准入事件设置
+      description: 查询准入事件留存、重试、队列和存储策略配置。
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsResponse'}}}}
         '503': {$ref: '#/components/responses/InternalError'}
@@ -610,6 +621,7 @@ paths:
       tags: [Admission]
       operationId: updateAdmissionEventSettings
       summary: 更新准入事件设置
+      description: 更新准入事件留存、重试、队列和存储策略配置。
       requestBody:
         required: true
         content: {application/json: {schema: {$ref: '../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsRequest'}}}
@@ -623,6 +635,7 @@ paths:
       tags: [Admission]
       operationId: listAdmissionLinkIncidents
       summary: 分页查询准入链路异常
+      description: 按集群、组件、原因和状态检索准入事件链路异常。
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -669,6 +682,7 @@ paths:
       tags: [Admission]
       operationId: getAdmissionLinkIncident
       summary: 查询准入链路异常详情
+      description: 查询单条准入事件链路异常及其样本事件。
       parameters:
         - name: id
           in: path
@@ -987,6 +1001,7 @@ paths:
       tags: [PolicyGroup]
       operationId: listPolicyGroups
       summary: 分页查询策略组列表
+      description: 分页查询策略组及其当前解析出的策略数量。
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -1021,6 +1036,7 @@ paths:
       tags: [PolicyGroup]
       operationId: createPolicyGroup
       summary: 创建策略组
+      description: 创建策略组并配置其集群作用范围和策略选择规则。
       requestBody:
         required: true
         content:
@@ -1046,6 +1062,7 @@ paths:
       tags: [PolicyGroup]
       operationId: getPolicyGroup
       summary: 查询策略组详情
+      description: 查询策略组配置、集群作用范围和解析状态。
       parameters:
         - $ref: '#/components/parameters/PolicyGroupName'
       responses:
@@ -1063,6 +1080,7 @@ paths:
       tags: [PolicyGroup]
       operationId: updatePolicyGroup
       summary: 更新策略组
+      description: 更新策略组配置及其集群作用范围。
       parameters:
         - $ref: '#/components/parameters/PolicyGroupName'
       requestBody:
@@ -1092,6 +1110,7 @@ paths:
       tags: [PolicyGroup]
       operationId: deletePolicyGroup
       summary: 删除策略组
+      description: 删除非内置策略组。
       parameters:
         - $ref: '#/components/parameters/PolicyGroupName'
       responses:
@@ -1113,6 +1132,7 @@ paths:
       tags: [PolicyGroup]
       operationId: setPolicyGroupEnabled
       summary: 设置策略组启用状态
+      description: 启用或关闭指定策略组，不改变其成员选择规则。
       parameters:
         - $ref: '#/components/parameters/PolicyGroupName'
       requestBody:
@@ -1142,6 +1162,7 @@ paths:
       tags: [Exception]
       operationId: listExceptions
       summary: 分页查询策略例外
+      description: 分页查询策略例外及其生效状态。
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -1161,6 +1182,7 @@ paths:
       tags: [Exception]
       operationId: createException
       summary: 创建策略例外
+      description: 创建针对资源、命名空间或集群范围的策略例外。
       requestBody:
         required: true
         content: {application/json: {schema: {$ref: '../schemas/exception.yaml#/components/schemas/ExceptionRequest'}}}
@@ -1175,6 +1197,7 @@ paths:
       tags: [Exception]
       operationId: getException
       summary: 查询策略例外详情
+      description: 查询策略例外的匹配条件、作用范围和过期时间。
       parameters: [{ $ref: '#/components/parameters/ExceptionName' }]
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/exception.yaml#/components/schemas/ExceptionDetailResponse'}}}}
@@ -1184,6 +1207,7 @@ paths:
       tags: [Exception]
       operationId: updateException
       summary: 更新策略例外
+      description: 更新策略例外的匹配条件和作用范围。
       parameters: [{ $ref: '#/components/parameters/ExceptionName' }]
       requestBody:
         required: true
@@ -1198,6 +1222,7 @@ paths:
       tags: [Exception]
       operationId: deleteException
       summary: 删除策略例外
+      description: 删除指定策略例外。
       parameters: [{ $ref: '#/components/parameters/ExceptionName' }]
       responses:
         '200': {description: 删除成功, content: {application/json: {schema: {$ref: '../schemas/policy.yaml#/components/schemas/EmptyResponse'}}}}

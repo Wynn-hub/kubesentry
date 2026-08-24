@@ -39,6 +39,8 @@ components:
           properties:
             items:
               type: array
+              description: 链路异常列表
+              example: []
               items: {$ref: '#/components/schemas/AdmissionLinkIncidentItem'}
     AdmissionLinkIncidentListResponse:
       allOf:

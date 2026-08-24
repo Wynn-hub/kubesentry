@@ -220,6 +220,7 @@ components:
           enabled:
             type: boolean
             description: 更新后的启用状态
+            example: true
 
     PolicyGroupEnabledRequest:
       type: object

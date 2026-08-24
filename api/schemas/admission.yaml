@@ -6,32 +6,44 @@ components:
       properties:
         verdicts:
           type: array
-          items: {type: string, enum: [audit, deny]}
+          description: 事件判决条件
+          example: [deny]
+          items: {type: string, enum: [audit, deny], description: 判决类型, example: deny}
         clusters:
           type: array
-          items: {type: string}
+          description: 集群名称条件
+          example: [production-east]
+          items: {type: string, description: 集群名称, example: production-east}
         gvks:
           type: array
+          description: 资源 GVK 条件
+          example: [apps/deployments]
           items: {type: string, description: normalized resource name, example: apps/deployments}
         namespaces:
           type: array
-          items: {type: string}
+          description: 命名空间条件
+          example: [default]
+          items: {type: string, description: 命名空间名称, example: default}
         matchMode:
           type: string
+          description: 规则匹配模式
+          example: include
           enum: [include, exclude]
     AdmissionEventSettings:
       type: object
       required: [defaultRetentionDays, retryEnabled, maxRetryAttempts, queueCapacity, incidentRetentionDays, observationEnabled, storagePolicyVersion, storagePolicies]
       properties:
-        defaultRetentionDays: {type: integer, minimum: 1, maximum: 365}
-        retryEnabled: {type: boolean}
-        maxRetryAttempts: {type: integer, minimum: 1, maximum: 100}
-        queueCapacity: {type: integer, minimum: 1, maximum: 10000}
-        incidentRetentionDays: {type: integer, minimum: 1, maximum: 365}
-        observationEnabled: {type: boolean}
-        storagePolicyVersion: {type: integer, format: int64}
+        defaultRetentionDays: {type: integer, minimum: 1, maximum: 365, description: 默认事件保存天数, example: 30}
+        retryEnabled: {type: boolean, description: 是否重试上报失败事件, example: true}
+        maxRetryAttempts: {type: integer, minimum: 1, maximum: 100, description: 最大重试次数, example: 3}
+        queueCapacity: {type: integer, minimum: 1, maximum: 10000, description: Operator 内存队列容量, example: 1000}
+        incidentRetentionDays: {type: integer, minimum: 1, maximum: 365, description: 链路异常保存天数, example: 30}
+        observationEnabled: {type: boolean, description: 是否启用准入事件观测, example: true}
+        storagePolicyVersion: {type: integer, format: int64, description: 存储策略版本, example: 4}
         storagePolicies:
           type: array
+          description: 事件存储匹配规则
+          example: []
           items: {$ref: '#/components/schemas/AdmissionStoragePolicy'}
     AdmissionEventSettingsRequest:
       type: object
@@ -39,52 +51,54 @@ components:
       # remaining fields retain their server-side defaults when omitted.
       required: [defaultRetentionDays]
       properties:
-        defaultRetentionDays: {type: integer, minimum: 1, maximum: 365}
-        retryEnabled: {type: boolean}
-        maxRetryAttempts: {type: integer, minimum: 1, maximum: 100}
-        queueCapacity: {type: integer, minimum: 1, maximum: 10000}
-        incidentRetentionDays: {type: integer, minimum: 1, maximum: 365}
-        observationEnabled: {type: boolean}
+        defaultRetentionDays: {type: integer, minimum: 1, maximum: 365, description: 默认事件保存天数, example: 30}
+        retryEnabled: {type: boolean, description: 是否重试上报失败事件, example: true}
+        maxRetryAttempts: {type: integer, minimum: 1, maximum: 100, description: 最大重试次数, example: 3}
+        queueCapacity: {type: integer, minimum: 1, maximum: 10000, description: Operator 内存队列容量, example: 1000}
+        incidentRetentionDays: {type: integer, minimum: 1, maximum: 365, description: 链路异常保存天数, example: 30}
+        observationEnabled: {type: boolean, description: 是否启用准入事件观测, example: true}
         storagePolicies:
           type: array
+          description: 事件存储匹配规则
+          example: []
           items: {$ref: '#/components/schemas/AdmissionStoragePolicy'}
     AdmissionEventItem:
       type: object
       required: [id, eventId, clusterName, occurredAt, verdict, apiGroup, apiVersion, resource, operation, namespace, resourceName, username, policyNames, violations]
       properties:
         id: {$ref: './common.yaml#/components/schemas/ResourceID'}
-        eventId: {type: string}
-        clusterName: {type: string}
-        occurredAt: {type: string, format: date-time}
-        verdict: {type: string, enum: [audit, deny]}
-        apiGroup: {type: string}
-        apiVersion: {type: string}
-        resource: {type: string}
-        operation: {type: string}
-        namespace: {type: string}
-        resourceName: {type: string}
-        username: {type: string}
-        policyNames: {type: array, items: {type: string}}
-        violations: {type: array, items: {type: string}}
+        eventId: {type: string, description: 成员侧事件 ID, example: admission-01HXYZ}
+        clusterName: {type: string, description: 集群名称, example: production-east}
+        occurredAt: {type: string, format: date-time, description: 事件发生时间, example: '2026-08-24T10:00:00Z'}
+        verdict: {type: string, enum: [audit, deny], description: 判决类型, example: deny}
+        apiGroup: {type: string, description: API 组, example: apps}
+        apiVersion: {type: string, description: API 版本, example: v1}
+        resource: {type: string, description: 资源复数名, example: deployments}
+        operation: {type: string, description: 准入操作, example: CREATE}
+        namespace: {type: string, description: 命名空间, example: default}
+        resourceName: {type: string, description: 资源名称, example: web}
+        username: {type: string, description: 请求用户, example: admin}
+        policyNames: {type: array, description: 命中的策略名称, example: [not-privileged], items: {type: string, description: 策略名称, example: not-privileged}}
+        violations: {type: array, description: 违规信息, example: [hostNetwork is not allowed], items: {type: string, description: 违规信息, example: hostNetwork is not allowed}}
     AdmissionEventDetail:
       allOf:
         - $ref: '#/components/schemas/AdmissionEventItem'
         - type: object
           required: [requestUid, userGroups, policyGroupNames, metadataSnapshot, specSnapshot, storagePolicyVersion]
           properties:
-            requestUid: {type: string}
-            userGroups: {type: array, items: {type: string}}
-            policyGroupNames: {type: array, items: {type: string}}
-            metadataSnapshot: {type: object, additionalProperties: true}
-            specSnapshot: {type: object, additionalProperties: true}
-            storagePolicyVersion: {type: string}
+            requestUid: {type: string, description: Kubernetes 请求 UID, example: 0f1e2d3c}
+            userGroups: {type: array, description: 请求用户所属组, example: [system:masters], items: {type: string, description: 用户组, example: system:masters}}
+            policyGroupNames: {type: array, description: 命中的策略组名称, example: [default], items: {type: string, description: 策略组名称, example: default}}
+            metadataSnapshot: {type: object, additionalProperties: true, description: 原始资源 metadata 快照, example: {labels: {app: web}}}
+            specSnapshot: {type: object, additionalProperties: true, description: 原始资源 spec 快照, example: {replicas: 2}}
+            storagePolicyVersion: {type: string, description: 事件判定时使用的存储策略版本, example: '4'}
     AdmissionEventListData:
       allOf:
         - $ref: './common.yaml#/components/schemas/PageMeta'
         - type: object
           required: [items]
           properties:
-            items: {type: array, items: {$ref: '#/components/schemas/AdmissionEventItem'}}
+            items: {type: array, description: 准入事件列表, example: [], items: {$ref: '#/components/schemas/AdmissionEventItem'}}
     AdmissionEventListResponse:
       allOf:
         - $ref: './common.yaml#/components/schemas/Envelope'
@@ -99,9 +113,9 @@ components:
       type: object
       required: [bucket, verdict, count]
       properties:
-        bucket: {type: string, format: date-time}
-        verdict: {type: string, enum: [audit, deny]}
-        count: {type: integer, format: int64}
+        bucket: {type: string, format: date-time, description: 趋势时间桶起点, example: '2026-08-24T10:00:00Z'}
+        verdict: {type: string, enum: [audit, deny], description: 判决类型, example: deny}
+        count: {type: integer, format: int64, description: 事件数量, example: 12}
     AdmissionEventTrendResponse:
       allOf:
         - $ref: './common.yaml#/components/schemas/Envelope'
@@ -109,6 +123,8 @@ components:
           properties:
             data:
               type: array
+              description: 准入事件趋势数据
+              example: []
               items: {$ref: '#/components/schemas/AdmissionEventTrendItem'}
     AdmissionEventSettingsResponse:
       allOf:

@@ -241,7 +241,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取平台运行概览 */
+        /**
+         * 获取平台运行概览
+         * @description 查询控制面和成员集群的组件健康、实例和资源摘要。
+         */
         get: operations["getPlatformOverview"];
         put?: never;
         post?: never;
@@ -258,7 +261,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取平台实例趋势 */
+        /**
+         * 获取平台实例趋势
+         * @description 查询指定平台组件实例在时间范围内的资源趋势。
+         */
         get: operations["getPlatformInstanceTrend"];
         put?: never;
         post?: never;
@@ -275,7 +281,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 查询平台领导权事件 */
+        /**
+         * 查询平台领导权事件
+         * @description 分页查询平台组件 Leader 变更记录。
+         */
         get: operations["listPlatformLeadershipEvents"];
         put?: never;
         post?: never;
@@ -292,9 +301,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取平台可观测性设置 */
+        /**
+         * 获取平台可观测性设置
+         * @description 查询平台组件采样和历史保存配置。
+         */
         get: operations["getPlatformSettings"];
-        /** 更新平台可观测性设置 */
+        /**
+         * 更新平台可观测性设置
+         * @description 更新平台组件采样和历史保存配置。
+         */
         put: operations["updatePlatformSettings"];
         post?: never;
         delete?: never;
@@ -310,7 +325,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取 Kubernetes 资源字段树 */
+        /**
+         * 获取 Kubernetes 资源字段树
+         * @description 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。
+         */
         get: operations["getFieldSchema"];
         put?: never;
         post?: never;
@@ -327,7 +345,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取平台资源摘要 */
+        /**
+         * 获取平台资源摘要
+         * @description 查询策略、策略组、例外和集群的汇总数量。
+         */
         get: operations["getSummary"];
         put?: never;
         post?: never;
@@ -344,7 +365,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 分页查询准入事件 */
+        /**
+         * 分页查询准入事件
+         * @description 按集群、判决、策略、命名空间和资源条件分页检索准入事件。
+         */
         get: operations["listAdmissionEvents"];
         put?: never;
         post?: never;
@@ -361,7 +385,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 查询准入事件详情 */
+        /**
+         * 查询准入事件详情
+         * @description 查询准入事件及其原始 metadata/spec 快照。
+         */
         get: operations["getAdmissionEvent"];
         put?: never;
         post?: never;
@@ -378,7 +405,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 查询准入事件趋势 */
+        /**
+         * 查询准入事件趋势
+         * @description 按时间范围返回准入事件的 audit/deny 趋势数据。
+         */
         get: operations["getAdmissionEventTrend"];
         put?: never;
         post?: never;
@@ -395,9 +425,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取准入事件设置 */
+        /**
+         * 获取准入事件设置
+         * @description 查询准入事件留存、重试、队列和存储策略配置。
+         */
         get: operations["getAdmissionEventSettings"];
-        /** 更新准入事件设置 */
+        /**
+         * 更新准入事件设置
+         * @description 更新准入事件留存、重试、队列和存储策略配置。
+         */
         put: operations["updateAdmissionEventSettings"];
         post?: never;
         delete?: never;
@@ -413,7 +449,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 分页查询准入链路异常 */
+        /**
+         * 分页查询准入链路异常
+         * @description 按集群、组件、原因和状态检索准入事件链路异常。
+         */
         get: operations["listAdmissionLinkIncidents"];
         put?: never;
         post?: never;
@@ -430,7 +469,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 查询准入链路异常详情 */
+        /**
+         * 查询准入链路异常详情
+         * @description 查询单条准入事件链路异常及其样本事件。
+         */
         get: operations["getAdmissionLinkIncident"];
         put?: never;
         post?: never;
@@ -595,10 +637,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 分页查询策略组列表 */
+        /**
+         * 分页查询策略组列表
+         * @description 分页查询策略组及其当前解析出的策略数量。
+         */
         get: operations["listPolicyGroups"];
         put?: never;
-        /** 创建策略组 */
+        /**
+         * 创建策略组
+         * @description 创建策略组并配置其集群作用范围和策略选择规则。
+         */
         post: operations["createPolicyGroup"];
         delete?: never;
         options?: never;
@@ -613,12 +661,21 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 查询策略组详情 */
+        /**
+         * 查询策略组详情
+         * @description 查询策略组配置、集群作用范围和解析状态。
+         */
         get: operations["getPolicyGroup"];
-        /** 更新策略组 */
+        /**
+         * 更新策略组
+         * @description 更新策略组配置及其集群作用范围。
+         */
         put: operations["updatePolicyGroup"];
         post?: never;
-        /** 删除策略组 */
+        /**
+         * 删除策略组
+         * @description 删除非内置策略组。
+         */
         delete: operations["deletePolicyGroup"];
         options?: never;
         head?: never;
@@ -633,7 +690,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** 设置策略组启用状态 */
+        /**
+         * 设置策略组启用状态
+         * @description 启用或关闭指定策略组，不改变其成员选择规则。
+         */
         put: operations["setPolicyGroupEnabled"];
         post?: never;
         delete?: never;
@@ -649,10 +709,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 分页查询策略例外 */
+        /**
+         * 分页查询策略例外
+         * @description 分页查询策略例外及其生效状态。
+         */
         get: operations["listExceptions"];
         put?: never;
-        /** 创建策略例外 */
+        /**
+         * 创建策略例外
+         * @description 创建针对资源、命名空间或集群范围的策略例外。
+         */
         post: operations["createException"];
         delete?: never;
         options?: never;
@@ -667,12 +733,21 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 查询策略例外详情 */
+        /**
+         * 查询策略例外详情
+         * @description 查询策略例外的匹配条件、作用范围和过期时间。
+         */
         get: operations["getException"];
-        /** 更新策略例外 */
+        /**
+         * 更新策略例外
+         * @description 更新策略例外的匹配条件和作用范围。
+         */
         put: operations["updateException"];
         post?: never;
-        /** 删除策略例外 */
+        /**
+         * 删除策略例外
+         * @description 删除指定策略例外。
+         */
         delete: operations["deleteException"];
         options?: never;
         head?: never;
@@ -789,6 +864,7 @@ export interface components {
             totals: {
                 [key: string]: number;
             };
+            /** @description 集群生命周期状态统计 */
             clusterPhases: {
                 /**
                  * @description 在线集群数
@@ -837,83 +913,281 @@ export interface components {
         ResourceID: string;
         AdmissionEventItem: {
             id: components["schemas"]["ResourceID"];
+            /**
+             * @description 成员侧事件 ID
+             * @example admission-01HXYZ
+             */
             eventId: string;
+            /**
+             * @description 集群名称
+             * @example production-east
+             */
             clusterName: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description 事件发生时间
+             * @example 2026-08-24T10:00:00Z
+             */
             occurredAt: string;
-            /** @enum {string} */
+            /**
+             * @description 判决类型
+             * @example deny
+             * @enum {string}
+             */
             verdict: "audit" | "deny";
+            /**
+             * @description API 组
+             * @example apps
+             */
             apiGroup: string;
+            /**
+             * @description API 版本
+             * @example v1
+             */
             apiVersion: string;
+            /**
+             * @description 资源复数名
+             * @example deployments
+             */
             resource: string;
+            /**
+             * @description 准入操作
+             * @example CREATE
+             */
             operation: string;
+            /**
+             * @description 命名空间
+             * @example default
+             */
             namespace: string;
+            /**
+             * @description 资源名称
+             * @example web
+             */
             resourceName: string;
+            /**
+             * @description 请求用户
+             * @example admin
+             */
             username: string;
+            /**
+             * @description 命中的策略名称
+             * @example [
+             *       "not-privileged"
+             *     ]
+             */
             policyNames: string[];
+            /**
+             * @description 违规信息
+             * @example [
+             *       "hostNetwork is not allowed"
+             *     ]
+             */
             violations: string[];
         };
         AdmissionEventListData: components["schemas"]["PageMeta"] & {
+            /**
+             * @description 准入事件列表
+             * @example []
+             */
             items: components["schemas"]["AdmissionEventItem"][];
         };
         AdmissionEventListResponse: components["schemas"]["Envelope"] & {
             data?: components["schemas"]["AdmissionEventListData"];
         };
         AdmissionEventDetail: components["schemas"]["AdmissionEventItem"] & {
+            /**
+             * @description Kubernetes 请求 UID
+             * @example 0f1e2d3c
+             */
             requestUid: string;
+            /**
+             * @description 请求用户所属组
+             * @example [
+             *       "system:masters"
+             *     ]
+             */
             userGroups: string[];
+            /**
+             * @description 命中的策略组名称
+             * @example [
+             *       "default"
+             *     ]
+             */
             policyGroupNames: string[];
+            /**
+             * @description 原始资源 metadata 快照
+             * @example {
+             *       "labels": {
+             *         "app": "web"
+             *       }
+             *     }
+             */
             metadataSnapshot: {
                 [key: string]: unknown;
             };
+            /**
+             * @description 原始资源 spec 快照
+             * @example {
+             *       "replicas": 2
+             *     }
+             */
             specSnapshot: {
                 [key: string]: unknown;
             };
+            /**
+             * @description 事件判定时使用的存储策略版本
+             * @example 4
+             */
             storagePolicyVersion: string;
         };
         AdmissionEventDetailResponse: components["schemas"]["Envelope"] & {
             data?: components["schemas"]["AdmissionEventDetail"];
         };
         AdmissionEventTrendItem: {
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description 趋势时间桶起点
+             * @example 2026-08-24T10:00:00Z
+             */
             bucket: string;
-            /** @enum {string} */
+            /**
+             * @description 判决类型
+             * @example deny
+             * @enum {string}
+             */
             verdict: "audit" | "deny";
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description 事件数量
+             * @example 12
+             */
             count: number;
         };
         AdmissionEventTrendResponse: components["schemas"]["Envelope"] & {
+            /**
+             * @description 准入事件趋势数据
+             * @example []
+             */
             data?: components["schemas"]["AdmissionEventTrendItem"][];
         };
         AdmissionStoragePolicy: {
+            /**
+             * @description 事件判决条件
+             * @example [
+             *       "deny"
+             *     ]
+             */
             verdicts: ("audit" | "deny")[];
+            /**
+             * @description 集群名称条件
+             * @example [
+             *       "production-east"
+             *     ]
+             */
             clusters: string[];
+            /**
+             * @description 资源 GVK 条件
+             * @example [
+             *       "apps/deployments"
+             *     ]
+             */
             gvks: string[];
+            /**
+             * @description 命名空间条件
+             * @example [
+             *       "default"
+             *     ]
+             */
             namespaces: string[];
-            /** @enum {string} */
+            /**
+             * @description 规则匹配模式
+             * @example include
+             * @enum {string}
+             */
             matchMode: "include" | "exclude";
         };
         AdmissionEventSettings: {
+            /**
+             * @description 默认事件保存天数
+             * @example 30
+             */
             defaultRetentionDays: number;
+            /**
+             * @description 是否重试上报失败事件
+             * @example true
+             */
             retryEnabled: boolean;
+            /**
+             * @description 最大重试次数
+             * @example 3
+             */
             maxRetryAttempts: number;
+            /**
+             * @description Operator 内存队列容量
+             * @example 1000
+             */
             queueCapacity: number;
+            /**
+             * @description 链路异常保存天数
+             * @example 30
+             */
             incidentRetentionDays: number;
+            /**
+             * @description 是否启用准入事件观测
+             * @example true
+             */
             observationEnabled: boolean;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description 存储策略版本
+             * @example 4
+             */
             storagePolicyVersion: number;
+            /**
+             * @description 事件存储匹配规则
+             * @example []
+             */
             storagePolicies: components["schemas"]["AdmissionStoragePolicy"][];
         };
         AdmissionEventSettingsResponse: components["schemas"]["Envelope"] & {
             data?: components["schemas"]["AdmissionEventSettings"];
         };
         AdmissionEventSettingsRequest: {
+            /**
+             * @description 默认事件保存天数
+             * @example 30
+             */
             defaultRetentionDays: number;
+            /**
+             * @description 是否重试上报失败事件
+             * @example true
+             */
             retryEnabled?: boolean;
+            /**
+             * @description 最大重试次数
+             * @example 3
+             */
             maxRetryAttempts?: number;
+            /**
+             * @description Operator 内存队列容量
+             * @example 1000
+             */
             queueCapacity?: number;
+            /**
+             * @description 链路异常保存天数
+             * @example 30
+             */
             incidentRetentionDays?: number;
+            /**
+             * @description 是否启用准入事件观测
+             * @example true
+             */
             observationEnabled?: boolean;
+            /**
+             * @description 事件存储匹配规则
+             * @example []
+             */
             storagePolicies?: components["schemas"]["AdmissionStoragePolicy"][];
         };
         AdmissionLinkIncidentItem: {
@@ -965,6 +1239,10 @@ export interface components {
             status: "active" | "interrupted" | "closed";
         };
         AdmissionLinkIncidentListData: components["schemas"]["PageMeta"] & {
+            /**
+             * @description 链路异常列表
+             * @example []
+             */
             items: components["schemas"]["AdmissionLinkIncidentItem"][];
         };
         AdmissionLinkIncidentListResponse: components["schemas"]["Envelope"] & {
@@ -1592,7 +1870,10 @@ export interface components {
             enabled: boolean;
         };
         PolicyGroupEnabledData: {
-            /** @description 更新后的启用状态 */
+            /**
+             * @description 更新后的启用状态
+             * @example true
+             */
             enabled: boolean;
         };
         PolicyGroupEnabledResponse: components["schemas"]["Envelope"] & {
@@ -1747,6 +2028,7 @@ export interface components {
             clusterNames?: string[];
         };
         ExceptionNameResponse: components["schemas"]["Envelope"] & {
+            /** @description 新建或更新后的例外名称 */
             data?: {
                 /**
                  * @description 例外名称
@@ -2506,7 +2788,15 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /**
+                     * @description 是否启用平台观测
+                     * @example true
+                     */
                     enabled: boolean;
+                    /**
+                     * @description 历史数据保存天数
+                     * @example 30
+                     */
                     retentionDays: number;
                 };
             };
