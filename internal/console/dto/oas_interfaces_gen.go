@@ -25,6 +25,22 @@ type DeletePolicyRes interface {
 	deletePolicyRes()
 }
 
+type GetAdmissionEventRes interface {
+	getAdmissionEventRes()
+}
+
+type GetAdmissionEventSettingsRes interface {
+	getAdmissionEventSettingsRes()
+}
+
+type GetAdmissionEventTrendRes interface {
+	getAdmissionEventTrendRes()
+}
+
+type GetAdmissionLinkIncidentRes interface {
+	getAdmissionLinkIncidentRes()
+}
+
 type GetExceptionRes interface {
 	getExceptionRes()
 }
@@ -49,6 +65,14 @@ type GetSummaryRes interface {
 	getSummaryRes()
 }
 
+type ListAdmissionEventsRes interface {
+	listAdmissionEventsRes()
+}
+
+type ListAdmissionLinkIncidentsRes interface {
+	listAdmissionLinkIncidentsRes()
+}
+
 type ListExceptionsRes interface {
 	listExceptionsRes()
 }
@@ -71,6 +95,10 @@ type RollbackPolicyRes interface {
 
 type SetPolicyGroupEnabledRes interface {
 	setPolicyGroupEnabledRes()
+}
+
+type UpdateAdmissionEventSettingsRes interface {
+	updateAdmissionEventSettingsRes()
 }
 
 type UpdateExceptionRes interface {

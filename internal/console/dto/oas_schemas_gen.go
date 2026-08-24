@@ -9,6 +9,1764 @@ import (
 	"github.com/go-faster/jx"
 )
 
+// Merged schema.
+// Ref: #/components/schemas/AdmissionEventDetail
+type AdmissionEventDetail struct {
+	ID                   ResourceID                           `json:"id"`
+	EventId              string                               `json:"eventId"`
+	ClusterName          string                               `json:"clusterName"`
+	OccurredAt           time.Time                            `json:"occurredAt"`
+	Verdict              AdmissionEventDetailVerdict          `json:"verdict"`
+	ApiGroup             string                               `json:"apiGroup"`
+	ApiVersion           string                               `json:"apiVersion"`
+	Resource             string                               `json:"resource"`
+	Operation            string                               `json:"operation"`
+	Namespace            string                               `json:"namespace"`
+	ResourceName         string                               `json:"resourceName"`
+	Username             string                               `json:"username"`
+	PolicyNames          []string                             `json:"policyNames"`
+	Violations           []string                             `json:"violations"`
+	RequestUid           string                               `json:"requestUid"`
+	UserGroups           []string                             `json:"userGroups"`
+	PolicyGroupNames     []string                             `json:"policyGroupNames"`
+	MetadataSnapshot     AdmissionEventDetailMetadataSnapshot `json:"metadataSnapshot"`
+	SpecSnapshot         AdmissionEventDetailSpecSnapshot     `json:"specSnapshot"`
+	StoragePolicyVersion string                               `json:"storagePolicyVersion"`
+}
+
+// GetID returns the value of ID.
+func (s *AdmissionEventDetail) GetID() ResourceID {
+	return s.ID
+}
+
+// GetEventId returns the value of EventId.
+func (s *AdmissionEventDetail) GetEventId() string {
+	return s.EventId
+}
+
+// GetClusterName returns the value of ClusterName.
+func (s *AdmissionEventDetail) GetClusterName() string {
+	return s.ClusterName
+}
+
+// GetOccurredAt returns the value of OccurredAt.
+func (s *AdmissionEventDetail) GetOccurredAt() time.Time {
+	return s.OccurredAt
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *AdmissionEventDetail) GetVerdict() AdmissionEventDetailVerdict {
+	return s.Verdict
+}
+
+// GetApiGroup returns the value of ApiGroup.
+func (s *AdmissionEventDetail) GetApiGroup() string {
+	return s.ApiGroup
+}
+
+// GetApiVersion returns the value of ApiVersion.
+func (s *AdmissionEventDetail) GetApiVersion() string {
+	return s.ApiVersion
+}
+
+// GetResource returns the value of Resource.
+func (s *AdmissionEventDetail) GetResource() string {
+	return s.Resource
+}
+
+// GetOperation returns the value of Operation.
+func (s *AdmissionEventDetail) GetOperation() string {
+	return s.Operation
+}
+
+// GetNamespace returns the value of Namespace.
+func (s *AdmissionEventDetail) GetNamespace() string {
+	return s.Namespace
+}
+
+// GetResourceName returns the value of ResourceName.
+func (s *AdmissionEventDetail) GetResourceName() string {
+	return s.ResourceName
+}
+
+// GetUsername returns the value of Username.
+func (s *AdmissionEventDetail) GetUsername() string {
+	return s.Username
+}
+
+// GetPolicyNames returns the value of PolicyNames.
+func (s *AdmissionEventDetail) GetPolicyNames() []string {
+	return s.PolicyNames
+}
+
+// GetViolations returns the value of Violations.
+func (s *AdmissionEventDetail) GetViolations() []string {
+	return s.Violations
+}
+
+// GetRequestUid returns the value of RequestUid.
+func (s *AdmissionEventDetail) GetRequestUid() string {
+	return s.RequestUid
+}
+
+// GetUserGroups returns the value of UserGroups.
+func (s *AdmissionEventDetail) GetUserGroups() []string {
+	return s.UserGroups
+}
+
+// GetPolicyGroupNames returns the value of PolicyGroupNames.
+func (s *AdmissionEventDetail) GetPolicyGroupNames() []string {
+	return s.PolicyGroupNames
+}
+
+// GetMetadataSnapshot returns the value of MetadataSnapshot.
+func (s *AdmissionEventDetail) GetMetadataSnapshot() AdmissionEventDetailMetadataSnapshot {
+	return s.MetadataSnapshot
+}
+
+// GetSpecSnapshot returns the value of SpecSnapshot.
+func (s *AdmissionEventDetail) GetSpecSnapshot() AdmissionEventDetailSpecSnapshot {
+	return s.SpecSnapshot
+}
+
+// GetStoragePolicyVersion returns the value of StoragePolicyVersion.
+func (s *AdmissionEventDetail) GetStoragePolicyVersion() string {
+	return s.StoragePolicyVersion
+}
+
+// SetID sets the value of ID.
+func (s *AdmissionEventDetail) SetID(val ResourceID) {
+	s.ID = val
+}
+
+// SetEventId sets the value of EventId.
+func (s *AdmissionEventDetail) SetEventId(val string) {
+	s.EventId = val
+}
+
+// SetClusterName sets the value of ClusterName.
+func (s *AdmissionEventDetail) SetClusterName(val string) {
+	s.ClusterName = val
+}
+
+// SetOccurredAt sets the value of OccurredAt.
+func (s *AdmissionEventDetail) SetOccurredAt(val time.Time) {
+	s.OccurredAt = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *AdmissionEventDetail) SetVerdict(val AdmissionEventDetailVerdict) {
+	s.Verdict = val
+}
+
+// SetApiGroup sets the value of ApiGroup.
+func (s *AdmissionEventDetail) SetApiGroup(val string) {
+	s.ApiGroup = val
+}
+
+// SetApiVersion sets the value of ApiVersion.
+func (s *AdmissionEventDetail) SetApiVersion(val string) {
+	s.ApiVersion = val
+}
+
+// SetResource sets the value of Resource.
+func (s *AdmissionEventDetail) SetResource(val string) {
+	s.Resource = val
+}
+
+// SetOperation sets the value of Operation.
+func (s *AdmissionEventDetail) SetOperation(val string) {
+	s.Operation = val
+}
+
+// SetNamespace sets the value of Namespace.
+func (s *AdmissionEventDetail) SetNamespace(val string) {
+	s.Namespace = val
+}
+
+// SetResourceName sets the value of ResourceName.
+func (s *AdmissionEventDetail) SetResourceName(val string) {
+	s.ResourceName = val
+}
+
+// SetUsername sets the value of Username.
+func (s *AdmissionEventDetail) SetUsername(val string) {
+	s.Username = val
+}
+
+// SetPolicyNames sets the value of PolicyNames.
+func (s *AdmissionEventDetail) SetPolicyNames(val []string) {
+	s.PolicyNames = val
+}
+
+// SetViolations sets the value of Violations.
+func (s *AdmissionEventDetail) SetViolations(val []string) {
+	s.Violations = val
+}
+
+// SetRequestUid sets the value of RequestUid.
+func (s *AdmissionEventDetail) SetRequestUid(val string) {
+	s.RequestUid = val
+}
+
+// SetUserGroups sets the value of UserGroups.
+func (s *AdmissionEventDetail) SetUserGroups(val []string) {
+	s.UserGroups = val
+}
+
+// SetPolicyGroupNames sets the value of PolicyGroupNames.
+func (s *AdmissionEventDetail) SetPolicyGroupNames(val []string) {
+	s.PolicyGroupNames = val
+}
+
+// SetMetadataSnapshot sets the value of MetadataSnapshot.
+func (s *AdmissionEventDetail) SetMetadataSnapshot(val AdmissionEventDetailMetadataSnapshot) {
+	s.MetadataSnapshot = val
+}
+
+// SetSpecSnapshot sets the value of SpecSnapshot.
+func (s *AdmissionEventDetail) SetSpecSnapshot(val AdmissionEventDetailSpecSnapshot) {
+	s.SpecSnapshot = val
+}
+
+// SetStoragePolicyVersion sets the value of StoragePolicyVersion.
+func (s *AdmissionEventDetail) SetStoragePolicyVersion(val string) {
+	s.StoragePolicyVersion = val
+}
+
+type AdmissionEventDetailMetadataSnapshot map[string]jx.Raw
+
+func (s *AdmissionEventDetailMetadataSnapshot) init() AdmissionEventDetailMetadataSnapshot {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// Merged schema.
+// Ref: #/components/schemas/AdmissionEventDetailResponse
+type AdmissionEventDetailResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                  `json:"message"`
+	Data    OptAdmissionEventDetail `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *AdmissionEventDetailResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *AdmissionEventDetailResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *AdmissionEventDetailResponse) GetData() OptAdmissionEventDetail {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *AdmissionEventDetailResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *AdmissionEventDetailResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *AdmissionEventDetailResponse) SetData(val OptAdmissionEventDetail) {
+	s.Data = val
+}
+
+func (*AdmissionEventDetailResponse) getAdmissionEventRes() {}
+
+type AdmissionEventDetailSpecSnapshot map[string]jx.Raw
+
+func (s *AdmissionEventDetailSpecSnapshot) init() AdmissionEventDetailSpecSnapshot {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+type AdmissionEventDetailVerdict string
+
+const (
+	AdmissionEventDetailVerdictAudit AdmissionEventDetailVerdict = "audit"
+	AdmissionEventDetailVerdictDeny  AdmissionEventDetailVerdict = "deny"
+)
+
+// AllValues returns all AdmissionEventDetailVerdict values.
+func (AdmissionEventDetailVerdict) AllValues() []AdmissionEventDetailVerdict {
+	return []AdmissionEventDetailVerdict{
+		AdmissionEventDetailVerdictAudit,
+		AdmissionEventDetailVerdictDeny,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AdmissionEventDetailVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case AdmissionEventDetailVerdictAudit:
+		return []byte(s), nil
+	case AdmissionEventDetailVerdictDeny:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AdmissionEventDetailVerdict) UnmarshalText(data []byte) error {
+	switch AdmissionEventDetailVerdict(data) {
+	case AdmissionEventDetailVerdictAudit:
+		*s = AdmissionEventDetailVerdictAudit
+		return nil
+	case AdmissionEventDetailVerdictDeny:
+		*s = AdmissionEventDetailVerdictDeny
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AdmissionEventItem
+type AdmissionEventItem struct {
+	ID           ResourceID                `json:"id"`
+	EventId      string                    `json:"eventId"`
+	ClusterName  string                    `json:"clusterName"`
+	OccurredAt   time.Time                 `json:"occurredAt"`
+	Verdict      AdmissionEventItemVerdict `json:"verdict"`
+	ApiGroup     string                    `json:"apiGroup"`
+	ApiVersion   string                    `json:"apiVersion"`
+	Resource     string                    `json:"resource"`
+	Operation    string                    `json:"operation"`
+	Namespace    string                    `json:"namespace"`
+	ResourceName string                    `json:"resourceName"`
+	Username     string                    `json:"username"`
+	PolicyNames  []string                  `json:"policyNames"`
+	Violations   []string                  `json:"violations"`
+}
+
+// GetID returns the value of ID.
+func (s *AdmissionEventItem) GetID() ResourceID {
+	return s.ID
+}
+
+// GetEventId returns the value of EventId.
+func (s *AdmissionEventItem) GetEventId() string {
+	return s.EventId
+}
+
+// GetClusterName returns the value of ClusterName.
+func (s *AdmissionEventItem) GetClusterName() string {
+	return s.ClusterName
+}
+
+// GetOccurredAt returns the value of OccurredAt.
+func (s *AdmissionEventItem) GetOccurredAt() time.Time {
+	return s.OccurredAt
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *AdmissionEventItem) GetVerdict() AdmissionEventItemVerdict {
+	return s.Verdict
+}
+
+// GetApiGroup returns the value of ApiGroup.
+func (s *AdmissionEventItem) GetApiGroup() string {
+	return s.ApiGroup
+}
+
+// GetApiVersion returns the value of ApiVersion.
+func (s *AdmissionEventItem) GetApiVersion() string {
+	return s.ApiVersion
+}
+
+// GetResource returns the value of Resource.
+func (s *AdmissionEventItem) GetResource() string {
+	return s.Resource
+}
+
+// GetOperation returns the value of Operation.
+func (s *AdmissionEventItem) GetOperation() string {
+	return s.Operation
+}
+
+// GetNamespace returns the value of Namespace.
+func (s *AdmissionEventItem) GetNamespace() string {
+	return s.Namespace
+}
+
+// GetResourceName returns the value of ResourceName.
+func (s *AdmissionEventItem) GetResourceName() string {
+	return s.ResourceName
+}
+
+// GetUsername returns the value of Username.
+func (s *AdmissionEventItem) GetUsername() string {
+	return s.Username
+}
+
+// GetPolicyNames returns the value of PolicyNames.
+func (s *AdmissionEventItem) GetPolicyNames() []string {
+	return s.PolicyNames
+}
+
+// GetViolations returns the value of Violations.
+func (s *AdmissionEventItem) GetViolations() []string {
+	return s.Violations
+}
+
+// SetID sets the value of ID.
+func (s *AdmissionEventItem) SetID(val ResourceID) {
+	s.ID = val
+}
+
+// SetEventId sets the value of EventId.
+func (s *AdmissionEventItem) SetEventId(val string) {
+	s.EventId = val
+}
+
+// SetClusterName sets the value of ClusterName.
+func (s *AdmissionEventItem) SetClusterName(val string) {
+	s.ClusterName = val
+}
+
+// SetOccurredAt sets the value of OccurredAt.
+func (s *AdmissionEventItem) SetOccurredAt(val time.Time) {
+	s.OccurredAt = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *AdmissionEventItem) SetVerdict(val AdmissionEventItemVerdict) {
+	s.Verdict = val
+}
+
+// SetApiGroup sets the value of ApiGroup.
+func (s *AdmissionEventItem) SetApiGroup(val string) {
+	s.ApiGroup = val
+}
+
+// SetApiVersion sets the value of ApiVersion.
+func (s *AdmissionEventItem) SetApiVersion(val string) {
+	s.ApiVersion = val
+}
+
+// SetResource sets the value of Resource.
+func (s *AdmissionEventItem) SetResource(val string) {
+	s.Resource = val
+}
+
+// SetOperation sets the value of Operation.
+func (s *AdmissionEventItem) SetOperation(val string) {
+	s.Operation = val
+}
+
+// SetNamespace sets the value of Namespace.
+func (s *AdmissionEventItem) SetNamespace(val string) {
+	s.Namespace = val
+}
+
+// SetResourceName sets the value of ResourceName.
+func (s *AdmissionEventItem) SetResourceName(val string) {
+	s.ResourceName = val
+}
+
+// SetUsername sets the value of Username.
+func (s *AdmissionEventItem) SetUsername(val string) {
+	s.Username = val
+}
+
+// SetPolicyNames sets the value of PolicyNames.
+func (s *AdmissionEventItem) SetPolicyNames(val []string) {
+	s.PolicyNames = val
+}
+
+// SetViolations sets the value of Violations.
+func (s *AdmissionEventItem) SetViolations(val []string) {
+	s.Violations = val
+}
+
+type AdmissionEventItemVerdict string
+
+const (
+	AdmissionEventItemVerdictAudit AdmissionEventItemVerdict = "audit"
+	AdmissionEventItemVerdictDeny  AdmissionEventItemVerdict = "deny"
+)
+
+// AllValues returns all AdmissionEventItemVerdict values.
+func (AdmissionEventItemVerdict) AllValues() []AdmissionEventItemVerdict {
+	return []AdmissionEventItemVerdict{
+		AdmissionEventItemVerdictAudit,
+		AdmissionEventItemVerdictDeny,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AdmissionEventItemVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case AdmissionEventItemVerdictAudit:
+		return []byte(s), nil
+	case AdmissionEventItemVerdictDeny:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AdmissionEventItemVerdict) UnmarshalText(data []byte) error {
+	switch AdmissionEventItemVerdict(data) {
+	case AdmissionEventItemVerdictAudit:
+		*s = AdmissionEventItemVerdictAudit
+		return nil
+	case AdmissionEventItemVerdictDeny:
+		*s = AdmissionEventItemVerdictDeny
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/AdmissionEventListData
+type AdmissionEventListData struct {
+	// 符合筛选条件的记录总数，不受分页限制.
+	Total int `json:"total"`
+	// 当前页码，从 1 开始.
+	Page int `json:"page"`
+	// 每页记录数。仅接受 10、20、50、100.
+	PageSize AdmissionEventListDataPageSize `json:"pageSize"`
+	Items    []AdmissionEventItem           `json:"items"`
+}
+
+// GetTotal returns the value of Total.
+func (s *AdmissionEventListData) GetTotal() int {
+	return s.Total
+}
+
+// GetPage returns the value of Page.
+func (s *AdmissionEventListData) GetPage() int {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *AdmissionEventListData) GetPageSize() AdmissionEventListDataPageSize {
+	return s.PageSize
+}
+
+// GetItems returns the value of Items.
+func (s *AdmissionEventListData) GetItems() []AdmissionEventItem {
+	return s.Items
+}
+
+// SetTotal sets the value of Total.
+func (s *AdmissionEventListData) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetPage sets the value of Page.
+func (s *AdmissionEventListData) SetPage(val int) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *AdmissionEventListData) SetPageSize(val AdmissionEventListDataPageSize) {
+	s.PageSize = val
+}
+
+// SetItems sets the value of Items.
+func (s *AdmissionEventListData) SetItems(val []AdmissionEventItem) {
+	s.Items = val
+}
+
+// 每页记录数。仅接受 10、20、50、100.
+type AdmissionEventListDataPageSize int
+
+const (
+	AdmissionEventListDataPageSize10  AdmissionEventListDataPageSize = 10
+	AdmissionEventListDataPageSize20  AdmissionEventListDataPageSize = 20
+	AdmissionEventListDataPageSize50  AdmissionEventListDataPageSize = 50
+	AdmissionEventListDataPageSize100 AdmissionEventListDataPageSize = 100
+)
+
+// AllValues returns all AdmissionEventListDataPageSize values.
+func (AdmissionEventListDataPageSize) AllValues() []AdmissionEventListDataPageSize {
+	return []AdmissionEventListDataPageSize{
+		AdmissionEventListDataPageSize10,
+		AdmissionEventListDataPageSize20,
+		AdmissionEventListDataPageSize50,
+		AdmissionEventListDataPageSize100,
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/AdmissionEventListResponse
+type AdmissionEventListResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                    `json:"message"`
+	Data    OptAdmissionEventListData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *AdmissionEventListResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *AdmissionEventListResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *AdmissionEventListResponse) GetData() OptAdmissionEventListData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *AdmissionEventListResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *AdmissionEventListResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *AdmissionEventListResponse) SetData(val OptAdmissionEventListData) {
+	s.Data = val
+}
+
+func (*AdmissionEventListResponse) listAdmissionEventsRes() {}
+
+// Ref: #/components/schemas/AdmissionEventSettings
+type AdmissionEventSettings struct {
+	DefaultRetentionDays  int                      `json:"defaultRetentionDays"`
+	RetryEnabled          bool                     `json:"retryEnabled"`
+	MaxRetryAttempts      int                      `json:"maxRetryAttempts"`
+	QueueCapacity         int                      `json:"queueCapacity"`
+	IncidentRetentionDays int                      `json:"incidentRetentionDays"`
+	ObservationEnabled    bool                     `json:"observationEnabled"`
+	StoragePolicyVersion  int64                    `json:"storagePolicyVersion"`
+	StoragePolicies       []AdmissionStoragePolicy `json:"storagePolicies"`
+}
+
+// GetDefaultRetentionDays returns the value of DefaultRetentionDays.
+func (s *AdmissionEventSettings) GetDefaultRetentionDays() int {
+	return s.DefaultRetentionDays
+}
+
+// GetRetryEnabled returns the value of RetryEnabled.
+func (s *AdmissionEventSettings) GetRetryEnabled() bool {
+	return s.RetryEnabled
+}
+
+// GetMaxRetryAttempts returns the value of MaxRetryAttempts.
+func (s *AdmissionEventSettings) GetMaxRetryAttempts() int {
+	return s.MaxRetryAttempts
+}
+
+// GetQueueCapacity returns the value of QueueCapacity.
+func (s *AdmissionEventSettings) GetQueueCapacity() int {
+	return s.QueueCapacity
+}
+
+// GetIncidentRetentionDays returns the value of IncidentRetentionDays.
+func (s *AdmissionEventSettings) GetIncidentRetentionDays() int {
+	return s.IncidentRetentionDays
+}
+
+// GetObservationEnabled returns the value of ObservationEnabled.
+func (s *AdmissionEventSettings) GetObservationEnabled() bool {
+	return s.ObservationEnabled
+}
+
+// GetStoragePolicyVersion returns the value of StoragePolicyVersion.
+func (s *AdmissionEventSettings) GetStoragePolicyVersion() int64 {
+	return s.StoragePolicyVersion
+}
+
+// GetStoragePolicies returns the value of StoragePolicies.
+func (s *AdmissionEventSettings) GetStoragePolicies() []AdmissionStoragePolicy {
+	return s.StoragePolicies
+}
+
+// SetDefaultRetentionDays sets the value of DefaultRetentionDays.
+func (s *AdmissionEventSettings) SetDefaultRetentionDays(val int) {
+	s.DefaultRetentionDays = val
+}
+
+// SetRetryEnabled sets the value of RetryEnabled.
+func (s *AdmissionEventSettings) SetRetryEnabled(val bool) {
+	s.RetryEnabled = val
+}
+
+// SetMaxRetryAttempts sets the value of MaxRetryAttempts.
+func (s *AdmissionEventSettings) SetMaxRetryAttempts(val int) {
+	s.MaxRetryAttempts = val
+}
+
+// SetQueueCapacity sets the value of QueueCapacity.
+func (s *AdmissionEventSettings) SetQueueCapacity(val int) {
+	s.QueueCapacity = val
+}
+
+// SetIncidentRetentionDays sets the value of IncidentRetentionDays.
+func (s *AdmissionEventSettings) SetIncidentRetentionDays(val int) {
+	s.IncidentRetentionDays = val
+}
+
+// SetObservationEnabled sets the value of ObservationEnabled.
+func (s *AdmissionEventSettings) SetObservationEnabled(val bool) {
+	s.ObservationEnabled = val
+}
+
+// SetStoragePolicyVersion sets the value of StoragePolicyVersion.
+func (s *AdmissionEventSettings) SetStoragePolicyVersion(val int64) {
+	s.StoragePolicyVersion = val
+}
+
+// SetStoragePolicies sets the value of StoragePolicies.
+func (s *AdmissionEventSettings) SetStoragePolicies(val []AdmissionStoragePolicy) {
+	s.StoragePolicies = val
+}
+
+// Ref: #/components/schemas/AdmissionEventSettingsRequest
+type AdmissionEventSettingsRequest struct {
+	DefaultRetentionDays  int                      `json:"defaultRetentionDays"`
+	RetryEnabled          bool                     `json:"retryEnabled"`
+	MaxRetryAttempts      int                      `json:"maxRetryAttempts"`
+	QueueCapacity         int                      `json:"queueCapacity"`
+	IncidentRetentionDays int                      `json:"incidentRetentionDays"`
+	ObservationEnabled    bool                     `json:"observationEnabled"`
+	StoragePolicies       []AdmissionStoragePolicy `json:"storagePolicies"`
+}
+
+// GetDefaultRetentionDays returns the value of DefaultRetentionDays.
+func (s *AdmissionEventSettingsRequest) GetDefaultRetentionDays() int {
+	return s.DefaultRetentionDays
+}
+
+// GetRetryEnabled returns the value of RetryEnabled.
+func (s *AdmissionEventSettingsRequest) GetRetryEnabled() bool {
+	return s.RetryEnabled
+}
+
+// GetMaxRetryAttempts returns the value of MaxRetryAttempts.
+func (s *AdmissionEventSettingsRequest) GetMaxRetryAttempts() int {
+	return s.MaxRetryAttempts
+}
+
+// GetQueueCapacity returns the value of QueueCapacity.
+func (s *AdmissionEventSettingsRequest) GetQueueCapacity() int {
+	return s.QueueCapacity
+}
+
+// GetIncidentRetentionDays returns the value of IncidentRetentionDays.
+func (s *AdmissionEventSettingsRequest) GetIncidentRetentionDays() int {
+	return s.IncidentRetentionDays
+}
+
+// GetObservationEnabled returns the value of ObservationEnabled.
+func (s *AdmissionEventSettingsRequest) GetObservationEnabled() bool {
+	return s.ObservationEnabled
+}
+
+// GetStoragePolicies returns the value of StoragePolicies.
+func (s *AdmissionEventSettingsRequest) GetStoragePolicies() []AdmissionStoragePolicy {
+	return s.StoragePolicies
+}
+
+// SetDefaultRetentionDays sets the value of DefaultRetentionDays.
+func (s *AdmissionEventSettingsRequest) SetDefaultRetentionDays(val int) {
+	s.DefaultRetentionDays = val
+}
+
+// SetRetryEnabled sets the value of RetryEnabled.
+func (s *AdmissionEventSettingsRequest) SetRetryEnabled(val bool) {
+	s.RetryEnabled = val
+}
+
+// SetMaxRetryAttempts sets the value of MaxRetryAttempts.
+func (s *AdmissionEventSettingsRequest) SetMaxRetryAttempts(val int) {
+	s.MaxRetryAttempts = val
+}
+
+// SetQueueCapacity sets the value of QueueCapacity.
+func (s *AdmissionEventSettingsRequest) SetQueueCapacity(val int) {
+	s.QueueCapacity = val
+}
+
+// SetIncidentRetentionDays sets the value of IncidentRetentionDays.
+func (s *AdmissionEventSettingsRequest) SetIncidentRetentionDays(val int) {
+	s.IncidentRetentionDays = val
+}
+
+// SetObservationEnabled sets the value of ObservationEnabled.
+func (s *AdmissionEventSettingsRequest) SetObservationEnabled(val bool) {
+	s.ObservationEnabled = val
+}
+
+// SetStoragePolicies sets the value of StoragePolicies.
+func (s *AdmissionEventSettingsRequest) SetStoragePolicies(val []AdmissionStoragePolicy) {
+	s.StoragePolicies = val
+}
+
+// Merged schema.
+// Ref: #/components/schemas/AdmissionEventSettingsResponse
+type AdmissionEventSettingsResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                    `json:"message"`
+	Data    OptAdmissionEventSettings `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *AdmissionEventSettingsResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *AdmissionEventSettingsResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *AdmissionEventSettingsResponse) GetData() OptAdmissionEventSettings {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *AdmissionEventSettingsResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *AdmissionEventSettingsResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *AdmissionEventSettingsResponse) SetData(val OptAdmissionEventSettings) {
+	s.Data = val
+}
+
+func (*AdmissionEventSettingsResponse) getAdmissionEventSettingsRes()    {}
+func (*AdmissionEventSettingsResponse) updateAdmissionEventSettingsRes() {}
+
+// Ref: #/components/schemas/AdmissionEventTrendItem
+type AdmissionEventTrendItem struct {
+	Bucket  time.Time                      `json:"bucket"`
+	Verdict AdmissionEventTrendItemVerdict `json:"verdict"`
+	Count   int64                          `json:"count"`
+}
+
+// GetBucket returns the value of Bucket.
+func (s *AdmissionEventTrendItem) GetBucket() time.Time {
+	return s.Bucket
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *AdmissionEventTrendItem) GetVerdict() AdmissionEventTrendItemVerdict {
+	return s.Verdict
+}
+
+// GetCount returns the value of Count.
+func (s *AdmissionEventTrendItem) GetCount() int64 {
+	return s.Count
+}
+
+// SetBucket sets the value of Bucket.
+func (s *AdmissionEventTrendItem) SetBucket(val time.Time) {
+	s.Bucket = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *AdmissionEventTrendItem) SetVerdict(val AdmissionEventTrendItemVerdict) {
+	s.Verdict = val
+}
+
+// SetCount sets the value of Count.
+func (s *AdmissionEventTrendItem) SetCount(val int64) {
+	s.Count = val
+}
+
+type AdmissionEventTrendItemVerdict string
+
+const (
+	AdmissionEventTrendItemVerdictAudit AdmissionEventTrendItemVerdict = "audit"
+	AdmissionEventTrendItemVerdictDeny  AdmissionEventTrendItemVerdict = "deny"
+)
+
+// AllValues returns all AdmissionEventTrendItemVerdict values.
+func (AdmissionEventTrendItemVerdict) AllValues() []AdmissionEventTrendItemVerdict {
+	return []AdmissionEventTrendItemVerdict{
+		AdmissionEventTrendItemVerdictAudit,
+		AdmissionEventTrendItemVerdictDeny,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AdmissionEventTrendItemVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case AdmissionEventTrendItemVerdictAudit:
+		return []byte(s), nil
+	case AdmissionEventTrendItemVerdictDeny:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AdmissionEventTrendItemVerdict) UnmarshalText(data []byte) error {
+	switch AdmissionEventTrendItemVerdict(data) {
+	case AdmissionEventTrendItemVerdictAudit:
+		*s = AdmissionEventTrendItemVerdictAudit
+		return nil
+	case AdmissionEventTrendItemVerdictDeny:
+		*s = AdmissionEventTrendItemVerdictDeny
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/AdmissionEventTrendResponse
+type AdmissionEventTrendResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                    `json:"message"`
+	Data    []AdmissionEventTrendItem `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *AdmissionEventTrendResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *AdmissionEventTrendResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *AdmissionEventTrendResponse) GetData() []AdmissionEventTrendItem {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *AdmissionEventTrendResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *AdmissionEventTrendResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *AdmissionEventTrendResponse) SetData(val []AdmissionEventTrendItem) {
+	s.Data = val
+}
+
+func (*AdmissionEventTrendResponse) getAdmissionEventTrendRes() {}
+
+// Merged schema.
+// Ref: #/components/schemas/AdmissionLinkIncidentDetail
+type AdmissionLinkIncidentDetail struct {
+	ID ResourceID `json:"id"`
+	// 集群名称.
+	ClusterName string `json:"clusterName"`
+	// 上报组件实例标识.
+	ReporterInstanceId string `json:"reporterInstanceId"`
+	// 产生链路事件的组件.
+	Component AdmissionLinkIncidentDetailComponent `json:"component"`
+	// 链路中断原因.
+	Reason string `json:"reason"`
+	// 首次发生时间.
+	StartedAt time.Time `json:"startedAt"`
+	// 最近发生时间.
+	LastSeenAt time.Time `json:"lastSeenAt"`
+	// 受影响事件数量.
+	AffectedCount int64 `json:"affectedCount"`
+	// 当前状态.
+	Status AdmissionLinkIncidentDetailStatus `json:"status"`
+	// 事件详情.
+	Detail string `json:"detail"`
+	// 关联准入事件样本.
+	Samples []AdmissionLinkIncidentSample `json:"samples"`
+}
+
+// GetID returns the value of ID.
+func (s *AdmissionLinkIncidentDetail) GetID() ResourceID {
+	return s.ID
+}
+
+// GetClusterName returns the value of ClusterName.
+func (s *AdmissionLinkIncidentDetail) GetClusterName() string {
+	return s.ClusterName
+}
+
+// GetReporterInstanceId returns the value of ReporterInstanceId.
+func (s *AdmissionLinkIncidentDetail) GetReporterInstanceId() string {
+	return s.ReporterInstanceId
+}
+
+// GetComponent returns the value of Component.
+func (s *AdmissionLinkIncidentDetail) GetComponent() AdmissionLinkIncidentDetailComponent {
+	return s.Component
+}
+
+// GetReason returns the value of Reason.
+func (s *AdmissionLinkIncidentDetail) GetReason() string {
+	return s.Reason
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *AdmissionLinkIncidentDetail) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetLastSeenAt returns the value of LastSeenAt.
+func (s *AdmissionLinkIncidentDetail) GetLastSeenAt() time.Time {
+	return s.LastSeenAt
+}
+
+// GetAffectedCount returns the value of AffectedCount.
+func (s *AdmissionLinkIncidentDetail) GetAffectedCount() int64 {
+	return s.AffectedCount
+}
+
+// GetStatus returns the value of Status.
+func (s *AdmissionLinkIncidentDetail) GetStatus() AdmissionLinkIncidentDetailStatus {
+	return s.Status
+}
+
+// GetDetail returns the value of Detail.
+func (s *AdmissionLinkIncidentDetail) GetDetail() string {
+	return s.Detail
+}
+
+// GetSamples returns the value of Samples.
+func (s *AdmissionLinkIncidentDetail) GetSamples() []AdmissionLinkIncidentSample {
+	return s.Samples
+}
+
+// SetID sets the value of ID.
+func (s *AdmissionLinkIncidentDetail) SetID(val ResourceID) {
+	s.ID = val
+}
+
+// SetClusterName sets the value of ClusterName.
+func (s *AdmissionLinkIncidentDetail) SetClusterName(val string) {
+	s.ClusterName = val
+}
+
+// SetReporterInstanceId sets the value of ReporterInstanceId.
+func (s *AdmissionLinkIncidentDetail) SetReporterInstanceId(val string) {
+	s.ReporterInstanceId = val
+}
+
+// SetComponent sets the value of Component.
+func (s *AdmissionLinkIncidentDetail) SetComponent(val AdmissionLinkIncidentDetailComponent) {
+	s.Component = val
+}
+
+// SetReason sets the value of Reason.
+func (s *AdmissionLinkIncidentDetail) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *AdmissionLinkIncidentDetail) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetLastSeenAt sets the value of LastSeenAt.
+func (s *AdmissionLinkIncidentDetail) SetLastSeenAt(val time.Time) {
+	s.LastSeenAt = val
+}
+
+// SetAffectedCount sets the value of AffectedCount.
+func (s *AdmissionLinkIncidentDetail) SetAffectedCount(val int64) {
+	s.AffectedCount = val
+}
+
+// SetStatus sets the value of Status.
+func (s *AdmissionLinkIncidentDetail) SetStatus(val AdmissionLinkIncidentDetailStatus) {
+	s.Status = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *AdmissionLinkIncidentDetail) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetSamples sets the value of Samples.
+func (s *AdmissionLinkIncidentDetail) SetSamples(val []AdmissionLinkIncidentSample) {
+	s.Samples = val
+}
+
+// 产生链路事件的组件.
+type AdmissionLinkIncidentDetailComponent string
+
+const (
+	AdmissionLinkIncidentDetailComponentWebhook  AdmissionLinkIncidentDetailComponent = "webhook"
+	AdmissionLinkIncidentDetailComponentOperator AdmissionLinkIncidentDetailComponent = "operator"
+	AdmissionLinkIncidentDetailComponentGateway  AdmissionLinkIncidentDetailComponent = "gateway"
+)
+
+// AllValues returns all AdmissionLinkIncidentDetailComponent values.
+func (AdmissionLinkIncidentDetailComponent) AllValues() []AdmissionLinkIncidentDetailComponent {
+	return []AdmissionLinkIncidentDetailComponent{
+		AdmissionLinkIncidentDetailComponentWebhook,
+		AdmissionLinkIncidentDetailComponentOperator,
+		AdmissionLinkIncidentDetailComponentGateway,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AdmissionLinkIncidentDetailComponent) MarshalText() ([]byte, error) {
+	switch s {
+	case AdmissionLinkIncidentDetailComponentWebhook:
+		return []byte(s), nil
+	case AdmissionLinkIncidentDetailComponentOperator:
+		return []byte(s), nil
+	case AdmissionLinkIncidentDetailComponentGateway:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AdmissionLinkIncidentDetailComponent) UnmarshalText(data []byte) error {
+	switch AdmissionLinkIncidentDetailComponent(data) {
+	case AdmissionLinkIncidentDetailComponentWebhook:
+		*s = AdmissionLinkIncidentDetailComponentWebhook
+		return nil
+	case AdmissionLinkIncidentDetailComponentOperator:
+		*s = AdmissionLinkIncidentDetailComponentOperator
+		return nil
+	case AdmissionLinkIncidentDetailComponentGateway:
+		*s = AdmissionLinkIncidentDetailComponentGateway
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/AdmissionLinkIncidentDetailResponse
+type AdmissionLinkIncidentDetailResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                         `json:"message"`
+	Data    OptAdmissionLinkIncidentDetail `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *AdmissionLinkIncidentDetailResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *AdmissionLinkIncidentDetailResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *AdmissionLinkIncidentDetailResponse) GetData() OptAdmissionLinkIncidentDetail {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *AdmissionLinkIncidentDetailResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *AdmissionLinkIncidentDetailResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *AdmissionLinkIncidentDetailResponse) SetData(val OptAdmissionLinkIncidentDetail) {
+	s.Data = val
+}
+
+func (*AdmissionLinkIncidentDetailResponse) getAdmissionLinkIncidentRes() {}
+
+// 当前状态.
+type AdmissionLinkIncidentDetailStatus string
+
+const (
+	AdmissionLinkIncidentDetailStatusActive      AdmissionLinkIncidentDetailStatus = "active"
+	AdmissionLinkIncidentDetailStatusInterrupted AdmissionLinkIncidentDetailStatus = "interrupted"
+	AdmissionLinkIncidentDetailStatusClosed      AdmissionLinkIncidentDetailStatus = "closed"
+)
+
+// AllValues returns all AdmissionLinkIncidentDetailStatus values.
+func (AdmissionLinkIncidentDetailStatus) AllValues() []AdmissionLinkIncidentDetailStatus {
+	return []AdmissionLinkIncidentDetailStatus{
+		AdmissionLinkIncidentDetailStatusActive,
+		AdmissionLinkIncidentDetailStatusInterrupted,
+		AdmissionLinkIncidentDetailStatusClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AdmissionLinkIncidentDetailStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case AdmissionLinkIncidentDetailStatusActive:
+		return []byte(s), nil
+	case AdmissionLinkIncidentDetailStatusInterrupted:
+		return []byte(s), nil
+	case AdmissionLinkIncidentDetailStatusClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AdmissionLinkIncidentDetailStatus) UnmarshalText(data []byte) error {
+	switch AdmissionLinkIncidentDetailStatus(data) {
+	case AdmissionLinkIncidentDetailStatusActive:
+		*s = AdmissionLinkIncidentDetailStatusActive
+		return nil
+	case AdmissionLinkIncidentDetailStatusInterrupted:
+		*s = AdmissionLinkIncidentDetailStatusInterrupted
+		return nil
+	case AdmissionLinkIncidentDetailStatusClosed:
+		*s = AdmissionLinkIncidentDetailStatusClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AdmissionLinkIncidentItem
+type AdmissionLinkIncidentItem struct {
+	ID ResourceID `json:"id"`
+	// 集群名称.
+	ClusterName string `json:"clusterName"`
+	// 上报组件实例标识.
+	ReporterInstanceId string `json:"reporterInstanceId"`
+	// 产生链路事件的组件.
+	Component AdmissionLinkIncidentItemComponent `json:"component"`
+	// 链路中断原因.
+	Reason string `json:"reason"`
+	// 首次发生时间.
+	StartedAt time.Time `json:"startedAt"`
+	// 最近发生时间.
+	LastSeenAt time.Time `json:"lastSeenAt"`
+	// 受影响事件数量.
+	AffectedCount int64 `json:"affectedCount"`
+	// 当前状态.
+	Status AdmissionLinkIncidentItemStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *AdmissionLinkIncidentItem) GetID() ResourceID {
+	return s.ID
+}
+
+// GetClusterName returns the value of ClusterName.
+func (s *AdmissionLinkIncidentItem) GetClusterName() string {
+	return s.ClusterName
+}
+
+// GetReporterInstanceId returns the value of ReporterInstanceId.
+func (s *AdmissionLinkIncidentItem) GetReporterInstanceId() string {
+	return s.ReporterInstanceId
+}
+
+// GetComponent returns the value of Component.
+func (s *AdmissionLinkIncidentItem) GetComponent() AdmissionLinkIncidentItemComponent {
+	return s.Component
+}
+
+// GetReason returns the value of Reason.
+func (s *AdmissionLinkIncidentItem) GetReason() string {
+	return s.Reason
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *AdmissionLinkIncidentItem) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetLastSeenAt returns the value of LastSeenAt.
+func (s *AdmissionLinkIncidentItem) GetLastSeenAt() time.Time {
+	return s.LastSeenAt
+}
+
+// GetAffectedCount returns the value of AffectedCount.
+func (s *AdmissionLinkIncidentItem) GetAffectedCount() int64 {
+	return s.AffectedCount
+}
+
+// GetStatus returns the value of Status.
+func (s *AdmissionLinkIncidentItem) GetStatus() AdmissionLinkIncidentItemStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *AdmissionLinkIncidentItem) SetID(val ResourceID) {
+	s.ID = val
+}
+
+// SetClusterName sets the value of ClusterName.
+func (s *AdmissionLinkIncidentItem) SetClusterName(val string) {
+	s.ClusterName = val
+}
+
+// SetReporterInstanceId sets the value of ReporterInstanceId.
+func (s *AdmissionLinkIncidentItem) SetReporterInstanceId(val string) {
+	s.ReporterInstanceId = val
+}
+
+// SetComponent sets the value of Component.
+func (s *AdmissionLinkIncidentItem) SetComponent(val AdmissionLinkIncidentItemComponent) {
+	s.Component = val
+}
+
+// SetReason sets the value of Reason.
+func (s *AdmissionLinkIncidentItem) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *AdmissionLinkIncidentItem) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetLastSeenAt sets the value of LastSeenAt.
+func (s *AdmissionLinkIncidentItem) SetLastSeenAt(val time.Time) {
+	s.LastSeenAt = val
+}
+
+// SetAffectedCount sets the value of AffectedCount.
+func (s *AdmissionLinkIncidentItem) SetAffectedCount(val int64) {
+	s.AffectedCount = val
+}
+
+// SetStatus sets the value of Status.
+func (s *AdmissionLinkIncidentItem) SetStatus(val AdmissionLinkIncidentItemStatus) {
+	s.Status = val
+}
+
+// 产生链路事件的组件.
+type AdmissionLinkIncidentItemComponent string
+
+const (
+	AdmissionLinkIncidentItemComponentWebhook  AdmissionLinkIncidentItemComponent = "webhook"
+	AdmissionLinkIncidentItemComponentOperator AdmissionLinkIncidentItemComponent = "operator"
+	AdmissionLinkIncidentItemComponentGateway  AdmissionLinkIncidentItemComponent = "gateway"
+)
+
+// AllValues returns all AdmissionLinkIncidentItemComponent values.
+func (AdmissionLinkIncidentItemComponent) AllValues() []AdmissionLinkIncidentItemComponent {
+	return []AdmissionLinkIncidentItemComponent{
+		AdmissionLinkIncidentItemComponentWebhook,
+		AdmissionLinkIncidentItemComponentOperator,
+		AdmissionLinkIncidentItemComponentGateway,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AdmissionLinkIncidentItemComponent) MarshalText() ([]byte, error) {
+	switch s {
+	case AdmissionLinkIncidentItemComponentWebhook:
+		return []byte(s), nil
+	case AdmissionLinkIncidentItemComponentOperator:
+		return []byte(s), nil
+	case AdmissionLinkIncidentItemComponentGateway:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AdmissionLinkIncidentItemComponent) UnmarshalText(data []byte) error {
+	switch AdmissionLinkIncidentItemComponent(data) {
+	case AdmissionLinkIncidentItemComponentWebhook:
+		*s = AdmissionLinkIncidentItemComponentWebhook
+		return nil
+	case AdmissionLinkIncidentItemComponentOperator:
+		*s = AdmissionLinkIncidentItemComponentOperator
+		return nil
+	case AdmissionLinkIncidentItemComponentGateway:
+		*s = AdmissionLinkIncidentItemComponentGateway
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// 当前状态.
+type AdmissionLinkIncidentItemStatus string
+
+const (
+	AdmissionLinkIncidentItemStatusActive      AdmissionLinkIncidentItemStatus = "active"
+	AdmissionLinkIncidentItemStatusInterrupted AdmissionLinkIncidentItemStatus = "interrupted"
+	AdmissionLinkIncidentItemStatusClosed      AdmissionLinkIncidentItemStatus = "closed"
+)
+
+// AllValues returns all AdmissionLinkIncidentItemStatus values.
+func (AdmissionLinkIncidentItemStatus) AllValues() []AdmissionLinkIncidentItemStatus {
+	return []AdmissionLinkIncidentItemStatus{
+		AdmissionLinkIncidentItemStatusActive,
+		AdmissionLinkIncidentItemStatusInterrupted,
+		AdmissionLinkIncidentItemStatusClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AdmissionLinkIncidentItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case AdmissionLinkIncidentItemStatusActive:
+		return []byte(s), nil
+	case AdmissionLinkIncidentItemStatusInterrupted:
+		return []byte(s), nil
+	case AdmissionLinkIncidentItemStatusClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AdmissionLinkIncidentItemStatus) UnmarshalText(data []byte) error {
+	switch AdmissionLinkIncidentItemStatus(data) {
+	case AdmissionLinkIncidentItemStatusActive:
+		*s = AdmissionLinkIncidentItemStatusActive
+		return nil
+	case AdmissionLinkIncidentItemStatusInterrupted:
+		*s = AdmissionLinkIncidentItemStatusInterrupted
+		return nil
+	case AdmissionLinkIncidentItemStatusClosed:
+		*s = AdmissionLinkIncidentItemStatusClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/AdmissionLinkIncidentListData
+type AdmissionLinkIncidentListData struct {
+	// 符合筛选条件的记录总数，不受分页限制.
+	Total int `json:"total"`
+	// 当前页码，从 1 开始.
+	Page int `json:"page"`
+	// 每页记录数。仅接受 10、20、50、100.
+	PageSize AdmissionLinkIncidentListDataPageSize `json:"pageSize"`
+	Items    []AdmissionLinkIncidentItem           `json:"items"`
+}
+
+// GetTotal returns the value of Total.
+func (s *AdmissionLinkIncidentListData) GetTotal() int {
+	return s.Total
+}
+
+// GetPage returns the value of Page.
+func (s *AdmissionLinkIncidentListData) GetPage() int {
+	return s.Page
+}
+
+// GetPageSize returns the value of PageSize.
+func (s *AdmissionLinkIncidentListData) GetPageSize() AdmissionLinkIncidentListDataPageSize {
+	return s.PageSize
+}
+
+// GetItems returns the value of Items.
+func (s *AdmissionLinkIncidentListData) GetItems() []AdmissionLinkIncidentItem {
+	return s.Items
+}
+
+// SetTotal sets the value of Total.
+func (s *AdmissionLinkIncidentListData) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetPage sets the value of Page.
+func (s *AdmissionLinkIncidentListData) SetPage(val int) {
+	s.Page = val
+}
+
+// SetPageSize sets the value of PageSize.
+func (s *AdmissionLinkIncidentListData) SetPageSize(val AdmissionLinkIncidentListDataPageSize) {
+	s.PageSize = val
+}
+
+// SetItems sets the value of Items.
+func (s *AdmissionLinkIncidentListData) SetItems(val []AdmissionLinkIncidentItem) {
+	s.Items = val
+}
+
+// 每页记录数。仅接受 10、20、50、100.
+type AdmissionLinkIncidentListDataPageSize int
+
+const (
+	AdmissionLinkIncidentListDataPageSize10  AdmissionLinkIncidentListDataPageSize = 10
+	AdmissionLinkIncidentListDataPageSize20  AdmissionLinkIncidentListDataPageSize = 20
+	AdmissionLinkIncidentListDataPageSize50  AdmissionLinkIncidentListDataPageSize = 50
+	AdmissionLinkIncidentListDataPageSize100 AdmissionLinkIncidentListDataPageSize = 100
+)
+
+// AllValues returns all AdmissionLinkIncidentListDataPageSize values.
+func (AdmissionLinkIncidentListDataPageSize) AllValues() []AdmissionLinkIncidentListDataPageSize {
+	return []AdmissionLinkIncidentListDataPageSize{
+		AdmissionLinkIncidentListDataPageSize10,
+		AdmissionLinkIncidentListDataPageSize20,
+		AdmissionLinkIncidentListDataPageSize50,
+		AdmissionLinkIncidentListDataPageSize100,
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/AdmissionLinkIncidentListResponse
+type AdmissionLinkIncidentListResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string                           `json:"message"`
+	Data    OptAdmissionLinkIncidentListData `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *AdmissionLinkIncidentListResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *AdmissionLinkIncidentListResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *AdmissionLinkIncidentListResponse) GetData() OptAdmissionLinkIncidentListData {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *AdmissionLinkIncidentListResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *AdmissionLinkIncidentListResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *AdmissionLinkIncidentListResponse) SetData(val OptAdmissionLinkIncidentListData) {
+	s.Data = val
+}
+
+func (*AdmissionLinkIncidentListResponse) listAdmissionLinkIncidentsRes() {}
+
+// Ref: #/components/schemas/AdmissionLinkIncidentSample
+type AdmissionLinkIncidentSample struct {
+	// 事件标识.
+	EventId         string        `json:"eventId"`
+	EventDatabaseId OptResourceID `json:"eventDatabaseId"`
+	// 关联准入事件是否已过期清理.
+	Expired bool `json:"expired"`
+}
+
+// GetEventId returns the value of EventId.
+func (s *AdmissionLinkIncidentSample) GetEventId() string {
+	return s.EventId
+}
+
+// GetEventDatabaseId returns the value of EventDatabaseId.
+func (s *AdmissionLinkIncidentSample) GetEventDatabaseId() OptResourceID {
+	return s.EventDatabaseId
+}
+
+// GetExpired returns the value of Expired.
+func (s *AdmissionLinkIncidentSample) GetExpired() bool {
+	return s.Expired
+}
+
+// SetEventId sets the value of EventId.
+func (s *AdmissionLinkIncidentSample) SetEventId(val string) {
+	s.EventId = val
+}
+
+// SetEventDatabaseId sets the value of EventDatabaseId.
+func (s *AdmissionLinkIncidentSample) SetEventDatabaseId(val OptResourceID) {
+	s.EventDatabaseId = val
+}
+
+// SetExpired sets the value of Expired.
+func (s *AdmissionLinkIncidentSample) SetExpired(val bool) {
+	s.Expired = val
+}
+
+// Ref: #/components/schemas/AdmissionStoragePolicy
+type AdmissionStoragePolicy struct {
+	Verdicts   []AdmissionStoragePolicyVerdictsItem `json:"verdicts"`
+	Clusters   []string                             `json:"clusters"`
+	Gvks       []string                             `json:"gvks"`
+	Namespaces []string                             `json:"namespaces"`
+	MatchMode  AdmissionStoragePolicyMatchMode      `json:"matchMode"`
+}
+
+// GetVerdicts returns the value of Verdicts.
+func (s *AdmissionStoragePolicy) GetVerdicts() []AdmissionStoragePolicyVerdictsItem {
+	return s.Verdicts
+}
+
+// GetClusters returns the value of Clusters.
+func (s *AdmissionStoragePolicy) GetClusters() []string {
+	return s.Clusters
+}
+
+// GetGvks returns the value of Gvks.
+func (s *AdmissionStoragePolicy) GetGvks() []string {
+	return s.Gvks
+}
+
+// GetNamespaces returns the value of Namespaces.
+func (s *AdmissionStoragePolicy) GetNamespaces() []string {
+	return s.Namespaces
+}
+
+// GetMatchMode returns the value of MatchMode.
+func (s *AdmissionStoragePolicy) GetMatchMode() AdmissionStoragePolicyMatchMode {
+	return s.MatchMode
+}
+
+// SetVerdicts sets the value of Verdicts.
+func (s *AdmissionStoragePolicy) SetVerdicts(val []AdmissionStoragePolicyVerdictsItem) {
+	s.Verdicts = val
+}
+
+// SetClusters sets the value of Clusters.
+func (s *AdmissionStoragePolicy) SetClusters(val []string) {
+	s.Clusters = val
+}
+
+// SetGvks sets the value of Gvks.
+func (s *AdmissionStoragePolicy) SetGvks(val []string) {
+	s.Gvks = val
+}
+
+// SetNamespaces sets the value of Namespaces.
+func (s *AdmissionStoragePolicy) SetNamespaces(val []string) {
+	s.Namespaces = val
+}
+
+// SetMatchMode sets the value of MatchMode.
+func (s *AdmissionStoragePolicy) SetMatchMode(val AdmissionStoragePolicyMatchMode) {
+	s.MatchMode = val
+}
+
+type AdmissionStoragePolicyMatchMode string
+
+const (
+	AdmissionStoragePolicyMatchModeInclude AdmissionStoragePolicyMatchMode = "include"
+	AdmissionStoragePolicyMatchModeExclude AdmissionStoragePolicyMatchMode = "exclude"
+)
+
+// AllValues returns all AdmissionStoragePolicyMatchMode values.
+func (AdmissionStoragePolicyMatchMode) AllValues() []AdmissionStoragePolicyMatchMode {
+	return []AdmissionStoragePolicyMatchMode{
+		AdmissionStoragePolicyMatchModeInclude,
+		AdmissionStoragePolicyMatchModeExclude,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AdmissionStoragePolicyMatchMode) MarshalText() ([]byte, error) {
+	switch s {
+	case AdmissionStoragePolicyMatchModeInclude:
+		return []byte(s), nil
+	case AdmissionStoragePolicyMatchModeExclude:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AdmissionStoragePolicyMatchMode) UnmarshalText(data []byte) error {
+	switch AdmissionStoragePolicyMatchMode(data) {
+	case AdmissionStoragePolicyMatchModeInclude:
+		*s = AdmissionStoragePolicyMatchModeInclude
+		return nil
+	case AdmissionStoragePolicyMatchModeExclude:
+		*s = AdmissionStoragePolicyMatchModeExclude
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type AdmissionStoragePolicyVerdictsItem string
+
+const (
+	AdmissionStoragePolicyVerdictsItemAudit AdmissionStoragePolicyVerdictsItem = "audit"
+	AdmissionStoragePolicyVerdictsItemDeny  AdmissionStoragePolicyVerdictsItem = "deny"
+)
+
+// AllValues returns all AdmissionStoragePolicyVerdictsItem values.
+func (AdmissionStoragePolicyVerdictsItem) AllValues() []AdmissionStoragePolicyVerdictsItem {
+	return []AdmissionStoragePolicyVerdictsItem{
+		AdmissionStoragePolicyVerdictsItemAudit,
+		AdmissionStoragePolicyVerdictsItemDeny,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AdmissionStoragePolicyVerdictsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case AdmissionStoragePolicyVerdictsItemAudit:
+		return []byte(s), nil
+	case AdmissionStoragePolicyVerdictsItemDeny:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AdmissionStoragePolicyVerdictsItem) UnmarshalText(data []byte) error {
+	switch AdmissionStoragePolicyVerdictsItem(data) {
+	case AdmissionStoragePolicyVerdictsItemAudit:
+		*s = AdmissionStoragePolicyVerdictsItemAudit
+		return nil
+	case AdmissionStoragePolicyVerdictsItemDeny:
+		*s = AdmissionStoragePolicyVerdictsItemDeny
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CreateExceptionBadRequest ErrorResponse
 
 func (*CreateExceptionBadRequest) createExceptionRes() {}
@@ -1256,6 +3014,50 @@ func (s *FieldSchemaResponse) SetData(val []FieldNode) {
 
 func (*FieldSchemaResponse) getFieldSchemaRes() {}
 
+type GetAdmissionEventBadRequest ErrorResponse
+
+func (*GetAdmissionEventBadRequest) getAdmissionEventRes() {}
+
+type GetAdmissionEventInternalServerError ErrorResponse
+
+func (*GetAdmissionEventInternalServerError) getAdmissionEventRes() {}
+
+type GetAdmissionEventNotFound ErrorResponse
+
+func (*GetAdmissionEventNotFound) getAdmissionEventRes() {}
+
+type GetAdmissionEventSettingsInternalServerError ErrorResponse
+
+func (*GetAdmissionEventSettingsInternalServerError) getAdmissionEventSettingsRes() {}
+
+type GetAdmissionEventSettingsServiceUnavailable ErrorResponse
+
+func (*GetAdmissionEventSettingsServiceUnavailable) getAdmissionEventSettingsRes() {}
+
+type GetAdmissionEventTrendBadRequest ErrorResponse
+
+func (*GetAdmissionEventTrendBadRequest) getAdmissionEventTrendRes() {}
+
+type GetAdmissionEventTrendInternalServerError ErrorResponse
+
+func (*GetAdmissionEventTrendInternalServerError) getAdmissionEventTrendRes() {}
+
+type GetAdmissionLinkIncidentBadRequest ErrorResponse
+
+func (*GetAdmissionLinkIncidentBadRequest) getAdmissionLinkIncidentRes() {}
+
+type GetAdmissionLinkIncidentInternalServerError ErrorResponse
+
+func (*GetAdmissionLinkIncidentInternalServerError) getAdmissionLinkIncidentRes() {}
+
+type GetAdmissionLinkIncidentNotFound ErrorResponse
+
+func (*GetAdmissionLinkIncidentNotFound) getAdmissionLinkIncidentRes() {}
+
+type GetAdmissionLinkIncidentServiceUnavailable ErrorResponse
+
+func (*GetAdmissionLinkIncidentServiceUnavailable) getAdmissionLinkIncidentRes() {}
+
 type GetExceptionInternalServerError ErrorResponse
 
 func (*GetExceptionInternalServerError) getExceptionRes() {}
@@ -1429,6 +3231,252 @@ func (s *LabelSelectorMatchLabels) init() LabelSelectorMatchLabels {
 		*s = m
 	}
 	return m
+}
+
+type ListAdmissionEventsBadRequest ErrorResponse
+
+func (*ListAdmissionEventsBadRequest) listAdmissionEventsRes() {}
+
+type ListAdmissionEventsInternalServerError ErrorResponse
+
+func (*ListAdmissionEventsInternalServerError) listAdmissionEventsRes() {}
+
+type ListAdmissionEventsSortBy string
+
+const (
+	ListAdmissionEventsSortByOccurredAt ListAdmissionEventsSortBy = "occurredAt"
+	ListAdmissionEventsSortByCreatedAt  ListAdmissionEventsSortBy = "createdAt"
+	ListAdmissionEventsSortByVerdict    ListAdmissionEventsSortBy = "verdict"
+)
+
+// AllValues returns all ListAdmissionEventsSortBy values.
+func (ListAdmissionEventsSortBy) AllValues() []ListAdmissionEventsSortBy {
+	return []ListAdmissionEventsSortBy{
+		ListAdmissionEventsSortByOccurredAt,
+		ListAdmissionEventsSortByCreatedAt,
+		ListAdmissionEventsSortByVerdict,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListAdmissionEventsSortBy) MarshalText() ([]byte, error) {
+	switch s {
+	case ListAdmissionEventsSortByOccurredAt:
+		return []byte(s), nil
+	case ListAdmissionEventsSortByCreatedAt:
+		return []byte(s), nil
+	case ListAdmissionEventsSortByVerdict:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListAdmissionEventsSortBy) UnmarshalText(data []byte) error {
+	switch ListAdmissionEventsSortBy(data) {
+	case ListAdmissionEventsSortByOccurredAt:
+		*s = ListAdmissionEventsSortByOccurredAt
+		return nil
+	case ListAdmissionEventsSortByCreatedAt:
+		*s = ListAdmissionEventsSortByCreatedAt
+		return nil
+	case ListAdmissionEventsSortByVerdict:
+		*s = ListAdmissionEventsSortByVerdict
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListAdmissionEventsSortOrder string
+
+const (
+	ListAdmissionEventsSortOrderAsc  ListAdmissionEventsSortOrder = "asc"
+	ListAdmissionEventsSortOrderDesc ListAdmissionEventsSortOrder = "desc"
+)
+
+// AllValues returns all ListAdmissionEventsSortOrder values.
+func (ListAdmissionEventsSortOrder) AllValues() []ListAdmissionEventsSortOrder {
+	return []ListAdmissionEventsSortOrder{
+		ListAdmissionEventsSortOrderAsc,
+		ListAdmissionEventsSortOrderDesc,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListAdmissionEventsSortOrder) MarshalText() ([]byte, error) {
+	switch s {
+	case ListAdmissionEventsSortOrderAsc:
+		return []byte(s), nil
+	case ListAdmissionEventsSortOrderDesc:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListAdmissionEventsSortOrder) UnmarshalText(data []byte) error {
+	switch ListAdmissionEventsSortOrder(data) {
+	case ListAdmissionEventsSortOrderAsc:
+		*s = ListAdmissionEventsSortOrderAsc
+		return nil
+	case ListAdmissionEventsSortOrderDesc:
+		*s = ListAdmissionEventsSortOrderDesc
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListAdmissionEventsVerdict string
+
+const (
+	ListAdmissionEventsVerdictAudit ListAdmissionEventsVerdict = "audit"
+	ListAdmissionEventsVerdictDeny  ListAdmissionEventsVerdict = "deny"
+)
+
+// AllValues returns all ListAdmissionEventsVerdict values.
+func (ListAdmissionEventsVerdict) AllValues() []ListAdmissionEventsVerdict {
+	return []ListAdmissionEventsVerdict{
+		ListAdmissionEventsVerdictAudit,
+		ListAdmissionEventsVerdictDeny,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListAdmissionEventsVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case ListAdmissionEventsVerdictAudit:
+		return []byte(s), nil
+	case ListAdmissionEventsVerdictDeny:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListAdmissionEventsVerdict) UnmarshalText(data []byte) error {
+	switch ListAdmissionEventsVerdict(data) {
+	case ListAdmissionEventsVerdictAudit:
+		*s = ListAdmissionEventsVerdictAudit
+		return nil
+	case ListAdmissionEventsVerdictDeny:
+		*s = ListAdmissionEventsVerdictDeny
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListAdmissionLinkIncidentsBadRequest ErrorResponse
+
+func (*ListAdmissionLinkIncidentsBadRequest) listAdmissionLinkIncidentsRes() {}
+
+type ListAdmissionLinkIncidentsComponentItem string
+
+const (
+	ListAdmissionLinkIncidentsComponentItemWebhook  ListAdmissionLinkIncidentsComponentItem = "webhook"
+	ListAdmissionLinkIncidentsComponentItemOperator ListAdmissionLinkIncidentsComponentItem = "operator"
+	ListAdmissionLinkIncidentsComponentItemGateway  ListAdmissionLinkIncidentsComponentItem = "gateway"
+)
+
+// AllValues returns all ListAdmissionLinkIncidentsComponentItem values.
+func (ListAdmissionLinkIncidentsComponentItem) AllValues() []ListAdmissionLinkIncidentsComponentItem {
+	return []ListAdmissionLinkIncidentsComponentItem{
+		ListAdmissionLinkIncidentsComponentItemWebhook,
+		ListAdmissionLinkIncidentsComponentItemOperator,
+		ListAdmissionLinkIncidentsComponentItemGateway,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListAdmissionLinkIncidentsComponentItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ListAdmissionLinkIncidentsComponentItemWebhook:
+		return []byte(s), nil
+	case ListAdmissionLinkIncidentsComponentItemOperator:
+		return []byte(s), nil
+	case ListAdmissionLinkIncidentsComponentItemGateway:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListAdmissionLinkIncidentsComponentItem) UnmarshalText(data []byte) error {
+	switch ListAdmissionLinkIncidentsComponentItem(data) {
+	case ListAdmissionLinkIncidentsComponentItemWebhook:
+		*s = ListAdmissionLinkIncidentsComponentItemWebhook
+		return nil
+	case ListAdmissionLinkIncidentsComponentItemOperator:
+		*s = ListAdmissionLinkIncidentsComponentItemOperator
+		return nil
+	case ListAdmissionLinkIncidentsComponentItemGateway:
+		*s = ListAdmissionLinkIncidentsComponentItemGateway
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListAdmissionLinkIncidentsInternalServerError ErrorResponse
+
+func (*ListAdmissionLinkIncidentsInternalServerError) listAdmissionLinkIncidentsRes() {}
+
+type ListAdmissionLinkIncidentsServiceUnavailable ErrorResponse
+
+func (*ListAdmissionLinkIncidentsServiceUnavailable) listAdmissionLinkIncidentsRes() {}
+
+type ListAdmissionLinkIncidentsStatusItem string
+
+const (
+	ListAdmissionLinkIncidentsStatusItemActive      ListAdmissionLinkIncidentsStatusItem = "active"
+	ListAdmissionLinkIncidentsStatusItemInterrupted ListAdmissionLinkIncidentsStatusItem = "interrupted"
+	ListAdmissionLinkIncidentsStatusItemClosed      ListAdmissionLinkIncidentsStatusItem = "closed"
+)
+
+// AllValues returns all ListAdmissionLinkIncidentsStatusItem values.
+func (ListAdmissionLinkIncidentsStatusItem) AllValues() []ListAdmissionLinkIncidentsStatusItem {
+	return []ListAdmissionLinkIncidentsStatusItem{
+		ListAdmissionLinkIncidentsStatusItemActive,
+		ListAdmissionLinkIncidentsStatusItemInterrupted,
+		ListAdmissionLinkIncidentsStatusItemClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListAdmissionLinkIncidentsStatusItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ListAdmissionLinkIncidentsStatusItemActive:
+		return []byte(s), nil
+	case ListAdmissionLinkIncidentsStatusItemInterrupted:
+		return []byte(s), nil
+	case ListAdmissionLinkIncidentsStatusItemClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListAdmissionLinkIncidentsStatusItem) UnmarshalText(data []byte) error {
+	switch ListAdmissionLinkIncidentsStatusItem(data) {
+	case ListAdmissionLinkIncidentsStatusItemActive:
+		*s = ListAdmissionLinkIncidentsStatusItemActive
+		return nil
+	case ListAdmissionLinkIncidentsStatusItemInterrupted:
+		*s = ListAdmissionLinkIncidentsStatusItemInterrupted
+		return nil
+	case ListAdmissionLinkIncidentsStatusItemClosed:
+		*s = ListAdmissionLinkIncidentsStatusItemClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ListExceptionsBadRequest ErrorResponse
@@ -1951,6 +3999,236 @@ func (s *MatchResource) SetResources(val []string) {
 	s.Resources = val
 }
 
+// NewOptAdmissionEventDetail returns new OptAdmissionEventDetail with value set to v.
+func NewOptAdmissionEventDetail(v AdmissionEventDetail) OptAdmissionEventDetail {
+	return OptAdmissionEventDetail{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAdmissionEventDetail is optional AdmissionEventDetail.
+type OptAdmissionEventDetail struct {
+	Value AdmissionEventDetail
+	Set   bool
+}
+
+// IsSet returns true if OptAdmissionEventDetail was set.
+func (o OptAdmissionEventDetail) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAdmissionEventDetail) Reset() {
+	var v AdmissionEventDetail
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAdmissionEventDetail) SetTo(v AdmissionEventDetail) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAdmissionEventDetail) Get() (v AdmissionEventDetail, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAdmissionEventDetail) Or(d AdmissionEventDetail) AdmissionEventDetail {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAdmissionEventListData returns new OptAdmissionEventListData with value set to v.
+func NewOptAdmissionEventListData(v AdmissionEventListData) OptAdmissionEventListData {
+	return OptAdmissionEventListData{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAdmissionEventListData is optional AdmissionEventListData.
+type OptAdmissionEventListData struct {
+	Value AdmissionEventListData
+	Set   bool
+}
+
+// IsSet returns true if OptAdmissionEventListData was set.
+func (o OptAdmissionEventListData) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAdmissionEventListData) Reset() {
+	var v AdmissionEventListData
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAdmissionEventListData) SetTo(v AdmissionEventListData) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAdmissionEventListData) Get() (v AdmissionEventListData, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAdmissionEventListData) Or(d AdmissionEventListData) AdmissionEventListData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAdmissionEventSettings returns new OptAdmissionEventSettings with value set to v.
+func NewOptAdmissionEventSettings(v AdmissionEventSettings) OptAdmissionEventSettings {
+	return OptAdmissionEventSettings{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAdmissionEventSettings is optional AdmissionEventSettings.
+type OptAdmissionEventSettings struct {
+	Value AdmissionEventSettings
+	Set   bool
+}
+
+// IsSet returns true if OptAdmissionEventSettings was set.
+func (o OptAdmissionEventSettings) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAdmissionEventSettings) Reset() {
+	var v AdmissionEventSettings
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAdmissionEventSettings) SetTo(v AdmissionEventSettings) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAdmissionEventSettings) Get() (v AdmissionEventSettings, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAdmissionEventSettings) Or(d AdmissionEventSettings) AdmissionEventSettings {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAdmissionLinkIncidentDetail returns new OptAdmissionLinkIncidentDetail with value set to v.
+func NewOptAdmissionLinkIncidentDetail(v AdmissionLinkIncidentDetail) OptAdmissionLinkIncidentDetail {
+	return OptAdmissionLinkIncidentDetail{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAdmissionLinkIncidentDetail is optional AdmissionLinkIncidentDetail.
+type OptAdmissionLinkIncidentDetail struct {
+	Value AdmissionLinkIncidentDetail
+	Set   bool
+}
+
+// IsSet returns true if OptAdmissionLinkIncidentDetail was set.
+func (o OptAdmissionLinkIncidentDetail) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAdmissionLinkIncidentDetail) Reset() {
+	var v AdmissionLinkIncidentDetail
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAdmissionLinkIncidentDetail) SetTo(v AdmissionLinkIncidentDetail) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAdmissionLinkIncidentDetail) Get() (v AdmissionLinkIncidentDetail, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAdmissionLinkIncidentDetail) Or(d AdmissionLinkIncidentDetail) AdmissionLinkIncidentDetail {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAdmissionLinkIncidentListData returns new OptAdmissionLinkIncidentListData with value set to v.
+func NewOptAdmissionLinkIncidentListData(v AdmissionLinkIncidentListData) OptAdmissionLinkIncidentListData {
+	return OptAdmissionLinkIncidentListData{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAdmissionLinkIncidentListData is optional AdmissionLinkIncidentListData.
+type OptAdmissionLinkIncidentListData struct {
+	Value AdmissionLinkIncidentListData
+	Set   bool
+}
+
+// IsSet returns true if OptAdmissionLinkIncidentListData was set.
+func (o OptAdmissionLinkIncidentListData) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAdmissionLinkIncidentListData) Reset() {
+	var v AdmissionLinkIncidentListData
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAdmissionLinkIncidentListData) SetTo(v AdmissionLinkIncidentListData) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAdmissionLinkIncidentListData) Get() (v AdmissionLinkIncidentListData, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAdmissionLinkIncidentListData) Or(d AdmissionLinkIncidentListData) AdmissionLinkIncidentListData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptBool returns new OptBool with value set to v.
 func NewOptBool(v bool) OptBool {
 	return OptBool{
@@ -2359,6 +4637,144 @@ func (o OptLabelSelectorMatchLabels) Get() (v LabelSelectorMatchLabels, ok bool)
 
 // Or returns value if set, or given parameter if does not.
 func (o OptLabelSelectorMatchLabels) Or(d LabelSelectorMatchLabels) LabelSelectorMatchLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListAdmissionEventsSortBy returns new OptListAdmissionEventsSortBy with value set to v.
+func NewOptListAdmissionEventsSortBy(v ListAdmissionEventsSortBy) OptListAdmissionEventsSortBy {
+	return OptListAdmissionEventsSortBy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListAdmissionEventsSortBy is optional ListAdmissionEventsSortBy.
+type OptListAdmissionEventsSortBy struct {
+	Value ListAdmissionEventsSortBy
+	Set   bool
+}
+
+// IsSet returns true if OptListAdmissionEventsSortBy was set.
+func (o OptListAdmissionEventsSortBy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListAdmissionEventsSortBy) Reset() {
+	var v ListAdmissionEventsSortBy
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListAdmissionEventsSortBy) SetTo(v ListAdmissionEventsSortBy) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListAdmissionEventsSortBy) Get() (v ListAdmissionEventsSortBy, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListAdmissionEventsSortBy) Or(d ListAdmissionEventsSortBy) ListAdmissionEventsSortBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListAdmissionEventsSortOrder returns new OptListAdmissionEventsSortOrder with value set to v.
+func NewOptListAdmissionEventsSortOrder(v ListAdmissionEventsSortOrder) OptListAdmissionEventsSortOrder {
+	return OptListAdmissionEventsSortOrder{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListAdmissionEventsSortOrder is optional ListAdmissionEventsSortOrder.
+type OptListAdmissionEventsSortOrder struct {
+	Value ListAdmissionEventsSortOrder
+	Set   bool
+}
+
+// IsSet returns true if OptListAdmissionEventsSortOrder was set.
+func (o OptListAdmissionEventsSortOrder) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListAdmissionEventsSortOrder) Reset() {
+	var v ListAdmissionEventsSortOrder
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListAdmissionEventsSortOrder) SetTo(v ListAdmissionEventsSortOrder) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListAdmissionEventsSortOrder) Get() (v ListAdmissionEventsSortOrder, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListAdmissionEventsSortOrder) Or(d ListAdmissionEventsSortOrder) ListAdmissionEventsSortOrder {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListAdmissionEventsVerdict returns new OptListAdmissionEventsVerdict with value set to v.
+func NewOptListAdmissionEventsVerdict(v ListAdmissionEventsVerdict) OptListAdmissionEventsVerdict {
+	return OptListAdmissionEventsVerdict{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListAdmissionEventsVerdict is optional ListAdmissionEventsVerdict.
+type OptListAdmissionEventsVerdict struct {
+	Value ListAdmissionEventsVerdict
+	Set   bool
+}
+
+// IsSet returns true if OptListAdmissionEventsVerdict was set.
+func (o OptListAdmissionEventsVerdict) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListAdmissionEventsVerdict) Reset() {
+	var v ListAdmissionEventsVerdict
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListAdmissionEventsVerdict) SetTo(v ListAdmissionEventsVerdict) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListAdmissionEventsVerdict) Get() (v ListAdmissionEventsVerdict, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListAdmissionEventsVerdict) Or(d ListAdmissionEventsVerdict) ListAdmissionEventsVerdict {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -3417,6 +5833,52 @@ func (o OptPolicyVersionList) Get() (v PolicyVersionList, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptPolicyVersionList) Or(d PolicyVersionList) PolicyVersionList {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptResourceID returns new OptResourceID with value set to v.
+func NewOptResourceID(v ResourceID) OptResourceID {
+	return OptResourceID{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptResourceID is optional ResourceID.
+type OptResourceID struct {
+	Value ResourceID
+	Set   bool
+}
+
+// IsSet returns true if OptResourceID was set.
+func (o OptResourceID) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptResourceID) Reset() {
+	var v ResourceID
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptResourceID) SetTo(v ResourceID) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptResourceID) Get() (v ResourceID, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptResourceID) Or(d ResourceID) ResourceID {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -5920,6 +8382,8 @@ func (s *PolicyVersionListResponse) SetData(val OptPolicyVersionList) {
 
 func (*PolicyVersionListResponse) listPolicyVersionsRes() {}
 
+type ResourceID string
+
 // Ref: #/components/schemas/ResourceSuggestions
 type ResourceSuggestions struct {
 	// 所有策略用过的 API 组去重排序结果.
@@ -6399,6 +8863,14 @@ func (s *SummaryResponse) SetData(val OptSummaryData) {
 }
 
 func (*SummaryResponse) getSummaryRes() {}
+
+type UpdateAdmissionEventSettingsBadRequest ErrorResponse
+
+func (*UpdateAdmissionEventSettingsBadRequest) updateAdmissionEventSettingsRes() {}
+
+type UpdateAdmissionEventSettingsInternalServerError ErrorResponse
+
+func (*UpdateAdmissionEventSettingsInternalServerError) updateAdmissionEventSettingsRes() {}
 
 type UpdateExceptionBadRequest ErrorResponse
 

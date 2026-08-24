@@ -80,6 +80,20 @@ func encodeSetPolicyGroupEnabledRequest(
 	return nil
 }
 
+func encodeUpdateAdmissionEventSettingsRequest(
+	req *AdmissionEventSettingsRequest,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeUpdateExceptionRequest(
 	req *ExceptionRequest,
 	r *http.Request,

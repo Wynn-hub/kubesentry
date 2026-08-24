@@ -3,11 +3,15 @@
 // dto. No business logic and no repository access live here.
 package handler
 
-import "github.com/Wynn-hub/kubesentry/internal/console/service"
+import (
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
+	"github.com/Wynn-hub/kubesentry/internal/console/service"
+)
 
 // Handler implements the generated dto.Handler interface. Methods are added
 // per resource domain as batches migrate.
 type Handler struct {
+	dto.UnimplementedHandler
 	svcs service.Services
 }
 

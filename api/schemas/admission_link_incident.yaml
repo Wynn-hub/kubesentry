@@ -1,0 +1,52 @@
+components:
+  schemas:
+    AdmissionLinkIncidentItem:
+      type: object
+      required: [id, clusterName, reporterInstanceId, component, reason, startedAt, lastSeenAt, affectedCount, status]
+      properties:
+        id: {$ref: './common.yaml#/components/schemas/ResourceID'}
+        clusterName: {type: string, description: 集群名称, example: production}
+        reporterInstanceId: {type: string, description: 上报组件实例标识, example: webhook-a}
+        component: {type: string, enum: [webhook, operator, gateway], description: 产生链路事件的组件, example: webhook}
+        reason: {type: string, description: 链路中断原因, example: queue_full}
+        startedAt: {type: string, format: date-time, description: 首次发生时间, example: "2026-08-24T10:00:00Z"}
+        lastSeenAt: {type: string, format: date-time, description: 最近发生时间, example: "2026-08-24T10:05:00Z"}
+        affectedCount: {type: integer, format: int64, description: 受影响事件数量, example: 4}
+        status: {type: string, enum: [active, interrupted, closed], description: 当前状态, example: active}
+    AdmissionLinkIncidentSample:
+      type: object
+      required: [eventId, expired]
+      properties:
+        eventId: {type: string, description: 事件标识, example: event-abc}
+        eventDatabaseId: {$ref: './common.yaml#/components/schemas/ResourceID'}
+        expired: {type: boolean, description: 关联准入事件是否已过期清理, example: false}
+    AdmissionLinkIncidentDetail:
+      allOf:
+        - $ref: '#/components/schemas/AdmissionLinkIncidentItem'
+        - type: object
+          required: [detail, samples]
+          properties:
+            detail: {type: string, description: 事件详情, example: queue reached capacity}
+            samples:
+              type: array
+              description: 关联准入事件样本
+              items: {$ref: '#/components/schemas/AdmissionLinkIncidentSample'}
+    AdmissionLinkIncidentListData:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: {$ref: '#/components/schemas/AdmissionLinkIncidentItem'}
+    AdmissionLinkIncidentListResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties: {data: {$ref: '#/components/schemas/AdmissionLinkIncidentListData'}}
+    AdmissionLinkIncidentDetailResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties: {data: {$ref: '#/components/schemas/AdmissionLinkIncidentDetail'}}

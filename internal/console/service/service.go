@@ -17,6 +17,8 @@ type Services struct {
 	PolicyGroup *PolicyGroupService
 	Exception   *ExceptionService
 	Summary     *SummaryService
+	Admission   *AdmissionService
+	Incident    *IncidentService
 	Schema      func(context.Context, dto.GetFieldSchemaParams) ([]dto.FieldNode, error)
 }
 
@@ -29,5 +31,7 @@ func New(repos repository.Repositories, notifier Notifier) Services {
 		PolicyGroup: NewPolicyGroupService(repos, notifier),
 		Exception:   NewExceptionService(repos, notifier),
 		Summary:     NewSummaryService(repos),
+		Incident:    NewIncidentService(repos),
+		Admission:   NewAdmissionService(repos.Admission),
 	}
 }

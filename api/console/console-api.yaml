@@ -24,6 +24,8 @@ tags:
     description: 策略例外的增删改查
   - name: Summary
     description: 平台资源摘要
+  - name: Admission
+    description: 准入事件、存储设置与链路异常
 
 components:
   securitySchemes:
@@ -84,6 +86,13 @@ components:
         type: string
         description: 例外名称
         example: emergency-maintenance
+    AdmissionEventID:
+      name: id
+      in: path
+      required: true
+      description: 准入事件数据库 ID
+      schema:
+        $ref: '../schemas/common.yaml#/components/schemas/ResourceID'
 
   responses:
     BadRequest:
@@ -161,6 +170,170 @@ paths:
             application/json:
               schema: {$ref: '../schemas/summary.yaml#/components/schemas/SummaryResponse'}
         '500': {$ref: '#/components/responses/InternalError'}
+
+  /admission-events:
+    get:
+      tags: [Admission]
+      operationId: listAdmissionEvents
+      summary: 分页查询准入事件
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: sortBy
+          in: query
+          schema: {type: string, enum: [occurredAt, createdAt, verdict], default: occurredAt}
+        - name: sortOrder
+          in: query
+          schema: {type: string, enum: [asc, desc], default: desc}
+        - name: cluster
+          in: query
+          description: 集群名称，逗号分隔
+          schema: {type: string}
+        - name: verdict
+          in: query
+          schema: {type: string, enum: [audit, deny]}
+        - name: policy
+          in: query
+          schema: {type: string}
+        - name: namespace
+          in: query
+          schema: {type: string}
+        - name: gvk
+          in: query
+          description: 资源名称或 group/resource，逗号分隔
+          schema: {type: string}
+        - name: resourceName
+          in: query
+          schema: {type: string}
+        - name: username
+          in: query
+          schema: {type: string}
+        - name: from
+          in: query
+          schema: {type: string, format: date-time}
+        - name: to
+          in: query
+          schema: {type: string, format: date-time}
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/admission.yaml#/components/schemas/AdmissionEventListResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /admission-events/{id}:
+    get:
+      tags: [Admission]
+      operationId: getAdmissionEvent
+      summary: 查询准入事件详情
+      parameters: [{ $ref: '#/components/parameters/AdmissionEventID' }]
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/admission.yaml#/components/schemas/AdmissionEventDetailResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /admission-events/trend:
+    get:
+      tags: [Admission]
+      operationId: getAdmissionEventTrend
+      summary: 查询准入事件趋势
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: {type: string, format: date-time}
+        - name: to
+          in: query
+          required: true
+          schema: {type: string, format: date-time}
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/admission.yaml#/components/schemas/AdmissionEventTrendResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /admission-event-settings:
+    get:
+      tags: [Admission]
+      operationId: getAdmissionEventSettings
+      summary: 获取准入事件设置
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsResponse'}}}}
+        '503': {$ref: '#/components/responses/InternalError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+    put:
+      tags: [Admission]
+      operationId: updateAdmissionEventSettings
+      summary: 更新准入事件设置
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsRequest'}}}
+      responses:
+        '200': {description: 更新成功, content: {application/json: {schema: {$ref: '../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /admission-link-incidents:
+    get:
+      tags: [Admission]
+      operationId: listAdmissionLinkIncidents
+      summary: 分页查询准入链路异常
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: cluster
+          in: query
+          description: 按集群名称筛选，逗号分隔
+          style: form
+          explode: false
+          schema: {type: array, items: {type: string}}
+        - name: component
+          in: query
+          description: 按组件筛选，逗号分隔
+          style: form
+          explode: false
+          schema: {type: array, items: {type: string, enum: [webhook, operator, gateway]}}
+        - name: reason
+          in: query
+          description: 按原因筛选，逗号分隔
+          style: form
+          explode: false
+          schema: {type: array, items: {type: string}}
+        - name: status
+          in: query
+          description: 按状态筛选，逗号分隔
+          style: form
+          explode: false
+          schema: {type: array, items: {type: string, enum: [active, interrupted, closed]}}
+        - name: from
+          in: query
+          description: 起始时间（RFC3339）
+          schema: {type: string, format: date-time}
+        - name: to
+          in: query
+          description: 结束时间（RFC3339）
+          schema: {type: string, format: date-time}
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/admission_link_incident.yaml#/components/schemas/AdmissionLinkIncidentListResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/InternalError'}
+
+  /admission-link-incidents/{id}:
+    get:
+      tags: [Admission]
+      operationId: getAdmissionLinkIncident
+      summary: 查询准入链路异常详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 异常记录 ID
+          schema: {$ref: '../schemas/common.yaml#/components/schemas/ResourceID'}
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/admission_link_incident.yaml#/components/schemas/AdmissionLinkIncidentDetailResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/InternalError'}
 
   /policies:
     get:

@@ -14,6 +14,9 @@ var ErrNotFound = errors.New("not found")
 // ErrGone marks a rollback target whose snapshot has been pruned; maps to 410.
 var ErrGone = errors.New("gone")
 
+// ErrUnavailable marks an optional repository that is not configured.
+var ErrUnavailable = errors.New("service unavailable")
+
 // ValidationError is a client-input problem (400). The message is shown to the user.
 type ValidationError struct{ Msg string }
 

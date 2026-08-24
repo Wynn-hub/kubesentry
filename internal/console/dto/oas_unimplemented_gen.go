@@ -69,6 +69,42 @@ func (UnimplementedHandler) DeletePolicyGroup(ctx context.Context, params Delete
 	return r, ht.ErrNotImplemented
 }
 
+// GetAdmissionEvent implements getAdmissionEvent operation.
+//
+// 查询准入事件详情.
+//
+// GET /admission-events/{id}
+func (UnimplementedHandler) GetAdmissionEvent(ctx context.Context, params GetAdmissionEventParams) (r GetAdmissionEventRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetAdmissionEventSettings implements getAdmissionEventSettings operation.
+//
+// 获取准入事件设置.
+//
+// GET /admission-event-settings
+func (UnimplementedHandler) GetAdmissionEventSettings(ctx context.Context) (r GetAdmissionEventSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetAdmissionEventTrend implements getAdmissionEventTrend operation.
+//
+// 查询准入事件趋势.
+//
+// GET /admission-events/trend
+func (UnimplementedHandler) GetAdmissionEventTrend(ctx context.Context, params GetAdmissionEventTrendParams) (r GetAdmissionEventTrendRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetAdmissionLinkIncident implements getAdmissionLinkIncident operation.
+//
+// 查询准入链路异常详情.
+//
+// GET /admission-link-incidents/{id}
+func (UnimplementedHandler) GetAdmissionLinkIncident(ctx context.Context, params GetAdmissionLinkIncidentParams) (r GetAdmissionLinkIncidentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetException implements getException operation.
 //
 // 查询策略例外详情.
@@ -121,6 +157,24 @@ func (UnimplementedHandler) GetResourceSuggestions(ctx context.Context) (r GetRe
 //
 // GET /summary
 func (UnimplementedHandler) GetSummary(ctx context.Context) (r GetSummaryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListAdmissionEvents implements listAdmissionEvents operation.
+//
+// 分页查询准入事件.
+//
+// GET /admission-events
+func (UnimplementedHandler) ListAdmissionEvents(ctx context.Context, params ListAdmissionEventsParams) (r ListAdmissionEventsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListAdmissionLinkIncidents implements listAdmissionLinkIncidents operation.
+//
+// 分页查询准入链路异常.
+//
+// GET /admission-link-incidents
+func (UnimplementedHandler) ListAdmissionLinkIncidents(ctx context.Context, params ListAdmissionLinkIncidentsParams) (r ListAdmissionLinkIncidentsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -178,6 +232,15 @@ func (UnimplementedHandler) RollbackPolicy(ctx context.Context, req *RollbackReq
 //
 // PUT /policygroups/{name}/enabled
 func (UnimplementedHandler) SetPolicyGroupEnabled(ctx context.Context, req *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (r SetPolicyGroupEnabledRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateAdmissionEventSettings implements updateAdmissionEventSettings operation.
+//
+// 更新准入事件设置.
+//
+// PUT /admission-event-settings
+func (UnimplementedHandler) UpdateAdmissionEventSettings(ctx context.Context, req *AdmissionEventSettingsRequest) (r UpdateAdmissionEventSettingsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

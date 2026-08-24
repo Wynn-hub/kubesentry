@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
@@ -18,6 +19,21 @@ type ClusterRepository interface {
 	CountByPhase(context.Context) (dbrepo.ClusterPhaseCounts, error)
 }
 
+type IncidentRepository interface {
+	ListPage(context.Context, dbrepo.IncidentPageOptions) ([]dbrepo.AdmissionLinkIncident, int64, error)
+	Get(context.Context, int64) (*dbrepo.AdmissionLinkIncident, error)
+}
+
+type AdmissionRepository interface {
+	EventDatabaseIDs(context.Context, []string) (map[string]int64, error)
+	GetSettings(context.Context) (*dbrepo.AdmissionEventSettings, error)
+	ListPolicies(context.Context) ([]dbrepo.AdmissionStoragePolicy, error)
+	UpdateSettingsAndPolicies(context.Context, *dbrepo.AdmissionEventSettings, []dbrepo.AdmissionStoragePolicy) error
+	ListEventsPage(context.Context, dbrepo.AdmissionEventPageOptions) ([]dbrepo.AdmissionEvent, int64, error)
+	GetEvent(context.Context, int64) (*dbrepo.AdmissionEvent, error)
+	Trend(context.Context, time.Time, time.Time, bool) ([]dbrepo.AdmissionEventTrendBucket, error)
+}
+
 // Repositories is the console's data-access bundle. It grows one field per
 // migrated resource domain; batches that haven't migrated yet keep using
 // gateway.Repos directly from the legacy handlers.
@@ -28,6 +44,8 @@ type Repositories struct {
 	Exceptions    ExceptionRepository
 	Distributions DistributionRepository
 	Clusters      ClusterRepository
+	Incidents     IncidentRepository
+	Admission     AdmissionRepository
 }
 
 // FromGatewayRepos narrows the shared gateway.Repos bundle down to the
@@ -42,5 +60,7 @@ func FromGatewayRepos(r gateway.Repos) Repositories {
 		Exceptions:    r.Exceptions,
 		Distributions: r.Distributions,
 		Clusters:      r.Clusters,
+		Incidents:     r.Incidents,
+		Admission:     r.Admission,
 	}
 }

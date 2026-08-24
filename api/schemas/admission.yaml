@@ -1,0 +1,115 @@
+components:
+  schemas:
+    AdmissionStoragePolicy:
+      type: object
+      required: [verdicts, clusters, gvks, namespaces, matchMode]
+      properties:
+        verdicts:
+          type: array
+          items: {type: string, enum: [audit, deny]}
+        clusters:
+          type: array
+          items: {type: string}
+        gvks:
+          type: array
+          items: {type: string, description: normalized resource name, example: apps/deployments}
+        namespaces:
+          type: array
+          items: {type: string}
+        matchMode:
+          type: string
+          enum: [include, exclude]
+    AdmissionEventSettings:
+      type: object
+      required: [defaultRetentionDays, retryEnabled, maxRetryAttempts, queueCapacity, incidentRetentionDays, observationEnabled, storagePolicyVersion, storagePolicies]
+      properties:
+        defaultRetentionDays: {type: integer, minimum: 1, maximum: 365}
+        retryEnabled: {type: boolean}
+        maxRetryAttempts: {type: integer, minimum: 1, maximum: 100}
+        queueCapacity: {type: integer, minimum: 1, maximum: 10000}
+        incidentRetentionDays: {type: integer, minimum: 1, maximum: 365}
+        observationEnabled: {type: boolean}
+        storagePolicyVersion: {type: integer, format: int64}
+        storagePolicies:
+          type: array
+          items: {$ref: '#/components/schemas/AdmissionStoragePolicy'}
+    AdmissionEventSettingsRequest:
+      type: object
+      required: [defaultRetentionDays, retryEnabled, maxRetryAttempts, queueCapacity, incidentRetentionDays, observationEnabled, storagePolicies]
+      properties:
+        defaultRetentionDays: {type: integer, minimum: 1, maximum: 365}
+        retryEnabled: {type: boolean}
+        maxRetryAttempts: {type: integer, minimum: 1, maximum: 100}
+        queueCapacity: {type: integer, minimum: 1, maximum: 10000}
+        incidentRetentionDays: {type: integer, minimum: 1, maximum: 365}
+        observationEnabled: {type: boolean}
+        storagePolicies:
+          type: array
+          items: {$ref: '#/components/schemas/AdmissionStoragePolicy'}
+    AdmissionEventItem:
+      type: object
+      required: [id, eventId, clusterName, occurredAt, verdict, apiGroup, apiVersion, resource, operation, namespace, resourceName, username, policyNames, violations]
+      properties:
+        id: {$ref: './common.yaml#/components/schemas/ResourceID'}
+        eventId: {type: string}
+        clusterName: {type: string}
+        occurredAt: {type: string, format: date-time}
+        verdict: {type: string, enum: [audit, deny]}
+        apiGroup: {type: string}
+        apiVersion: {type: string}
+        resource: {type: string}
+        operation: {type: string}
+        namespace: {type: string}
+        resourceName: {type: string}
+        username: {type: string}
+        policyNames: {type: array, items: {type: string}}
+        violations: {type: array, items: {type: string}}
+    AdmissionEventDetail:
+      allOf:
+        - $ref: '#/components/schemas/AdmissionEventItem'
+        - type: object
+          required: [requestUid, userGroups, policyGroupNames, metadataSnapshot, specSnapshot, storagePolicyVersion]
+          properties:
+            requestUid: {type: string}
+            userGroups: {type: array, items: {type: string}}
+            policyGroupNames: {type: array, items: {type: string}}
+            metadataSnapshot: {type: object, additionalProperties: true}
+            specSnapshot: {type: object, additionalProperties: true}
+            storagePolicyVersion: {type: string}
+    AdmissionEventListData:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/AdmissionEventItem'}}
+    AdmissionEventListResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties: {data: {$ref: '#/components/schemas/AdmissionEventListData'}}
+    AdmissionEventDetailResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties: {data: {$ref: '#/components/schemas/AdmissionEventDetail'}}
+    AdmissionEventTrendItem:
+      type: object
+      required: [bucket, verdict, count]
+      properties:
+        bucket: {type: string, format: date-time}
+        verdict: {type: string, enum: [audit, deny]}
+        count: {type: integer, format: int64}
+    AdmissionEventTrendResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/AdmissionEventTrendItem'}
+    AdmissionEventSettingsResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties: {data: {$ref: '#/components/schemas/AdmissionEventSettings'}}

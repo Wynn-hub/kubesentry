@@ -37,13 +37,6 @@ type Handlers struct {
 
 // RegisterLegacy wires routes that have not yet moved to ogen.
 func (h *Handlers) RegisterLegacy(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/admission-events", h.listAdmissionEvents)
-	mux.HandleFunc("GET /api/v1/admission-events/{id}", h.getAdmissionEvent)
-	mux.HandleFunc("GET /api/v1/admission-events/trend", h.admissionEventTrend)
-	mux.HandleFunc("GET /api/v1/admission-event-settings", h.getAdmissionEventSettings)
-	mux.HandleFunc("PUT /api/v1/admission-event-settings", h.updateAdmissionEventSettings)
-	mux.HandleFunc("GET /api/v1/admission-link-incidents", h.listAdmissionLinkIncidents)
-	mux.HandleFunc("GET /api/v1/admission-link-incidents/{id}", h.getAdmissionLinkIncident)
 	mux.HandleFunc("GET /api/v1/platform/overview", h.platformOverview)
 	mux.HandleFunc("GET /api/v1/platform/instances/{component}/{instance}/trend", h.platformInstanceTrend)
 	mux.HandleFunc("GET /api/v1/platform/leadership-events", h.platformLeadershipEvents)
@@ -111,6 +104,11 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		mux.Handle("/api/v1/exceptions/", ogenServer)
 		mux.Handle("/api/v1/summary", ogenServer)
 		mux.Handle("/api/v1/schema/fields", ogenServer)
+		mux.Handle("/api/v1/admission-link-incidents", ogenServer)
+		mux.Handle("/api/v1/admission-link-incidents/", ogenServer)
+		mux.Handle("/api/v1/admission-events", ogenServer)
+		mux.Handle("/api/v1/admission-events/", ogenServer)
+		mux.Handle("/api/v1/admission-event-settings", ogenServer)
 	}
 	h.RegisterLegacy(mux)
 

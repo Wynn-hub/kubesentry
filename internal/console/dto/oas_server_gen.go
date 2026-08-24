@@ -46,6 +46,30 @@ type Handler interface {
 	//
 	// DELETE /policygroups/{name}
 	DeletePolicyGroup(ctx context.Context, params DeletePolicyGroupParams) (DeletePolicyGroupRes, error)
+	// GetAdmissionEvent implements getAdmissionEvent operation.
+	//
+	// 查询准入事件详情.
+	//
+	// GET /admission-events/{id}
+	GetAdmissionEvent(ctx context.Context, params GetAdmissionEventParams) (GetAdmissionEventRes, error)
+	// GetAdmissionEventSettings implements getAdmissionEventSettings operation.
+	//
+	// 获取准入事件设置.
+	//
+	// GET /admission-event-settings
+	GetAdmissionEventSettings(ctx context.Context) (GetAdmissionEventSettingsRes, error)
+	// GetAdmissionEventTrend implements getAdmissionEventTrend operation.
+	//
+	// 查询准入事件趋势.
+	//
+	// GET /admission-events/trend
+	GetAdmissionEventTrend(ctx context.Context, params GetAdmissionEventTrendParams) (GetAdmissionEventTrendRes, error)
+	// GetAdmissionLinkIncident implements getAdmissionLinkIncident operation.
+	//
+	// 查询准入链路异常详情.
+	//
+	// GET /admission-link-incidents/{id}
+	GetAdmissionLinkIncident(ctx context.Context, params GetAdmissionLinkIncidentParams) (GetAdmissionLinkIncidentRes, error)
 	// GetException implements getException operation.
 	//
 	// 查询策略例外详情.
@@ -83,6 +107,18 @@ type Handler interface {
 	//
 	// GET /summary
 	GetSummary(ctx context.Context) (GetSummaryRes, error)
+	// ListAdmissionEvents implements listAdmissionEvents operation.
+	//
+	// 分页查询准入事件.
+	//
+	// GET /admission-events
+	ListAdmissionEvents(ctx context.Context, params ListAdmissionEventsParams) (ListAdmissionEventsRes, error)
+	// ListAdmissionLinkIncidents implements listAdmissionLinkIncidents operation.
+	//
+	// 分页查询准入链路异常.
+	//
+	// GET /admission-link-incidents
+	ListAdmissionLinkIncidents(ctx context.Context, params ListAdmissionLinkIncidentsParams) (ListAdmissionLinkIncidentsRes, error)
 	// ListExceptions implements listExceptions operation.
 	//
 	// 分页查询策略例外.
@@ -122,6 +158,12 @@ type Handler interface {
 	//
 	// PUT /policygroups/{name}/enabled
 	SetPolicyGroupEnabled(ctx context.Context, req *PolicyGroupEnabledRequest, params SetPolicyGroupEnabledParams) (SetPolicyGroupEnabledRes, error)
+	// UpdateAdmissionEventSettings implements updateAdmissionEventSettings operation.
+	//
+	// 更新准入事件设置.
+	//
+	// PUT /admission-event-settings
+	UpdateAdmissionEventSettings(ctx context.Context, req *AdmissionEventSettingsRequest) (UpdateAdmissionEventSettingsRes, error)
 	// UpdateException implements updateException operation.
 	//
 	// 更新策略例外.
