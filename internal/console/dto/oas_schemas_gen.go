@@ -2045,8 +2045,9 @@ func (s *ErrorResponse) SetData(val OptErrorResponseData) {
 	s.Data = val
 }
 
-func (*ErrorResponse) getSummaryRes()         {}
-func (*ErrorResponse) validatePolicyRegoRes() {}
+func (*ErrorResponse) getPlatformSettingsRes() {}
+func (*ErrorResponse) getSummaryRes()          {}
+func (*ErrorResponse) validatePolicyRegoRes()  {}
 
 // 失败时附带的结构化数据。例如删除被引用资源时的 referencedBy 列表.
 type ErrorResponseData map[string]jx.Raw
@@ -3074,6 +3075,65 @@ type GetFieldSchemaBadRequest ErrorResponse
 
 func (*GetFieldSchemaBadRequest) getFieldSchemaRes() {}
 
+type GetPlatformInstanceTrendBadRequest ErrorResponse
+
+func (*GetPlatformInstanceTrendBadRequest) getPlatformInstanceTrendRes() {}
+
+type GetPlatformInstanceTrendInternalServerError ErrorResponse
+
+func (*GetPlatformInstanceTrendInternalServerError) getPlatformInstanceTrendRes() {}
+
+type GetPlatformInstanceTrendNotFound ErrorResponse
+
+func (*GetPlatformInstanceTrendNotFound) getPlatformInstanceTrendRes() {}
+
+type GetPlatformInstanceTrendOK map[string]jx.Raw
+
+func (s *GetPlatformInstanceTrendOK) init() GetPlatformInstanceTrendOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*GetPlatformInstanceTrendOK) getPlatformInstanceTrendRes() {}
+
+type GetPlatformOverviewBadRequest ErrorResponse
+
+func (*GetPlatformOverviewBadRequest) getPlatformOverviewRes() {}
+
+type GetPlatformOverviewInternalServerError ErrorResponse
+
+func (*GetPlatformOverviewInternalServerError) getPlatformOverviewRes() {}
+
+type GetPlatformOverviewOK map[string]jx.Raw
+
+func (s *GetPlatformOverviewOK) init() GetPlatformOverviewOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*GetPlatformOverviewOK) getPlatformOverviewRes() {}
+
+type GetPlatformSettingsOK map[string]jx.Raw
+
+func (s *GetPlatformSettingsOK) init() GetPlatformSettingsOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*GetPlatformSettingsOK) getPlatformSettingsRes() {}
+
 type GetPolicyGroupInternalServerError ErrorResponse
 
 func (*GetPolicyGroupInternalServerError) getPolicyGroupRes() {}
@@ -3591,6 +3651,31 @@ func (s *ListExceptionsSortOrder) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+type ListPlatformLeadershipEventsBadRequest ErrorResponse
+
+func (*ListPlatformLeadershipEventsBadRequest) listPlatformLeadershipEventsRes() {}
+
+type ListPlatformLeadershipEventsInternalServerError ErrorResponse
+
+func (*ListPlatformLeadershipEventsInternalServerError) listPlatformLeadershipEventsRes() {}
+
+type ListPlatformLeadershipEventsNotFound ErrorResponse
+
+func (*ListPlatformLeadershipEventsNotFound) listPlatformLeadershipEventsRes() {}
+
+type ListPlatformLeadershipEventsOK map[string]jx.Raw
+
+func (s *ListPlatformLeadershipEventsOK) init() ListPlatformLeadershipEventsOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*ListPlatformLeadershipEventsOK) listPlatformLeadershipEventsRes() {}
 
 type ListPoliciesBadRequest ErrorResponse
 
@@ -8887,6 +8972,52 @@ func (*UpdateExceptionInternalServerError) updateExceptionRes() {}
 type UpdateExceptionNotFound ErrorResponse
 
 func (*UpdateExceptionNotFound) updateExceptionRes() {}
+
+type UpdatePlatformSettingsBadRequest ErrorResponse
+
+func (*UpdatePlatformSettingsBadRequest) updatePlatformSettingsRes() {}
+
+type UpdatePlatformSettingsInternalServerError ErrorResponse
+
+func (*UpdatePlatformSettingsInternalServerError) updatePlatformSettingsRes() {}
+
+type UpdatePlatformSettingsOK map[string]jx.Raw
+
+func (s *UpdatePlatformSettingsOK) init() UpdatePlatformSettingsOK {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+func (*UpdatePlatformSettingsOK) updatePlatformSettingsRes() {}
+
+type UpdatePlatformSettingsReq struct {
+	Enabled       bool `json:"enabled"`
+	RetentionDays int  `json:"retentionDays"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *UpdatePlatformSettingsReq) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetRetentionDays returns the value of RetentionDays.
+func (s *UpdatePlatformSettingsReq) GetRetentionDays() int {
+	return s.RetentionDays
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *UpdatePlatformSettingsReq) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetRetentionDays sets the value of RetentionDays.
+func (s *UpdatePlatformSettingsReq) SetRetentionDays(val int) {
+	s.RetentionDays = val
+}
 
 type UpdatePolicyBadRequest ErrorResponse
 

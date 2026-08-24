@@ -123,6 +123,33 @@ func (UnimplementedHandler) GetFieldSchema(ctx context.Context, params GetFieldS
 	return r, ht.ErrNotImplemented
 }
 
+// GetPlatformInstanceTrend implements getPlatformInstanceTrend operation.
+//
+// 获取平台实例趋势.
+//
+// GET /platform/instances/{component}/{instance}/trend
+func (UnimplementedHandler) GetPlatformInstanceTrend(ctx context.Context, params GetPlatformInstanceTrendParams) (r GetPlatformInstanceTrendRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetPlatformOverview implements getPlatformOverview operation.
+//
+// 获取平台运行概览.
+//
+// GET /platform/overview
+func (UnimplementedHandler) GetPlatformOverview(ctx context.Context, params GetPlatformOverviewParams) (r GetPlatformOverviewRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetPlatformSettings implements getPlatformSettings operation.
+//
+// 获取平台可观测性设置.
+//
+// GET /platform/settings
+func (UnimplementedHandler) GetPlatformSettings(ctx context.Context) (r GetPlatformSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetPolicy implements getPolicy operation.
 //
 // 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.
@@ -184,6 +211,15 @@ func (UnimplementedHandler) ListAdmissionLinkIncidents(ctx context.Context, para
 //
 // GET /exceptions
 func (UnimplementedHandler) ListExceptions(ctx context.Context, params ListExceptionsParams) (r ListExceptionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListPlatformLeadershipEvents implements listPlatformLeadershipEvents operation.
+//
+// 查询平台领导权事件.
+//
+// GET /platform/leadership-events
+func (UnimplementedHandler) ListPlatformLeadershipEvents(ctx context.Context, params ListPlatformLeadershipEventsParams) (r ListPlatformLeadershipEventsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -250,6 +286,15 @@ func (UnimplementedHandler) UpdateAdmissionEventSettings(ctx context.Context, re
 //
 // PUT /exceptions/{name}
 func (UnimplementedHandler) UpdateException(ctx context.Context, req *ExceptionRequest, params UpdateExceptionParams) (r UpdateExceptionRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdatePlatformSettings implements updatePlatformSettings operation.
+//
+// 更新平台可观测性设置.
+//
+// PUT /platform/settings
+func (UnimplementedHandler) UpdatePlatformSettings(ctx context.Context, req *UpdatePlatformSettingsReq) (r UpdatePlatformSettingsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

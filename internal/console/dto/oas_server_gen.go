@@ -82,6 +82,24 @@ type Handler interface {
 	//
 	// GET /schema/fields
 	GetFieldSchema(ctx context.Context, params GetFieldSchemaParams) (GetFieldSchemaRes, error)
+	// GetPlatformInstanceTrend implements getPlatformInstanceTrend operation.
+	//
+	// 获取平台实例趋势.
+	//
+	// GET /platform/instances/{component}/{instance}/trend
+	GetPlatformInstanceTrend(ctx context.Context, params GetPlatformInstanceTrendParams) (GetPlatformInstanceTrendRes, error)
+	// GetPlatformOverview implements getPlatformOverview operation.
+	//
+	// 获取平台运行概览.
+	//
+	// GET /platform/overview
+	GetPlatformOverview(ctx context.Context, params GetPlatformOverviewParams) (GetPlatformOverviewRes, error)
+	// GetPlatformSettings implements getPlatformSettings operation.
+	//
+	// 获取平台可观测性设置.
+	//
+	// GET /platform/settings
+	GetPlatformSettings(ctx context.Context) (GetPlatformSettingsRes, error)
 	// GetPolicy implements getPolicy operation.
 	//
 	// 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.
@@ -125,6 +143,12 @@ type Handler interface {
 	//
 	// GET /exceptions
 	ListExceptions(ctx context.Context, params ListExceptionsParams) (ListExceptionsRes, error)
+	// ListPlatformLeadershipEvents implements listPlatformLeadershipEvents operation.
+	//
+	// 查询平台领导权事件.
+	//
+	// GET /platform/leadership-events
+	ListPlatformLeadershipEvents(ctx context.Context, params ListPlatformLeadershipEventsParams) (ListPlatformLeadershipEventsRes, error)
 	// ListPolicies implements listPolicies operation.
 	//
 	// 按名称、来源、执行模式、编译状态筛选并分页返回策略。 phase、mode、source
@@ -170,6 +194,12 @@ type Handler interface {
 	//
 	// PUT /exceptions/{name}
 	UpdateException(ctx context.Context, req *ExceptionRequest, params UpdateExceptionParams) (UpdateExceptionRes, error)
+	// UpdatePlatformSettings implements updatePlatformSettings operation.
+	//
+	// 更新平台可观测性设置.
+	//
+	// PUT /platform/settings
+	UpdatePlatformSettings(ctx context.Context, req *UpdatePlatformSettingsReq) (UpdatePlatformSettingsRes, error)
 	// UpdatePolicy implements updatePolicy operation.
 	//
 	// 更新策略并追加新版本快照，两者在同一事务内提交。 labels

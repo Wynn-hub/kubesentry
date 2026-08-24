@@ -20,6 +20,10 @@ type Services struct {
 	Admission   *AdmissionService
 	Incident    *IncidentService
 	Schema      func(context.Context, dto.GetFieldSchemaParams) ([]dto.FieldNode, error)
+	// LegacyInvoke is a short-lived bridge for API domains whose business
+	// logic is still being moved behind ogen. It keeps the generated contract
+	// mounted without duplicating the established response semantics.
+	LegacyInvoke func(context.Context, string, string, []byte) (int, []byte)
 }
 
 // New wires every service from the repository bundle and an optional Notifier.

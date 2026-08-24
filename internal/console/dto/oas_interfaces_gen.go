@@ -49,6 +49,18 @@ type GetFieldSchemaRes interface {
 	getFieldSchemaRes()
 }
 
+type GetPlatformInstanceTrendRes interface {
+	getPlatformInstanceTrendRes()
+}
+
+type GetPlatformOverviewRes interface {
+	getPlatformOverviewRes()
+}
+
+type GetPlatformSettingsRes interface {
+	getPlatformSettingsRes()
+}
+
 type GetPolicyGroupRes interface {
 	getPolicyGroupRes()
 }
@@ -77,6 +89,10 @@ type ListExceptionsRes interface {
 	listExceptionsRes()
 }
 
+type ListPlatformLeadershipEventsRes interface {
+	listPlatformLeadershipEventsRes()
+}
+
 type ListPoliciesRes interface {
 	listPoliciesRes()
 }
@@ -103,6 +119,10 @@ type UpdateAdmissionEventSettingsRes interface {
 
 type UpdateExceptionRes interface {
 	updateExceptionRes()
+}
+
+type UpdatePlatformSettingsRes interface {
+	updatePlatformSettingsRes()
 }
 
 type UpdatePolicyGroupRes interface {

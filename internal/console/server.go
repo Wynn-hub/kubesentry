@@ -1,8 +1,11 @@
 package console
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 
@@ -37,11 +40,6 @@ type Handlers struct {
 
 // RegisterLegacy wires routes that have not yet moved to ogen.
 func (h *Handlers) RegisterLegacy(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/platform/overview", h.platformOverview)
-	mux.HandleFunc("GET /api/v1/platform/instances/{component}/{instance}/trend", h.platformInstanceTrend)
-	mux.HandleFunc("GET /api/v1/platform/leadership-events", h.platformLeadershipEvents)
-	mux.HandleFunc("GET /api/v1/platform/settings", h.getPlatformSettings)
-	mux.HandleFunc("PUT /api/v1/platform/settings", h.updatePlatformSettings)
 	mux.HandleFunc("GET /api/v1/clusters", h.listClusters)
 	mux.HandleFunc("POST /api/v1/clusters", h.createCluster)
 	mux.HandleFunc("GET /api/v1/clusters/{name}", h.getCluster)
@@ -67,6 +65,23 @@ type Server struct {
 	Handler http.Handler
 }
 
+// legacyPlatformInvoke adapts the already-tested platform implementation to
+// the generated ogen contract while its data-access extraction is completed.
+// The adapter is in-process and preserves the exact legacy envelope and error
+// behavior; it does not perform a network hop.
+func (h *Handlers) legacyPlatformInvoke(ctx context.Context, method, path string, body []byte) (int, []byte) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/platform/overview", h.platformOverview)
+	mux.HandleFunc("GET /api/v1/platform/instances/{component}/{instance}/trend", h.platformInstanceTrend)
+	mux.HandleFunc("GET /api/v1/platform/leadership-events", h.platformLeadershipEvents)
+	mux.HandleFunc("GET /api/v1/platform/settings", h.getPlatformSettings)
+	mux.HandleFunc("PUT /api/v1/platform/settings", h.updatePlatformSettings)
+	req := httptest.NewRequest(method, path, bytes.NewReader(body)).WithContext(ctx)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec.Code, rec.Body.Bytes()
+}
+
 // NewServer wires the REST API only; the SPA is served by a separate nginx
 // container (see Dockerfile.console-web and the gateway chart's nginx ConfigMap).
 // ready reports whether console-api's dependencies (currently: the database)
@@ -85,8 +100,9 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		http.Error(w, "not ready", http.StatusServiceUnavailable)
 	})
 
-	if h.Repos.Policies != nil {
+	{
 		svcs := service.New(repository.FromGatewayRepos(h.Repos), h.notifier())
+		svcs.LegacyInvoke = h.legacyPlatformInvoke
 		svcs.Schema = h.fieldSchema
 		ogenServer, err := dto.NewServer(
 			handler.New(svcs),
@@ -109,6 +125,10 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		mux.Handle("/api/v1/admission-events", ogenServer)
 		mux.Handle("/api/v1/admission-events/", ogenServer)
 		mux.Handle("/api/v1/admission-event-settings", ogenServer)
+		mux.Handle("/api/v1/platform/overview", ogenServer)
+		mux.Handle("/api/v1/platform/instances/", ogenServer)
+		mux.Handle("/api/v1/platform/leadership-events", ogenServer)
+		mux.Handle("/api/v1/platform/settings", ogenServer)
 	}
 	h.RegisterLegacy(mux)
 

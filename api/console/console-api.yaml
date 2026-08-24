@@ -26,6 +26,12 @@ tags:
     description: 平台资源摘要
   - name: Admission
     description: 准入事件、存储设置与链路异常
+  - name: Platform
+    description: 平台可观测性与运行状态
+  - name: Cluster
+    description: 集群管理与安装记录
+  - name: Distribution
+    description: 策略分发配置
 
 components:
   securitySchemes:
@@ -129,6 +135,97 @@ components:
             $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
 
 paths:
+  /platform/overview:
+    get:
+      tags: [Platform]
+      operationId: getPlatformOverview
+      summary: 获取平台运行概览
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: health
+          in: query
+          schema: {type: string}
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /platform/instances/{component}/{instance}/trend:
+    get:
+      tags: [Platform]
+      operationId: getPlatformInstanceTrend
+      summary: 获取平台实例趋势
+      parameters:
+        - name: component
+          in: path
+          required: true
+          schema: {type: string}
+        - name: instance
+          in: path
+          required: true
+          schema: {type: string}
+        - name: cluster
+          in: query
+          schema: {type: string}
+        - name: from
+          in: query
+          schema: {type: string, format: date-time}
+        - name: to
+          in: query
+          schema: {type: string, format: date-time}
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /platform/leadership-events:
+    get:
+      tags: [Platform]
+      operationId: listPlatformLeadershipEvents
+      summary: 查询平台领导权事件
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: component
+          in: query
+          schema: {type: string}
+        - name: cluster
+          in: query
+          schema: {type: string}
+        - name: from
+          in: query
+          schema: {type: string, format: date-time}
+        - name: to
+          in: query
+          schema: {type: string, format: date-time}
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /platform/settings:
+    get:
+      tags: [Platform]
+      operationId: getPlatformSettings
+      summary: 获取平台可观测性设置
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '500': {$ref: '#/components/responses/InternalError'}
+    put:
+      tags: [Platform]
+      operationId: updatePlatformSettings
+      summary: 更新平台可观测性设置
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [enabled, retentionDays], properties: {enabled: {type: boolean}, retentionDays: {type: integer, minimum: 1}}}}}
+      responses:
+        '200': {description: 更新成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
   /schema/fields:
     get:
       tags: [Summary]
