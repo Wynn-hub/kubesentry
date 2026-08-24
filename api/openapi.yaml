@@ -1,11 +1,14 @@
-# 统一入口。console-api.yaml 是唯一有 paths 的文件；
-# gateway 的 gRPC 契约见 api/proto/gateway/v1/gateway.proto，不在此处描述。
+# Unified entry point for the control-plane contracts. The gateway streaming
+# wire contract remains protobuf, while api/internal/gateway.yaml provides its
+# OpenAPI-compatible index and HTTP probe definitions.
 openapi: 3.1.0
 info:
   title: KubeSentry API
   version: 1.0.0
-  description: KubeSentry 控制面 HTTP API 的统一入口
+  description: KubeSentry control-plane API contract index
 paths:
   $ref: './console/console-api.yaml#/paths'
 components:
   $ref: './console/console-api.yaml#/components'
+x-gateway-contract:
+  $ref: './internal/gateway.yaml'

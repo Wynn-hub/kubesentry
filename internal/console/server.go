@@ -99,6 +99,9 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		}
 		http.Error(w, "not ready", http.StatusServiceUnavailable)
 	})
+	mux.HandleFunc("GET /api/docs", h.openAPIDocs)
+	mux.HandleFunc("GET /api/docs/", h.openAPIDocs)
+	mux.HandleFunc("GET /api/docs/openapi.json", h.openAPISpec)
 
 	{
 		svcs := service.New(repository.FromGatewayRepos(h.Repos), h.notifier())

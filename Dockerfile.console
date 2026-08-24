@@ -4,5 +4,8 @@ RUN apk add --no-cache ca-certificates curl \
     && adduser -S -D -H -u 65532 -G nonroot nonroot
 ARG TARGETARCH
 COPY bin/linux-${TARGETARCH}/console /console
+# Keep the reviewed contract available to the API documentation endpoint.
+COPY api /api
+ENV OPENAPI_SPEC_FILE=/api/openapi.yaml
 USER nonroot:nonroot
 ENTRYPOINT ["/console"]

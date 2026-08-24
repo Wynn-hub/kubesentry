@@ -1,4 +1,4 @@
-import axios, { type AxiosError } from 'axios'
+import { apiClient } from './generated/client'
 
 export interface Envelope<T> {
   code: number
@@ -27,8 +27,6 @@ export function unwrap<T>(status: number, env: Envelope<T> | undefined, fallback
   throw new ApiError(status, env?.message ?? fallbackMsg, env?.code, env?.data, env?.details)
 }
 
-const client = axios.create({ baseURL: '/api/v1', validateStatus: () => true })
-
 export async function request<T>(
   method: string,
   url: string,
@@ -36,11 +34,19 @@ export async function request<T>(
   params?: Record<string, string>,
 ): Promise<T> {
   try {
-    const resp = await client.request<Envelope<T>>({ method, url, data: body, params })
-    return unwrap(resp.status, resp.data, `HTTP ${resp.status}`)
+    // The operation wrappers retain their small legacy signature, while the
+    // actual transport is the generated OpenAPI client. The cast is confined
+    // to this compatibility boundary because callers supply a dynamic path;
+    // generated operation-specific wrappers remain strongly typed.
+    const client = apiClient as any
+    const options: Record<string, unknown> = {}
+    if (body !== undefined) options.body = body
+    if (params !== undefined) options.params = { query: params }
+    const resp = await client[method.toUpperCase()](url, options)
+    return unwrap(resp.response.status, resp.data as Envelope<T>, `HTTP ${resp.response.status}`)
   } catch (e) {
     if (e instanceof ApiError) throw e
-    const err = e as AxiosError
+    const err = e as Error
     throw new ApiError(0, err.message)
   }
 }

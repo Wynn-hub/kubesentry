@@ -1,8 +1,11 @@
 package console
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -62,5 +65,33 @@ func TestUnknownNonAPIRouteIs404(t *testing.T) {
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/policies/foo", nil))
 	if rec.Code != 404 {
 		t.Fatalf("unknown non-api route = %d, want 404", rec.Code)
+	}
+}
+
+func TestOpenAPIDocumentationEndpoints(t *testing.T) {
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OPENAPI_SPEC_FILE", filepath.Join(root, "..", "..", "api", "openapi.yaml"))
+	h := newBareServer(func() bool { return true })
+
+	docs := httptest.NewRecorder()
+	h.ServeHTTP(docs, httptest.NewRequest("GET", "/api/docs", nil))
+	if docs.Code != http.StatusOK || docs.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+		t.Fatalf("api docs = %d %q", docs.Code, docs.Header().Get("Content-Type"))
+	}
+
+	spec := httptest.NewRecorder()
+	h.ServeHTTP(spec, httptest.NewRequest("GET", "/api/docs/openapi.json", nil))
+	if spec.Code != http.StatusOK || spec.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("openapi json = %d %q: %s", spec.Code, spec.Header().Get("Content-Type"), spec.Body.String())
+	}
+	var document map[string]any
+	if err := json.Unmarshal(spec.Body.Bytes(), &document); err != nil {
+		t.Fatalf("decode openapi json: %v", err)
+	}
+	if document["openapi"] != "3.1.0" {
+		t.Fatalf("openapi version = %v", document["openapi"])
 	}
 }

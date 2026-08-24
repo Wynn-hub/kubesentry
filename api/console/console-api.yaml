@@ -74,6 +74,24 @@ components:
         type: string
         description: 策略名称
         example: deny-privileged-pod
+    ClusterName:
+      name: name
+      in: path
+      required: true
+      description: 集群名称
+      schema:
+        type: string
+        description: 集群名称
+        example: production-east
+    DistributionName:
+      name: name
+      in: path
+      required: true
+      description: 策略分发名称
+      schema:
+        type: string
+        description: 策略分发名称
+        example: production-baseline
     PolicyGroupName:
       name: name
       in: path
@@ -145,21 +163,27 @@ paths:
     get:
       tags: [Cluster]
       operationId: listClusters
+      summary: 分页查询集群
+      description: 查询平台已登记的集群及其在线状态和节点摘要。
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
         - name: sortBy
           in: query
-          schema: {type: string, enum: [name, phase, operatorVersion, lastHeartbeatAt, createdAt]}
+          description: 排序字段
+          schema: {type: string, enum: [name, phase, operatorVersion, lastHeartbeatAt, createdAt], description: 集群列表排序字段, example: name}
         - name: sortOrder
           in: query
-          schema: {type: string, enum: [asc, desc], default: asc}
+          description: 排序方向
+          schema: {type: string, enum: [asc, desc], default: asc, description: 升序或降序, example: asc}
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '500': {$ref: '#/components/responses/InternalError'}
     post:
       tags: [Cluster]
       operationId: createCluster
+      summary: 创建集群登记
+      description: 创建集群登记记录并生成一次性 Helm 安装命令。
       requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
       responses:
         '200': {description: 创建成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
@@ -168,10 +192,12 @@ paths:
         '500': {$ref: '#/components/responses/InternalError'}
 
   /clusters/{name}:
-    parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+    parameters: [{ $ref: '#/components/parameters/ClusterName' }]
     get:
       tags: [Cluster]
       operationId: getCluster
+      summary: 查询集群详情
+      description: 查询指定集群的连接状态、版本和节点信息。
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -179,6 +205,8 @@ paths:
     put:
       tags: [Cluster]
       operationId: updateCluster
+      summary: 更新集群标签
+      description: 更新指定集群的控制台标签。
       requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
       responses:
         '200': {description: 更新成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
@@ -187,6 +215,8 @@ paths:
     delete:
       tags: [Cluster]
       operationId: deleteCluster
+      summary: 删除集群登记
+      description: 删除已卸载的集群登记；在线集群不能删除。
       responses:
         '200': {description: 删除成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -198,7 +228,9 @@ paths:
     post:
       tags: [Cluster]
       operationId: reissueClusterToken
-      parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+      summary: 重新签发集群令牌
+      description: 为尚未完成注册的集群重新签发一次性安装令牌。
+      parameters: [{ $ref: '#/components/parameters/ClusterName' }]
       requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
       responses:
         '200': {description: 操作成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
@@ -210,7 +242,9 @@ paths:
     get:
       tags: [Cluster]
       operationId: getLatestInstallParams
-      parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+      summary: 查询最新安装参数
+      description: 查询指定集群最近一次生成的非敏感安装参数。
+      parameters: [{ $ref: '#/components/parameters/ClusterName' }]
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -220,7 +254,9 @@ paths:
     post:
       tags: [Cluster]
       operationId: createUninstallTask
-      parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+      summary: 创建集群卸载任务
+      description: 向在线集群下发卸载其成员组件的持久化任务。
+      parameters: [{ $ref: '#/components/parameters/ClusterName' }]
       responses:
         '200': {description: 操作成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -231,7 +267,9 @@ paths:
     get:
       tags: [Cluster]
       operationId: listUninstallTasks
-      parameters: [{ $ref: '#/components/parameters/PolicyName' }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' }]
+      summary: 查询集群卸载任务
+      description: 分页查询指定集群的卸载任务及失败原因。
+      parameters: [{ $ref: '#/components/parameters/ClusterName' }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' }]
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -241,12 +279,15 @@ paths:
     post:
       tags: [Cluster]
       operationId: retryUninstallTask
+      summary: 重试集群卸载任务
+      description: 重新投递失败的集群卸载任务。
       parameters:
-        - $ref: '#/components/parameters/PolicyName'
+        - $ref: '#/components/parameters/ClusterName'
         - name: taskID
           in: path
           required: true
-          schema: {type: integer, format: int64}
+          description: 卸载任务 ID
+          schema: {type: integer, format: int64, description: 卸载任务 ID, example: 7234567890123456789}
       responses:
         '200': {description: 操作成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -257,15 +298,19 @@ paths:
     get:
       tags: [Cluster]
       operationId: listInstallRecords
+      summary: 查询安装记录
+      description: 分页查询平台生成的集群安装参数记录。
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
         - name: sortBy
           in: query
-          schema: {type: string, enum: [clusterName, namespace, createdAt]}
+          description: 排序字段
+          schema: {type: string, enum: [clusterName, namespace, createdAt], description: 安装记录排序字段, example: createdAt}
         - name: sortOrder
           in: query
-          schema: {type: string, enum: [asc, desc], default: desc}
+          description: 排序方向
+          schema: {type: string, enum: [asc, desc], default: desc, description: 升序或降序, example: desc}
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -274,13 +319,17 @@ paths:
     get:
       tags: [Distribution]
       operationId: listDistributions
+      summary: 分页查询策略分发
+      description: 查询策略组到集群的分发配置。
       parameters:
         - name: page
           in: query
-          schema: {type: integer, minimum: 1, default: 1}
+          description: 页码，从 1 开始
+          schema: {type: integer, minimum: 1, default: 1, description: 当前页码, example: 1}
         - name: pageSize
           in: query
-          schema: {type: integer, enum: [10, 20, 50, 100], default: 20}
+          description: 每页数量
+          schema: {type: integer, enum: [10, 20, 50, 100], default: 20, description: 每页记录数, example: 20}
         - name: sortBy
           in: query
           schema: {type: string, enum: [name]}
@@ -293,6 +342,8 @@ paths:
     post:
       tags: [Distribution]
       operationId: createDistribution
+      summary: 创建策略分发
+      description: 创建策略组到指定集群范围的分发配置。
       requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
       responses:
         '200': {description: 创建成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
@@ -301,10 +352,12 @@ paths:
         '500': {$ref: '#/components/responses/InternalError'}
 
   /distributions/{name}:
-    parameters: [{ $ref: '#/components/parameters/PolicyName' }]
+    parameters: [{ $ref: '#/components/parameters/DistributionName' }]
     get:
       tags: [Distribution]
       operationId: getDistribution
+      summary: 查询策略分发详情
+      description: 查询指定策略分发的集群范围和策略组配置。
       responses:
         '200': {description: 查询成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -312,6 +365,8 @@ paths:
     put:
       tags: [Distribution]
       operationId: updateDistribution
+      summary: 更新策略分发
+      description: 更新策略分发的集群范围和策略组配置。
       requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
       responses:
         '200': {description: 更新成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
@@ -322,6 +377,8 @@ paths:
     delete:
       tags: [Distribution]
       operationId: deleteDistribution
+      summary: 删除策略分发
+      description: 删除指定策略分发配置。
       responses:
         '200': {description: 删除成功, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
         '404': {$ref: '#/components/responses/NotFound'}
