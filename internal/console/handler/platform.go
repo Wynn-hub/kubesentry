@@ -11,10 +11,7 @@ import (
 )
 
 func (h *Handler) platformInvoke(ctx context.Context, method, path string, body []byte) (map[string]jx.Raw, int, error) {
-	if h.svcs.LegacyInvoke == nil {
-		return nil, 503, nil
-	}
-	status, raw := h.svcs.LegacyInvoke(ctx, method, path, body)
+	status, raw := h.svcs.Platform.Invoke(ctx, method, path, body)
 	values := rawObject(raw)
 	return values, status, nil
 }

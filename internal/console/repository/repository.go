@@ -10,13 +10,36 @@ import (
 
 type DistributionRepository interface {
 	List(context.Context) ([]dbrepo.PolicyDistribution, error)
+	GetByName(context.Context, string) (*dbrepo.PolicyDistribution, error)
+	ListPage(context.Context, dbrepo.PageOptions) ([]dbrepo.PolicyDistribution, int64, error)
 	Create(context.Context, *dbrepo.PolicyDistribution) error
 	Update(context.Context, *dbrepo.PolicyDistribution) error
+	UpdateCAS(context.Context, int64, time.Time, map[string]any) error
 	Delete(context.Context, int64) error
 }
 type ClusterRepository interface {
+	Create(context.Context, *dbrepo.Cluster) error
 	GetByName(context.Context, string) (*dbrepo.Cluster, error)
+	ListPage(context.Context, dbrepo.PageOptions) ([]dbrepo.Cluster, int64, error)
 	CountByPhase(context.Context) (dbrepo.ClusterPhaseCounts, error)
+	UpdateLabels(context.Context, int64, map[string]string) error
+	UpdateRegToken(context.Context, int64, string) error
+	UpdatePhase(context.Context, int64, string) error
+	Delete(context.Context, int64) error
+}
+
+type InstallRecordRepository interface {
+	Create(context.Context, *dbrepo.ClusterInstallRecord) error
+	LatestForCluster(context.Context, string) (*dbrepo.ClusterInstallRecord, error)
+	ListPage(context.Context, dbrepo.PageOptions) ([]dbrepo.ClusterInstallRecord, int64, error)
+}
+
+type UninstallTaskRepository interface {
+	Create(context.Context, *dbrepo.UninstallTask) error
+	HasActive(context.Context, int64) (bool, error)
+	GetByID(context.Context, int64) (*dbrepo.UninstallTask, error)
+	ListByClusterID(context.Context, int64) ([]dbrepo.UninstallTask, error)
+	Retry(context.Context, int64, time.Time) error
 }
 
 type IncidentRepository interface {
@@ -38,14 +61,16 @@ type AdmissionRepository interface {
 // migrated resource domain; batches that haven't migrated yet keep using
 // gateway.Repos directly from the legacy handlers.
 type Repositories struct {
-	Policies      PolicyRepository
-	Groups        GroupRepository
-	PolicyGroups  PolicyGroupRepository
-	Exceptions    ExceptionRepository
-	Distributions DistributionRepository
-	Clusters      ClusterRepository
-	Incidents     IncidentRepository
-	Admission     AdmissionRepository
+	Policies       PolicyRepository
+	Groups         GroupRepository
+	PolicyGroups   PolicyGroupRepository
+	Exceptions     ExceptionRepository
+	Distributions  DistributionRepository
+	Clusters       ClusterRepository
+	InstallRecords InstallRecordRepository
+	UninstallTasks UninstallTaskRepository
+	Incidents      IncidentRepository
+	Admission      AdmissionRepository
 }
 
 // FromGatewayRepos narrows the shared gateway.Repos bundle down to the
@@ -54,13 +79,15 @@ type Repositories struct {
 // point rather than threading concrete repo types through the service layer.
 func FromGatewayRepos(r gateway.Repos) Repositories {
 	return Repositories{
-		Policies:      r.Policies,
-		Groups:        r.Groups,
-		PolicyGroups:  r.Groups,
-		Exceptions:    r.Exceptions,
-		Distributions: r.Distributions,
-		Clusters:      r.Clusters,
-		Incidents:     r.Incidents,
-		Admission:     r.Admission,
+		Policies:       r.Policies,
+		Groups:         r.Groups,
+		PolicyGroups:   r.Groups,
+		Exceptions:     r.Exceptions,
+		Distributions:  r.Distributions,
+		Clusters:       r.Clusters,
+		InstallRecords: r.InstallRecords,
+		UninstallTasks: r.UninstallTasks,
+		Incidents:      r.Incidents,
+		Admission:      r.Admission,
 	}
 }

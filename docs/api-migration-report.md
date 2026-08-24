@@ -22,16 +22,24 @@ gRPC and is indexed by `api/internal/gateway.yaml`.
 - Browser traffic uses the shared `/api/v1` transport.
 - Kubernetes member components remain CRD/controller based.
 
-## Remaining cleanup tracked by this report
+## Service boundaries
 
 - Keep generated TypeScript output synchronized with the console contract.
 - Keep the API Explorer and served OpenAPI document synchronized with the
   checked-in specification.
-- Remove the compatibility bridge once the remaining typed services are
-  complete.
+- Platform observability uses a narrow in-process service façade with no HTTP
+  route registration or `ResponseWriter` dependency. Cluster, install-record,
+  and distribution operations use typed services directly. The generated Ogen
+  server is the only HTTP router for all `/api/v1` operations.
 
 ## Verification record
 
-The final implementation must record fresh results for Go tests, `go vet`,
-frontend type-check/build, OpenAPI lint, operation coverage, and API Explorer
-smoke checks in the completion summary.
+The latest verification run completed successfully:
+
+- `go test -p 1 ./... -count=1`
+- `make lint` (`go vet ./...`)
+- `make api-lint` (50 console operations and 2 gateway operations)
+- `npm test -- --run` (102 tests)
+- `npm run build` (Vue type-check and production bundle)
+- API Explorer endpoint smoke tests, including `/api/docs/openapi.json` and
+  `/system/api-docs`

@@ -36,9 +36,9 @@ OpenAPI has no native gRPC-stream representation.
 
 ## Console-web dependencies
 
-The SPA calls the `/api/v1` contract through the shared Axios transport in
-`web/src/api/http.ts`. API models and operation wrappers are generated or
-derived from the OpenAPI contract under `web/src/api/generated`; page-specific
+The SPA calls the `/api/v1` contract through the shared `openapi-fetch`
+transport in `web/src/api/http.ts`. API models and operation wrappers are
+generated from the OpenAPI contract under `web/src/api/generated`; page-specific
 modules re-export those types and add validation for legacy response details.
 
 ## CRD resources
@@ -52,7 +52,8 @@ their reconcile/admission implementations remain in `internal/operator` and
 
 1. Keep the gRPC proto as the wire source of truth for streaming gateway calls.
 2. Keep all browser-facing calls behind the generated OpenAPI client.
-3. Remove the temporary `legacyPlatformInvoke` adapter after platform,
-   cluster, install-record, and distribution services expose typed methods.
+3. Keep the platform service façade narrow and repository-oriented; cluster,
+   install-record, distribution, and platform operations all enter the
+   generated handler through service-owned boundaries.
 4. Run OpenAPI lint and operation coverage checks in CI before generating Go or
    TypeScript clients.
