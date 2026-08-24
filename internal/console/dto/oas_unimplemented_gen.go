@@ -78,6 +78,15 @@ func (UnimplementedHandler) GetException(ctx context.Context, params GetExceptio
 	return r, ht.ErrNotImplemented
 }
 
+// GetFieldSchema implements getFieldSchema operation.
+//
+// 获取 Kubernetes 资源字段树.
+//
+// GET /schema/fields
+func (UnimplementedHandler) GetFieldSchema(ctx context.Context, params GetFieldSchemaParams) (r GetFieldSchemaRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetPolicy implements getPolicy operation.
 //
 // 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.

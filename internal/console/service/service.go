@@ -3,7 +3,12 @@
 // reach the database directly.
 package service
 
-import "github.com/Wynn-hub/kubesentry/internal/console/repository"
+import (
+	"context"
+
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
+	"github.com/Wynn-hub/kubesentry/internal/console/repository"
+)
 
 // Services is the bundle handlers receive. It grows one field per migrated
 // resource domain.
@@ -12,6 +17,7 @@ type Services struct {
 	PolicyGroup *PolicyGroupService
 	Exception   *ExceptionService
 	Summary     *SummaryService
+	Schema      func(context.Context, dto.GetFieldSchemaParams) ([]dto.FieldNode, error)
 }
 
 // New wires every service from the repository bundle and an optional Notifier.

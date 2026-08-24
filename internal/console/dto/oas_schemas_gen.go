@@ -1067,6 +1067,195 @@ func (s *ExceptionStatusPhase) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/FieldNode
+type FieldNode struct {
+	// 字段名称.
+	Name string `json:"name"`
+	// 字段类型.
+	Type FieldNodeType `json:"type"`
+	// 是否为数组.
+	IsArray bool `json:"isArray"`
+	// 是否为映射.
+	IsMap bool `json:"isMap"`
+	// 映射值类型.
+	MapValueType OptString `json:"mapValueType"`
+	// 子字段.
+	Children []FieldNode `json:"children"`
+}
+
+// GetName returns the value of Name.
+func (s *FieldNode) GetName() string {
+	return s.Name
+}
+
+// GetType returns the value of Type.
+func (s *FieldNode) GetType() FieldNodeType {
+	return s.Type
+}
+
+// GetIsArray returns the value of IsArray.
+func (s *FieldNode) GetIsArray() bool {
+	return s.IsArray
+}
+
+// GetIsMap returns the value of IsMap.
+func (s *FieldNode) GetIsMap() bool {
+	return s.IsMap
+}
+
+// GetMapValueType returns the value of MapValueType.
+func (s *FieldNode) GetMapValueType() OptString {
+	return s.MapValueType
+}
+
+// GetChildren returns the value of Children.
+func (s *FieldNode) GetChildren() []FieldNode {
+	return s.Children
+}
+
+// SetName sets the value of Name.
+func (s *FieldNode) SetName(val string) {
+	s.Name = val
+}
+
+// SetType sets the value of Type.
+func (s *FieldNode) SetType(val FieldNodeType) {
+	s.Type = val
+}
+
+// SetIsArray sets the value of IsArray.
+func (s *FieldNode) SetIsArray(val bool) {
+	s.IsArray = val
+}
+
+// SetIsMap sets the value of IsMap.
+func (s *FieldNode) SetIsMap(val bool) {
+	s.IsMap = val
+}
+
+// SetMapValueType sets the value of MapValueType.
+func (s *FieldNode) SetMapValueType(val OptString) {
+	s.MapValueType = val
+}
+
+// SetChildren sets the value of Children.
+func (s *FieldNode) SetChildren(val []FieldNode) {
+	s.Children = val
+}
+
+// 字段类型.
+type FieldNodeType string
+
+const (
+	FieldNodeTypeString  FieldNodeType = "string"
+	FieldNodeTypeInteger FieldNodeType = "integer"
+	FieldNodeTypeNumber  FieldNodeType = "number"
+	FieldNodeTypeBoolean FieldNodeType = "boolean"
+	FieldNodeTypeArray   FieldNodeType = "array"
+	FieldNodeTypeObject  FieldNodeType = "object"
+)
+
+// AllValues returns all FieldNodeType values.
+func (FieldNodeType) AllValues() []FieldNodeType {
+	return []FieldNodeType{
+		FieldNodeTypeString,
+		FieldNodeTypeInteger,
+		FieldNodeTypeNumber,
+		FieldNodeTypeBoolean,
+		FieldNodeTypeArray,
+		FieldNodeTypeObject,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FieldNodeType) MarshalText() ([]byte, error) {
+	switch s {
+	case FieldNodeTypeString:
+		return []byte(s), nil
+	case FieldNodeTypeInteger:
+		return []byte(s), nil
+	case FieldNodeTypeNumber:
+		return []byte(s), nil
+	case FieldNodeTypeBoolean:
+		return []byte(s), nil
+	case FieldNodeTypeArray:
+		return []byte(s), nil
+	case FieldNodeTypeObject:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FieldNodeType) UnmarshalText(data []byte) error {
+	switch FieldNodeType(data) {
+	case FieldNodeTypeString:
+		*s = FieldNodeTypeString
+		return nil
+	case FieldNodeTypeInteger:
+		*s = FieldNodeTypeInteger
+		return nil
+	case FieldNodeTypeNumber:
+		*s = FieldNodeTypeNumber
+		return nil
+	case FieldNodeTypeBoolean:
+		*s = FieldNodeTypeBoolean
+		return nil
+	case FieldNodeTypeArray:
+		*s = FieldNodeTypeArray
+		return nil
+	case FieldNodeTypeObject:
+		*s = FieldNodeTypeObject
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/FieldSchemaResponse
+type FieldSchemaResponse struct {
+	// 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100.
+	Code int `json:"code"`
+	// 结果描述。成功时固定为 success.
+	Message string `json:"message"`
+	// 字段树.
+	Data []FieldNode `json:"data"`
+}
+
+// GetCode returns the value of Code.
+func (s *FieldSchemaResponse) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *FieldSchemaResponse) GetMessage() string {
+	return s.Message
+}
+
+// GetData returns the value of Data.
+func (s *FieldSchemaResponse) GetData() []FieldNode {
+	return s.Data
+}
+
+// SetCode sets the value of Code.
+func (s *FieldSchemaResponse) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *FieldSchemaResponse) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetData sets the value of Data.
+func (s *FieldSchemaResponse) SetData(val []FieldNode) {
+	s.Data = val
+}
+
+func (*FieldSchemaResponse) getFieldSchemaRes() {}
+
 type GetExceptionInternalServerError ErrorResponse
 
 func (*GetExceptionInternalServerError) getExceptionRes() {}
@@ -1074,6 +1263,14 @@ func (*GetExceptionInternalServerError) getExceptionRes() {}
 type GetExceptionNotFound ErrorResponse
 
 func (*GetExceptionNotFound) getExceptionRes() {}
+
+type GetFieldSchemaBadGateway ErrorResponse
+
+func (*GetFieldSchemaBadGateway) getFieldSchemaRes() {}
+
+type GetFieldSchemaBadRequest ErrorResponse
+
+func (*GetFieldSchemaBadRequest) getFieldSchemaRes() {}
 
 type GetPolicyGroupInternalServerError ErrorResponse
 

@@ -29,6 +29,10 @@ type GetExceptionRes interface {
 	getExceptionRes()
 }
 
+type GetFieldSchemaRes interface {
+	getFieldSchemaRes()
+}
+
 type GetPolicyGroupRes interface {
 	getPolicyGroupRes()
 }

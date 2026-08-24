@@ -1,0 +1,21 @@
+components:
+  schemas:
+    FieldNode:
+      type: object
+      required: [name, type, isArray, isMap, children]
+      properties:
+        name: {type: string, description: 字段名称, example: spec}
+        type: {type: string, description: 字段类型, enum: [string, integer, number, boolean, array, object], example: object}
+        isArray: {type: boolean, description: 是否为数组, example: false}
+        isMap: {type: boolean, description: 是否为映射, example: false}
+        mapValueType: {type: string, description: 映射值类型, example: string}
+        children: {type: array, description: 子字段, items: {$ref: '#/components/schemas/FieldNode'}}
+    FieldSchemaResponse:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              description: 字段树
+              items: {$ref: '#/components/schemas/FieldNode'}

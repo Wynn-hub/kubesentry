@@ -120,6 +120,35 @@ components:
             $ref: '../schemas/common.yaml#/components/schemas/ErrorResponse'
 
 paths:
+  /schema/fields:
+    get:
+      tags: [Summary]
+      operationId: getFieldSchema
+      summary: 获取 Kubernetes 资源字段树
+      parameters:
+        - name: group
+          in: query
+          description: API 组，核心组为空
+          schema: {type: string, description: API 组, example: apps}
+        - name: version
+          in: query
+          required: true
+          description: API 版本
+          schema: {type: string, description: API 版本, example: v1}
+        - name: resource
+          in: query
+          required: true
+          description: 资源复数名
+          schema: {type: string, description: 资源名称, example: deployments}
+        - name: refresh
+          in: query
+          description: 是否强制刷新缓存
+          schema: {type: boolean, default: false, description: 刷新缓存, example: false}
+      responses:
+        '200': {description: 查询成功, content: {application/json: {schema: {$ref: '../schemas/schema.yaml#/components/schemas/FieldSchemaResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '502': {$ref: '#/components/responses/InternalError'}
+
   /summary:
     get:
       tags: [Summary]

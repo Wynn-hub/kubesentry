@@ -52,6 +52,12 @@ type Handler interface {
 	//
 	// GET /exceptions/{name}
 	GetException(ctx context.Context, params GetExceptionParams) (GetExceptionRes, error)
+	// GetFieldSchema implements getFieldSchema operation.
+	//
+	// 获取 Kubernetes 资源字段树.
+	//
+	// GET /schema/fields
+	GetFieldSchema(ctx context.Context, params GetFieldSchemaParams) (GetFieldSchemaRes, error)
 	// GetPolicy implements getPolicy operation.
 	//
 	// 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。.

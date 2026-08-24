@@ -49,7 +49,6 @@ func (h *Handlers) RegisterLegacy(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/platform/leadership-events", h.platformLeadershipEvents)
 	mux.HandleFunc("GET /api/v1/platform/settings", h.getPlatformSettings)
 	mux.HandleFunc("PUT /api/v1/platform/settings", h.updatePlatformSettings)
-	mux.HandleFunc("GET /api/v1/schema/fields", h.getFieldSchema)
 	mux.HandleFunc("GET /api/v1/clusters", h.listClusters)
 	mux.HandleFunc("POST /api/v1/clusters", h.createCluster)
 	mux.HandleFunc("GET /api/v1/clusters/{name}", h.getCluster)
@@ -95,6 +94,7 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 
 	if h.Repos.Policies != nil {
 		svcs := service.New(repository.FromGatewayRepos(h.Repos), h.notifier())
+		svcs.Schema = h.fieldSchema
 		ogenServer, err := dto.NewServer(
 			handler.New(svcs),
 			dto.WithPathPrefix("/api/v1"),
@@ -110,6 +110,7 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		mux.Handle("/api/v1/exceptions", ogenServer)
 		mux.Handle("/api/v1/exceptions/", ogenServer)
 		mux.Handle("/api/v1/summary", ogenServer)
+		mux.Handle("/api/v1/schema/fields", ogenServer)
 	}
 	h.RegisterLegacy(mux)
 

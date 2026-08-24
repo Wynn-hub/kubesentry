@@ -337,6 +337,218 @@ func decodeGetExceptionParams(args [1]string, argsEscaped bool, r *http.Request)
 	return params, nil
 }
 
+// GetFieldSchemaParams is parameters of getFieldSchema operation.
+type GetFieldSchemaParams struct {
+	// API 组，核心组为空.
+	Group OptString `json:",omitempty,omitzero"`
+	// API 版本.
+	Version string
+	// 资源复数名.
+	Resource string
+	// 是否强制刷新缓存.
+	Refresh OptBool `json:",omitempty,omitzero"`
+}
+
+func unpackGetFieldSchemaParams(packed middleware.Parameters) (params GetFieldSchemaParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "group",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Group = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "version",
+			In:   "query",
+		}
+		params.Version = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "resource",
+			In:   "query",
+		}
+		params.Resource = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "refresh",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Refresh = v.(OptBool)
+		}
+	}
+	return params
+}
+
+func decodeGetFieldSchemaParams(args [0]string, argsEscaped bool, r *http.Request) (params GetFieldSchemaParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: group.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "group",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotGroupVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotGroupVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Group.SetTo(paramsDotGroupVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "group",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: version.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "version",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Version = c
+				return nil
+			}); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "version",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: resource.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "resource",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Resource = c
+				return nil
+			}); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "resource",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Set default value for query: refresh.
+	{
+		val := bool(false)
+		params.Refresh.SetTo(val)
+	}
+	// Decode query: refresh.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "refresh",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotRefreshVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotRefreshVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Refresh.SetTo(paramsDotRefreshVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "refresh",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetPolicyParams is parameters of getPolicy operation.
 type GetPolicyParams struct {
 	// 策略名称.

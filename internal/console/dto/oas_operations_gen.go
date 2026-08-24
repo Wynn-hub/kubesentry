@@ -13,6 +13,7 @@ const (
 	DeletePolicyOperation           OperationName = "DeletePolicy"
 	DeletePolicyGroupOperation      OperationName = "DeletePolicyGroup"
 	GetExceptionOperation           OperationName = "GetException"
+	GetFieldSchemaOperation         OperationName = "GetFieldSchema"
 	GetPolicyOperation              OperationName = "GetPolicy"
 	GetPolicyGroupOperation         OperationName = "GetPolicyGroup"
 	GetResourceSuggestionsOperation OperationName = "GetResourceSuggestions"
