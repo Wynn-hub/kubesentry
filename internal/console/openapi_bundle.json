@@ -3718,7 +3718,13 @@
             ]
           },
           "bySelector": {
-            "$ref": "#/components/schemas/KubernetesLabelSelector"
+            "$ref": "#/components/schemas/KubernetesLabelSelector",
+            "description": "按 Kubernetes 标签选择器引用策略",
+            "example": {
+              "matchLabels": {
+                "team": "platform"
+              }
+            }
           },
           "exclude": {
             "type": "array",

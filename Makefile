@@ -124,6 +124,7 @@ api-bundle:
 
 api-lint:
 	python3 scripts/check_openapi_contract.py
+	python3 scripts/bundle_openapi_test.py
 	python3 scripts/bundle_openapi.py --check
 	cd web && npm run generate:api
 

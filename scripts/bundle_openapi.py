@@ -113,14 +113,14 @@ def bundle() -> dict[str, Any]:
                     kind, name = address
                     import_component(target_source, kind, name)
                     local_name = local_component_name(target_source, kind, name)
-                    value = {"$ref": f"#/components/{kind}/{local_name}"}
+                    value["$ref"] = f"#/components/{kind}/{local_name}"
                 else:
                     value = visit(deepcopy(resolve_pointer(load(target_source, documents), pointer)), target_source)
             elif current_source != source and address:
                 kind, name = address
                 import_component(current_source, kind, name)
                 local_name = local_component_name(current_source, kind, name)
-                value = {"$ref": f"#/components/{kind}/{local_name}"}
+                value["$ref"] = f"#/components/{kind}/{local_name}"
 
         for key in list(value):
             value[key] = visit(value[key], current_source)

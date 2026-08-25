@@ -34,6 +34,10 @@ class BundleOpenAPITest(unittest.TestCase):
             cluster_empty = document["paths"]["/clusters/{name}"]["delete"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
             policy_empty = document["paths"]["/policies/{name}"]["delete"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
             self.assertNotEqual(cluster_empty, policy_empty, "same-named external components must not overwrite each other")
+            by_selector = document["components"]["schemas"]["PolicyGroupPolicies"]["properties"]["bySelector"]
+            self.assertEqual(by_selector["$ref"], "#/components/schemas/KubernetesLabelSelector")
+            self.assertEqual(by_selector["description"], "按 Kubernetes 标签选择器引用策略")
+            self.assertEqual(by_selector["example"], {"matchLabels": {"team": "platform"}})
 
 
 def assert_internal_refs_resolve(test: unittest.TestCase, root: object, value: object) -> None:
