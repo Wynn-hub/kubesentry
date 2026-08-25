@@ -29,8 +29,16 @@
       "description": "平台资源摘要"
     },
     {
-      "name": "Admission",
-      "description": "准入事件、存储设置与链路异常"
+      "name": "AdmissionEvent",
+      "description": "准入事件、趋势与存储设置"
+    },
+    {
+      "name": "LinkIncident",
+      "description": "准入事件投递链路异常"
+    },
+    {
+      "name": "Schema",
+      "description": "策略可视化编辑器的 Kubernetes 字段定义"
     },
     {
       "name": "Platform",
@@ -213,6 +221,36 @@
       }
     },
     "schemas": {
+      "ResourceID": {
+        "type": "string",
+        "pattern": "^[0-9]+$",
+        "description": "Snowflake 生成的 64 位整数 ID，以字符串传输避免 JavaScript 数字精度丢失",
+        "example": "7234567890123456789"
+      },
+      "ErrorResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "details": {
+                "type": "array",
+                "description": "错误明细列表。参数校验失败时逐条列出问题字段",
+                "items": {
+                  "type": "string",
+                  "description": "单条错误明细",
+                  "example": "invalid pageSize: must be one of 10, 20, 50, 100"
+                }
+              },
+              "data": {
+                "$ref": "#/components/schemas/ReferencedByData"
+              }
+            }
+          }
+        ]
+      },
       "Envelope": {
         "type": "object",
         "required": [
@@ -231,6 +269,75 @@
             "example": "success"
           }
         }
+      },
+      "ReferencedByData": {
+        "type": "object",
+        "description": "删除被引用资源时附带的引用方列表",
+        "required": [
+          "referencedBy"
+        ],
+        "properties": {
+          "referencedBy": {
+            "type": "array",
+            "description": "仍引用目标资源的对象名称",
+            "items": {
+              "type": "string",
+              "description": "引用方名称",
+              "example": "baseline-group"
+            },
+            "example": [
+              "baseline-group"
+            ]
+          }
+        }
+      },
+      "ClusterListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PageMeta"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "items"
+                    ],
+                    "properties": {
+                      "items": {
+                        "type": "array",
+                        "description": "集群列表",
+                        "items": {
+                          "$ref": "#/components/schemas/ClusterListItem"
+                        },
+                        "example": [
+                          {
+                            "name": "production-east",
+                            "phase": "Online",
+                            "operatorVersion": "v1.0.0",
+                            "kubernetesVersion": "v1.31.0",
+                            "nodeCount": 12,
+                            "readyNodeCount": 11,
+                            "createdAt": "2026-08-24T07:00:00Z"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
       },
       "PageMeta": {
         "type": "object",
@@ -262,18 +369,6 @@
             "example": 20
           }
         }
-      },
-      "ClusterPhase": {
-        "type": "string",
-        "description": "集群连接与卸载阶段",
-        "enum": [
-          "Registering",
-          "Online",
-          "Offline",
-          "Uninstalling",
-          "Uninstalled"
-        ],
-        "example": "Online"
       },
       "ClusterListItem": {
         "type": "object",
@@ -329,126 +424,42 @@
           }
         }
       },
-      "ClusterListResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PageMeta"
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "items"
-                    ],
-                    "properties": {
-                      "items": {
-                        "type": "array",
-                        "description": "集群列表",
-                        "items": {
-                          "$ref": "#/components/schemas/ClusterListItem"
-                        },
-                        "example": [
-                          {
-                            "name": "production-east",
-                            "phase": "Online",
-                            "operatorVersion": "v1.0.0",
-                            "kubernetesVersion": "v1.31.0",
-                            "nodeCount": 12,
-                            "readyNodeCount": 11,
-                            "createdAt": "2026-08-24T07:00:00Z"
-                          }
-                        ]
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
+      "ClusterPhase": {
+        "type": "string",
+        "description": "集群连接与卸载阶段",
+        "enum": [
+          "Registering",
+          "Online",
+          "Offline",
+          "Uninstalling",
+          "Uninstalled"
+        ],
+        "example": "Online"
       },
-      "ReferencedByData": {
+      "ClusterCreateRequest": {
         "type": "object",
-        "description": "删除被引用资源时附带的引用方列表",
         "required": [
-          "referencedBy"
+          "name",
+          "installParams"
         ],
         "properties": {
-          "referencedBy": {
-            "type": "array",
-            "description": "仍引用目标资源的对象名称",
-            "items": {
-              "type": "string",
-              "description": "引用方名称",
-              "example": "baseline-group"
+          "name": {
+            "type": "string",
+            "description": "DNS 子域格式的集群名称",
+            "example": "production-east"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
             },
-            "example": [
-              "baseline-group"
-            ]
-          }
-        }
-      },
-      "ErrorResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "details": {
-                "type": "array",
-                "description": "错误明细列表。参数校验失败时逐条列出问题字段",
-                "items": {
-                  "type": "string",
-                  "description": "单条错误明细",
-                  "example": "invalid pageSize: must be one of 10, 20, 50, 100"
-                }
-              },
-              "data": {
-                "$ref": "#/components/schemas/ReferencedByData"
-              }
+            "description": "控制台管理的集群标签映射",
+            "example": {
+              "environment": "production"
             }
-          }
-        ]
-      },
-      "ImageParams": {
-        "type": "object",
-        "required": [
-          "repository",
-          "tag",
-          "pullPolicy"
-        ],
-        "properties": {
-          "repository": {
-            "type": "string",
-            "description": "容器镜像仓库",
-            "example": "ghcr.io/wynn-hub/kubesentry-webhook"
           },
-          "tag": {
-            "type": "string",
-            "description": "容器镜像标签",
-            "example": "v1.0.0"
-          },
-          "pullPolicy": {
-            "type": "string",
-            "description": "Kubernetes 镜像拉取策略",
-            "enum": [
-              "Always",
-              "IfNotPresent",
-              "Never"
-            ],
-            "example": "IfNotPresent"
+          "installParams": {
+            "$ref": "#/components/schemas/InstallParams"
           }
         }
       },
@@ -495,32 +506,53 @@
           }
         }
       },
-      "ClusterCreateRequest": {
+      "ImageParams": {
         "type": "object",
         "required": [
-          "name",
-          "installParams"
+          "repository",
+          "tag",
+          "pullPolicy"
         ],
         "properties": {
-          "name": {
+          "repository": {
             "type": "string",
-            "description": "DNS 子域格式的集群名称",
-            "example": "production-east"
+            "description": "容器镜像仓库",
+            "example": "ghcr.io/wynn-hub/kubesentry-webhook"
           },
-          "labels": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "控制台管理的集群标签映射",
-            "example": {
-              "environment": "production"
-            }
+          "tag": {
+            "type": "string",
+            "description": "容器镜像标签",
+            "example": "v1.0.0"
           },
-          "installParams": {
-            "$ref": "#/components/schemas/InstallParams"
+          "pullPolicy": {
+            "type": "string",
+            "description": "Kubernetes 镜像拉取策略",
+            "enum": [
+              "Always",
+              "IfNotPresent",
+              "Never"
+            ],
+            "example": "IfNotPresent"
           }
         }
+      },
+      "ClusterCommandResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/ClusterCommand"
+              }
+            }
+          }
+        ]
       },
       "ClusterCommand": {
         "type": "object",
@@ -541,7 +573,7 @@
           }
         }
       },
-      "ClusterCommandResponse": {
+      "ClusterDetailResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -553,7 +585,7 @@
             ],
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/ClusterCommand"
+                "$ref": "#/components/schemas/ClusterDetail"
               }
             }
           }
@@ -643,24 +675,6 @@
           }
         }
       },
-      "ClusterDetailResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/ClusterDetail"
-              }
-            }
-          }
-        ]
-      },
       "ClusterLabelsRequest": {
         "type": "object",
         "required": [
@@ -676,19 +690,6 @@
             "example": {
               "environment": "production"
             }
-          }
-        }
-      },
-      "ClusterNameData": {
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "操作目标集群名称",
-            "example": "production-east"
           }
         }
       },
@@ -709,6 +710,19 @@
             }
           }
         ]
+      },
+      "ClusterNameData": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "操作目标集群名称",
+            "example": "production-east"
+          }
+        }
       },
       "EmptyResponse": {
         "allOf": [
@@ -747,11 +761,23 @@
           }
         ]
       },
-      "ResourceID": {
-        "type": "string",
-        "pattern": "^[0-9]+$",
-        "description": "Snowflake 生成的 64 位整数 ID，以字符串传输避免 JavaScript 数字精度丢失",
-        "example": "7234567890123456789"
+      "UninstallTaskResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/UninstallTask"
+              }
+            }
+          }
+        ]
       },
       "UninstallTask": {
         "type": "object",
@@ -795,24 +821,6 @@
           }
         }
       },
-      "UninstallTaskResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/UninstallTask"
-              }
-            }
-          }
-        ]
-      },
       "UninstallTaskListResponse": {
         "allOf": [
           {
@@ -836,17 +844,6 @@
           }
         ]
       },
-      "UninstallTaskIDData": {
-        "type": "object",
-        "required": [
-          "id"
-        ],
-        "properties": {
-          "id": {
-            "$ref": "#/components/schemas/ResourceID"
-          }
-        }
-      },
       "UninstallTaskIDResponse": {
         "allOf": [
           {
@@ -860,6 +857,67 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/UninstallTaskIDData"
+              }
+            }
+          }
+        ]
+      },
+      "UninstallTaskIDData": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ResourceID"
+          }
+        }
+      },
+      "InstallRecordListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PageMeta"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "items"
+                    ],
+                    "properties": {
+                      "items": {
+                        "type": "array",
+                        "description": "安装记录列表",
+                        "items": {
+                          "$ref": "#/components/schemas/InstallRecord"
+                        },
+                        "example": [
+                          {
+                            "clusterName": "production-east",
+                            "namespace": "kubesentry-system",
+                            "webhookRepository": "ghcr.io/wynn-hub/kubesentry-webhook",
+                            "webhookTag": "v1.0.0",
+                            "operatorRepository": "ghcr.io/wynn-hub/kubesentry-operator",
+                            "operatorTag": "v1.0.0",
+                            "highAvailability": true,
+                            "gatewayAddress": "kubesentry-gateway.default.svc:8443",
+                            "createdAt": "2026-08-24T07:00:00Z"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
               }
             }
           }
@@ -927,82 +985,6 @@
           }
         }
       },
-      "InstallRecordListResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PageMeta"
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "items"
-                    ],
-                    "properties": {
-                      "items": {
-                        "type": "array",
-                        "description": "安装记录列表",
-                        "items": {
-                          "$ref": "#/components/schemas/InstallRecord"
-                        },
-                        "example": [
-                          {
-                            "clusterName": "production-east",
-                            "namespace": "kubesentry-system",
-                            "webhookRepository": "ghcr.io/wynn-hub/kubesentry-webhook",
-                            "webhookTag": "v1.0.0",
-                            "operatorRepository": "ghcr.io/wynn-hub/kubesentry-operator",
-                            "operatorTag": "v1.0.0",
-                            "highAvailability": true,
-                            "gatewayAddress": "kubesentry-gateway.default.svc:8443",
-                            "createdAt": "2026-08-24T07:00:00Z"
-                          }
-                        ]
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
-      },
-      "DistributionListItem": {
-        "type": "object",
-        "required": [
-          "name",
-          "policyGroups"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "策略分发名称",
-            "example": "production-baseline"
-          },
-          "policyGroups": {
-            "type": "array",
-            "description": "分发的策略组名称",
-            "items": {
-              "type": "string",
-              "description": "策略组名称",
-              "example": "baseline"
-            },
-            "example": [
-              "baseline"
-            ]
-          }
-        }
-      },
       "DistributionListResponse": {
         "allOf": [
           {
@@ -1048,69 +1030,50 @@
           }
         ]
       },
-      "KubernetesLabelSelectorRequirement": {
+      "DistributionListItem": {
         "type": "object",
         "required": [
-          "key",
-          "operator"
+          "name",
+          "policyGroups"
         ],
         "properties": {
-          "key": {
+          "name": {
             "type": "string",
-            "description": "Kubernetes 标签键",
-            "example": "environment"
+            "description": "策略分发名称",
+            "example": "production-baseline"
           },
-          "operator": {
-            "type": "string",
-            "description": "标签选择运算符",
-            "enum": [
-              "In",
-              "NotIn",
-              "Exists",
-              "DoesNotExist"
-            ],
-            "example": "In"
-          },
-          "values": {
+          "policyGroups": {
             "type": "array",
-            "description": "In 或 NotIn 运算符使用的标签值",
+            "description": "分发的策略组名称",
             "items": {
               "type": "string",
-              "description": "标签值",
-              "example": "production"
+              "description": "策略组名称",
+              "example": "baseline"
             },
             "example": [
-              "production"
+              "baseline"
             ]
           }
         }
       },
-      "KubernetesLabelSelector": {
+      "DistributionRequest": {
         "type": "object",
-        "description": "Kubernetes LabelSelector，按标签精确值或表达式筛选资源",
-        "example": {
-          "matchLabels": {
-            "environment": "production"
-          }
-        },
+        "required": [
+          "spec"
+        ],
         "properties": {
-          "matchLabels": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "精确匹配的标签映射",
-            "example": {
-              "environment": "production"
-            }
+          "name": {
+            "type": "string",
+            "description": "创建时使用的策略分发名称",
+            "example": "production-baseline"
           },
-          "matchExpressions": {
-            "type": "array",
-            "description": "表达式形式的标签选择条件",
-            "items": {
-              "$ref": "#/components/schemas/KubernetesLabelSelectorRequirement"
-            },
-            "example": []
+          "spec": {
+            "$ref": "#/components/schemas/DistributionSpec"
+          },
+          "resourceVersion": {
+            "type": "string",
+            "description": "更新时使用的乐观并发版本",
+            "example": "1785920264123456789"
           }
         }
       },
@@ -1210,37 +1173,69 @@
           }
         }
       },
-      "DistributionRequest": {
+      "KubernetesLabelSelector": {
         "type": "object",
-        "required": [
-          "spec"
-        ],
+        "description": "Kubernetes LabelSelector，按标签精确值或表达式筛选资源",
+        "example": {
+          "matchLabels": {
+            "environment": "production"
+          }
+        },
         "properties": {
-          "name": {
-            "type": "string",
-            "description": "创建时使用的策略分发名称",
-            "example": "production-baseline"
+          "matchLabels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "精确匹配的标签映射",
+            "example": {
+              "environment": "production"
+            }
           },
-          "spec": {
-            "$ref": "#/components/schemas/DistributionSpec"
-          },
-          "resourceVersion": {
-            "type": "string",
-            "description": "更新时使用的乐观并发版本",
-            "example": "1785920264123456789"
+          "matchExpressions": {
+            "type": "array",
+            "description": "表达式形式的标签选择条件",
+            "items": {
+              "$ref": "#/components/schemas/KubernetesLabelSelectorRequirement"
+            },
+            "example": []
           }
         }
       },
-      "DistributionNameData": {
+      "KubernetesLabelSelectorRequirement": {
         "type": "object",
         "required": [
-          "name"
+          "key",
+          "operator"
         ],
         "properties": {
-          "name": {
+          "key": {
             "type": "string",
-            "description": "操作目标策略分发名称",
-            "example": "production-baseline"
+            "description": "Kubernetes 标签键",
+            "example": "environment"
+          },
+          "operator": {
+            "type": "string",
+            "description": "标签选择运算符",
+            "enum": [
+              "In",
+              "NotIn",
+              "Exists",
+              "DoesNotExist"
+            ],
+            "example": "In"
+          },
+          "values": {
+            "type": "array",
+            "description": "In 或 NotIn 运算符使用的标签值",
+            "items": {
+              "type": "string",
+              "description": "标签值",
+              "example": "production"
+            },
+            "example": [
+              "production"
+            ]
           }
         }
       },
@@ -1257,6 +1252,37 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/DistributionNameData"
+              }
+            }
+          }
+        ]
+      },
+      "DistributionNameData": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "操作目标策略分发名称",
+            "example": "production-baseline"
+          }
+        }
+      },
+      "DistributionDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/DistributionDetail"
               }
             }
           }
@@ -1285,7 +1311,18 @@
           }
         }
       },
-      "DistributionDetailResponse": {
+      "DistributionEmptyResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "description": "成功但无返回数据的响应"
+          }
+        ]
+      },
+      "PlatformOverviewResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -1297,22 +1334,79 @@
             ],
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/DistributionDetail"
+                "$ref": "#/components/schemas/PlatformOverview"
               }
             }
           }
         ]
       },
-      "DistributionEmptyResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
+      "PlatformOverview": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "platformHealth",
+          "gatewayPlane",
+          "memberPlane"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "是否启用了平台观测采样",
+            "example": true
           },
-          {
+          "platformHealth": {
+            "$ref": "#/components/schemas/PlatformOverviewHealth"
+          },
+          "gatewayPlane": {
+            "type": "array",
+            "description": "Gateway 平面组件状态",
+            "items": {
+              "$ref": "#/components/schemas/PlatformComponent"
+            },
+            "example": []
+          },
+          "memberPlane": {
             "type": "object",
-            "description": "成功但无返回数据的响应"
+            "description": "成员集群面按页汇总的组件状态",
+            "example": {
+              "clusters": [],
+              "total": 3,
+              "page": 1,
+              "pageSize": 20
+            },
+            "required": [
+              "clusters",
+              "total",
+              "page",
+              "pageSize"
+            ],
+            "properties": {
+              "clusters": {
+                "type": "array",
+                "description": "当前页成员集群状态",
+                "items": {
+                  "$ref": "#/components/schemas/PlatformCluster"
+                },
+                "example": []
+              },
+              "total": {
+                "type": "integer",
+                "description": "符合筛选条件的成员集群总数",
+                "example": 3
+              },
+              "page": {
+                "type": "integer",
+                "description": "当前页码",
+                "example": 1
+              },
+              "pageSize": {
+                "type": "integer",
+                "description": "每页集群数",
+                "example": 20
+              }
+            }
           }
-        ]
+        }
       },
       "PlatformOverviewHealth": {
         "type": "string",
@@ -1325,6 +1419,70 @@
         ],
         "example": "ok"
       },
+      "PlatformComponent": {
+        "type": "object",
+        "required": [
+          "component",
+          "health",
+          "healthReason",
+          "hasLeadership",
+          "noLeader",
+          "singleReplica",
+          "instances"
+        ],
+        "properties": {
+          "component": {
+            "type": "string",
+            "description": "平台组件名称",
+            "enum": [
+              "gateway",
+              "postgres",
+              "console-api",
+              "console-web",
+              "operator",
+              "webhook"
+            ],
+            "example": "gateway"
+          },
+          "health": {
+            "$ref": "#/components/schemas/PlatformComponentHealth"
+          },
+          "healthReason": {
+            "type": "string",
+            "description": "组件健康状态原因",
+            "example": "all instances are healthy"
+          },
+          "hasLeadership": {
+            "type": "boolean",
+            "description": "组件是否使用领导选举",
+            "example": true
+          },
+          "noLeader": {
+            "type": "boolean",
+            "description": "是否检测到没有 leader",
+            "example": false
+          },
+          "singleReplica": {
+            "type": "boolean",
+            "description": "是否只有一个副本",
+            "example": false
+          },
+          "instances": {
+            "type": "array",
+            "description": "组件实例列表",
+            "items": {
+              "$ref": "#/components/schemas/PlatformInstance"
+            },
+            "example": []
+          },
+          "lastLeadershipChange": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最近一次领导权变更时间",
+            "example": "2026-08-24T07:00:00Z"
+          }
+        }
+      },
       "PlatformComponentHealth": {
         "type": "string",
         "description": "平台组件聚合健康状态",
@@ -1335,98 +1493,6 @@
           "pending"
         ],
         "example": "ok"
-      },
-      "PlatformInstanceHealth": {
-        "type": "string",
-        "description": "单个组件实例健康状态",
-        "enum": [
-          "ok",
-          "degraded",
-          "no_data"
-        ],
-        "example": "ok"
-      },
-      "DatabaseStats": {
-        "type": "object",
-        "description": "PostgreSQL 实例采集的数据库与 Go SQL 连接池统计",
-        "required": [
-          "connections",
-          "maxConnections",
-          "transactions",
-          "rollbacks",
-          "cacheHitRatio",
-          "databaseBytes",
-          "poolInUse",
-          "poolIdle",
-          "poolWaitCount",
-          "poolWaitSeconds"
-        ],
-        "example": {
-          "connections": 4,
-          "maxConnections": 100,
-          "transactions": 1234,
-          "rollbacks": 2,
-          "cacheHitRatio": 0.998,
-          "databaseBytes": 268435456,
-          "poolInUse": 1,
-          "poolIdle": 3,
-          "poolWaitCount": 0,
-          "poolWaitSeconds": 0
-        },
-        "properties": {
-          "connections": {
-            "type": "integer",
-            "description": "PostgreSQL 当前后端连接数",
-            "example": 4
-          },
-          "maxConnections": {
-            "type": "integer",
-            "description": "PostgreSQL 配置允许的最大连接数",
-            "example": 100
-          },
-          "transactions": {
-            "type": "integer",
-            "description": "当前数据库累计已提交事务数",
-            "example": 1234
-          },
-          "rollbacks": {
-            "type": "integer",
-            "description": "当前数据库累计回滚事务数",
-            "example": 2
-          },
-          "cacheHitRatio": {
-            "type": "number",
-            "format": "double",
-            "description": "PostgreSQL 缓冲区缓存命中率",
-            "example": 0.998
-          },
-          "databaseBytes": {
-            "type": "integer",
-            "description": "当前 PostgreSQL 数据库大小（字节）",
-            "example": 268435456
-          },
-          "poolInUse": {
-            "type": "integer",
-            "description": "Go SQL 连接池正在使用的连接数",
-            "example": 1
-          },
-          "poolIdle": {
-            "type": "integer",
-            "description": "Go SQL 连接池空闲连接数",
-            "example": 3
-          },
-          "poolWaitCount": {
-            "type": "integer",
-            "description": "Go SQL 连接池累计等待连接次数",
-            "example": 0
-          },
-          "poolWaitSeconds": {
-            "type": "number",
-            "format": "double",
-            "description": "Go SQL 连接池累计等待时间（秒）",
-            "example": 0
-          }
-        }
       },
       "PlatformInstance": {
         "type": "object",
@@ -1520,79 +1586,97 @@
           }
         }
       },
-      "PlatformComponent": {
-        "type": "object",
-        "required": [
-          "component",
-          "health",
-          "healthReason",
-          "hasLeadership",
-          "noLeader",
-          "singleReplica",
-          "instances"
-        ],
-        "properties": {
-          "component": {
-            "type": "string",
-            "description": "平台组件名称",
-            "enum": [
-              "gateway",
-              "postgres",
-              "console-api",
-              "console-web",
-              "operator",
-              "webhook"
-            ],
-            "example": "gateway"
-          },
-          "health": {
-            "$ref": "#/components/schemas/PlatformComponentHealth"
-          },
-          "healthReason": {
-            "type": "string",
-            "description": "组件健康状态原因",
-            "example": "all instances are healthy"
-          },
-          "hasLeadership": {
-            "type": "boolean",
-            "description": "组件是否使用领导选举",
-            "example": true
-          },
-          "noLeader": {
-            "type": "boolean",
-            "description": "是否检测到没有 leader",
-            "example": false
-          },
-          "singleReplica": {
-            "type": "boolean",
-            "description": "是否只有一个副本",
-            "example": false
-          },
-          "instances": {
-            "type": "array",
-            "description": "组件实例列表",
-            "items": {
-              "$ref": "#/components/schemas/PlatformInstance"
-            },
-            "example": []
-          },
-          "lastLeadershipChange": {
-            "type": "string",
-            "format": "date-time",
-            "description": "最近一次领导权变更时间",
-            "example": "2026-08-24T07:00:00Z"
-          }
-        }
-      },
-      "PlatformClusterHealth": {
+      "PlatformInstanceHealth": {
         "type": "string",
-        "description": "成员集群组件聚合健康状态",
+        "description": "单个组件实例健康状态",
         "enum": [
           "ok",
           "degraded",
-          "unavailable"
+          "no_data"
         ],
         "example": "ok"
+      },
+      "DatabaseStats": {
+        "type": "object",
+        "description": "PostgreSQL 实例采集的数据库与 Go SQL 连接池统计",
+        "required": [
+          "connections",
+          "maxConnections",
+          "transactions",
+          "rollbacks",
+          "cacheHitRatio",
+          "databaseBytes",
+          "poolInUse",
+          "poolIdle",
+          "poolWaitCount",
+          "poolWaitSeconds"
+        ],
+        "example": {
+          "connections": 4,
+          "maxConnections": 100,
+          "transactions": 1234,
+          "rollbacks": 2,
+          "cacheHitRatio": 0.998,
+          "databaseBytes": 268435456,
+          "poolInUse": 1,
+          "poolIdle": 3,
+          "poolWaitCount": 0,
+          "poolWaitSeconds": 0
+        },
+        "properties": {
+          "connections": {
+            "type": "integer",
+            "description": "PostgreSQL 当前后端连接数",
+            "example": 4
+          },
+          "maxConnections": {
+            "type": "integer",
+            "description": "PostgreSQL 配置允许的最大连接数",
+            "example": 100
+          },
+          "transactions": {
+            "type": "integer",
+            "description": "当前数据库累计已提交事务数",
+            "example": 1234
+          },
+          "rollbacks": {
+            "type": "integer",
+            "description": "当前数据库累计回滚事务数",
+            "example": 2
+          },
+          "cacheHitRatio": {
+            "type": "number",
+            "format": "double",
+            "description": "PostgreSQL 缓冲区缓存命中率",
+            "example": 0.998
+          },
+          "databaseBytes": {
+            "type": "integer",
+            "description": "当前 PostgreSQL 数据库大小（字节）",
+            "example": 268435456
+          },
+          "poolInUse": {
+            "type": "integer",
+            "description": "Go SQL 连接池正在使用的连接数",
+            "example": 1
+          },
+          "poolIdle": {
+            "type": "integer",
+            "description": "Go SQL 连接池空闲连接数",
+            "example": 3
+          },
+          "poolWaitCount": {
+            "type": "integer",
+            "description": "Go SQL 连接池累计等待连接次数",
+            "example": 0
+          },
+          "poolWaitSeconds": {
+            "type": "number",
+            "format": "double",
+            "description": "Go SQL 连接池累计等待时间（秒）",
+            "example": 0
+          }
+        }
       },
       "PlatformCluster": {
         "type": "object",
@@ -1632,75 +1716,17 @@
           }
         }
       },
-      "PlatformOverview": {
-        "type": "object",
-        "required": [
-          "enabled",
-          "platformHealth",
-          "gatewayPlane",
-          "memberPlane"
+      "PlatformClusterHealth": {
+        "type": "string",
+        "description": "成员集群组件聚合健康状态",
+        "enum": [
+          "ok",
+          "degraded",
+          "unavailable"
         ],
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "description": "是否启用了平台观测采样",
-            "example": true
-          },
-          "platformHealth": {
-            "$ref": "#/components/schemas/PlatformOverviewHealth"
-          },
-          "gatewayPlane": {
-            "type": "array",
-            "description": "Gateway 平面组件状态",
-            "items": {
-              "$ref": "#/components/schemas/PlatformComponent"
-            },
-            "example": []
-          },
-          "memberPlane": {
-            "type": "object",
-            "description": "成员集群面按页汇总的组件状态",
-            "example": {
-              "clusters": [],
-              "total": 3,
-              "page": 1,
-              "pageSize": 20
-            },
-            "required": [
-              "clusters",
-              "total",
-              "page",
-              "pageSize"
-            ],
-            "properties": {
-              "clusters": {
-                "type": "array",
-                "description": "当前页成员集群状态",
-                "items": {
-                  "$ref": "#/components/schemas/PlatformCluster"
-                },
-                "example": []
-              },
-              "total": {
-                "type": "integer",
-                "description": "符合筛选条件的成员集群总数",
-                "example": 3
-              },
-              "page": {
-                "type": "integer",
-                "description": "当前页码",
-                "example": 1
-              },
-              "pageSize": {
-                "type": "integer",
-                "description": "每页集群数",
-                "example": 20
-              }
-            }
-          }
-        }
+        "example": "ok"
       },
-      "PlatformOverviewResponse": {
+      "PlatformTrendResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -1712,11 +1738,47 @@
             ],
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/PlatformOverview"
+                "$ref": "#/components/schemas/PlatformTrend"
               }
             }
           }
         ]
+      },
+      "PlatformTrend": {
+        "type": "object",
+        "required": [
+          "items",
+          "stepSeconds",
+          "from",
+          "to"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "时间序列采样点",
+            "items": {
+              "$ref": "#/components/schemas/PlatformTrendPoint"
+            },
+            "example": []
+          },
+          "stepSeconds": {
+            "type": "integer",
+            "description": "相邻聚合桶时间间隔（秒）",
+            "example": 300
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "实际查询起始时间",
+            "example": "2026-08-24T07:00:00Z"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "实际查询结束时间",
+            "example": "2026-08-24T08:00:00Z"
+          }
+        }
       },
       "PlatformTrendPoint": {
         "type": "object",
@@ -1756,43 +1818,7 @@
           }
         }
       },
-      "PlatformTrend": {
-        "type": "object",
-        "required": [
-          "items",
-          "stepSeconds",
-          "from",
-          "to"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "description": "时间序列采样点",
-            "items": {
-              "$ref": "#/components/schemas/PlatformTrendPoint"
-            },
-            "example": []
-          },
-          "stepSeconds": {
-            "type": "integer",
-            "description": "相邻聚合桶时间间隔（秒）",
-            "example": 300
-          },
-          "from": {
-            "type": "string",
-            "format": "date-time",
-            "description": "实际查询起始时间",
-            "example": "2026-08-24T07:00:00Z"
-          },
-          "to": {
-            "type": "string",
-            "format": "date-time",
-            "description": "实际查询结束时间",
-            "example": "2026-08-24T08:00:00Z"
-          }
-        }
-      },
-      "PlatformTrendResponse": {
+      "LeadershipEventListResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -1804,7 +1830,27 @@
             ],
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/PlatformTrend"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PageMeta"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "items"
+                    ],
+                    "properties": {
+                      "items": {
+                        "type": "array",
+                        "description": "领导权事件列表",
+                        "items": {
+                          "$ref": "#/components/schemas/LeadershipEvent"
+                        },
+                        "example": []
+                      }
+                    }
+                  }
+                ]
               }
             }
           }
@@ -1885,7 +1931,7 @@
           }
         }
       },
-      "LeadershipEventListResponse": {
+      "PlatformSettingsResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -1897,27 +1943,7 @@
             ],
             "properties": {
               "data": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PageMeta"
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "items"
-                    ],
-                    "properties": {
-                      "items": {
-                        "type": "array",
-                        "description": "领导权事件列表",
-                        "items": {
-                          "$ref": "#/components/schemas/LeadershipEvent"
-                        },
-                        "example": []
-                      }
-                    }
-                  }
-                ]
+                "$ref": "#/components/schemas/PlatformSettings"
               }
             }
           }
@@ -1949,24 +1975,6 @@
           }
         }
       },
-      "PlatformSettingsResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/PlatformSettings"
-              }
-            }
-          }
-        ]
-      },
       "PlatformSettingsRequest": {
         "type": "object",
         "required": [
@@ -1986,6 +1994,25 @@
             "example": 30
           }
         }
+      },
+      "FieldSchemaResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "description": "字段树",
+                "items": {
+                  "$ref": "#/components/schemas/FieldNode"
+                }
+              }
+            }
+          }
+        ]
       },
       "FieldNode": {
         "type": "object",
@@ -2039,7 +2066,7 @@
           }
         }
       },
-      "FieldSchemaResponse": {
+      "SummaryResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -2048,58 +2075,11 @@
             "type": "object",
             "properties": {
               "data": {
-                "type": "array",
-                "description": "字段树",
-                "items": {
-                  "$ref": "#/components/schemas/FieldNode"
-                }
+                "$ref": "#/components/schemas/SummaryData"
               }
             }
           }
         ]
-      },
-      "SummaryGroup": {
-        "type": "object",
-        "required": [
-          "name",
-          "displayName",
-          "enabled",
-          "resolvedCount",
-          "enforceCount",
-          "auditCount"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "策略组名称",
-            "example": "default"
-          },
-          "displayName": {
-            "type": "string",
-            "description": "显示名称",
-            "example": "Default policies"
-          },
-          "enabled": {
-            "type": "boolean",
-            "description": "是否启用",
-            "example": true
-          },
-          "resolvedCount": {
-            "type": "integer",
-            "description": "生效策略数量",
-            "example": 12
-          },
-          "enforceCount": {
-            "type": "integer",
-            "description": "强制策略数量",
-            "example": 8
-          },
-          "auditCount": {
-            "type": "integer",
-            "description": "审计策略数量",
-            "example": 4
-          }
-        }
       },
       "SummaryData": {
         "type": "object",
@@ -2157,7 +2137,50 @@
           }
         }
       },
-      "SummaryResponse": {
+      "SummaryGroup": {
+        "type": "object",
+        "required": [
+          "name",
+          "displayName",
+          "enabled",
+          "resolvedCount",
+          "enforceCount",
+          "auditCount"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "策略组名称",
+            "example": "default"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "显示名称",
+            "example": "Default policies"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "是否启用",
+            "example": true
+          },
+          "resolvedCount": {
+            "type": "integer",
+            "description": "生效策略数量",
+            "example": 12
+          },
+          "enforceCount": {
+            "type": "integer",
+            "description": "强制策略数量",
+            "example": 8
+          },
+          "auditCount": {
+            "type": "integer",
+            "description": "审计策略数量",
+            "example": 4
+          }
+        }
+      },
+      "AdmissionEventListResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -2166,7 +2189,30 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/SummaryData"
+                "$ref": "#/components/schemas/AdmissionEventListData"
+              }
+            }
+          }
+        ]
+      },
+      "AdmissionEventListData": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "description": "准入事件列表",
+                "example": [],
+                "items": {
+                  "$ref": "#/components/schemas/AdmissionEventItem"
+                }
               }
             }
           }
@@ -2280,30 +2326,7 @@
           }
         }
       },
-      "AdmissionEventListData": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PageMeta"
-          },
-          {
-            "type": "object",
-            "required": [
-              "items"
-            ],
-            "properties": {
-              "items": {
-                "type": "array",
-                "description": "准入事件列表",
-                "example": [],
-                "items": {
-                  "$ref": "#/components/schemas/AdmissionEventItem"
-                }
-              }
-            }
-          }
-        ]
-      },
-      "AdmissionEventListResponse": {
+      "AdmissionEventDetailResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -2312,7 +2335,7 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/AdmissionEventListData"
+                "$ref": "#/components/schemas/AdmissionEventDetail"
               }
             }
           }
@@ -2390,7 +2413,7 @@
           }
         ]
       },
-      "AdmissionEventDetailResponse": {
+      "AdmissionEventTrendResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -2399,7 +2422,12 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/AdmissionEventDetail"
+                "type": "array",
+                "description": "准入事件趋势数据",
+                "example": [],
+                "items": {
+                  "$ref": "#/components/schemas/AdmissionEventTrendItem"
+                }
               }
             }
           }
@@ -2436,7 +2464,7 @@
           }
         }
       },
-      "AdmissionEventTrendResponse": {
+      "AdmissionEventSettingsResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -2445,16 +2473,78 @@
             "type": "object",
             "properties": {
               "data": {
-                "type": "array",
-                "description": "准入事件趋势数据",
-                "example": [],
-                "items": {
-                  "$ref": "#/components/schemas/AdmissionEventTrendItem"
-                }
+                "$ref": "#/components/schemas/AdmissionEventSettings"
               }
             }
           }
         ]
+      },
+      "AdmissionEventSettings": {
+        "type": "object",
+        "required": [
+          "defaultRetentionDays",
+          "retryEnabled",
+          "maxRetryAttempts",
+          "queueCapacity",
+          "incidentRetentionDays",
+          "observationEnabled",
+          "storagePolicyVersion",
+          "storagePolicies"
+        ],
+        "properties": {
+          "defaultRetentionDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365,
+            "description": "默认事件保存天数",
+            "example": 30
+          },
+          "retryEnabled": {
+            "type": "boolean",
+            "description": "是否重试上报失败事件",
+            "example": true
+          },
+          "maxRetryAttempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "最大重试次数",
+            "example": 3
+          },
+          "queueCapacity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "description": "Operator 内存队列容量",
+            "example": 1000
+          },
+          "incidentRetentionDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365,
+            "description": "链路异常保存天数",
+            "example": 30
+          },
+          "observationEnabled": {
+            "type": "boolean",
+            "description": "是否启用准入事件观测",
+            "example": true
+          },
+          "storagePolicyVersion": {
+            "type": "integer",
+            "format": "int64",
+            "description": "存储策略版本",
+            "example": 4
+          },
+          "storagePolicies": {
+            "type": "array",
+            "description": "事件存储匹配规则",
+            "example": [],
+            "items": {
+              "$ref": "#/components/schemas/AdmissionStoragePolicy"
+            }
+          }
+        }
       },
       "AdmissionStoragePolicy": {
         "type": "object",
@@ -2529,88 +2619,6 @@
           }
         }
       },
-      "AdmissionEventSettings": {
-        "type": "object",
-        "required": [
-          "defaultRetentionDays",
-          "retryEnabled",
-          "maxRetryAttempts",
-          "queueCapacity",
-          "incidentRetentionDays",
-          "observationEnabled",
-          "storagePolicyVersion",
-          "storagePolicies"
-        ],
-        "properties": {
-          "defaultRetentionDays": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 365,
-            "description": "默认事件保存天数",
-            "example": 30
-          },
-          "retryEnabled": {
-            "type": "boolean",
-            "description": "是否重试上报失败事件",
-            "example": true
-          },
-          "maxRetryAttempts": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 100,
-            "description": "最大重试次数",
-            "example": 3
-          },
-          "queueCapacity": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 10000,
-            "description": "Operator 内存队列容量",
-            "example": 1000
-          },
-          "incidentRetentionDays": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 365,
-            "description": "链路异常保存天数",
-            "example": 30
-          },
-          "observationEnabled": {
-            "type": "boolean",
-            "description": "是否启用准入事件观测",
-            "example": true
-          },
-          "storagePolicyVersion": {
-            "type": "integer",
-            "format": "int64",
-            "description": "存储策略版本",
-            "example": 4
-          },
-          "storagePolicies": {
-            "type": "array",
-            "description": "事件存储匹配规则",
-            "example": [],
-            "items": {
-              "$ref": "#/components/schemas/AdmissionStoragePolicy"
-            }
-          }
-        }
-      },
-      "AdmissionEventSettingsResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/AdmissionEventSettings"
-              }
-            }
-          }
-        ]
-      },
       "AdmissionEventSettingsRequest": {
         "type": "object",
         "required": [
@@ -2664,6 +2672,44 @@
             }
           }
         }
+      },
+      "AdmissionLinkIncidentListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/AdmissionLinkIncidentListData"
+              }
+            }
+          }
+        ]
+      },
+      "AdmissionLinkIncidentListData": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "description": "链路异常列表",
+                "example": [],
+                "items": {
+                  "$ref": "#/components/schemas/AdmissionLinkIncidentItem"
+                }
+              }
+            }
+          }
+        ]
       },
       "AdmissionLinkIncidentItem": {
         "type": "object",
@@ -2737,30 +2783,7 @@
           }
         }
       },
-      "AdmissionLinkIncidentListData": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PageMeta"
-          },
-          {
-            "type": "object",
-            "required": [
-              "items"
-            ],
-            "properties": {
-              "items": {
-                "type": "array",
-                "description": "链路异常列表",
-                "example": [],
-                "items": {
-                  "$ref": "#/components/schemas/AdmissionLinkIncidentItem"
-                }
-              }
-            }
-          }
-        ]
-      },
-      "AdmissionLinkIncidentListResponse": {
+      "AdmissionLinkIncidentDetailResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -2769,33 +2792,11 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/AdmissionLinkIncidentListData"
+                "$ref": "#/components/schemas/AdmissionLinkIncidentDetail"
               }
             }
           }
         ]
-      },
-      "AdmissionLinkIncidentSample": {
-        "type": "object",
-        "required": [
-          "eventId",
-          "expired"
-        ],
-        "properties": {
-          "eventId": {
-            "type": "string",
-            "description": "事件标识",
-            "example": "event-abc"
-          },
-          "eventDatabaseId": {
-            "$ref": "#/components/schemas/ResourceID"
-          },
-          "expired": {
-            "type": "boolean",
-            "description": "关联准入事件是否已过期清理",
-            "example": false
-          }
-        }
       },
       "AdmissionLinkIncidentDetail": {
         "allOf": [
@@ -2825,7 +2826,29 @@
           }
         ]
       },
-      "AdmissionLinkIncidentDetailResponse": {
+      "AdmissionLinkIncidentSample": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "expired"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "description": "事件标识",
+            "example": "event-abc"
+          },
+          "eventDatabaseId": {
+            "$ref": "#/components/schemas/ResourceID"
+          },
+          "expired": {
+            "type": "boolean",
+            "description": "关联准入事件是否已过期清理",
+            "example": false
+          }
+        }
+      },
+      "PolicyListResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -2834,7 +2857,29 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/AdmissionLinkIncidentDetail"
+                "$ref": "#/components/schemas/PolicyListData"
+              }
+            }
+          }
+        ]
+      },
+      "PolicyListData": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "description": "当前页的策略列表",
+                "items": {
+                  "$ref": "#/components/schemas/PolicyListItem"
+                }
               }
             }
           }
@@ -2903,124 +2948,6 @@
           }
         }
       },
-      "PolicyListData": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PageMeta"
-          },
-          {
-            "type": "object",
-            "required": [
-              "items"
-            ],
-            "properties": {
-              "items": {
-                "type": "array",
-                "description": "当前页的策略列表",
-                "items": {
-                  "$ref": "#/components/schemas/PolicyListItem"
-                }
-              }
-            }
-          }
-        ]
-      },
-      "PolicyListResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/PolicyListData"
-              }
-            }
-          }
-        ]
-      },
-      "MatchResource": {
-        "type": "object",
-        "required": [
-          "apiGroups",
-          "apiVersions",
-          "resources"
-        ],
-        "properties": {
-          "apiGroups": {
-            "type": "array",
-            "description": "匹配的 API 组。核心组用空字符串表示，星号 * 匹配全部组\n（见 internal/webhook/cache.go:190）\n",
-            "items": {
-              "type": "string",
-              "description": "单个 API 组，或 * 表示全部",
-              "example": "apps"
-            },
-            "example": [
-              "apps"
-            ]
-          },
-          "apiVersions": {
-            "type": "array",
-            "description": "匹配的 API 版本",
-            "items": {
-              "type": "string",
-              "description": "单个 API 版本",
-              "example": "v1"
-            },
-            "example": [
-              "v1"
-            ]
-          },
-          "resources": {
-            "type": "array",
-            "description": "匹配的资源类型，使用复数形式。星号 * 匹配全部资源\n（见 internal/webhook/cache.go:189）\n",
-            "items": {
-              "type": "string",
-              "description": "单个资源类型，或 * 表示全部",
-              "example": "deployments"
-            },
-            "example": [
-              "deployments"
-            ]
-          }
-        }
-      },
-      "PolicyMatch": {
-        "type": "object",
-        "required": [
-          "operations",
-          "resources"
-        ],
-        "properties": {
-          "operations": {
-            "type": "array",
-            "description": "匹配的准入操作类型",
-            "items": {
-              "type": "string",
-              "enum": [
-                "CREATE",
-                "UPDATE",
-                "DELETE",
-                "CONNECT"
-              ],
-              "description": "单个操作类型",
-              "example": "CREATE"
-            },
-            "example": [
-              "CREATE",
-              "UPDATE"
-            ]
-          },
-          "resources": {
-            "type": "array",
-            "description": "匹配的资源规则列表，任一规则命中即匹配",
-            "items": {
-              "$ref": "#/components/schemas/MatchResource"
-            }
-          }
-        }
-      },
       "PolicyRequest": {
         "type": "object",
         "required": [
@@ -3085,16 +3012,84 @@
           }
         }
       },
-      "PolicyNameData": {
+      "PolicyMatch": {
         "type": "object",
         "required": [
-          "name"
+          "operations",
+          "resources"
         ],
         "properties": {
-          "name": {
-            "type": "string",
-            "description": "受影响策略的名称",
-            "example": "deny-privileged-pod"
+          "operations": {
+            "type": "array",
+            "description": "匹配的准入操作类型",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CREATE",
+                "UPDATE",
+                "DELETE",
+                "CONNECT"
+              ],
+              "description": "单个操作类型",
+              "example": "CREATE"
+            },
+            "example": [
+              "CREATE",
+              "UPDATE"
+            ]
+          },
+          "resources": {
+            "type": "array",
+            "description": "匹配的资源规则列表，任一规则命中即匹配",
+            "items": {
+              "$ref": "#/components/schemas/MatchResource"
+            }
+          }
+        }
+      },
+      "MatchResource": {
+        "type": "object",
+        "required": [
+          "apiGroups",
+          "apiVersions",
+          "resources"
+        ],
+        "properties": {
+          "apiGroups": {
+            "type": "array",
+            "description": "匹配的 API 组。核心组用空字符串表示，星号 * 匹配全部组\n（见 internal/webhook/cache.go:190）\n",
+            "items": {
+              "type": "string",
+              "description": "单个 API 组，或 * 表示全部",
+              "example": "apps"
+            },
+            "example": [
+              "apps"
+            ]
+          },
+          "apiVersions": {
+            "type": "array",
+            "description": "匹配的 API 版本",
+            "items": {
+              "type": "string",
+              "description": "单个 API 版本",
+              "example": "v1"
+            },
+            "example": [
+              "v1"
+            ]
+          },
+          "resources": {
+            "type": "array",
+            "description": "匹配的资源类型，使用复数形式。星号 * 匹配全部资源\n（见 internal/webhook/cache.go:189）\n",
+            "items": {
+              "type": "string",
+              "description": "单个资源类型，或 * 表示全部",
+              "example": "deployments"
+            },
+            "example": [
+              "deployments"
+            ]
           }
         }
       },
@@ -3108,6 +3103,34 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/PolicyNameData"
+              }
+            }
+          }
+        ]
+      },
+      "PolicyNameData": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "受影响策略的名称",
+            "example": "deny-privileged-pod"
+          }
+        }
+      },
+      "ResourceSuggestionsResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/ResourceSuggestions"
               }
             }
           }
@@ -3183,21 +3206,6 @@
           }
         }
       },
-      "ResourceSuggestionsResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/ResourceSuggestions"
-              }
-            }
-          }
-        ]
-      },
       "ValidateRegoRequest": {
         "type": "object",
         "required": [
@@ -3211,13 +3219,28 @@
           }
         }
       },
-      "schemas-EmptyResponse": {
+      "policy-EmptyResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
           }
         ],
         "description": "无数据体的成功响应。data 字段被省略"
+      },
+      "PolicyDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/PolicyDetail"
+              }
+            }
+          }
+        ]
       },
       "PolicyDetail": {
         "type": "object",
@@ -3340,7 +3363,7 @@
           }
         }
       },
-      "PolicyDetailResponse": {
+      "PolicyVersionListResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -3349,11 +3372,62 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/PolicyDetail"
+                "$ref": "#/components/schemas/PolicyVersionList"
               }
             }
           }
         ]
+      },
+      "PolicyVersionList": {
+        "type": "object",
+        "required": [
+          "currentVersion",
+          "cursor",
+          "head",
+          "inFlight",
+          "prevEnabled",
+          "nextEnabled",
+          "versions"
+        ],
+        "properties": {
+          "currentVersion": {
+            "type": "integer",
+            "description": "当前生效的版本号。无版本记录时为 0",
+            "example": 3
+          },
+          "cursor": {
+            "type": "integer",
+            "description": "逻辑时间线中的当前位置；同步回滚时等于 currentVersion",
+            "example": 3
+          },
+          "head": {
+            "type": "integer",
+            "description": "逻辑时间线中的最新版本；同步回滚时等于 currentVersion",
+            "example": 3
+          },
+          "inFlight": {
+            "type": "boolean",
+            "description": "是否存在尚未完成的异步回滚",
+            "example": false
+          },
+          "prevEnabled": {
+            "type": "boolean",
+            "description": "是否可以回滚到上一个版本",
+            "example": true
+          },
+          "nextEnabled": {
+            "type": "boolean",
+            "description": "是否可以前进到下一个逻辑版本",
+            "example": false
+          },
+          "versions": {
+            "type": "array",
+            "description": "版本快照列表，按版本号倒序",
+            "items": {
+              "$ref": "#/components/schemas/PolicyVersionEntry"
+            }
+          }
+        }
       },
       "PolicyVersionEntry": {
         "type": "object",
@@ -3411,72 +3485,6 @@
           }
         }
       },
-      "PolicyVersionList": {
-        "type": "object",
-        "required": [
-          "currentVersion",
-          "cursor",
-          "head",
-          "inFlight",
-          "prevEnabled",
-          "nextEnabled",
-          "versions"
-        ],
-        "properties": {
-          "currentVersion": {
-            "type": "integer",
-            "description": "当前生效的版本号。无版本记录时为 0",
-            "example": 3
-          },
-          "cursor": {
-            "type": "integer",
-            "description": "逻辑时间线中的当前位置；同步回滚时等于 currentVersion",
-            "example": 3
-          },
-          "head": {
-            "type": "integer",
-            "description": "逻辑时间线中的最新版本；同步回滚时等于 currentVersion",
-            "example": 3
-          },
-          "inFlight": {
-            "type": "boolean",
-            "description": "是否存在尚未完成的异步回滚",
-            "example": false
-          },
-          "prevEnabled": {
-            "type": "boolean",
-            "description": "是否可以回滚到上一个版本",
-            "example": true
-          },
-          "nextEnabled": {
-            "type": "boolean",
-            "description": "是否可以前进到下一个逻辑版本",
-            "example": false
-          },
-          "versions": {
-            "type": "array",
-            "description": "版本快照列表，按版本号倒序",
-            "items": {
-              "$ref": "#/components/schemas/PolicyVersionEntry"
-            }
-          }
-        }
-      },
-      "PolicyVersionListResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/PolicyVersionList"
-              }
-            }
-          }
-        ]
-      },
       "RollbackRequest": {
         "type": "object",
         "required": [
@@ -3493,6 +3501,21 @@
             "example": "prev"
           }
         }
+      },
+      "RollbackResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/RollbackResult"
+              }
+            }
+          }
+        ]
       },
       "RollbackResult": {
         "type": "object",
@@ -3513,7 +3536,7 @@
           }
         }
       },
-      "RollbackResponse": {
+      "PolicyGroupListResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -3522,7 +3545,29 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/RollbackResult"
+                "$ref": "#/components/schemas/PolicyGroupListData"
+              }
+            }
+          }
+        ]
+      },
+      "PolicyGroupListData": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "description": "策略组列表",
+                "items": {
+                  "$ref": "#/components/schemas/PolicyGroupListItem"
+                }
               }
             }
           }
@@ -3579,102 +3624,44 @@
           }
         }
       },
-      "PolicyGroupListData": {
+      "PolicyGroupRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PageMeta"
+            "$ref": "#/components/schemas/PolicyGroupSpec"
           },
           {
             "type": "object",
-            "required": [
-              "items"
-            ],
             "properties": {
-              "items": {
+              "name": {
+                "type": "string",
+                "description": "创建时的策略组名称，更新时忽略",
+                "example": "baseline"
+              },
+              "resourceVersion": {
+                "type": "string",
+                "description": "更新时使用的乐观并发版本",
+                "example": "1785920264123456789"
+              },
+              "allClusters": {
+                "type": "boolean",
+                "description": "是否作用于全部在线集群",
+                "example": true
+              },
+              "clusterNames": {
                 "type": "array",
-                "description": "策略组列表",
+                "description": "指定作用集群",
                 "items": {
-                  "$ref": "#/components/schemas/PolicyGroupListItem"
-                }
+                  "type": "string",
+                  "description": "集群名称",
+                  "example": "production"
+                },
+                "example": [
+                  "production"
+                ]
               }
             }
           }
         ]
-      },
-      "PolicyGroupListResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/PolicyGroupListData"
-              }
-            }
-          }
-        ]
-      },
-      "PolicyRef": {
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "被引用的策略名称",
-            "example": "deny-privileged-pod"
-          },
-          "enforcementMode": {
-            "type": "string",
-            "enum": [
-              "enforce",
-              "audit"
-            ],
-            "description": "覆盖该策略在策略组中的执行模式",
-            "example": "enforce"
-          }
-        }
-      },
-      "PolicyGroupPolicies": {
-        "type": "object",
-        "properties": {
-          "byName": {
-            "type": "array",
-            "description": "按名称引用的策略",
-            "items": {
-              "$ref": "#/components/schemas/PolicyRef"
-            },
-            "example": [
-              {
-                "name": "deny-privileged-pod"
-              }
-            ]
-          },
-          "bySelector": {
-            "$ref": "#/components/schemas/KubernetesLabelSelector",
-            "description": "按 Kubernetes 标签选择器引用策略",
-            "example": {
-              "matchLabels": {
-                "team": "platform"
-              }
-            }
-          },
-          "exclude": {
-            "type": "array",
-            "description": "排除的策略名称",
-            "items": {
-              "type": "string",
-              "description": "策略名称",
-              "example": "host-network"
-            },
-            "example": [
-              "host-network"
-            ]
-          }
-        }
       },
       "PolicyGroupSpec": {
         "type": "object",
@@ -3715,46 +3702,39 @@
           }
         }
       },
-      "PolicyGroupRequest": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PolicyGroupSpec"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string",
-                "description": "创建时的策略组名称，更新时忽略",
-                "example": "baseline"
-              },
-              "resourceVersion": {
-                "type": "string",
-                "description": "更新时使用的乐观并发版本",
-                "example": "1785920264123456789"
-              },
-              "allClusters": {
-                "type": "boolean",
-                "description": "是否作用于全部在线集群",
-                "example": true
-              },
-              "clusterNames": {
-                "type": "array",
-                "description": "指定作用集群",
-                "items": {
-                  "type": "string",
-                  "description": "集群名称",
-                  "example": "production"
-                },
-                "example": [
-                  "production"
-                ]
+      "PolicyGroupPolicies": {
+        "type": "object",
+        "properties": {
+          "byName": {
+            "type": "array",
+            "description": "按名称引用的策略",
+            "items": {
+              "$ref": "#/components/schemas/PolicyRef"
+            },
+            "example": [
+              {
+                "name": "deny-privileged-pod"
               }
-            }
+            ]
+          },
+          "bySelector": {
+            "$ref": "#/components/schemas/KubernetesLabelSelector"
+          },
+          "exclude": {
+            "type": "array",
+            "description": "排除的策略名称",
+            "items": {
+              "type": "string",
+              "description": "策略名称",
+              "example": "host-network"
+            },
+            "example": [
+              "host-network"
+            ]
           }
-        ]
+        }
       },
-      "PolicyGroupNameData": {
+      "PolicyRef": {
         "type": "object",
         "required": [
           "name"
@@ -3762,8 +3742,17 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "策略组名称",
-            "example": "baseline"
+            "description": "被引用的策略名称",
+            "example": "deny-privileged-pod"
+          },
+          "enforcementMode": {
+            "type": "string",
+            "enum": [
+              "enforce",
+              "audit"
+            ],
+            "description": "覆盖该策略在策略组中的执行模式",
+            "example": "enforce"
           }
         }
       },
@@ -3782,94 +3771,33 @@
           }
         ]
       },
-      "EffectiveMember": {
+      "PolicyGroupNameData": {
         "type": "object",
         "required": [
-          "name",
-          "enforcementMode",
-          "source"
+          "name"
         ],
         "properties": {
           "name": {
             "type": "string",
-            "description": "生效策略名称",
-            "example": "deny-privileged-pod"
-          },
-          "enforcementMode": {
-            "type": "string",
-            "enum": [
-              "enforce",
-              "audit"
-            ],
-            "description": "生效执行模式",
-            "example": "enforce"
-          },
-          "source": {
-            "type": "string",
-            "description": "策略来源",
-            "enum": [
-              "builtin",
-              "custom"
-            ],
-            "example": "builtin"
+            "description": "策略组名称",
+            "example": "baseline"
           }
         }
       },
-      "PolicyGroupStatus": {
-        "type": "object",
-        "required": [
-          "phase",
-          "resolvedCount",
-          "resolvedPolicies"
-        ],
-        "properties": {
-          "phase": {
-            "type": "string",
-            "enum": [
-              "Ready",
-              "Invalid"
-            ],
-            "description": "策略组解析状态",
-            "example": "Ready"
+      "PolicyGroupDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
           },
-          "resolvedCount": {
-            "type": "integer",
-            "description": "解析出的策略数量",
-            "example": 12
-          },
-          "resolvedPolicies": {
-            "type": "array",
-            "description": "解析后的策略成员",
-            "items": {
-              "$ref": "#/components/schemas/EffectiveMember"
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/PolicyGroupDetail"
+              }
             }
           }
-        }
-      },
-      "PolicyGroupScope": {
-        "type": "object",
-        "required": [
-          "allClusters"
-        ],
-        "properties": {
-          "allClusters": {
-            "type": "boolean",
-            "description": "是否作用于全部在线集群",
-            "example": true
-          },
-          "clusterNames": {
-            "type": "array",
-            "description": "指定作用集群名称",
-            "items": {
-              "type": "string",
-              "description": "集群名称",
-              "example": "production"
-            },
-            "example": [
-              "production"
-            ]
-          }
-        }
+        ]
       },
       "PolicyGroupDetail": {
         "type": "object",
@@ -3912,20 +3840,94 @@
           }
         }
       },
-      "PolicyGroupDetailResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
+      "PolicyGroupStatus": {
+        "type": "object",
+        "required": [
+          "phase",
+          "resolvedCount",
+          "resolvedPolicies"
+        ],
+        "properties": {
+          "phase": {
+            "type": "string",
+            "enum": [
+              "Ready",
+              "Invalid"
+            ],
+            "description": "策略组解析状态",
+            "example": "Ready"
           },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/PolicyGroupDetail"
-              }
+          "resolvedCount": {
+            "type": "integer",
+            "description": "解析出的策略数量",
+            "example": 12
+          },
+          "resolvedPolicies": {
+            "type": "array",
+            "description": "解析后的策略成员",
+            "items": {
+              "$ref": "#/components/schemas/EffectiveMember"
             }
           }
-        ]
+        }
+      },
+      "EffectiveMember": {
+        "type": "object",
+        "required": [
+          "name",
+          "enforcementMode",
+          "source"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "生效策略名称",
+            "example": "deny-privileged-pod"
+          },
+          "enforcementMode": {
+            "type": "string",
+            "enum": [
+              "enforce",
+              "audit"
+            ],
+            "description": "生效执行模式",
+            "example": "enforce"
+          },
+          "source": {
+            "type": "string",
+            "description": "策略来源",
+            "enum": [
+              "builtin",
+              "custom"
+            ],
+            "example": "builtin"
+          }
+        }
+      },
+      "PolicyGroupScope": {
+        "type": "object",
+        "required": [
+          "allClusters"
+        ],
+        "properties": {
+          "allClusters": {
+            "type": "boolean",
+            "description": "是否作用于全部在线集群",
+            "example": true
+          },
+          "clusterNames": {
+            "type": "array",
+            "description": "指定作用集群名称",
+            "items": {
+              "type": "string",
+              "description": "集群名称",
+              "example": "production"
+            },
+            "example": [
+              "production"
+            ]
+          }
+        }
       },
       "PolicyGroupEnabledRequest": {
         "type": "object",
@@ -3940,6 +3942,21 @@
           }
         }
       },
+      "PolicyGroupEnabledResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/PolicyGroupEnabledData"
+              }
+            }
+          }
+        ]
+      },
       "PolicyGroupEnabledData": {
         "type": "object",
         "required": [
@@ -3953,7 +3970,7 @@
           }
         }
       },
-      "PolicyGroupEnabledResponse": {
+      "ExceptionListResponse": {
         "allOf": [
           {
             "$ref": "#/components/schemas/Envelope"
@@ -3962,7 +3979,29 @@
             "type": "object",
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/PolicyGroupEnabledData"
+                "$ref": "#/components/schemas/ExceptionListData"
+              }
+            }
+          }
+        ]
+      },
+      "ExceptionListData": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "description": "例外列表",
+                "items": {
+                  "$ref": "#/components/schemas/ExceptionListItem"
+                }
               }
             }
           }
@@ -4015,122 +4054,44 @@
           }
         }
       },
-      "ExceptionListData": {
+      "ExceptionRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/PageMeta"
+            "$ref": "#/components/schemas/ExceptionSpec"
           },
           {
             "type": "object",
-            "required": [
-              "items"
-            ],
             "properties": {
-              "items": {
+              "name": {
+                "type": "string",
+                "description": "创建时的例外名称",
+                "example": "emergency-maintenance"
+              },
+              "resourceVersion": {
+                "type": "string",
+                "description": "乐观并发版本",
+                "example": "1785920264123456789"
+              },
+              "allClusters": {
+                "type": "boolean",
+                "description": "是否作用于全部在线集群",
+                "example": true
+              },
+              "clusterNames": {
                 "type": "array",
-                "description": "例外列表",
                 "items": {
-                  "$ref": "#/components/schemas/ExceptionListItem"
-                }
+                  "type": "string",
+                  "description": "集群名称",
+                  "example": "production"
+                },
+                "description": "指定集群",
+                "example": [
+                  "production"
+                ]
               }
             }
           }
         ]
-      },
-      "ExceptionListResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/ExceptionListData"
-              }
-            }
-          }
-        ]
-      },
-      "LabelSelector": {
-        "type": "object",
-        "properties": {
-          "matchLabels": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "标签键值匹配",
-            "example": {
-              "environment": "production"
-            }
-          },
-          "matchExpressions": {
-            "type": "array",
-            "description": "标签表达式",
-            "items": {
-              "type": "object",
-              "required": [
-                "key",
-                "operator"
-              ],
-              "properties": {
-                "key": {
-                  "type": "string",
-                  "description": "标签键",
-                  "example": "environment"
-                },
-                "operator": {
-                  "type": "string",
-                  "description": "匹配操作符",
-                  "enum": [
-                    "In",
-                    "NotIn",
-                    "Exists",
-                    "DoesNotExist"
-                  ],
-                  "example": "In"
-                },
-                "values": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "description": "标签值",
-                    "example": "production"
-                  },
-                  "description": "候选值",
-                  "example": [
-                    "production"
-                  ]
-                }
-              }
-            },
-            "example": []
-          }
-        }
-      },
-      "ExceptionMatch": {
-        "type": "object",
-        "properties": {
-          "namespaces": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "命名空间名称",
-              "example": "production"
-            },
-            "description": "精确匹配的命名空间",
-            "example": [
-              "production"
-            ]
-          },
-          "namespaceSelector": {
-            "$ref": "#/components/schemas/LabelSelector"
-          },
-          "resourceSelector": {
-            "$ref": "#/components/schemas/LabelSelector"
-          }
-        }
       },
       "ExceptionSpec": {
         "type": "object",
@@ -4189,44 +4150,85 @@
           }
         }
       },
-      "ExceptionRequest": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/ExceptionSpec"
+      "ExceptionMatch": {
+        "type": "object",
+        "properties": {
+          "namespaces": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "命名空间名称",
+              "example": "production"
+            },
+            "description": "精确匹配的命名空间",
+            "example": [
+              "production"
+            ]
           },
-          {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string",
-                "description": "创建时的例外名称",
-                "example": "emergency-maintenance"
-              },
-              "resourceVersion": {
-                "type": "string",
-                "description": "乐观并发版本",
-                "example": "1785920264123456789"
-              },
-              "allClusters": {
-                "type": "boolean",
-                "description": "是否作用于全部在线集群",
-                "example": true
-              },
-              "clusterNames": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "description": "集群名称",
-                  "example": "production"
-                },
-                "description": "指定集群",
-                "example": [
-                  "production"
-                ]
-              }
-            }
+          "namespaceSelector": {
+            "$ref": "#/components/schemas/LabelSelector"
+          },
+          "resourceSelector": {
+            "$ref": "#/components/schemas/LabelSelector"
           }
-        ]
+        }
+      },
+      "LabelSelector": {
+        "type": "object",
+        "properties": {
+          "matchLabels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "标签键值匹配",
+            "example": {
+              "environment": "production"
+            }
+          },
+          "matchExpressions": {
+            "type": "array",
+            "description": "标签表达式",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "operator"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "标签键",
+                  "example": "environment"
+                },
+                "operator": {
+                  "type": "string",
+                  "description": "匹配操作符",
+                  "enum": [
+                    "In",
+                    "NotIn",
+                    "Exists",
+                    "DoesNotExist"
+                  ],
+                  "example": "In"
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "标签值",
+                    "example": "production"
+                  },
+                  "description": "候选值",
+                  "example": [
+                    "production"
+                  ]
+                }
+              }
+            },
+            "example": []
+          }
+        }
       },
       "ExceptionNameResponse": {
         "allOf": [
@@ -4253,6 +4255,52 @@
             }
           }
         ]
+      },
+      "ExceptionDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/ExceptionDetail"
+              }
+            }
+          }
+        ]
+      },
+      "ExceptionDetail": {
+        "type": "object",
+        "required": [
+          "name",
+          "resourceVersion",
+          "spec",
+          "status",
+          "scope"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "例外名称",
+            "example": "emergency-maintenance"
+          },
+          "resourceVersion": {
+            "type": "string",
+            "description": "乐观并发版本",
+            "example": "1785920264123456789"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/ExceptionSpec"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExceptionStatus"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ExceptionScope"
+          }
+        }
       },
       "ExceptionStatus": {
         "type": "object",
@@ -4308,52 +4356,6 @@
             ]
           }
         }
-      },
-      "ExceptionDetail": {
-        "type": "object",
-        "required": [
-          "name",
-          "resourceVersion",
-          "spec",
-          "status",
-          "scope"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "例外名称",
-            "example": "emergency-maintenance"
-          },
-          "resourceVersion": {
-            "type": "string",
-            "description": "乐观并发版本",
-            "example": "1785920264123456789"
-          },
-          "spec": {
-            "$ref": "#/components/schemas/ExceptionSpec"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ExceptionStatus"
-          },
-          "scope": {
-            "$ref": "#/components/schemas/ExceptionScope"
-          }
-        }
-      },
-      "ExceptionDetailResponse": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Envelope"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/ExceptionDetail"
-              }
-            }
-          }
-        ]
       }
     }
   },
@@ -4548,11 +4550,11 @@
               }
             }
           },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
@@ -5034,11 +5036,11 @@
               }
             }
           },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
@@ -5348,7 +5350,7 @@
     "/schema/fields": {
       "get": {
         "tags": [
-          "Summary"
+          "Schema"
         ],
         "operationId": "getFieldSchema",
         "summary": "获取 Kubernetes 资源字段树",
@@ -5446,7 +5448,7 @@
     "/admission-events": {
       "get": {
         "tags": [
-          "Admission"
+          "AdmissionEvent"
         ],
         "operationId": "listAdmissionEvents",
         "summary": "分页查询准入事件",
@@ -5600,7 +5602,7 @@
     "/admission-events/{id}": {
       "get": {
         "tags": [
-          "Admission"
+          "AdmissionEvent"
         ],
         "operationId": "getAdmissionEvent",
         "summary": "查询准入事件详情",
@@ -5636,7 +5638,7 @@
     "/admission-events/trend": {
       "get": {
         "tags": [
-          "Admission"
+          "AdmissionEvent"
         ],
         "operationId": "getAdmissionEventTrend",
         "summary": "查询准入事件趋势",
@@ -5684,7 +5686,7 @@
     "/admission-event-settings": {
       "get": {
         "tags": [
-          "Admission"
+          "AdmissionEvent"
         ],
         "operationId": "getAdmissionEventSettings",
         "summary": "获取准入事件设置",
@@ -5700,17 +5702,17 @@
               }
             }
           },
-          "500": {
+          "503": {
             "$ref": "#/components/responses/InternalError"
           },
-          "503": {
+          "500": {
             "$ref": "#/components/responses/InternalError"
           }
         }
       },
       "put": {
         "tags": [
-          "Admission"
+          "AdmissionEvent"
         ],
         "operationId": "updateAdmissionEventSettings",
         "summary": "更新准入事件设置",
@@ -5748,7 +5750,7 @@
     "/admission-link-incidents": {
       "get": {
         "tags": [
-          "Admission"
+          "LinkIncident"
         ],
         "operationId": "listAdmissionLinkIncidents",
         "summary": "分页查询准入链路异常",
@@ -5867,7 +5869,7 @@
     "/admission-link-incidents/{id}": {
       "get": {
         "tags": [
-          "Admission"
+          "LinkIncident"
         ],
         "operationId": "getAdmissionLinkIncident",
         "summary": "查询准入链路异常详情",
@@ -6146,7 +6148,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/schemas-EmptyResponse"
+                  "$ref": "#/components/schemas/policy-EmptyResponse"
                 }
               }
             }
@@ -6266,7 +6268,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/schemas-EmptyResponse"
+                  "$ref": "#/components/schemas/policy-EmptyResponse"
                 }
               }
             }
@@ -6574,7 +6576,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/schemas-EmptyResponse"
+                  "$ref": "#/components/schemas/policy-EmptyResponse"
                 }
               }
             }
@@ -6845,7 +6847,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/schemas-EmptyResponse"
+                  "$ref": "#/components/schemas/policy-EmptyResponse"
                 }
               }
             }

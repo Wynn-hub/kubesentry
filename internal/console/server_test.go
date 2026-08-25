@@ -82,10 +82,10 @@ func TestOpenAPIDocumentationEndpoints(t *testing.T) {
 	if document["openapi"] != "3.1.0" {
 		t.Fatalf("openapi version = %v", document["openapi"])
 	}
-	assertNoLocalFileRefs(t, document)
+	assertAllRefsResolve(t, document, document)
 }
 
-func assertNoLocalFileRefs(t *testing.T, value any) {
+func assertAllRefsResolve(t *testing.T, root, value any) {
 	t.Helper()
 	switch typed := value.(type) {
 	case map[string]any:
@@ -95,15 +95,33 @@ func assertNoLocalFileRefs(t *testing.T, value any) {
 				if !ok {
 					t.Fatalf("$ref has non-string value %T", child)
 				}
-				if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "../") {
-					t.Fatalf("OpenAPI document contains unresolved local ref %q", ref)
-				}
+				resolveInternalRef(t, root, ref)
 			}
-			assertNoLocalFileRefs(t, child)
+			assertAllRefsResolve(t, root, child)
 		}
 	case []any:
 		for _, child := range typed {
-			assertNoLocalFileRefs(t, child)
+			assertAllRefsResolve(t, root, child)
+		}
+	}
+}
+
+func resolveInternalRef(t *testing.T, root any, ref string) {
+	t.Helper()
+	if !strings.HasPrefix(ref, "#/") {
+		t.Fatalf("OpenAPI document contains non-internal ref %q", ref)
+	}
+	target := root
+	for _, rawSegment := range strings.Split(strings.TrimPrefix(ref, "#/"), "/") {
+		segment := strings.NewReplacer("~1", "/", "~0", "~").Replace(rawSegment)
+		object, ok := target.(map[string]any)
+		if !ok {
+			t.Fatalf("OpenAPI reference %q traverses non-object segment %q", ref, segment)
+		}
+		var found bool
+		target, found = object[segment]
+		if !found {
+			t.Fatalf("OpenAPI document contains dangling ref %q", ref)
 		}
 	}
 }

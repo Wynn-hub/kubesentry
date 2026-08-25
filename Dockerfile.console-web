@@ -1,6 +1,6 @@
 # The nginx server configuration is supplied by the gateway Helm chart at
 # runtime. This image contains only the compiled SPA and the nginx runtime.
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY web/package.json web/package-lock.json ./
 RUN npm ci

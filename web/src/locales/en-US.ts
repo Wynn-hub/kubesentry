@@ -30,7 +30,7 @@ export default {
     gatewayTitle: 'Gateway gRPC Contract',
     gatewayDescription: 'Gateway RPCs are defined with protobuf and gRPC, not REST operations, so they do not appear in the OpenAPI list below.',
     gatewayLocation: 'Source of truth: api/proto/gateway/v1/gateway.proto',
-    gatewayAuth: 'Member clusters exchange a one-time registration token for a long-lived Sync token. Console Connect uses a shared static token, which is not currently wired through Helm.',
+    gatewayAuth: 'Member clusters exchange a one-time registration token for a long-lived Sync token. Console Connect uses the shared static token provisioned by the Gateway Helm chart.',
     crdTitle: 'Kubernetes CRD Contract',
     crdDescription: 'Policy, PolicyGroup, PolicyException, and PolicyVersion are member-cluster Kubernetes resources, not Console REST operations.',
     crdLocation: 'Source of truth: charts/kubesentry/crds/ (or kubectl explain for installed definitions)',

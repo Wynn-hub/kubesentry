@@ -3,7 +3,7 @@ export GOROOT := /opt/homebrew/opt/go/libexec
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
         test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \
         build-image-local deploy-local undeploy-local web-build test-web dev-local \
-        proto api-gen api-lint
+        proto api-gen api-bundle api-lint
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -119,8 +119,12 @@ api-gen: $(OGEN)
 	$(OGEN) --target internal/console/dto --package dto --clean \
 	  api/console/console-api.yaml
 
+api-bundle:
+	python3 scripts/bundle_openapi.py
+
 api-lint:
 	python3 scripts/check_openapi_contract.py
+	python3 scripts/bundle_openapi.py --check
 	cd web && npm run generate:api
 
 # ── Test & Lint ───────────────────────────────────────────────────────────────

@@ -48,6 +48,8 @@ onMounted(() => {
     url: '/api/docs/openapi.json',
     theme: 'purple',
     layout: 'modern',
+    hideTestRequestButton: false,
+    tagsSorter: 'alpha',
   })
 })
 

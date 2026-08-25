@@ -30,7 +30,7 @@ export default {
     gatewayTitle: 'Gateway gRPC 契约',
     gatewayDescription: 'Gateway 使用 protobuf 定义的 gRPC RPC，不是 REST 操作，因此不会显示在下方的 OpenAPI 列表中。',
     gatewayLocation: '权威来源：api/proto/gateway/v1/gateway.proto',
-    gatewayAuth: '成员集群以一次性注册令牌换取长期 Sync 令牌；Console Connect 使用共享静态令牌，而该令牌当前尚未通过 Helm 配置。',
+    gatewayAuth: '成员集群以一次性注册令牌换取长期 Sync 令牌；Console Connect 使用由 Gateway Helm chart 创建或复用的共享静态令牌。',
     crdTitle: 'Kubernetes CRD 契约',
     crdDescription: 'Policy、PolicyGroup、PolicyException 和 PolicyVersion 是成员集群的 Kubernetes 资源，不是 Console REST 操作。',
     crdLocation: '权威来源：charts/kubesentry/crds/（也可使用 kubectl explain 查看集群已安装定义）',

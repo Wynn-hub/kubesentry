@@ -24,8 +24,12 @@ tags:
     description: 策略例外的增删改查
   - name: Summary
     description: 平台资源摘要
-  - name: Admission
-    description: 准入事件、存储设置与链路异常
+  - name: AdmissionEvent
+    description: 准入事件、趋势与存储设置
+  - name: LinkIncident
+    description: 准入事件投递链路异常
+  - name: Schema
+    description: 策略可视化编辑器的 Kubernetes 字段定义
   - name: Platform
     description: 平台可观测性与运行状态
   - name: Cluster
@@ -495,7 +499,7 @@ paths:
 
   /schema/fields:
     get:
-      tags: [Summary]
+      tags: [Schema]
       operationId: getFieldSchema
       summary: 获取 Kubernetes 资源字段树
       description: 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。
@@ -539,7 +543,7 @@ paths:
 
   /admission-events:
     get:
-      tags: [Admission]
+      tags: [AdmissionEvent]
       operationId: listAdmissionEvents
       summary: 分页查询准入事件
       description: 按集群、判决、策略、命名空间和资源条件分页检索准入事件。
@@ -598,7 +602,7 @@ paths:
 
   /admission-events/{id}:
     get:
-      tags: [Admission]
+      tags: [AdmissionEvent]
       operationId: getAdmissionEvent
       summary: 查询准入事件详情
       description: 查询准入事件及其原始 metadata/spec 快照。
@@ -611,7 +615,7 @@ paths:
 
   /admission-events/trend:
     get:
-      tags: [Admission]
+      tags: [AdmissionEvent]
       operationId: getAdmissionEventTrend
       summary: 查询准入事件趋势
       description: 按时间范围返回准入事件的 audit/deny 趋势数据。
@@ -631,7 +635,7 @@ paths:
 
   /admission-event-settings:
     get:
-      tags: [Admission]
+      tags: [AdmissionEvent]
       operationId: getAdmissionEventSettings
       summary: 获取准入事件设置
       description: 查询准入事件留存、重试、队列和存储策略配置。
@@ -640,7 +644,7 @@ paths:
         '503': {$ref: '#/components/responses/InternalError'}
         '500': {$ref: '#/components/responses/InternalError'}
     put:
-      tags: [Admission]
+      tags: [AdmissionEvent]
       operationId: updateAdmissionEventSettings
       summary: 更新准入事件设置
       description: 更新准入事件留存、重试、队列和存储策略配置。
@@ -654,7 +658,7 @@ paths:
 
   /admission-link-incidents:
     get:
-      tags: [Admission]
+      tags: [LinkIncident]
       operationId: listAdmissionLinkIncidents
       summary: 分页查询准入链路异常
       description: 按集群、组件、原因和状态检索准入事件链路异常。
@@ -701,7 +705,7 @@ paths:
 
   /admission-link-incidents/{id}:
     get:
-      tags: [Admission]
+      tags: [LinkIncident]
       operationId: getAdmissionLinkIncident
       summary: 查询准入链路异常详情
       description: 查询单条准入事件链路异常及其样本事件。
