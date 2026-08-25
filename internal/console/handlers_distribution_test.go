@@ -112,6 +112,23 @@ func TestCreateDistribution(t *testing.T) {
 	}
 }
 
+func TestDistributionNotificationPreservesTraceAndIsNonFatal(t *testing.T) {
+	h, repos, handlers := newDBTestServerWithHandlers(t)
+	fake := &fakeHubClient{notifyChangeErr: context.DeadlineExceeded}
+	handlers.Gateway = fake
+	rec, env := doRequestWithHeaders(t, h, "POST", "/api/v1/distributions", validDistributionReq(), map[string]string{"X-Request-Id": "distribution-trace"})
+	if rec.Code != 200 || env.Code != 0 {
+		t.Fatalf("code=%d body=%s, want non-fatal notification failure", rec.Code, rec.Body.String())
+	}
+	if _, err := repos.Distributions.GetByName(t.Context(), "my-dist"); err != nil {
+		t.Fatalf("distribution must remain committed: %v", err)
+	}
+	topics, traces := fake.calls()
+	if len(topics) != 1 || topics[0] != "distribution" || len(traces) != 1 || traces[0] != "distribution-trace" {
+		t.Fatalf("topics=%v traces=%v, want distribution topic with request trace", topics, traces)
+	}
+}
+
 func TestCreateDistributionDuplicate(t *testing.T) {
 	h, repos := newDBTestServer(t)
 	seedDistribution(t, repos, "my-dist", []string{"g1"})

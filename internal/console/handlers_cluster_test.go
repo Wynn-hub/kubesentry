@@ -302,6 +302,29 @@ func TestUninstallClusterCreatesTaskAndRetryFailedTask(t *testing.T) {
 	}
 }
 
+func TestClusterUninstallNotificationPreservesTraceAndIsNonFatal(t *testing.T) {
+	h, repos, handlers := newDBTestServerWithHandlers(t)
+	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "trace-live", "installParams": validInstallParams()})
+	c, err := repos.Clusters.GetByName(t.Context(), "trace-live")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Clusters.UpdateHeartbeat(t.Context(), c.ID, "Online", nil, "v1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+	fake := &fakeHubClient{notifyChangeErr: context.DeadlineExceeded}
+	handlers.Gateway = fake
+
+	rec, env := doRequestWithHeaders(t, h, "POST", "/api/v1/clusters/trace-live/uninstall", nil, map[string]string{"X-Request-Id": "uninstall-trace"})
+	if rec.Code != 200 || env.Code != 0 {
+		t.Fatalf("code=%d body=%s, want non-fatal notification failure", rec.Code, rec.Body.String())
+	}
+	topics, traces := fake.calls()
+	if len(topics) != 1 || topics[0] != "cluster-uninstall" || len(traces) != 1 || traces[0] != "uninstall-trace" {
+		t.Fatalf("topics=%v traces=%v, want uninstall topic with request trace", topics, traces)
+	}
+}
+
 func TestDeleteClusterOfflineSucceeds(t *testing.T) {
 	h, repos := newDBTestServer(t)
 	doRequest(t, h, "POST", "/api/v1/clusters", map[string]any{"name": "gone", "installParams": validInstallParams()})

@@ -1,6 +1,7 @@
 package console
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
@@ -40,16 +41,19 @@ func TestAdmissionEventSettingsRoundTrip(t *testing.T) {
 func TestAdmissionEventSettingsRejectInvalidMatchModeAndGVR(t *testing.T) {
 	server, _ := newDBTestServer(t)
 	base := map[string]any{
-		"defaultRetentionDays": 14,
-		"maxRetryAttempts":     3,
-		"queueCapacity":        1024,
+		"defaultRetentionDays":  14,
+		"retryEnabled":          true,
+		"maxRetryAttempts":      3,
+		"queueCapacity":         1024,
+		"incidentRetentionDays": 7,
+		"observationEnabled":    false,
 	}
 	for _, test := range []struct {
 		name string
 		rule map[string]any
 	}{
-		{name: "match mode", rule: map[string]any{"matchMode": "not-in"}},
-		{name: "versioned GVR", rule: map[string]any{"matchMode": "include", "gvks": []string{"apps/v1/deployments"}}},
+		{name: "match mode", rule: map[string]any{"matchMode": "not-in", "verdicts": []string{"deny"}, "clusters": []string{}, "gvks": []string{"pods"}, "namespaces": []string{}}},
+		{name: "versioned GVR", rule: map[string]any{"matchMode": "include", "verdicts": []string{"deny"}, "clusters": []string{}, "gvks": []string{"apps/v1/deployments"}, "namespaces": []string{}}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			body := make(map[string]any, len(base)+1)
@@ -57,9 +61,16 @@ func TestAdmissionEventSettingsRejectInvalidMatchModeAndGVR(t *testing.T) {
 				body[key] = value
 			}
 			body["storagePolicies"] = []map[string]any{test.rule}
-			rec, _ := doRequest(t, server, "PUT", "/api/v1/admission-event-settings", body)
+			rec, env := doRequest(t, server, "PUT", "/api/v1/admission-event-settings", body)
 			if rec.Code != 400 {
 				t.Fatalf("status = %d, want 400: %s", rec.Code, rec.Body.String())
+			}
+			want := "matchMode"
+			if test.name == "versioned GVR" {
+				want = "gvk"
+			}
+			if !strings.Contains(env.Message, want) {
+				t.Fatalf("message = %q, want specific %q validation", env.Message, want)
 			}
 		})
 	}

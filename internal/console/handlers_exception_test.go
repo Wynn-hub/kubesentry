@@ -2,10 +2,14 @@
 package console
 
 import (
+	"errors"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
@@ -118,6 +122,82 @@ func TestCreateExceptionBadDurationRejected(t *testing.T) {
 	rec, env := doRequest(t, h, "POST", "/api/v1/exceptions", req)
 	if rec.Code != 400 || env.Code == 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
+	}
+}
+
+func TestCreateExceptionRejectsInvalidTargetBeforeMutation(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	req := validExceptionReq()
+	req.AllClusters = false
+	req.ClusterNames = []string{"missing-cluster"}
+	rec, env := doRequest(t, h, "POST", "/api/v1/exceptions", req)
+	if rec.Code != 400 || !strings.Contains(env.Message, "target cluster") {
+		t.Fatalf("code=%d message=%q, want target cluster validation", rec.Code, env.Message)
+	}
+	if _, err := repos.Exceptions.GetByName(t.Context(), req.Name); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("invalid request must not create exception, got err=%v", err)
+	}
+}
+
+func TestCreateExceptionRollsBackWhenScopeWriteFails(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	if err := repos.Distributions.Create(t.Context(), &dbrepo.PolicyDistribution{
+		Name: "scope-exception-my-exception",
+		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{}),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rec, _ := doRequest(t, h, "POST", "/api/v1/exceptions", validExceptionReq())
+	if rec.Code != 500 {
+		t.Fatalf("code=%d body=%s, want scope write failure", rec.Code, rec.Body.String())
+	}
+	if _, err := repos.Exceptions.GetByName(t.Context(), "my-exception"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("exception must roll back with failed scope write, got err=%v", err)
+	}
+}
+
+func TestListExceptionsHonorsSortFieldsAndStableNameTieBreak(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	now := time.Now().UTC()
+	rows := []dbrepo.PolicyException{
+		{Name: "sort-alpha", Spec: datatypes.NewJSONType(v1alpha1.PolicyExceptionSpec{AllPolicies: true, Duration: "24h", Reason: "a"})},
+		{Name: "sort-beta", Spec: datatypes.NewJSONType(v1alpha1.PolicyExceptionSpec{PolicyRefs: []string{"p1"}, Duration: "2h", Reason: "b"}), ExpiresAt: func() *time.Time { v := now.Add(time.Hour); return &v }()},
+		{Name: "sort-gamma", Spec: datatypes.NewJSONType(v1alpha1.PolicyExceptionSpec{PolicyGroupRefs: []string{"g1"}, Duration: "1h", Reason: "c"}), ExpiresAt: func() *time.Time { v := now.Add(-time.Hour); return &v }()},
+	}
+	for i := range rows {
+		if err := repos.Exceptions.Create(t.Context(), &rows[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []struct {
+		name string
+		path string
+		want []string
+	}{
+		{name: "name", path: "/api/v1/exceptions?pageSize=100&sortBy=name&sortOrder=desc", want: []string{"sort-gamma", "sort-beta", "sort-alpha"}},
+		{name: "phase stable name", path: "/api/v1/exceptions?pageSize=100&sortBy=phase&sortOrder=asc", want: []string{"sort-alpha", "sort-beta", "sort-gamma"}},
+		{name: "target summary", path: "/api/v1/exceptions?pageSize=100&sortBy=targetSummary&sortOrder=asc", want: []string{"sort-alpha", "sort-gamma", "sort-beta"}},
+		{name: "duration numeric", path: "/api/v1/exceptions?pageSize=100&sortBy=duration&sortOrder=asc", want: []string{"sort-gamma", "sort-beta", "sort-alpha"}},
+		{name: "expires at empty first", path: "/api/v1/exceptions?pageSize=100&sortBy=expiresAt&sortOrder=asc", want: []string{"sort-alpha", "sort-gamma", "sort-beta"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rec, env := doRequest(t, h, "GET", test.path, nil)
+			if rec.Code != 200 {
+				t.Fatalf("code=%d body=%s", rec.Code, rec.Body.String())
+			}
+			items := mustUnmarshal[testPageResult[dto.ExceptionListItem]](t, env.Data).Items
+			got := make([]string, 0, len(test.want))
+			for _, item := range items {
+				if strings.HasPrefix(item.Name, "sort-") {
+					got = append(got, item.Name)
+				}
+			}
+			if !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("order=%v, want %v", got, test.want)
+			}
+		})
 	}
 }
 

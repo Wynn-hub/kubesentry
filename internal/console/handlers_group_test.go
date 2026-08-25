@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"gorm.io/datatypes"
@@ -39,6 +40,7 @@ type testGroupRequest struct {
 	Enabled         bool                         `json:"enabled"`
 	Policies        v1alpha1.PolicyGroupPolicies `json:"policies"`
 	ResourceVersion string                       `json:"resourceVersion,omitempty"`
+	ClusterNames    []string                     `json:"clusterNames,omitempty"`
 }
 
 func validGroupReq() *testGroupRequest {
@@ -133,6 +135,61 @@ func TestCreateGroupBadMode(t *testing.T) {
 	rec, _ := doRequest(t, h, "POST", "/api/v1/policygroups", req)
 	if rec.Code != 400 {
 		t.Fatalf("code = %d, want 400", rec.Code)
+	}
+}
+
+func TestCreateGroupRejectsInvalidDNSName(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	req := validGroupReq()
+	req.Name = "Not_Valid!"
+	rec, env := doRequest(t, h, "POST", "/api/v1/policygroups", req)
+	if rec.Code != 400 || !strings.Contains(env.Message, "invalid name") {
+		t.Fatalf("code=%d message=%q, want specific DNS name validation", rec.Code, env.Message)
+	}
+}
+
+func TestCreateGroupRejectsAllClustersWithClusterNames(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	req := validGroupReq()
+	req.ClusterNames = []string{"local"}
+	rec, env := doRequest(t, h, "POST", "/api/v1/policygroups", req)
+	if rec.Code != 400 || !strings.Contains(env.Message, "allClusters") {
+		t.Fatalf("code=%d message=%q, want conflicting scope validation", rec.Code, env.Message)
+	}
+}
+
+func TestPolicyGroupMutationsNotifyGateway(t *testing.T) {
+	h, repos, handlers := newDBTestServerWithHandlers(t)
+	seedGroup(t, repos, "notify-group", true)
+	fake := &fakeHubClient{}
+	handlers.Gateway = fake
+	headers := map[string]string{"X-Request-Id": "group-trace"}
+
+	req := validGroupReq()
+	req.Name = ""
+	for _, mutation := range []struct {
+		method string
+		path   string
+		body   any
+	}{
+		{method: "PUT", path: "/api/v1/policygroups/notify-group", body: req},
+		{method: "PUT", path: "/api/v1/policygroups/notify-group/enabled", body: map[string]bool{"enabled": false}},
+		{method: "DELETE", path: "/api/v1/policygroups/notify-group"},
+	} {
+		rec, env := doRequestWithHeaders(t, h, mutation.method, mutation.path, mutation.body, headers)
+		if rec.Code != 200 || env.Code != 0 {
+			t.Fatalf("%s %s: code=%d body=%s", mutation.method, mutation.path, rec.Code, rec.Body.String())
+		}
+	}
+
+	topics, traces := fake.calls()
+	if len(topics) != 3 || topics[0] != "group" || topics[1] != "group" || topics[2] != "group" {
+		t.Fatalf("topics = %v, want three group notifications", topics)
+	}
+	for _, trace := range traces {
+		if trace != "group-trace" {
+			t.Fatalf("traces = %v, want request trace preserved", traces)
+		}
 	}
 }
 

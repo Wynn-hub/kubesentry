@@ -56,6 +56,10 @@ func newTestServerWithHandlers(t *testing.T) (http.Handler, *Handlers) {
 }
 
 func doRequest(t *testing.T, h http.Handler, method, path string, body any) (*httptest.ResponseRecorder, testEnvelope) {
+	return doRequestWithHeaders(t, h, method, path, body, nil)
+}
+
+func doRequestWithHeaders(t *testing.T, h http.Handler, method, path string, body any, headers map[string]string) (*httptest.ResponseRecorder, testEnvelope) {
 	t.Helper()
 	var buf bytes.Buffer
 	if body != nil {
@@ -66,6 +70,9 @@ func doRequest(t *testing.T, h http.Handler, method, path string, body any) (*ht
 	req := httptest.NewRequest(method, path, &buf)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	for name, value := range headers {
+		req.Header.Set(name, value)
 	}
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)

@@ -82,7 +82,7 @@ func (s *DistributionService) Create(ctx context.Context, req DistributionReques
 		}
 		return fmt.Errorf("create policydistribution: %w", err)
 	}
-	s.notify("distribution")
+	s.notify(ctx, "distribution")
 	return nil
 }
 
@@ -106,7 +106,7 @@ func (s *DistributionService) Update(ctx context.Context, name string, req Distr
 		}
 		return fmt.Errorf("update policydistribution: %w", err)
 	}
-	s.notify("distribution")
+	s.notify(ctx, "distribution")
 	return nil
 }
 
@@ -124,13 +124,13 @@ func (s *DistributionService) Delete(ctx context.Context, name string) error {
 	if err := s.repos.Distributions.Delete(ctx, d.ID); err != nil {
 		return fmt.Errorf("delete policydistribution: %w", err)
 	}
-	s.notify("distribution")
+	s.notify(ctx, "distribution")
 	return nil
 }
 
-func (s *DistributionService) notify(topic string) {
+func (s *DistributionService) notify(ctx context.Context, topic string) {
 	if s.notifier != nil {
-		s.notifier.NotifyChange(context.Background(), topic)
+		s.notifier.NotifyChange(ctx, topic)
 	}
 }
 

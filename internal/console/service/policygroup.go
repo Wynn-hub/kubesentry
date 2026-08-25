@@ -17,6 +17,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const defaultGroupName = "default"
@@ -204,8 +205,8 @@ func (s *PolicyGroupService) List(ctx context.Context, page, size int, sortBy, o
 
 func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupRequest) error {
 	name := req.Name.Or("")
-	if name == "" {
-		return &ValidationError{Msg: "name is required"}
+	if errs := validation.IsDNS1123Subdomain(name); len(errs) > 0 {
+		return &ValidationError{Msg: "invalid name: " + strings.Join(errs, "; ")}
 	}
 	if name == defaultGroupName {
 		return &ValidationError{Msg: "default policy group cannot be created"}
@@ -219,8 +220,8 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupReq
 	if e != nil {
 		return e
 	}
-	if !req.AllClusters.Or(false) && len(req.ClusterNames) == 0 {
-		return &ValidationError{Msg: "clusterNames is required when allClusters is false"}
+	if e = validatePolicyGroupScope(req.AllClusters.Or(false), req.ClusterNames); e != nil {
+		return e
 	}
 	g := &dbrepo.PolicyGroup{Name: name, Spec: datatypes.NewJSONType(spec), Labels: datatypes.NewJSONType(map[string]string{}), Annotations: datatypes.NewJSONType(map[string]string{})}
 	if e = s.repos.PolicyGroups.Create(ctx, g); e != nil {
@@ -247,6 +248,9 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 			return &ValidationError{Msg: "excluded policy name must not be empty"}
 		}
 	}
+	if e := validatePolicyGroupScope(req.AllClusters.Or(false), req.ClusterNames); e != nil {
+		return e
+	}
 	g, e := s.repos.PolicyGroups.GetByName(ctx, name)
 	if e != nil {
 		if errors.Is(e, gorm.ErrRecordNotFound) {
@@ -264,7 +268,11 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 	if e = s.repos.PolicyGroups.UpdateCAS(ctx, g.ID, g.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec)}); e != nil {
 		return e
 	}
-	return syncScope(ctx, s.repos, name, req.AllClusters.Or(false), req.ClusterNames)
+	if e = syncScope(ctx, s.repos, name, req.AllClusters.Or(false), req.ClusterNames); e != nil {
+		return e
+	}
+	s.notify(ctx)
+	return nil
 }
 
 func (s *PolicyGroupService) SetEnabled(ctx context.Context, name string, enabled bool) error {
@@ -278,6 +286,7 @@ func (s *PolicyGroupService) SetEnabled(ctx context.Context, name string, enable
 	if e = s.repos.PolicyGroups.UpdateCAS(ctx, g.ID, g.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(func() v1alpha1.PolicyGroupSpec { x := g.Spec.Data(); x.Enabled = enabled; return x }())}); e != nil {
 		return e
 	}
+	s.notify(ctx)
 	return nil
 }
 
@@ -295,5 +304,25 @@ func (s *PolicyGroupService) Delete(ctx context.Context, name string) error {
 	if e = s.repos.PolicyGroups.Delete(ctx, g.ID); e != nil {
 		return e
 	}
-	return deleteScope(ctx, s.repos, name)
+	if e = deleteScope(ctx, s.repos, name); e != nil {
+		return e
+	}
+	s.notify(ctx)
+	return nil
+}
+
+func validatePolicyGroupScope(all bool, names []string) error {
+	if all && len(names) > 0 {
+		return &ValidationError{Msg: "clusterNames must be empty when allClusters is true"}
+	}
+	if !all && len(names) == 0 {
+		return &ValidationError{Msg: "clusterNames is required when allClusters is false"}
+	}
+	return nil
+}
+
+func (s *PolicyGroupService) notify(ctx context.Context) {
+	if s.notifier != nil {
+		s.notifier.NotifyChange(ctx, "group")
+	}
 }

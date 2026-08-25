@@ -260,7 +260,7 @@ func (s *ClusterService) CreateUninstall(ctx context.Context, name string) (*Uni
 	if err := s.repos.Clusters.UpdatePhase(ctx, c.ID, v1alpha1.ClusterPhaseUninstalling); err != nil {
 		return nil, fmt.Errorf("mark cluster uninstalling: %w", err)
 	}
-	s.notify("cluster-uninstall")
+	s.notify(ctx, "cluster-uninstall")
 	return &UninstallTaskItem{ID: task.ID, Status: task.Status, RequestedAt: task.RequestedAt}, nil
 }
 
@@ -304,7 +304,7 @@ func (s *ClusterService) RetryUninstall(ctx context.Context, name string, taskID
 	if err := s.repos.Clusters.UpdatePhase(ctx, c.ID, v1alpha1.ClusterPhaseUninstalling); err != nil {
 		return fmt.Errorf("mark cluster uninstalling: %w", err)
 	}
-	s.notify("cluster-uninstall-retry")
+	s.notify(ctx, "cluster-uninstall-retry")
 	return nil
 }
 
@@ -324,9 +324,9 @@ func (s *ClusterService) recordInstall(ctx context.Context, clusterName string, 
 	return s.repos.InstallRecords.Create(ctx, &dbrepo.ClusterInstallRecord{ClusterName: clusterName, Namespace: p.Namespace, WebhookRepository: p.WebhookImage.Repository, WebhookTag: p.WebhookImage.Tag, WebhookPullPolicy: p.WebhookImage.PullPolicy, OperatorRepository: p.OperatorImage.Repository, OperatorTag: p.OperatorImage.Tag, OperatorPullPolicy: p.OperatorImage.PullPolicy, HighAvailability: p.HighAvailability, GatewayAddress: p.GatewayAddress, GatewayTLSServerName: p.GatewayTLSServerName, GatewayCABundle: p.GatewayCABundle})
 }
 
-func (s *ClusterService) notify(topic string) {
+func (s *ClusterService) notify(ctx context.Context, topic string) {
 	if s.notifier != nil {
-		s.notifier.NotifyChange(context.Background(), topic)
+		s.notifier.NotifyChange(ctx, topic)
 	}
 }
 

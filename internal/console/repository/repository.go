@@ -78,6 +78,21 @@ type AdmissionRepository interface {
 	Trend(context.Context, time.Time, time.Time, bool) ([]dbrepo.AdmissionEventTrendBucket, error)
 }
 
+// ExceptionUnitOfWork commits an exception mutation and its managed scope
+// distribution as one database transaction. The callback receives repositories
+// bound to the same transaction.
+type ExceptionUnitOfWork interface {
+	WithinTransaction(context.Context, func(ExceptionRepository, DistributionRepository) error) error
+}
+
+type exceptionUnitOfWork struct{ repo *dbrepo.ExceptionRepo }
+
+func (u exceptionUnitOfWork) WithinTransaction(ctx context.Context, fn func(ExceptionRepository, DistributionRepository) error) error {
+	return u.repo.WithTx(ctx, func(exceptions *dbrepo.ExceptionRepo, distributions *dbrepo.DistributionRepo) error {
+		return fn(exceptions, distributions)
+	})
+}
+
 // Repositories is the console's data-access bundle. It grows one field per
 // migrated resource domain; batches that haven't migrated yet keep using
 // gateway.Repos directly from the legacy handlers.
@@ -93,6 +108,7 @@ type Repositories struct {
 	Incidents      IncidentRepository
 	Admission      AdmissionRepository
 	Platform       PlatformRepository
+	ExceptionUOW   ExceptionUnitOfWork
 }
 
 // FromGatewayRepos narrows the shared gateway.Repos bundle down to the
@@ -112,5 +128,6 @@ func FromGatewayRepos(r gateway.Repos) Repositories {
 		Incidents:      r.Incidents,
 		Admission:      r.Admission,
 		Platform:       r.Platform,
+		ExceptionUOW:   exceptionUnitOfWork{repo: r.Exceptions},
 	}
 }
