@@ -262,6 +262,55 @@ func TestSetGroupEnabled(t *testing.T) {
 	}
 }
 
+func TestSetGroupEnabledRepeatIsNoOp(t *testing.T) {
+	h, repos, handlers := newDBTestServerWithHandlers(t)
+	seedGroup(t, repos, "idempotent-group", true)
+	fake := &fakeHubClient{}
+	handlers.Gateway = fake
+
+	rec, _ := doRequest(t, h, "PUT", "/api/v1/policygroups/idempotent-group/enabled", map[string]bool{"enabled": false})
+	if rec.Code != 200 {
+		t.Fatalf("first request code=%d body=%s", rec.Code, rec.Body.String())
+	}
+	afterFirst, err := repos.Groups.GetByName(t.Context(), "idempotent-group")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, env := doRequest(t, h, "GET", "/api/v1/policygroups/idempotent-group", nil)
+	if rec.Code != 200 {
+		t.Fatalf("first detail code=%d body=%s", rec.Code, rec.Body.String())
+	}
+	firstVersion := mustUnmarshal[dto.PolicyGroupDetail](t, env.Data).ResourceVersion
+	firstTopics, _ := fake.calls()
+	if len(firstTopics) != 1 || firstTopics[0] != "group" {
+		t.Fatalf("first notification topics=%v, want [group]", firstTopics)
+	}
+
+	rec, _ = doRequest(t, h, "PUT", "/api/v1/policygroups/idempotent-group/enabled", map[string]bool{"enabled": false})
+	if rec.Code != 200 {
+		t.Fatalf("repeat request code=%d body=%s", rec.Code, rec.Body.String())
+	}
+	afterRepeat, err := repos.Groups.GetByName(t.Context(), "idempotent-group")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, env = doRequest(t, h, "GET", "/api/v1/policygroups/idempotent-group", nil)
+	if rec.Code != 200 {
+		t.Fatalf("repeat detail code=%d body=%s", rec.Code, rec.Body.String())
+	}
+	repeatVersion := mustUnmarshal[dto.PolicyGroupDetail](t, env.Data).ResourceVersion
+	repeatTopics, _ := fake.calls()
+	if !afterRepeat.UpdatedAt.Equal(afterFirst.UpdatedAt) {
+		t.Fatalf("UpdatedAt changed on no-op: first=%s repeat=%s", afterFirst.UpdatedAt, afterRepeat.UpdatedAt)
+	}
+	if repeatVersion != firstVersion {
+		t.Fatalf("resourceVersion changed on no-op: first=%q repeat=%q", firstVersion, repeatVersion)
+	}
+	if len(repeatTopics) != len(firstTopics) {
+		t.Fatalf("notification count changed on no-op: first=%v repeat=%v", firstTopics, repeatTopics)
+	}
+}
+
 func TestDeleteGroup(t *testing.T) {
 	h, repos := newDBTestServer(t)
 	seedGroup(t, repos, "g1", true)

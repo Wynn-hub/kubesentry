@@ -201,6 +201,46 @@ func TestListExceptionsHonorsSortFieldsAndStableNameTieBreak(t *testing.T) {
 	}
 }
 
+func TestListExceptionsRendersAndSortsMultiReferenceTargetSummary(t *testing.T) {
+	h, repos := newDBTestServer(t)
+	rows := []dbrepo.PolicyException{
+		{Name: "multi-a", Spec: datatypes.NewJSONType(v1alpha1.PolicyExceptionSpec{PolicyRefs: []string{"alpha", "zulu", "zulu2", "zulu3"}, Duration: "1h", Reason: "a"})},
+		{Name: "multi-b", Spec: datatypes.NewJSONType(v1alpha1.PolicyExceptionSpec{PolicyRefs: []string{"alpha", "aardvark"}, Duration: "1h", Reason: "b"})},
+		{Name: "multi-c", Spec: datatypes.NewJSONType(v1alpha1.PolicyExceptionSpec{PolicyGroupRefs: []string{"blue", "green", "orange", "purple", "red"}, Duration: "1h", Reason: "c"})},
+	}
+	for i := range rows {
+		if err := repos.Exceptions.Create(t.Context(), &rows[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec, env := doRequest(t, h, "GET", "/api/v1/exceptions?pageSize=100&sortBy=targetSummary&sortOrder=asc", nil)
+	if rec.Code != 200 {
+		t.Fatalf("code=%d body=%s", rec.Code, rec.Body.String())
+	}
+	items := mustUnmarshal[testPageResult[dto.ExceptionListItem]](t, env.Data).Items
+	gotOrder := make([]string, 0, len(rows))
+	gotSummaries := make(map[string]string, len(rows))
+	for _, item := range items {
+		if strings.HasPrefix(item.Name, "multi-") {
+			gotOrder = append(gotOrder, item.Name)
+			gotSummaries[item.Name] = item.TargetSummary
+		}
+	}
+	wantOrder := []string{"multi-c", "multi-b", "multi-a"}
+	if !reflect.DeepEqual(gotOrder, wantOrder) {
+		t.Fatalf("targetSummary order=%v, want %v", gotOrder, wantOrder)
+	}
+	wantSummaries := map[string]string{
+		"multi-a": "policies: alpha, zulu, zulu2 (+1 more)",
+		"multi-b": "policies: alpha, aardvark",
+		"multi-c": "groups: blue, green, orange (+2 more)",
+	}
+	if !reflect.DeepEqual(gotSummaries, wantSummaries) {
+		t.Fatalf("target summaries=%v, want %v", gotSummaries, wantSummaries)
+	}
+}
+
 func TestGetExceptionDetail(t *testing.T) {
 	h, repos := newDBTestServer(t)
 	expiresAt := time.Now().Add(time.Hour)

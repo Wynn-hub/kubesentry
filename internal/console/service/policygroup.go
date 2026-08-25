@@ -283,7 +283,12 @@ func (s *PolicyGroupService) SetEnabled(ctx context.Context, name string, enable
 		}
 		return e
 	}
-	if e = s.repos.PolicyGroups.UpdateCAS(ctx, g.ID, g.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(func() v1alpha1.PolicyGroupSpec { x := g.Spec.Data(); x.Enabled = enabled; return x }())}); e != nil {
+	spec := g.Spec.Data()
+	if spec.Enabled == enabled {
+		return nil
+	}
+	spec.Enabled = enabled
+	if e = s.repos.PolicyGroups.UpdateCAS(ctx, g.ID, g.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec)}); e != nil {
 		return e
 	}
 	s.notify(ctx)

@@ -134,12 +134,20 @@ func exceptionTarget(s v1alpha1.PolicyExceptionSpec) string {
 		return "all policies"
 	}
 	if len(s.PolicyRefs) > 0 {
-		return "policies: " + s.PolicyRefs[0]
+		return "policies: " + summarizeExceptionRefs(s.PolicyRefs)
 	}
 	if len(s.PolicyGroupRefs) > 0 {
-		return "groups: " + s.PolicyGroupRefs[0]
+		return "groups: " + summarizeExceptionRefs(s.PolicyGroupRefs)
 	}
 	return ""
+}
+
+func summarizeExceptionRefs(refs []string) string {
+	const limit = 3
+	if len(refs) <= limit {
+		return strings.Join(refs, ", ")
+	}
+	return strings.Join(refs[:limit], ", ") + fmt.Sprintf(" (+%d more)", len(refs)-limit)
 }
 
 func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionRequest) error {
