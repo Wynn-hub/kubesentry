@@ -22,6 +22,7 @@ const router = createRouter({
         { path: 'exceptions/:name/edit', name: 'exception-edit', component: () => import('../views/ExceptionFormView.vue'), meta: { backFallback: { name: 'exceptions' } } },
         { path: 'clusters', name: 'clusters', component: () => import('../views/ClusterListView.vue') },
         { path: 'clusters/:name', name: 'cluster-detail', component: () => import('../views/ClusterDetailView.vue'), meta: { backFallback: { name: 'clusters' } } },
+        { path: 'system/api-docs', name: 'api-docs', component: () => import('../views/ApiDocsView.vue') },
         { path: 'tenants', name: 'tenants', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'tenants', backFallback: { name: 'overview' } } },
         { path: 'events', name: 'events', component: () => import('../views/AdmissionEventsView.vue') },
         { path: 'observability', name: 'observability', component: () => import('../views/PlatformObservabilityView.vue') },

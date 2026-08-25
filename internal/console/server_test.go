@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -69,23 +68,7 @@ func TestUnknownNonAPIRouteIs404(t *testing.T) {
 }
 
 func TestOpenAPIDocumentationEndpoints(t *testing.T) {
-	root, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("OPENAPI_SPEC_FILE", filepath.Join(root, "..", "..", "api", "openapi.yaml"))
 	h := newBareServer(func() bool { return true })
-
-	docs := httptest.NewRecorder()
-	h.ServeHTTP(docs, httptest.NewRequest("GET", "/api/docs", nil))
-	if docs.Code != http.StatusOK || docs.Header().Get("Content-Type") != "text/html; charset=utf-8" {
-		t.Fatalf("api docs = %d %q", docs.Code, docs.Header().Get("Content-Type"))
-	}
-	legacyDocs := httptest.NewRecorder()
-	h.ServeHTTP(legacyDocs, httptest.NewRequest("GET", "/system/api-docs", nil))
-	if legacyDocs.Code != http.StatusOK {
-		t.Fatalf("system api docs = %d", legacyDocs.Code)
-	}
 
 	spec := httptest.NewRecorder()
 	h.ServeHTTP(spec, httptest.NewRequest("GET", "/api/docs/openapi.json", nil))
@@ -98,5 +81,29 @@ func TestOpenAPIDocumentationEndpoints(t *testing.T) {
 	}
 	if document["openapi"] != "3.1.0" {
 		t.Fatalf("openapi version = %v", document["openapi"])
+	}
+	assertNoLocalFileRefs(t, document)
+}
+
+func assertNoLocalFileRefs(t *testing.T, value any) {
+	t.Helper()
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			if key == "$ref" {
+				ref, ok := child.(string)
+				if !ok {
+					t.Fatalf("$ref has non-string value %T", child)
+				}
+				if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "../") {
+					t.Fatalf("OpenAPI document contains unresolved local ref %q", ref)
+				}
+			}
+			assertNoLocalFileRefs(t, child)
+		}
+	case []any:
+		for _, child := range typed {
+			assertNoLocalFileRefs(t, child)
+		}
 	}
 }
