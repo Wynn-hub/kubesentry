@@ -77,6 +77,7 @@ def check_generated_handler_coverage(operations: set[str], generated_path: Path,
     methods = {
         match.group("method")
         for path in handler_dir.glob("*.go")
+        if not path.name.endswith("_test.go")
         for match in HANDLER_METHOD.finditer(path.read_text())
     }
     missing = sorted(method for method in generated_operations.values() if method not in methods)

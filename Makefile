@@ -118,14 +118,19 @@ $(OGEN):
 api-gen: $(OGEN)
 	$(OGEN) --target internal/console/dto --package dto --clean \
 	  api/console/console-api.yaml
+	$(MAKE) api-gen-check
 
-# Regenerate outside the checkout, then compare the committed ogen output.
-# Hand-written DTO adapters and error compatibility methods are intentionally
-# outside ogen's oas_* output and are not part of this comparison.
+# Canonicalize both generation inputs in isolated temporary directories, then
+# byte-compare them. This accommodates the known non-semantic ogen formatting
+# variation without rewriting the committed baseline. Hand-written DTO adapters
+# and compatibility methods are outside ogen's oas_* output.
 api-gen-check: $(OGEN)
 	@tmp_dir=$$(mktemp -d); trap 'rm -rf "$$tmp_dir"' EXIT; \
 	$(OGEN) --target "$$tmp_dir/dto" --package dto --clean api/console/console-api.yaml; \
-	diff -ru -I '^[[:space:]]*$$' --exclude=convert_policy.go --exclude=convert_policy_test.go --exclude=error_compat.go --exclude=gen.go internal/console/dto "$$tmp_dir/dto"
+	cp -R internal/console/dto "$$tmp_dir/committed"; \
+	python3 scripts/normalize_ogen_output.py "$$tmp_dir/dto"; \
+	python3 scripts/normalize_ogen_output.py "$$tmp_dir/committed"; \
+	diff -ru --exclude=convert_policy.go --exclude=convert_policy_test.go --exclude=error_compat.go --exclude=gen.go "$$tmp_dir/committed" "$$tmp_dir/dto"
 
 # Do not let the API gate rewrite the committed browser contract. A deliberate
 # regeneration remains `cd web && npm run generate:api`.

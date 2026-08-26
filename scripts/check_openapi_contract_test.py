@@ -111,6 +111,21 @@ class ContractCheckerTest(unittest.TestCase):
                 "have no concrete handler method",
             )
 
+    def test_ignores_handler_methods_declared_only_in_test_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            generated = root / "oas_server_gen.go"
+            generated.write_text("// ListWidgets implements listWidgets operation.\n")
+            handlers = root / "handler"
+            handlers.mkdir()
+            (handlers / "widgets_test.go").write_text(
+                "package handler\nfunc (h *Handler) ListWidgets() {}\n"
+            )
+            self.assert_contract_error(
+                lambda: checker.check_generated_handler_coverage({"listWidgets"}, generated, handlers),
+                "have no concrete handler method",
+            )
+
     def test_rejects_api_index_that_treats_gateway_as_openapi(self):
         index = checker.load(checker.ROOT / "api/openapi.yaml")
         index["x-contract-boundaries"]["gateway"]["source"] = "./internal/gateway.yaml"
