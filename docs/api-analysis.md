@@ -1,59 +1,54 @@
 # API Contract Analysis
 
-## Scope
+## Boundaries
 
-This document records the API inventory used by the OpenAPI-first migration.
-The control plane consists of the PostgreSQL-backed `console-api`, the
-internal `gateway`, and the Vue `console-web`. The member-cluster webhook and
-operator remain Kubernetes API Pattern components and are described by CRD
-schemas rather than REST endpoints.
+`api/openapi.yaml` indexes three sources without turning them into one REST API:
 
-## Console API inventory
+| Family | Source of truth | Inventory | Browser HTTP |
+| --- | --- | ---: | --- |
+| Console | `api/console/console-api.yaml` | 50 operations | `/api/v1` only |
+| Gateway | `api/proto/gateway/v1/gateway.proto` | 5 RPCs: `Register`, `Sync`, `Connect`, `NotifyChange`, `Dispatch` | No |
+| Member cluster | `charts/kubesentry/crds/{policy,policygroup,exception,policyversion}.yaml` | 4 CRDs | No |
 
-The public management API is defined in `api/console/console-api.yaml` and is
-served below `/api/v1` by the generated Ogen router. The current operation
-groups are:
+Console OpenAPI alone generates Ogen and browser types. The obsolete
+`api/internal/gateway.yaml` was removed: its probes were not a browser contract
+and duplicated the protobuf streaming boundary.
 
-- Cluster lifecycle, install records, token reissue, and uninstall tasks
-- Policy, PolicyGroup, PolicyException, and policy version operations
-- Policy distribution management
-- Platform overview, trends, leadership events, and settings
-- Admission events, trends, settings, and link incidents
-- Summary and Kubernetes field-schema discovery
+## Console operation inventory
 
-The operation IDs in the OpenAPI document are the coverage key. Generated Go
-interfaces are in `internal/console/dto`; service and repository code is under
-`internal/console/service` and `internal/console/repository`.
+| Tag | Count | Operations |
+| --- | ---: | --- |
+| Cluster | 11 | `listClusters`, `createCluster`, `getCluster`, `updateCluster`, `deleteCluster`, `reissueClusterToken`, `getLatestInstallParams`, `createUninstallTask`, `listUninstallTasks`, `retryUninstallTask`, `listInstallRecords` |
+| Policy | 9 | `listPolicies`, `createPolicy`, `getResourceSuggestions`, `validatePolicyRego`, `getPolicy`, `updatePolicy`, `deletePolicy`, `listPolicyVersions`, `rollbackPolicy` |
+| PolicyGroup | 6 | `listPolicyGroups`, `createPolicyGroup`, `getPolicyGroup`, `updatePolicyGroup`, `deletePolicyGroup`, `setPolicyGroupEnabled` |
+| Distribution | 5 | `listDistributions`, `createDistribution`, `getDistribution`, `updateDistribution`, `deleteDistribution` |
+| Platform | 5 | `getPlatformOverview`, `getPlatformInstanceTrend`, `listPlatformLeadershipEvents`, `getPlatformSettings`, `updatePlatformSettings` |
+| AdmissionEvent | 5 | `listAdmissionEvents`, `getAdmissionEvent`, `getAdmissionEventTrend`, `getAdmissionEventSettings`, `updateAdmissionEventSettings` |
+| Exception | 5 | `listExceptions`, `createException`, `getException`, `updateException`, `deleteException` |
+| LinkIncident | 2 | `listAdmissionLinkIncidents`, `getAdmissionLinkIncident` |
+| Schema | 1 | `getFieldSchema` |
+| Summary | 1 | `getSummary` |
 
-## Gateway internal inventory
+The gate requires exactly these 50 generated operations and concrete
+`internal/console/handler` methods; an inherited `dto.UnimplementedHandler`
+method cannot satisfy coverage.
 
-The gateway's data path is the mTLS-protected gRPC `Hub` service in
-`api/proto/gateway/v1/gateway.proto`: `Register`, `Sync`, `Connect`,
-`NotifyChange`, and `Dispatch`. The OpenAPI-compatible index is
-`api/internal/gateway.yaml`; it documents the HTTP `/healthz` and `/readyz`
-probes and links the streaming RPC contract with `x-grpc-service` because
-OpenAPI has no native gRPC-stream representation.
+## Console-web dependency map
 
-## Console-web dependencies
+`web/src/api/http.ts` owns the shared `openapi-fetch` transport, while
+`web/src/api/generated/console-api.ts` owns all generated types.
 
-The SPA calls the `/api/v1` contract through the shared `openapi-fetch`
-transport in `web/src/api/http.ts`. API models and operation wrappers are
-generated from the OpenAPI contract under `web/src/api/generated`; page-specific
-modules re-export those types and add validation for legacy response details.
+| Modules | Dependency |
+| --- | --- |
+| `cluster`, `distribution`, `policy`, `group`, `exception` | Same-named Console tags and schemas |
+| `admissionEvent`, `observability`, `platform` | AdmissionEvent, LinkIncident, Platform operations; only legacy normalization/CSV adaptation is handwritten |
+| `schema`, `summary` | `getFieldSchema` and `getSummary` schemas |
+| `pagination` | Shared `PageMeta`; no endpoint ownership |
 
-## CRD resources
+## Exclusions, risks, and evidence
 
-The member plane owns `Policy`, `PolicyGroup`, `PolicyException`, and
-`PolicyVersion` CRDs. Their schemas are under `charts/kubesentry/crds/` and
-their reconcile/admission implementations remain in `internal/operator` and
-`internal/webhook`.
-
-## Migration recommendations
-
-1. Keep the gRPC proto as the wire source of truth for streaming gateway calls.
-2. Keep all browser-facing calls behind the generated OpenAPI client.
-3. Keep the platform service façade narrow and repository-oriented; cluster,
-   install-record, distribution, and platform operations all enter the
-   generated handler through service-owned boundaries.
-4. Run OpenAPI lint and operation coverage checks in CI before generating Go or
-   TypeScript clients.
+- `bearerAuth` is reserved documentation only; Console has no auth middleware.
+- Gateway probes are operational, not public Console routes; gRPC/mTLS/shared-token semantics stay with protobuf and deployment docs.
+- CRDs are not copied into OpenAPI: Kubernetes API/RBAC owns their trust boundary and Gateway owns zero CRDs.
+- `make api-lint` validates contracts, 50-route coverage, bundle drift, scratch Ogen/TypeScript drift, protobuf parsing, and Helm CRD rendering without rewriting committed artifacts.
+- Full verification additionally runs Go format/vet/tests/build, frontend test/build, Helm lint/template, and final Git diff review.

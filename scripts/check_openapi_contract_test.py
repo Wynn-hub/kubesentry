@@ -5,6 +5,7 @@ import contextlib
 import importlib.util
 import io
 from pathlib import Path
+import tempfile
 import unittest
 
 
@@ -89,6 +90,33 @@ class ContractCheckerTest(unittest.TestCase):
         self.assertEqual(
             set(stats),
             {"connections", "maxConnections", "transactions", "rollbacks", "cacheHitRatio", "databaseBytes", "poolInUse", "poolIdle", "poolWaitCount", "poolWaitSeconds"},
+        )
+
+    def test_rejects_console_route_inventory_that_is_not_all_50_operations(self):
+        self.assert_contract_error(
+            lambda: checker.check_console_route_inventory({"onlyOne"}),
+            "expected 50 console operations",
+        )
+
+    def test_rejects_generated_handler_that_leaves_a_documented_operation_unimplemented(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            generated = root / "oas_server_gen.go"
+            generated.write_text("// ListWidgets implements listWidgets operation.\n")
+            handlers = root / "handler"
+            handlers.mkdir()
+            (handlers / "widgets.go").write_text("package handler\n")
+            self.assert_contract_error(
+                lambda: checker.check_generated_handler_coverage({"listWidgets"}, generated, handlers),
+                "have no concrete handler method",
+            )
+
+    def test_rejects_api_index_that_treats_gateway_as_openapi(self):
+        index = checker.load(checker.ROOT / "api/openapi.yaml")
+        index["x-contract-boundaries"]["gateway"]["source"] = "./internal/gateway.yaml"
+        self.assert_contract_error(
+            lambda: checker.check_api_index(index),
+            "gateway contract must be protobuf-first",
         )
 
 

@@ -3,7 +3,7 @@ export GOROOT := /opt/homebrew/opt/go/libexec
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
         test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \
         build-image-local deploy-local undeploy-local web-build test-web dev-local \
-        proto api-gen api-bundle api-lint
+        proto api-gen api-gen-check api-ts-check api-bundle api-lint
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -119,6 +119,21 @@ api-gen: $(OGEN)
 	$(OGEN) --target internal/console/dto --package dto --clean \
 	  api/console/console-api.yaml
 
+# Regenerate outside the checkout, then compare the committed ogen output.
+# Hand-written DTO adapters and error compatibility methods are intentionally
+# outside ogen's oas_* output and are not part of this comparison.
+api-gen-check: $(OGEN)
+	@tmp_dir=$$(mktemp -d); trap 'rm -rf "$$tmp_dir"' EXIT; \
+	$(OGEN) --target "$$tmp_dir/dto" --package dto --clean api/console/console-api.yaml; \
+	diff -ru -I '^[[:space:]]*$$' --exclude=convert_policy.go --exclude=convert_policy_test.go --exclude=error_compat.go --exclude=gen.go internal/console/dto "$$tmp_dir/dto"
+
+# Do not let the API gate rewrite the committed browser contract. A deliberate
+# regeneration remains `cd web && npm run generate:api`.
+api-ts-check:
+	@tmp_file=$$(mktemp); trap 'rm -f "$$tmp_file"' EXIT; \
+	cd web && npx openapi-typescript ../api/console/console-api.yaml -o "$$tmp_file"; \
+	cmp -s "$$tmp_file" src/api/generated/console-api.ts || { echo "TypeScript OpenAPI client drift: run cd web && npm run generate:api" >&2; exit 1; }
+
 api-bundle:
 	python3 scripts/bundle_openapi.py
 
@@ -126,7 +141,13 @@ api-lint:
 	python3 scripts/check_openapi_contract.py
 	python3 scripts/bundle_openapi_test.py
 	python3 scripts/bundle_openapi.py --check
-	cd web && npm run generate:api
+	$(MAKE) api-gen-check
+	$(MAKE) api-ts-check
+	@tmp_file=$$(mktemp); trap 'rm -f "$$tmp_file"' EXIT; \
+	protoc --descriptor_set_out="$$tmp_file" --include_imports api/proto/gateway/v1/gateway.proto
+	helm lint charts/kubesentry charts/kubesentry-gateway
+	helm template kubesentry charts/kubesentry --include-crds \
+	  --set gateway.address=grpc://gateway:9443 --set gateway.clusterName=api-lint --set gateway.registrationToken=api-lint >/dev/null
 
 # ── Test & Lint ───────────────────────────────────────────────────────────────
 # Quick run for local development — no report files produced.

@@ -1,14 +1,28 @@
-# Unified entry point for the control-plane contracts. The gateway streaming
-# wire contract remains protobuf, while api/internal/gateway.yaml provides its
-# OpenAPI-compatible index and HTTP probe definitions.
+# Unified index for the three control-plane contract families. Only Console
+# browser HTTP operations are OpenAPI operations; Gateway and member-cluster
+# contracts remain protobuf-first and Kubernetes-CRD-first respectively.
 openapi: 3.1.0
 info:
   title: KubeSentry API
   version: 1.0.0
-  description: KubeSentry control-plane API contract index
+  description: KubeSentry control-plane API contract index; see x-contract-boundaries for non-HTTP families.
 paths:
   $ref: './console/console-api.yaml#/paths'
 components:
   $ref: './console/console-api.yaml#/components'
-x-gateway-contract:
-  $ref: './internal/gateway.yaml'
+x-contract-boundaries:
+  console:
+    kind: openapi
+    source: ./console/console-api.yaml
+    routeCount: 50
+  gateway:
+    kind: protobuf
+    source: ./proto/gateway/v1/gateway.proto
+    service: kubesentry.gateway.v1.Hub
+  memberClusterCRDs:
+    kind: kubernetes-crd
+    sources:
+      - ../charts/kubesentry/crds/policy.yaml
+      - ../charts/kubesentry/crds/policygroup.yaml
+      - ../charts/kubesentry/crds/exception.yaml
+      - ../charts/kubesentry/crds/policyversion.yaml

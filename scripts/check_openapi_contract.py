@@ -2,12 +2,23 @@
 """Small repository-local contract gate for the checked-in OpenAPI files."""
 
 from pathlib import Path
+import re
 import sys
 
 import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
+CONSOLE_OPERATION_COUNT = 50
+GATEWAY_METHODS = frozenset({"Register", "Sync", "Connect", "NotifyChange", "Dispatch"})
+CRD_NAMES = frozenset({
+    "policies.kubesentry.io",
+    "policygroups.kubesentry.io",
+    "policyexceptions.kubesentry.io",
+    "policyversions.kubesentry.io",
+})
+GENERATED_OPERATION = re.compile(r"// (?P<method>\w+) implements (?P<operation>\w+) operation\.")
+HANDLER_METHOD = re.compile(r"func \(h \*Handler\) (?P<method>\w+)\(")
 
 
 def fail(message: str) -> None:
@@ -36,6 +47,78 @@ def check_operations(document: dict, source: str, *, enforce_body_schemas: bool 
             if enforce_body_schemas:
                 check_operation_bodies(operation, f"{source} {method.upper()} {path}")
     return operations
+
+
+def operation_ids(document: dict) -> set[str]:
+    return {
+        operation["operationId"]
+        for item in document.get("paths", {}).values()
+        if isinstance(item, dict)
+        for method, operation in item.items()
+        if method != "parameters" and isinstance(operation, dict) and isinstance(operation.get("operationId"), str)
+    }
+
+
+def check_console_route_inventory(operations: set[str]) -> None:
+    if len(operations) != CONSOLE_OPERATION_COUNT:
+        fail(f"expected {CONSOLE_OPERATION_COUNT} console operations, found {len(operations)}")
+
+
+def check_generated_handler_coverage(operations: set[str], generated_path: Path, handler_dir: Path) -> None:
+    try:
+        generated = generated_path.read_text()
+    except OSError as exc:
+        fail(f"cannot read generated handler contract {generated_path}: {exc}")
+    generated_operations = {match.group("operation"): match.group("method") for match in GENERATED_OPERATION.finditer(generated)}
+    if set(generated_operations) != operations:
+        missing = sorted(operations - set(generated_operations))
+        extra = sorted(set(generated_operations) - operations)
+        fail(f"generated Go operations drift from OpenAPI (missing={missing}, extra={extra})")
+    methods = {
+        match.group("method")
+        for path in handler_dir.glob("*.go")
+        for match in HANDLER_METHOD.finditer(path.read_text())
+    }
+    missing = sorted(method for method in generated_operations.values() if method not in methods)
+    if missing:
+        fail(f"generated operations have no concrete handler method: {', '.join(missing)}")
+
+
+def check_api_index(document: dict) -> None:
+    boundaries = document.get("x-contract-boundaries")
+    if not isinstance(boundaries, dict):
+        fail("API index is missing x-contract-boundaries")
+    console = boundaries.get("console")
+    if not isinstance(console, dict) or console.get("source") != "./console/console-api.yaml" or console.get("routeCount") != CONSOLE_OPERATION_COUNT:
+        fail("console contract must be OpenAPI-first with the complete route inventory")
+    gateway = boundaries.get("gateway")
+    if not isinstance(gateway, dict) or gateway.get("kind") != "protobuf" or gateway.get("source") != "./proto/gateway/v1/gateway.proto":
+        fail("gateway contract must be protobuf-first")
+    crds = boundaries.get("memberClusterCRDs")
+    if not isinstance(crds, dict) or crds.get("kind") != "kubernetes-crd" or len(crds.get("sources", [])) != len(CRD_NAMES):
+        fail("member-cluster CRD contract index is incomplete")
+
+
+def check_gateway_proto() -> None:
+    source = ROOT / "api/proto/gateway/v1/gateway.proto"
+    try:
+        methods = set(re.findall(r"^\s*rpc\s+(\w+)\(", source.read_text(), re.MULTILINE))
+    except OSError as exc:
+        fail(f"cannot read gateway protobuf contract: {exc}")
+    if methods != GATEWAY_METHODS:
+        fail(f"gateway protobuf methods differ from the indexed contract (found={sorted(methods)})")
+
+
+def check_crd_contracts() -> None:
+    names: set[str] = set()
+    for path in (ROOT / "charts/kubesentry/crds").glob("*.yaml"):
+        document = load(path)
+        if document.get("kind") == "CustomResourceDefinition":
+            name = document.get("metadata", {}).get("name")
+            if isinstance(name, str):
+                names.add(name)
+    if names != CRD_NAMES:
+        fail(f"member-cluster CRD inventory differs from the indexed contract (found={sorted(names)})")
 
 
 def check_parameter_metadata(parameter: dict, location: str) -> None:
@@ -159,16 +242,21 @@ def check_references(node: object, source_path: Path, documents: dict[Path, dict
 
 def main() -> None:
     console_path = (ROOT / "api/console/console-api.yaml").resolve()
-    gateway_path = (ROOT / "api/internal/gateway.yaml").resolve()
+    index_path = (ROOT / "api/openapi.yaml").resolve()
     console = load(console_path)
-    gateway = load(gateway_path)
-    if console.get("openapi") != "3.1.0" or gateway.get("openapi") != "3.1.0":
-        fail("all HTTP contracts must use OpenAPI 3.1.0")
+    index = load(index_path)
+    if console.get("openapi") != "3.1.0" or index.get("openapi") != "3.1.0":
+        fail("Console contract and API index must use OpenAPI 3.1.0")
     if "bearerAuth" not in console.get("components", {}).get("securitySchemes", {}):
         fail("console contract must declare bearerAuth")
     console_count = check_operations(console, "console")
-    gateway_count = check_operations(gateway, "gateway", enforce_body_schemas=False)
-    documents = {console_path: console, gateway_path: gateway}
+    operations = operation_ids(console)
+    check_console_route_inventory(operations)
+    check_generated_handler_coverage(operations, ROOT / "internal/console/dto/oas_server_gen.go", ROOT / "internal/console/handler")
+    check_api_index(index)
+    check_gateway_proto()
+    check_crd_contracts()
+    documents = {console_path: console, index_path: index}
     checked: set[Path] = set()
     while unchecked := set(documents) - checked:
         source_path = unchecked.pop()
@@ -179,7 +267,7 @@ def main() -> None:
         document = load(schema)
         check_schema_properties(document, schema.name)
         check_free_form_objects(document, schema.name)
-    print(f"OpenAPI contract OK: {console_count} console operations, {gateway_count} gateway operations")
+    print(f"API contract OK: {console_count} console operations, {len(GATEWAY_METHODS)} gateway RPCs, {len(CRD_NAMES)} member-cluster CRDs")
 
 
 if __name__ == "__main__":

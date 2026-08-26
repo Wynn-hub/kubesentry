@@ -1,45 +1,29 @@
 # API Migration Report
 
-## Current status
+## Result
 
-The console HTTP surface has been migrated to an Ogen-generated server and is
-defined by `api/console/console-api.yaml`. Gateway member traffic remains
-gRPC and is indexed by `api/internal/gateway.yaml`.
+The Console migration is complete at 50 OpenAPI-defined `/api/v1` operations. Ogen generates `internal/console/dto`; `openapi-typescript` generates `web/src/api/generated/console-api.ts`; generated routing enters typed Console handlers and services.
 
-## Migrated API groups
+## Explicit exclusions
 
-- Policy, PolicyGroup, PolicyException
-- Summary and schema discovery
-- Admission events and admission-link incidents
-- Platform observability
-- Cluster management, install records, and uninstall tasks
-- Policy distribution
+| Boundary | Kept as | Evidence |
+| --- | --- | --- |
+| Gateway member/console transport | protobuf/gRPC | `api/proto/gateway/v1/gateway.proto`, 5 `Hub` RPCs |
+| Member policy resources | Kubernetes CRDs | four files under `charts/kubesentry/crds/` |
+| Gateway HTTP probes | operational endpoints | no public OpenAPI index remains |
 
-## Contract and implementation checks
+`api/internal/gateway.yaml` was removed because it had no tracked runtime consumer and duplicated a protobuf-owned boundary.
 
-- OpenAPI 3.1 documents are stored below `api/`.
-- Generated Go contract code is stored below `internal/console/dto`.
-- Browser traffic uses the shared `/api/v1` transport.
-- Kubernetes member components remain CRD/controller based.
+## Coverage and drift controls
 
-## Service boundaries
+- The contract checker requires 50 unique Console operation IDs, validates metadata, schemas and references, and compares them with generated Ogen operations plus concrete handler methods.
+- It validates the five Gateway RPCs and four CRD names against the unified index. `protoc` parses the wire contract and Helm renders CRDs in `api-lint`.
+- `make api-lint` uses scratch paths for Go and TypeScript generation and fails on differences. It also checks the embedded OpenAPI bundle without rewriting the checkout.
 
-- Keep generated TypeScript output synchronized with the console contract.
-- Keep the API Explorer and served OpenAPI document synchronized with the
-  checked-in specification.
-- Platform observability uses a narrow in-process service façade with no HTTP
-  route registration or `ResponseWriter` dependency. Cluster, install-record,
-  and distribution operations use typed services directly. The generated Ogen
-  server is the only HTTP router for all `/api/v1` operations.
+## Frontend outcome and risk
 
-## Verification record
+All browser resource modules use generated `components` and `operations` through the shared typed transport. Handwritten code is limited to established runtime normalization and CSV adaptation. The migration does not add Console authentication, a REST facade for gRPC streams, or new CRDs; each needs a separate product/security decision.
 
-The latest verification run completed successfully:
+## Required evidence
 
-- `go test -p 1 ./... -count=1`
-- `make lint` (`go vet ./...`)
-- `make api-lint` (50 console operations and 2 gateway operations)
-- `npm test -- --run` (102 tests)
-- `npm run build` (Vue type-check and production bundle)
-- API Explorer endpoint smoke tests, including `/api/docs/openapi.json` and
-  `/system/api-docs`
+Before integration run `make api-lint`, Go format/vet/tests/build, frontend test/build, Helm lint/template, `git diff --check`, and `git status --short`.
