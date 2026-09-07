@@ -2,6 +2,8 @@
 """Small repository-local contract gate for the checked-in OpenAPI files."""
 
 from pathlib import Path
+import hashlib
+import json
 import re
 import sys
 
@@ -19,7 +21,11 @@ CRD_NAMES = frozenset({
 })
 GENERATED_OPERATION = re.compile(r"// (?P<method>\w+) implements (?P<operation>\w+) operation\.")
 HANDLER_METHOD = re.compile(r"func \(h \*Handler\) (?P<method>\w+)\(")
-GENERATED_API_MOUNT = re.compile(r'mux\.Handle\("/api/v1/", ogenServer\)')
+GENERATED_API_MOUNT = re.compile(
+    r'mux\.Handle\(\s*"/api/v1/"\s*,\s*http\.HandlerFunc\(func\([^)]*\)\s*\{(?P<body>.*?)^\s*\}\)\s*\)',
+    re.DOTALL | re.MULTILINE,
+)
+GENERATED_API_CALL = re.compile(r'ogenServer\.ServeHTTP\(')
 
 
 def fail(message: str) -> None:
@@ -60,6 +66,78 @@ def operation_ids(document: dict) -> set[str]:
     }
 
 
+def schema_refs(node: object) -> list[str]:
+    refs: set[str] = set()
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str):
+            refs.add(ref)
+        for child in node.values():
+            refs.update(schema_refs(child))
+    elif isinstance(node, list):
+        for child in node:
+            refs.update(schema_refs(child))
+    return sorted(refs)
+
+
+def build_operation_inventory(document: dict) -> list[dict]:
+    inventory: list[dict] = []
+    for path, item in document.get("paths", {}).items():
+        if not isinstance(item, dict):
+            continue
+        for method, operation in item.items():
+            if method == "parameters" or not isinstance(operation, dict):
+                continue
+            parameters = []
+            for parameter in operation.get("parameters", []):
+                if not isinstance(parameter, dict):
+                    continue
+                if isinstance(parameter.get("$ref"), str):
+                    parameters.append({"$ref": parameter["$ref"]})
+                    continue
+                parameters.append({
+                    "in": parameter.get("in"),
+                    "name": parameter.get("name"),
+                    "required": parameter.get("required", False),
+                    "schema": parameter.get("schema", {}),
+                })
+            responses = {
+                str(status): schema_refs(response)
+                for status, response in operation.get("responses", {}).items()
+            }
+            entry = {
+                "method": method.upper(),
+                "operationId": operation.get("operationId"),
+                "parameters": parameters,
+                "path": path,
+                "responses": responses,
+            }
+            request_refs = schema_refs(operation.get("requestBody"))
+            if request_refs:
+                entry["requestBody"] = request_refs
+            inventory.append(entry)
+    return sorted(inventory, key=lambda entry: (entry["path"], entry["method"]))
+
+
+def operation_inventory_snapshot(document: dict) -> dict:
+    inventory = build_operation_inventory(document)
+    encoded = json.dumps(inventory, sort_keys=True, separators=(",", ":")).encode()
+    return {
+        "operationCount": len(inventory),
+        "operations": inventory,
+        "sha256": hashlib.sha256(encoded).hexdigest(),
+    }
+
+
+def check_committed_inventory(document: dict, inventory_path: Path) -> None:
+    try:
+        committed = json.loads(inventory_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"cannot read operation inventory {inventory_path}: {exc}")
+    if committed != operation_inventory_snapshot(document):
+        fail("operation inventory drift: regenerate the reviewed Console contract baseline")
+
+
 def check_console_route_inventory(operations: set[str]) -> None:
     if len(operations) != CONSOLE_OPERATION_COUNT:
         fail(f"expected {CONSOLE_OPERATION_COUNT} console operations, found {len(operations)}")
@@ -91,7 +169,8 @@ def check_runtime_mount(server_path: Path) -> None:
         source = server_path.read_text()
     except OSError as exc:
         fail(f"cannot read console server mount contract {server_path}: {exc}")
-    if not GENERATED_API_MOUNT.search(source):
+    mount = GENERATED_API_MOUNT.search(source)
+    if mount is None or not GENERATED_API_CALL.search(mount.group("body")):
         fail("console server must mount the generated server at /api/v1/")
 
 
@@ -263,6 +342,7 @@ def main() -> None:
     console_count = check_operations(console, "console")
     operations = operation_ids(console)
     check_console_route_inventory(operations)
+    check_committed_inventory(console, ROOT / "api/console/operation-inventory.json")
     check_generated_handler_coverage(operations, ROOT / "internal/console/dto/oas_server_gen.go", ROOT / "internal/console/handler")
     check_runtime_mount(ROOT / "internal/console/server.go")
     check_api_index(index)

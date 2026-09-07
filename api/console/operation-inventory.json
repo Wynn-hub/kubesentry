@@ -1,0 +1,1807 @@
+{
+  "operationCount": 50,
+  "operations": [
+    {
+      "method": "GET",
+      "operationId": "getAdmissionEventSettings",
+      "parameters": [],
+      "path": "/admission-event-settings",
+      "responses": {
+        "200": [
+          "../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsResponse"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ],
+        "503": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "operationId": "updateAdmissionEventSettings",
+      "parameters": [],
+      "path": "/admission-event-settings",
+      "requestBody": [
+        "../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listAdmissionEvents",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Page"
+        },
+        {
+          "$ref": "#/components/parameters/PageSize"
+        },
+        {
+          "in": "query",
+          "name": "sortBy",
+          "required": false,
+          "schema": {
+            "default": "occurredAt",
+            "enum": [
+              "occurredAt",
+              "createdAt",
+              "verdict"
+            ],
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "sortOrder",
+          "required": false,
+          "schema": {
+            "default": "desc",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "cluster",
+          "required": false,
+          "schema": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "verdict",
+          "required": false,
+          "schema": {
+            "items": {
+              "enum": [
+                "audit",
+                "deny"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "policy",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "namespace",
+          "required": false,
+          "schema": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "gvk",
+          "required": false,
+          "schema": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "resourceName",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "username",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "from",
+          "required": false,
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "to",
+          "required": false,
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/admission-events",
+      "responses": {
+        "200": [
+          "../schemas/admission.yaml#/components/schemas/AdmissionEventListResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getAdmissionEventTrend",
+      "parameters": [
+        {
+          "in": "query",
+          "name": "from",
+          "required": true,
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "to",
+          "required": true,
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/admission-events/trend",
+      "responses": {
+        "200": [
+          "../schemas/admission.yaml#/components/schemas/AdmissionEventTrendResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getAdmissionEvent",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AdmissionEventID"
+        }
+      ],
+      "path": "/admission-events/{id}",
+      "responses": {
+        "200": [
+          "../schemas/admission.yaml#/components/schemas/AdmissionEventDetailResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listAdmissionLinkIncidents",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Page"
+        },
+        {
+          "$ref": "#/components/parameters/PageSize"
+        },
+        {
+          "in": "query",
+          "name": "cluster",
+          "required": false,
+          "schema": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "component",
+          "required": false,
+          "schema": {
+            "items": {
+              "enum": [
+                "webhook",
+                "operator",
+                "gateway"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "reason",
+          "required": false,
+          "schema": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "status",
+          "required": false,
+          "schema": {
+            "items": {
+              "enum": [
+                "active",
+                "interrupted",
+                "closed"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "from",
+          "required": false,
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "to",
+          "required": false,
+          "schema": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/admission-link-incidents",
+      "responses": {
+        "200": [
+          "../schemas/admission_link_incident.yaml#/components/schemas/AdmissionLinkIncidentListResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ],
+        "503": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getAdmissionLinkIncident",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "$ref": "../schemas/common.yaml#/components/schemas/ResourceID"
+          }
+        }
+      ],
+      "path": "/admission-link-incidents/{id}",
+      "responses": {
+        "200": [
+          "../schemas/admission_link_incident.yaml#/components/schemas/AdmissionLinkIncidentDetailResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ],
+        "503": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listClusters",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Page"
+        },
+        {
+          "$ref": "#/components/parameters/PageSize"
+        },
+        {
+          "in": "query",
+          "name": "sortBy",
+          "required": false,
+          "schema": {
+            "description": "集群列表排序字段",
+            "enum": [
+              "name",
+              "phase",
+              "operatorVersion",
+              "lastHeartbeatAt",
+              "createdAt"
+            ],
+            "example": "name",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "sortOrder",
+          "required": false,
+          "schema": {
+            "default": "asc",
+            "description": "升序或降序",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "example": "asc",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/clusters",
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/ClusterListResponse"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "createCluster",
+      "parameters": [],
+      "path": "/clusters",
+      "requestBody": [
+        "../schemas/cluster.yaml#/components/schemas/ClusterCreateRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/ClusterCommandResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "operationId": "deleteCluster",
+      "parameters": [],
+      "path": "/clusters/{name}",
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/EmptyResponse"
+        ],
+        "403": [
+          "#/components/responses/Forbidden"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getCluster",
+      "parameters": [],
+      "path": "/clusters/{name}",
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/ClusterDetailResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "operationId": "updateCluster",
+      "parameters": [],
+      "path": "/clusters/{name}",
+      "requestBody": [
+        "../schemas/cluster.yaml#/components/schemas/ClusterLabelsRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/ClusterNameResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getLatestInstallParams",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ClusterName"
+        }
+      ],
+      "path": "/clusters/{name}/latest-install-params",
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/InstallParamsResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "reissueClusterToken",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ClusterName"
+        }
+      ],
+      "path": "/clusters/{name}/reissue-token",
+      "requestBody": [
+        "../schemas/cluster.yaml#/components/schemas/ClusterTokenRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/ClusterCommandResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "createUninstallTask",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ClusterName"
+        }
+      ],
+      "path": "/clusters/{name}/uninstall",
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/UninstallTaskResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listUninstallTasks",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ClusterName"
+        }
+      ],
+      "path": "/clusters/{name}/uninstall-tasks",
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/UninstallTaskListResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "retryUninstallTask",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ClusterName"
+        },
+        {
+          "in": "path",
+          "name": "taskID",
+          "required": true,
+          "schema": {
+            "$ref": "../schemas/common.yaml#/components/schemas/ResourceID"
+          }
+        }
+      ],
+      "path": "/clusters/{name}/uninstall-tasks/{taskID}/retry",
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/UninstallTaskIDResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listDistributions",
+      "parameters": [
+        {
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "description": "当前页码",
+            "example": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "description": "每页记录数",
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "example": 20,
+            "type": "integer"
+          }
+        },
+        {
+          "in": "query",
+          "name": "sortBy",
+          "required": false,
+          "schema": {
+            "description": "策略分发列表排序字段",
+            "enum": [
+              "name"
+            ],
+            "example": "name",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "sortOrder",
+          "required": false,
+          "schema": {
+            "default": "asc",
+            "description": "升序或降序",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "example": "asc",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/distributions",
+      "responses": {
+        "200": [
+          "../schemas/distribution.yaml#/components/schemas/DistributionListResponse"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "createDistribution",
+      "parameters": [],
+      "path": "/distributions",
+      "requestBody": [
+        "../schemas/distribution.yaml#/components/schemas/DistributionRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/distribution.yaml#/components/schemas/DistributionNameResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "operationId": "deleteDistribution",
+      "parameters": [],
+      "path": "/distributions/{name}",
+      "responses": {
+        "200": [
+          "../schemas/distribution.yaml#/components/schemas/DistributionEmptyResponse"
+        ],
+        "403": [
+          "#/components/responses/Forbidden"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getDistribution",
+      "parameters": [],
+      "path": "/distributions/{name}",
+      "responses": {
+        "200": [
+          "../schemas/distribution.yaml#/components/schemas/DistributionDetailResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "operationId": "updateDistribution",
+      "parameters": [],
+      "path": "/distributions/{name}",
+      "requestBody": [
+        "../schemas/distribution.yaml#/components/schemas/DistributionRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/distribution.yaml#/components/schemas/DistributionNameResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listExceptions",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Page"
+        },
+        {
+          "$ref": "#/components/parameters/PageSize"
+        },
+        {
+          "in": "query",
+          "name": "sortBy",
+          "required": false,
+          "schema": {
+            "default": "name",
+            "description": "排序字段",
+            "enum": [
+              "name",
+              "phase",
+              "targetSummary",
+              "duration",
+              "expiresAt"
+            ],
+            "example": "name",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "sortOrder",
+          "required": false,
+          "schema": {
+            "default": "asc",
+            "description": "排序方向",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "example": "asc",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/exceptions",
+      "responses": {
+        "200": [
+          "../schemas/exception.yaml#/components/schemas/ExceptionListResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "createException",
+      "parameters": [],
+      "path": "/exceptions",
+      "requestBody": [
+        "../schemas/exception.yaml#/components/schemas/ExceptionRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/exception.yaml#/components/schemas/ExceptionNameResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "operationId": "deleteException",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ExceptionName"
+        }
+      ],
+      "path": "/exceptions/{name}",
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/EmptyResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getException",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ExceptionName"
+        }
+      ],
+      "path": "/exceptions/{name}",
+      "responses": {
+        "200": [
+          "../schemas/exception.yaml#/components/schemas/ExceptionDetailResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "operationId": "updateException",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ExceptionName"
+        }
+      ],
+      "path": "/exceptions/{name}",
+      "requestBody": [
+        "../schemas/exception.yaml#/components/schemas/ExceptionRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/exception.yaml#/components/schemas/ExceptionNameResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listInstallRecords",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Page"
+        },
+        {
+          "$ref": "#/components/parameters/PageSize"
+        },
+        {
+          "in": "query",
+          "name": "sortBy",
+          "required": false,
+          "schema": {
+            "description": "安装记录排序字段",
+            "enum": [
+              "clusterName",
+              "namespace",
+              "createdAt"
+            ],
+            "example": "createdAt",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "sortOrder",
+          "required": false,
+          "schema": {
+            "default": "desc",
+            "description": "升序或降序",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "example": "desc",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/install-records",
+      "responses": {
+        "200": [
+          "../schemas/cluster.yaml#/components/schemas/InstallRecordListResponse"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getPlatformInstanceTrend",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "component",
+          "required": true,
+          "schema": {
+            "description": "平台组件名称",
+            "enum": [
+              "webhook",
+              "operator",
+              "gateway",
+              "console-api",
+              "console-web",
+              "postgres"
+            ],
+            "example": "gateway",
+            "type": "string"
+          }
+        },
+        {
+          "in": "path",
+          "name": "instance",
+          "required": true,
+          "schema": {
+            "description": "平台组件实例名称",
+            "example": "gateway-0",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "cluster",
+          "required": false,
+          "schema": {
+            "description": "成员集群名称",
+            "example": "production-east",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "from",
+          "required": false,
+          "schema": {
+            "description": "查询起始时间",
+            "example": "2026-08-24T07:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "to",
+          "required": false,
+          "schema": {
+            "description": "查询结束时间",
+            "example": "2026-08-24T08:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/platform/instances/{component}/{instance}/trend",
+      "responses": {
+        "200": [
+          "../schemas/platform.yaml#/components/schemas/PlatformTrendResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listPlatformLeadershipEvents",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Page"
+        },
+        {
+          "$ref": "#/components/parameters/PageSize"
+        },
+        {
+          "in": "query",
+          "name": "component",
+          "required": false,
+          "schema": {
+            "description": "平台组件名称",
+            "enum": [
+              "webhook",
+              "operator",
+              "gateway",
+              "console-api",
+              "console-web",
+              "postgres"
+            ],
+            "example": "gateway",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "cluster",
+          "required": false,
+          "schema": {
+            "description": "成员集群名称",
+            "example": "production-east",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "from",
+          "required": false,
+          "schema": {
+            "description": "查询起始时间",
+            "example": "2026-08-24T07:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "to",
+          "required": false,
+          "schema": {
+            "description": "查询结束时间",
+            "example": "2026-08-24T08:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/platform/leadership-events",
+      "responses": {
+        "200": [
+          "../schemas/platform.yaml#/components/schemas/LeadershipEventListResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getPlatformOverview",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Page"
+        },
+        {
+          "$ref": "#/components/parameters/PageSize"
+        },
+        {
+          "in": "query",
+          "name": "health",
+          "required": false,
+          "schema": {
+            "description": "成员集群聚合健康状态",
+            "enum": [
+              "ok",
+              "degraded",
+              "unavailable"
+            ],
+            "example": "degraded",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/platform/overview",
+      "responses": {
+        "200": [
+          "../schemas/platform.yaml#/components/schemas/PlatformOverviewResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getPlatformSettings",
+      "parameters": [],
+      "path": "/platform/settings",
+      "responses": {
+        "200": [
+          "../schemas/platform.yaml#/components/schemas/PlatformSettingsResponse"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "operationId": "updatePlatformSettings",
+      "parameters": [],
+      "path": "/platform/settings",
+      "requestBody": [
+        "../schemas/platform.yaml#/components/schemas/PlatformSettingsRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/platform.yaml#/components/schemas/PlatformSettingsResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listPolicies",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Page"
+        },
+        {
+          "$ref": "#/components/parameters/PageSize"
+        },
+        {
+          "in": "query",
+          "name": "sortBy",
+          "required": false,
+          "schema": {
+            "default": "name",
+            "description": "排序字段",
+            "enum": [
+              "name",
+              "source",
+              "enforcementMode",
+              "phase",
+              "createdAt",
+              "updatedAt"
+            ],
+            "example": "name",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "sortOrder",
+          "required": false,
+          "schema": {
+            "default": "asc",
+            "description": "排序方向",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "example": "asc",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "phase",
+          "required": false,
+          "schema": {
+            "description": "编译状态列表",
+            "items": {
+              "description": "单个编译状态",
+              "enum": [
+                "Ready",
+                "Invalid"
+              ],
+              "example": "Ready",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "mode",
+          "required": false,
+          "schema": {
+            "description": "执行模式列表",
+            "items": {
+              "description": "单个执行模式",
+              "enum": [
+                "enforce",
+                "audit"
+              ],
+              "example": "enforce",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "source",
+          "required": false,
+          "schema": {
+            "description": "来源列表",
+            "items": {
+              "description": "单个来源",
+              "enum": [
+                "builtin",
+                "custom"
+              ],
+              "example": "builtin",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        {
+          "in": "query",
+          "name": "keyword",
+          "required": false,
+          "schema": {
+            "description": "搜索关键词",
+            "example": "privileged",
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/policies",
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/PolicyListResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "createPolicy",
+      "parameters": [],
+      "path": "/policies",
+      "requestBody": [
+        "../schemas/policy.yaml#/components/schemas/PolicyRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/PolicyNameResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getResourceSuggestions",
+      "parameters": [],
+      "path": "/policies/resource-suggestions",
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/ResourceSuggestionsResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "validatePolicyRego",
+      "parameters": [],
+      "path": "/policies/validate",
+      "requestBody": [
+        "../schemas/policy.yaml#/components/schemas/ValidateRegoRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/EmptyResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "operationId": "deletePolicy",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PolicyName"
+        },
+        {
+          "in": "query",
+          "name": "force",
+          "required": false,
+          "schema": {
+            "default": false,
+            "description": "是否强制删除",
+            "example": false,
+            "type": "boolean"
+          }
+        }
+      ],
+      "path": "/policies/{name}",
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/EmptyResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getPolicy",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PolicyName"
+        }
+      ],
+      "path": "/policies/{name}",
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/PolicyDetailResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "operationId": "updatePolicy",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PolicyName"
+        }
+      ],
+      "path": "/policies/{name}",
+      "requestBody": [
+        "../schemas/policy.yaml#/components/schemas/PolicyRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/PolicyNameResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "rollbackPolicy",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PolicyName"
+        }
+      ],
+      "path": "/policies/{name}/rollback",
+      "requestBody": [
+        "../schemas/policy.yaml#/components/schemas/RollbackRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/RollbackResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "410": [
+          "#/components/responses/Gone"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listPolicyVersions",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PolicyName"
+        }
+      ],
+      "path": "/policies/{name}/versions",
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/PolicyVersionListResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "listPolicyGroups",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Page"
+        },
+        {
+          "$ref": "#/components/parameters/PageSize"
+        },
+        {
+          "in": "query",
+          "name": "sortBy",
+          "required": false,
+          "schema": {
+            "default": "name",
+            "enum": [
+              "name",
+              "displayName",
+              "enabled",
+              "phase",
+              "resolvedCount"
+            ],
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "sortOrder",
+          "required": false,
+          "schema": {
+            "default": "asc",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/policygroups",
+      "responses": {
+        "200": [
+          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupListResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "createPolicyGroup",
+      "parameters": [],
+      "path": "/policygroups",
+      "requestBody": [
+        "../schemas/policygroup.yaml#/components/schemas/PolicyGroupRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupNameResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "operationId": "deletePolicyGroup",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PolicyGroupName"
+        }
+      ],
+      "path": "/policygroups/{name}",
+      "responses": {
+        "200": [
+          "../schemas/policy.yaml#/components/schemas/EmptyResponse"
+        ],
+        "403": [
+          "#/components/responses/Conflict"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getPolicyGroup",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PolicyGroupName"
+        }
+      ],
+      "path": "/policygroups/{name}",
+      "responses": {
+        "200": [
+          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupDetailResponse"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "operationId": "updatePolicyGroup",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PolicyGroupName"
+        }
+      ],
+      "path": "/policygroups/{name}",
+      "requestBody": [
+        "../schemas/policygroup.yaml#/components/schemas/PolicyGroupRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupNameResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "403": [
+          "#/components/responses/Conflict"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "operationId": "setPolicyGroupEnabled",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PolicyGroupName"
+        }
+      ],
+      "path": "/policygroups/{name}/enabled",
+      "requestBody": [
+        "../schemas/policygroup.yaml#/components/schemas/PolicyGroupEnabledRequest"
+      ],
+      "responses": {
+        "200": [
+          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupEnabledResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "404": [
+          "#/components/responses/NotFound"
+        ],
+        "409": [
+          "#/components/responses/Conflict"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getFieldSchema",
+      "parameters": [
+        {
+          "in": "query",
+          "name": "group",
+          "required": false,
+          "schema": {
+            "description": "API 组",
+            "example": "apps",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "version",
+          "required": true,
+          "schema": {
+            "description": "API 版本",
+            "example": "v1",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "resource",
+          "required": true,
+          "schema": {
+            "description": "资源名称",
+            "example": "deployments",
+            "type": "string"
+          }
+        },
+        {
+          "in": "query",
+          "name": "refresh",
+          "required": false,
+          "schema": {
+            "default": false,
+            "description": "刷新缓存",
+            "example": false,
+            "type": "boolean"
+          }
+        }
+      ],
+      "path": "/schema/fields",
+      "responses": {
+        "200": [
+          "../schemas/schema.yaml#/components/schemas/FieldSchemaResponse"
+        ],
+        "400": [
+          "#/components/responses/BadRequest"
+        ],
+        "502": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getSummary",
+      "parameters": [],
+      "path": "/summary",
+      "responses": {
+        "200": [
+          "../schemas/summary.yaml#/components/schemas/SummaryResponse"
+        ],
+        "500": [
+          "#/components/responses/InternalError"
+        ]
+      }
+    }
+  ],
+  "sha256": "b07ccb565d34e8b5a69bea3bc6518884143672c74d0f7394de8343628174b116"
+}

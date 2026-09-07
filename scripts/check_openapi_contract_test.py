@@ -98,6 +98,47 @@ class ContractCheckerTest(unittest.TestCase):
             "expected 50 console operations",
         )
 
+    def test_builds_stable_operation_inventory_with_parameters_and_responses(self):
+        document = {
+            "paths": {
+                "/widgets": {
+                    "get": {
+                        "operationId": "listWidgets",
+                        "parameters": [
+                            {"$ref": "#/components/parameters/Page"},
+                            {"name": "page", "in": "query", "schema": {"type": "integer"}},
+                        ],
+                        "responses": {
+                            "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetList"}}}}
+                        },
+                    }
+                }
+            }
+        }
+
+        self.assertEqual(
+            checker.build_operation_inventory(document),
+            [{
+                "method": "GET",
+                "operationId": "listWidgets",
+                "parameters": [
+                    {"$ref": "#/components/parameters/Page"},
+                    {"in": "query", "name": "page", "required": False, "schema": {"type": "integer"}},
+                ],
+                "path": "/widgets",
+                "responses": {"200": ["#/components/schemas/WidgetList"]},
+            }],
+        )
+
+    def test_rejects_committed_operation_inventory_drift(self):
+        with tempfile.TemporaryDirectory() as directory:
+            inventory = Path(directory) / "inventory.json"
+            inventory.write_text('{"operationCount": 1, "operations": [], "sha256": "stale"}\n')
+            self.assert_contract_error(
+                lambda: checker.check_committed_inventory({"paths": {}}, inventory),
+                "operation inventory drift",
+            )
+
     def test_rejects_generated_handler_that_leaves_a_documented_operation_unimplemented(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -130,6 +171,29 @@ class ContractCheckerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             server = Path(directory) / "server.go"
             server.write_text('mux.Handle("/api/v1/clusters", ogenServer)\n')
+            self.assert_contract_error(
+                lambda: checker.check_runtime_mount(server),
+                "must mount the generated server at /api/v1/",
+            )
+
+    def test_accepts_generated_server_mounted_through_json_404_wrapper(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = Path(directory) / "server.go"
+            server.write_text(
+                'mux.Handle("/api/v1/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n'
+                "rec := httptest.NewRecorder()\n"
+                "ogenServer.ServeHTTP(rec, r)\n"
+                "}))\n"
+            )
+            checker.check_runtime_mount(server)
+
+    def test_rejects_generated_server_call_outside_api_prefix_handler(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = Path(directory) / "server.go"
+            server.write_text(
+                'mux.Handle("/api/v1/", otherHandler)\n'
+                "func unused() { ogenServer.ServeHTTP(nil, nil) }\n"
+            )
             self.assert_contract_error(
                 lambda: checker.check_runtime_mount(server),
                 "must mount the generated server at /api/v1/",
