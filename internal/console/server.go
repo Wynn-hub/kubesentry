@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 
@@ -74,7 +75,21 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		if err != nil {
 			return nil, fmt.Errorf("construct policy ogen server: %w", err)
 		}
-		mux.Handle("/api/v1/", ogenServer)
+		mux.Handle("/api/v1/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rec := httptest.NewRecorder()
+			ogenServer.ServeHTTP(rec, r)
+			if rec.Code == http.StatusNotFound {
+				writeErr(w, http.StatusNotFound, "unknown API route")
+				return
+			}
+			for key, values := range rec.Header() {
+				for _, value := range values {
+					w.Header().Add(key, value)
+				}
+			}
+			w.WriteHeader(rec.Code)
+			_, _ = w.Write(rec.Body.Bytes())
+		}))
 	}
 	// The nginx `web` container only proxies /healthz and /api/* here (see
 	// charts/kubesentry-gateway/templates/console/nginx-configmap.yaml); anything else served by
