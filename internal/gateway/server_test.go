@@ -137,7 +137,7 @@ func TestPushLoopIncludesTraceIDFromNotifyChange(t *testing.T) {
 
 		client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
 		sctx := metadata.AppendToOutgoingContext(context.Background(),
-			MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+			gatewaypb.MDClusterKey, "prod", gatewaypb.MDAuthKey, "Bearer tok")
 		stream, err := client.Sync(sctx)
 		if err != nil {
 			t.Fatal(err)
@@ -180,7 +180,7 @@ func TestPushLoopIncludesTraceIDFromNotifyChange(t *testing.T) {
 		client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
 
 		ctx := metadata.AppendToOutgoingContext(context.Background(),
-			MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+			gatewaypb.MDClusterKey, "prod", gatewaypb.MDAuthKey, "Bearer tok")
 		stream, err := client.Sync(ctx)
 		if err != nil {
 			t.Fatal(err)
@@ -274,7 +274,7 @@ func TestNotifyChangeTraceIDGoesToTheClusterThatActuallyChanged(t *testing.T) {
 
 	connect := func(cluster, tok string) gatewaypb.Hub_SyncClient {
 		sctx := metadata.AppendToOutgoingContext(context.Background(),
-			MDClusterKey, cluster, MDAuthKey, "Bearer "+tok)
+			gatewaypb.MDClusterKey, cluster, gatewaypb.MDAuthKey, "Bearer "+tok)
 		stream, err := client.Sync(sctx)
 		if err != nil {
 			t.Fatalf("connect %s: %v", cluster, err)

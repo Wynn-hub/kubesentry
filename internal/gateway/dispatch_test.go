@@ -45,7 +45,7 @@ func TestDispatchRoundTripsViaCorrelationID(t *testing.T) {
 	client := startBufconnGateway(t, srv)
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
-		MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+		gatewaypb.MDClusterKey, "prod", gatewaypb.MDAuthKey, "Bearer tok")
 	stream, err := client.Sync(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +112,7 @@ func TestSessionRegistryRaceSafeUnderConcurrentChurn(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterations; i++ {
 			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-			sctx := metadata.AppendToOutgoingContext(ctx, MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+			sctx := metadata.AppendToOutgoingContext(ctx, gatewaypb.MDClusterKey, "prod", gatewaypb.MDAuthKey, "Bearer tok")
 			stream, err := client.Sync(sctx)
 			if err == nil {
 				_, _ = stream.Recv() // let the session register before tearing down

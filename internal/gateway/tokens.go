@@ -16,12 +16,6 @@ const (
 	KeyClusterUID = "clusterUID"
 )
 
-// gRPC metadata keys shared by gateway server and member hublink.
-const (
-	MDClusterKey = "x-kubesentry-cluster"
-	MDAuthKey    = "authorization"
-)
-
 // NewToken returns a 64-char hex token from crypto/rand (32 bytes entropy).
 func NewToken() (string, error) {
 	b := make([]byte, 32)

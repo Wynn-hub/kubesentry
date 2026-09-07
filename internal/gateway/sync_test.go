@@ -116,7 +116,7 @@ func TestSyncAdmissionStorageFailureReturnsRetryableWithoutClosingStream(t *test
 	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
-		MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+		gatewaypb.MDClusterKey, "prod", gatewaypb.MDAuthKey, "Bearer tok")
 	stream, err := client.Sync(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -225,7 +225,7 @@ func TestSyncPushesSnapshotOnConnectAndChange(t *testing.T) {
 	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), notifier, "test-token"))
 
 	sctx := metadata.AppendToOutgoingContext(context.Background(),
-		MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+		gatewaypb.MDClusterKey, "prod", gatewaypb.MDAuthKey, "Bearer tok")
 	stream, err := client.Sync(sctx)
 	if err != nil {
 		t.Fatal(err)
@@ -282,7 +282,7 @@ func TestSyncResendsOnResyncTickEvenWithUnchangedHash(t *testing.T) {
 	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), notifier, "test-token"))
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
-		MDClusterKey, "prod", MDAuthKey, "Bearer tok")
+		gatewaypb.MDClusterKey, "prod", gatewaypb.MDAuthKey, "Bearer tok")
 	stream, err := client.Sync(ctx)
 	if err != nil {
 		t.Fatal(err)

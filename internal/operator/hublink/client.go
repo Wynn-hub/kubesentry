@@ -32,7 +32,6 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/operator/uninstall"
 	"github.com/Wynn-hub/kubesentry/internal/platformobs"
@@ -324,8 +323,8 @@ func (l *Link) runOnce(ctx context.Context) (connected bool, err error) {
 	}
 
 	streamCtx := metadata.AppendToOutgoingContext(ctx,
-		gateway.MDClusterKey, l.cfg.ClusterName,
-		gateway.MDAuthKey, "Bearer "+token)
+		gatewaypb.MDClusterKey, l.cfg.ClusterName,
+		gatewaypb.MDAuthKey, "Bearer "+token)
 	stream, err := hc.Sync(streamCtx)
 	if err != nil {
 		l.clearCredentialIfUnauthenticated(ctx, err)

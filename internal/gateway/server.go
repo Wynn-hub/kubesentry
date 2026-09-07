@@ -481,8 +481,8 @@ func (s *Server) pushLoop(ctx context.Context, sess *syncSession, cluster string
 // since grpc.ServerStream.Send is not safe for concurrent use.
 func (s *Server) Sync(stream gatewaypb.Hub_SyncServer) error {
 	md, _ := metadata.FromIncomingContext(stream.Context())
-	cluster := firstMD(md, MDClusterKey)
-	token := strings.TrimPrefix(firstMD(md, MDAuthKey), "Bearer ")
+	cluster := firstMD(md, gatewaypb.MDClusterKey)
+	token := strings.TrimPrefix(firstMD(md, gatewaypb.MDAuthKey), "Bearer ")
 	if cluster == "" || token == "" {
 		return status.Error(codes.Unauthenticated, "missing cluster identity metadata")
 	}
