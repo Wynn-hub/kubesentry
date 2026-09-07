@@ -126,6 +126,15 @@ class ContractCheckerTest(unittest.TestCase):
                 "have no concrete handler method",
             )
 
+    def test_rejects_server_without_the_generated_api_prefix_mount(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = Path(directory) / "server.go"
+            server.write_text('mux.Handle("/api/v1/clusters", ogenServer)\n')
+            self.assert_contract_error(
+                lambda: checker.check_runtime_mount(server),
+                "must mount the generated server at /api/v1/",
+            )
+
     def test_rejects_api_index_that_treats_gateway_as_openapi(self):
         index = checker.load(checker.ROOT / "api/openapi.yaml")
         index["x-contract-boundaries"]["gateway"]["source"] = "./internal/gateway.yaml"

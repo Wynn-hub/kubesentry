@@ -15,7 +15,7 @@ func (h *Handler) GetPlatformOverview(ctx context.Context, p dto.GetPlatformOver
 		if errors.As(err, &validation) {
 			return &dto.GetPlatformOverviewBadRequest{Code: 40000, Message: err.Error()}, nil
 		}
-		return &dto.GetPlatformOverviewInternalServerError{Code: 50000, Message: err.Error()}, nil
+		return &dto.GetPlatformOverviewInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.PlatformOverviewResponse{Code: 0, Message: "success", Data: data}, nil
 }
@@ -30,7 +30,7 @@ func (h *Handler) GetPlatformInstanceTrend(ctx context.Context, p dto.GetPlatfor
 		case errors.Is(err, service.ErrNotFound):
 			return &dto.GetPlatformInstanceTrendNotFound{Code: 40400, Message: "cluster not found"}, nil
 		default:
-			return &dto.GetPlatformInstanceTrendInternalServerError{Code: 50000, Message: err.Error()}, nil
+			return &dto.GetPlatformInstanceTrendInternalServerError{Code: 50000, Message: "request failed"}, nil
 		}
 	}
 	return &dto.PlatformTrendResponse{Code: 0, Message: "success", Data: data}, nil
@@ -46,7 +46,7 @@ func (h *Handler) ListPlatformLeadershipEvents(ctx context.Context, p dto.ListPl
 		case errors.Is(err, service.ErrNotFound):
 			return &dto.ListPlatformLeadershipEventsNotFound{Code: 40400, Message: "cluster not found"}, nil
 		default:
-			return &dto.ListPlatformLeadershipEventsInternalServerError{Code: 50000, Message: err.Error()}, nil
+			return &dto.ListPlatformLeadershipEventsInternalServerError{Code: 50000, Message: "request failed"}, nil
 		}
 	}
 	return &dto.LeadershipEventListResponse{Code: 0, Message: "success", Data: data}, nil
@@ -55,7 +55,7 @@ func (h *Handler) ListPlatformLeadershipEvents(ctx context.Context, p dto.ListPl
 func (h *Handler) GetPlatformSettings(ctx context.Context) (dto.GetPlatformSettingsRes, error) {
 	data, err := h.svcs.Platform.Settings(ctx)
 	if err != nil {
-		return &dto.ErrorResponse{Code: 50000, Message: err.Error()}, nil
+		return &dto.ErrorResponse{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.PlatformSettingsResponse{Code: 0, Message: "success", Data: data}, nil
 }
@@ -67,7 +67,7 @@ func (h *Handler) UpdatePlatformSettings(ctx context.Context, req *dto.PlatformS
 		if errors.As(err, &validation) {
 			return &dto.UpdatePlatformSettingsBadRequest{Code: 40000, Message: err.Error()}, nil
 		}
-		return &dto.UpdatePlatformSettingsInternalServerError{Code: 50000, Message: err.Error()}, nil
+		return &dto.UpdatePlatformSettingsInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.PlatformSettingsResponse{Code: 0, Message: "success", Data: data}, nil
 }

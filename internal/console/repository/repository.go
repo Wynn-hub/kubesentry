@@ -85,6 +85,19 @@ type ExceptionUnitOfWork interface {
 	WithinTransaction(context.Context, func(ExceptionRepository, DistributionRepository) error) error
 }
 
+// ClusterUnitOfWork commits coupled cluster lifecycle writes atomically.
+type ClusterUnitOfWork interface {
+	WithinTransaction(context.Context, func(ClusterRepository, InstallRecordRepository, UninstallTaskRepository) error) error
+}
+
+type clusterUnitOfWork struct{ repo *dbrepo.ClusterRepo }
+
+func (u clusterUnitOfWork) WithinTransaction(ctx context.Context, fn func(ClusterRepository, InstallRecordRepository, UninstallTaskRepository) error) error {
+	return u.repo.WithTx(ctx, func(clusters *dbrepo.ClusterRepo, records *dbrepo.InstallRecordRepo, tasks *dbrepo.UninstallTaskRepo) error {
+		return fn(clusters, records, tasks)
+	})
+}
+
 type exceptionUnitOfWork struct{ repo *dbrepo.ExceptionRepo }
 
 func (u exceptionUnitOfWork) WithinTransaction(ctx context.Context, fn func(ExceptionRepository, DistributionRepository) error) error {
@@ -109,6 +122,7 @@ type Repositories struct {
 	Admission      AdmissionRepository
 	Platform       PlatformRepository
 	ExceptionUOW   ExceptionUnitOfWork
+	ClusterUOW     ClusterUnitOfWork
 }
 
 // FromGatewayRepos narrows the shared gateway.Repos bundle down to the
@@ -129,5 +143,6 @@ func FromGatewayRepos(r gateway.Repos) Repositories {
 		Admission:      r.Admission,
 		Platform:       r.Platform,
 		ExceptionUOW:   exceptionUnitOfWork{repo: r.Exceptions},
+		ClusterUOW:     clusterUnitOfWork{repo: r.Clusters},
 	}
 }

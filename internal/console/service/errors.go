@@ -44,3 +44,9 @@ func (e *conflictError) Unwrap() error        { return dbrepo.ErrConflict }
 func newConflict(format string, args ...any) error {
 	return &conflictError{msg: fmt.Sprintf(format, args...)}
 }
+
+// IsConflict keeps storage sentinels behind the service boundary.
+func IsConflict(err error) bool { return errors.Is(err, dbrepo.ErrConflict) }
+
+// IsUniqueViolation keeps database-specific uniqueness errors behind the service boundary.
+func IsUniqueViolation(err error) bool { return dbrepo.IsUniqueViolation(err) }

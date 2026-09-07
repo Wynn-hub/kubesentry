@@ -74,28 +74,7 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		if err != nil {
 			return nil, fmt.Errorf("construct policy ogen server: %w", err)
 		}
-		mux.Handle("/api/v1/policies", ogenServer)
-		mux.Handle("/api/v1/policies/", ogenServer)
-		mux.Handle("/api/v1/policygroups", ogenServer)
-		mux.Handle("/api/v1/policygroups/", ogenServer)
-		mux.Handle("/api/v1/exceptions", ogenServer)
-		mux.Handle("/api/v1/exceptions/", ogenServer)
-		mux.Handle("/api/v1/summary", ogenServer)
-		mux.Handle("/api/v1/schema/fields", ogenServer)
-		mux.Handle("/api/v1/admission-link-incidents", ogenServer)
-		mux.Handle("/api/v1/admission-link-incidents/", ogenServer)
-		mux.Handle("/api/v1/admission-events", ogenServer)
-		mux.Handle("/api/v1/admission-events/", ogenServer)
-		mux.Handle("/api/v1/admission-event-settings", ogenServer)
-		mux.Handle("/api/v1/platform/overview", ogenServer)
-		mux.Handle("/api/v1/platform/instances/", ogenServer)
-		mux.Handle("/api/v1/platform/leadership-events", ogenServer)
-		mux.Handle("/api/v1/platform/settings", ogenServer)
-		mux.Handle("/api/v1/clusters", ogenServer)
-		mux.Handle("/api/v1/clusters/", ogenServer)
-		mux.Handle("/api/v1/install-records", ogenServer)
-		mux.Handle("/api/v1/distributions", ogenServer)
-		mux.Handle("/api/v1/distributions/", ogenServer)
+		mux.Handle("/api/v1/", ogenServer)
 	}
 	// The nginx `web` container only proxies /healthz and /api/* here (see
 	// charts/kubesentry-gateway/templates/console/nginx-configmap.yaml); anything else served by

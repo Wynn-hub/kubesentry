@@ -154,14 +154,16 @@ func (s *ClusterService) Create(ctx context.Context, req CreateClusterRequest) (
 		return "", "", fmt.Errorf("generate token: %w", err)
 	}
 	c := &dbrepo.Cluster{Name: req.Name, Labels: datatypes.NewJSONType(req.Labels), Phase: v1alpha1.ClusterPhaseRegistering, RegTokenHash: gateway.HashToken(token)}
-	if err := s.repos.Clusters.Create(ctx, c); err != nil {
+	if err := s.repos.ClusterUOW.WithinTransaction(ctx, func(clusters repository.ClusterRepository, records repository.InstallRecordRepository, _ repository.UninstallTaskRepository) error {
+		if err := clusters.Create(ctx, c); err != nil {
+			return err
+		}
+		return records.Create(ctx, installRecord(req.Name, &req.InstallParams))
+	}); err != nil {
 		if dbrepo.IsUniqueViolation(err) {
 			return "", "", newConflict("cluster %s already exists", req.Name)
 		}
 		return "", "", fmt.Errorf("create cluster: %w", err)
-	}
-	if err := s.recordInstall(ctx, req.Name, &req.InstallParams); err != nil {
-		return "", "", fmt.Errorf("record install: %w", err)
 	}
 	return c.Name, buildInstallCommand(c.Name, token, &req.InstallParams), nil
 }
@@ -215,11 +217,13 @@ func (s *ClusterService) ReissueToken(ctx context.Context, name string, req Reis
 	if err != nil {
 		return "", "", fmt.Errorf("generate token: %w", err)
 	}
-	if err := s.repos.Clusters.UpdateRegToken(ctx, c.ID, gateway.HashToken(token)); err != nil {
+	if err := s.repos.ClusterUOW.WithinTransaction(ctx, func(clusters repository.ClusterRepository, records repository.InstallRecordRepository, _ repository.UninstallTaskRepository) error {
+		if err := clusters.UpdateRegToken(ctx, c.ID, gateway.HashToken(token)); err != nil {
+			return err
+		}
+		return records.Create(ctx, installRecord(c.Name, &req.InstallParams))
+	}); err != nil {
 		return "", "", fmt.Errorf("reissue token: %w", err)
-	}
-	if err := s.recordInstall(ctx, c.Name, &req.InstallParams); err != nil {
-		return "", "", fmt.Errorf("record install: %w", err)
 	}
 	return c.Name, buildInstallCommand(c.Name, token, &req.InstallParams), nil
 }
@@ -254,11 +258,13 @@ func (s *ClusterService) CreateUninstall(ctx context.Context, name string) (*Uni
 		return nil, newConflict("cluster already has an active uninstall task")
 	}
 	task := &dbrepo.UninstallTask{ClusterID: c.ID}
-	if err := s.repos.UninstallTasks.Create(ctx, task); err != nil {
+	if err := s.repos.ClusterUOW.WithinTransaction(ctx, func(clusters repository.ClusterRepository, _ repository.InstallRecordRepository, tasks repository.UninstallTaskRepository) error {
+		if err := tasks.Create(ctx, task); err != nil {
+			return err
+		}
+		return clusters.UpdatePhase(ctx, c.ID, v1alpha1.ClusterPhaseUninstalling)
+	}); err != nil {
 		return nil, fmt.Errorf("create uninstall task: %w", err)
-	}
-	if err := s.repos.Clusters.UpdatePhase(ctx, c.ID, v1alpha1.ClusterPhaseUninstalling); err != nil {
-		return nil, fmt.Errorf("mark cluster uninstalling: %w", err)
 	}
 	s.notify(ctx, "cluster-uninstall")
 	return &UninstallTaskItem{ID: task.ID, Status: task.Status, RequestedAt: task.RequestedAt}, nil
@@ -295,14 +301,16 @@ func (s *ClusterService) RetryUninstall(ctx context.Context, name string, taskID
 	if err != nil || task.ClusterID != c.ID {
 		return ErrNotFound
 	}
-	if err := s.repos.UninstallTasks.Retry(ctx, taskID, time.Now().UTC()); err != nil {
+	if err := s.repos.ClusterUOW.WithinTransaction(ctx, func(clusters repository.ClusterRepository, _ repository.InstallRecordRepository, tasks repository.UninstallTaskRepository) error {
+		if err := tasks.Retry(ctx, taskID, time.Now().UTC()); err != nil {
+			return err
+		}
+		return clusters.UpdatePhase(ctx, c.ID, v1alpha1.ClusterPhaseUninstalling)
+	}); err != nil {
 		if errors.Is(err, dbrepo.ErrConflict) {
 			return newConflict("only a failed uninstall task can be retried")
 		}
 		return fmt.Errorf("retry uninstall task: %w", err)
-	}
-	if err := s.repos.Clusters.UpdatePhase(ctx, c.ID, v1alpha1.ClusterPhaseUninstalling); err != nil {
-		return fmt.Errorf("mark cluster uninstalling: %w", err)
 	}
 	s.notify(ctx, "cluster-uninstall-retry")
 	return nil
@@ -321,7 +329,11 @@ func (s *ClusterService) ListInstallRecords(ctx context.Context, page, pageSize 
 }
 
 func (s *ClusterService) recordInstall(ctx context.Context, clusterName string, p *ClusterInstallParams) error {
-	return s.repos.InstallRecords.Create(ctx, &dbrepo.ClusterInstallRecord{ClusterName: clusterName, Namespace: p.Namespace, WebhookRepository: p.WebhookImage.Repository, WebhookTag: p.WebhookImage.Tag, WebhookPullPolicy: p.WebhookImage.PullPolicy, OperatorRepository: p.OperatorImage.Repository, OperatorTag: p.OperatorImage.Tag, OperatorPullPolicy: p.OperatorImage.PullPolicy, HighAvailability: p.HighAvailability, GatewayAddress: p.GatewayAddress, GatewayTLSServerName: p.GatewayTLSServerName, GatewayCABundle: p.GatewayCABundle})
+	return s.repos.InstallRecords.Create(ctx, installRecord(clusterName, p))
+}
+
+func installRecord(clusterName string, p *ClusterInstallParams) *dbrepo.ClusterInstallRecord {
+	return &dbrepo.ClusterInstallRecord{ClusterName: clusterName, Namespace: p.Namespace, WebhookRepository: p.WebhookImage.Repository, WebhookTag: p.WebhookImage.Tag, WebhookPullPolicy: p.WebhookImage.PullPolicy, OperatorRepository: p.OperatorImage.Repository, OperatorTag: p.OperatorImage.Tag, OperatorPullPolicy: p.OperatorImage.PullPolicy, HighAvailability: p.HighAvailability, GatewayAddress: p.GatewayAddress, GatewayTLSServerName: p.GatewayTLSServerName, GatewayCABundle: p.GatewayCABundle}
 }
 
 func (s *ClusterService) notify(ctx context.Context, topic string) {
@@ -354,13 +366,13 @@ func validateInstallParams(p *ClusterInstallParams) error {
 
 func buildInstallCommand(clusterName, token string, p *ClusterInstallParams) string {
 	var b strings.Builder
-	fmt.Fprint(&b, "helm upgrade --install kubesentry charts/kubesentry \\\n+  --namespace "+p.Namespace+" --create-namespace \\\n+")
-	fmt.Fprintf(&b, "  --set webhook.image.repository=%q \\\n+", p.WebhookImage.Repository)
-	fmt.Fprintf(&b, "  --set webhook.image.tag=%q \\\n+", p.WebhookImage.Tag)
-	fmt.Fprintf(&b, "  --set webhook.image.pullPolicy=%s \\\n+", p.WebhookImage.PullPolicy)
-	fmt.Fprintf(&b, "  --set operator.image.repository=%q \\\n+", p.OperatorImage.Repository)
-	fmt.Fprintf(&b, "  --set operator.image.tag=%q \\\n+", p.OperatorImage.Tag)
-	fmt.Fprintf(&b, "  --set operator.image.pullPolicy=%s \\\n+", p.OperatorImage.PullPolicy)
+	fmt.Fprint(&b, "helm upgrade --install kubesentry charts/kubesentry \\\n  --namespace "+p.Namespace+" --create-namespace \\\n")
+	fmt.Fprintf(&b, "  --set webhook.image.repository=%q \\\n", p.WebhookImage.Repository)
+	fmt.Fprintf(&b, "  --set webhook.image.tag=%q \\\n", p.WebhookImage.Tag)
+	fmt.Fprintf(&b, "  --set webhook.image.pullPolicy=%s \\\n", p.WebhookImage.PullPolicy)
+	fmt.Fprintf(&b, "  --set operator.image.repository=%q \\\n", p.OperatorImage.Repository)
+	fmt.Fprintf(&b, "  --set operator.image.tag=%q \\\n", p.OperatorImage.Tag)
+	fmt.Fprintf(&b, "  --set operator.image.pullPolicy=%s \\\n", p.OperatorImage.PullPolicy)
 	if p.HighAvailability {
 		fmt.Fprint(&b, "  --set webhook.highAvailability.enabled=true \\\n  --set operator.highAvailability.enabled=true \\\n")
 	}

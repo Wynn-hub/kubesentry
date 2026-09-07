@@ -5,7 +5,6 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 // referencedByData marshals the group list into the error envelope's data
@@ -24,10 +23,10 @@ func mapCreatePolicyError(err error) dto.CreatePolicyRes {
 	switch {
 	case errors.As(err, &valErr):
 		return &dto.CreatePolicyBadRequest{Code: 40000, Message: err.Error()}
-	case errors.Is(err, dbrepo.ErrConflict):
+	case service.IsConflict(err):
 		return &dto.CreatePolicyConflict{Code: 40900, Message: err.Error()}
 	default:
-		return &dto.CreatePolicyInternalServerError{Code: 50000, Message: err.Error()}
+		return &dto.CreatePolicyInternalServerError{Code: 50000, Message: "request failed"}
 	}
 }
 
@@ -36,7 +35,7 @@ func mapGetPolicyError(err error) dto.GetPolicyRes {
 	case errors.Is(err, service.ErrNotFound):
 		return &dto.GetPolicyNotFound{Code: 40400, Message: err.Error()}
 	default:
-		return &dto.GetPolicyInternalServerError{Code: 50000, Message: err.Error()}
+		return &dto.GetPolicyInternalServerError{Code: 50000, Message: "request failed"}
 	}
 }
 
@@ -47,10 +46,10 @@ func mapUpdatePolicyError(err error) dto.UpdatePolicyRes {
 		return &dto.UpdatePolicyBadRequest{Code: 40000, Message: err.Error()}
 	case errors.Is(err, service.ErrNotFound):
 		return &dto.UpdatePolicyNotFound{Code: 40400, Message: err.Error()}
-	case errors.Is(err, dbrepo.ErrConflict):
+	case service.IsConflict(err):
 		return &dto.UpdatePolicyConflict{Code: 40900, Message: err.Error()}
 	default:
-		return &dto.UpdatePolicyInternalServerError{Code: 50000, Message: err.Error()}
+		return &dto.UpdatePolicyInternalServerError{Code: 50000, Message: "request failed"}
 	}
 }
 
@@ -66,7 +65,7 @@ func mapDeletePolicyError(err error) dto.DeletePolicyRes {
 	case errors.Is(err, service.ErrNotFound):
 		return &dto.DeletePolicyNotFound{Code: 40400, Message: err.Error()}
 	default:
-		return &dto.DeletePolicyInternalServerError{Code: 50000, Message: err.Error()}
+		return &dto.DeletePolicyInternalServerError{Code: 50000, Message: "request failed"}
 	}
 }
 
@@ -75,7 +74,7 @@ func mapListPolicyVersionsError(err error) dto.ListPolicyVersionsRes {
 	case errors.Is(err, service.ErrNotFound):
 		return &dto.ListPolicyVersionsNotFound{Code: 40400, Message: err.Error()}
 	default:
-		return &dto.ListPolicyVersionsInternalServerError{Code: 50000, Message: err.Error()}
+		return &dto.ListPolicyVersionsInternalServerError{Code: 50000, Message: "request failed"}
 	}
 }
 
@@ -86,11 +85,11 @@ func mapRollbackPolicyError(err error) dto.RollbackPolicyRes {
 		return &dto.RollbackPolicyBadRequest{Code: 40000, Message: err.Error()}
 	case errors.Is(err, service.ErrNotFound):
 		return &dto.RollbackPolicyNotFound{Code: 40400, Message: err.Error()}
-	case errors.Is(err, dbrepo.ErrConflict):
+	case service.IsConflict(err):
 		return &dto.RollbackPolicyConflict{Code: 40900, Message: err.Error()}
 	case errors.Is(err, service.ErrGone):
 		return &dto.RollbackPolicyGone{Code: 41000, Message: err.Error()}
 	default:
-		return &dto.RollbackPolicyInternalServerError{Code: 50000, Message: err.Error()}
+		return &dto.RollbackPolicyInternalServerError{Code: 50000, Message: "request failed"}
 	}
 }

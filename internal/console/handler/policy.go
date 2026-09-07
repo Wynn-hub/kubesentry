@@ -42,7 +42,7 @@ func (h *Handler) ListPolicies(ctx context.Context, params dto.ListPoliciesParam
 		Keyword:   params.Keyword.Or(""),
 	})
 	if err != nil {
-		return &dto.ListPoliciesInternalServerError{Code: 50000, Message: err.Error()}, nil
+		return &dto.ListPoliciesInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 
 	return &dto.PolicyListResponse{
@@ -140,7 +140,7 @@ func (h *Handler) ValidatePolicyRego(ctx context.Context, req *dto.ValidateRegoR
 func (h *Handler) GetResourceSuggestions(ctx context.Context) (dto.GetResourceSuggestionsRes, error) {
 	sugg, err := h.svcs.Policy.ResourceSuggestions(ctx)
 	if err != nil {
-		return &dto.GetResourceSuggestionsInternalServerError{Code: 50000, Message: err.Error()}, nil
+		return &dto.GetResourceSuggestionsInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.ResourceSuggestionsResponse{
 		Code:    0,

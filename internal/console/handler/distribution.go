@@ -7,7 +7,6 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 func (h *Handler) ListDistributions(ctx context.Context, p dto.ListDistributionsParams) (dto.ListDistributionsRes, error) {
@@ -75,17 +74,17 @@ func distributionCreateError(err error) dto.CreateDistributionRes {
 	if _, ok := err.(*service.ValidationError); ok {
 		return &dto.CreateDistributionBadRequest{Code: 40000, Message: err.Error()}
 	}
-	if errors.Is(err, dbrepo.ErrConflict) {
+	if service.IsConflict(err) {
 		return &dto.CreateDistributionConflict{Code: 40900, Message: err.Error()}
 	}
-	return &dto.CreateDistributionInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.CreateDistributionInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func distributionGetError(err error) dto.GetDistributionRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.GetDistributionNotFound{Code: 40400, Message: "distribution not found"}
 	}
-	return &dto.GetDistributionInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.GetDistributionInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func distributionUpdateError(err error) dto.UpdateDistributionRes {
@@ -95,18 +94,18 @@ func distributionUpdateError(err error) dto.UpdateDistributionRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.UpdateDistributionNotFound{Code: 40400, Message: "distribution not found"}
 	}
-	if errors.Is(err, dbrepo.ErrConflict) {
+	if service.IsConflict(err) {
 		return &dto.UpdateDistributionConflict{Code: 40900, Message: err.Error()}
 	}
-	return &dto.UpdateDistributionInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.UpdateDistributionInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func distributionDeleteError(err error) dto.DeleteDistributionRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.DeleteDistributionNotFound{Code: 40400, Message: "distribution not found"}
 	}
-	if errors.Is(err, dbrepo.ErrConflict) {
+	if service.IsConflict(err) {
 		return &dto.DeleteDistributionForbidden{Code: 40300, Message: err.Error()}
 	}
-	return &dto.DeleteDistributionInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.DeleteDistributionInternalServerError{Code: 50000, Message: "request failed"}
 }

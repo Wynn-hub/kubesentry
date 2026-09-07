@@ -19,6 +19,7 @@ CRD_NAMES = frozenset({
 })
 GENERATED_OPERATION = re.compile(r"// (?P<method>\w+) implements (?P<operation>\w+) operation\.")
 HANDLER_METHOD = re.compile(r"func \(h \*Handler\) (?P<method>\w+)\(")
+GENERATED_API_MOUNT = re.compile(r'mux\.Handle\("/api/v1/", ogenServer\)')
 
 
 def fail(message: str) -> None:
@@ -83,6 +84,15 @@ def check_generated_handler_coverage(operations: set[str], generated_path: Path,
     missing = sorted(method for method in generated_operations.values() if method not in methods)
     if missing:
         fail(f"generated operations have no concrete handler method: {', '.join(missing)}")
+
+
+def check_runtime_mount(server_path: Path) -> None:
+    try:
+        source = server_path.read_text()
+    except OSError as exc:
+        fail(f"cannot read console server mount contract {server_path}: {exc}")
+    if not GENERATED_API_MOUNT.search(source):
+        fail("console server must mount the generated server at /api/v1/")
 
 
 def check_api_index(document: dict) -> None:
@@ -254,6 +264,7 @@ def main() -> None:
     operations = operation_ids(console)
     check_console_route_inventory(operations)
     check_generated_handler_coverage(operations, ROOT / "internal/console/dto/oas_server_gen.go", ROOT / "internal/console/handler")
+    check_runtime_mount(ROOT / "internal/console/server.go")
     check_api_index(index)
     check_gateway_proto()
     check_crd_contracts()

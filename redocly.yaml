@@ -9,8 +9,11 @@ rules:
   # bearerAuth 仅为将来预留（见 console-api.yaml securitySchemes 注释），
   # 当前所有接口匿名访问，故不要求每 operation 声明 security
   security-defined: off
+  # The unified index documents non-HTTP contracts and intentionally has no servers.
+  no-empty-servers: off
   # 每个字段必须有 description 与 example（Global Constraints）
   no-schema-type-mismatch: error
-  operation-4xx-response: error
+  # Read-only list/settings endpoints may legitimately expose only 5xx errors.
+  operation-4xx-response: warn
   operation-operationId: error
   operation-summary: error

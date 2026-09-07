@@ -9,6 +9,13 @@ function assertReviewedPathsOnly() {
   return apiClient.GET('/not-in-the-contract')
 }
 
+function assertOperationResultMatchesExtractOperation() {
+  const result = apiClient.GET('/clusters/{name}', { params: { path: { name: 'cluster-a' } } })
+  // @ts-expect-error a getCluster result cannot be decoded as listClusters
+  extract<'listClusters'>(result)
+  return extract<'getCluster'>(result)
+}
+
 describe('unwrap', () => {
   it('extracts generated operation data when code is 0', () => {
     const response: components['schemas']['ClusterListResponse'] = {

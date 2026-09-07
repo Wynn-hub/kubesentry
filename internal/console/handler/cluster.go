@@ -8,7 +8,6 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 func dtoData[T any](data any) (T, error) {
@@ -73,7 +72,7 @@ func (h *Handler) UpdateCluster(ctx context.Context, req *dto.ClusterLabelsReque
 		return nil, err
 	}
 	if err := json.Unmarshal(b, &input); err != nil {
-		return &dto.UpdateClusterInternalServerError{Code: 50000, Message: err.Error()}, nil
+		return &dto.UpdateClusterInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	if err := h.svcs.Cluster.UpdateLabels(ctx, p.Name, input); err != nil {
 		return updateClusterServiceError(err), nil
@@ -95,7 +94,7 @@ func (h *Handler) ReissueClusterToken(ctx context.Context, req *dto.ClusterToken
 		return nil, err
 	}
 	if err := json.Unmarshal(b, &input); err != nil {
-		return &dto.ReissueClusterTokenInternalServerError{Code: 50000, Message: err.Error()}, nil
+		return &dto.ReissueClusterTokenInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	name, command, err := h.svcs.Cluster.ReissueToken(ctx, p.Name, input)
 	if err != nil {
@@ -107,7 +106,7 @@ func (h *Handler) ReissueClusterToken(ctx context.Context, req *dto.ClusterToken
 func (h *Handler) GetLatestInstallParams(ctx context.Context, p dto.GetLatestInstallParamsParams) (dto.GetLatestInstallParamsRes, error) {
 	data, err := h.svcs.Cluster.LatestInstallParams(ctx, p.Name)
 	if err != nil {
-		return &dto.GetLatestInstallParamsInternalServerError{Code: 50000, Message: err.Error()}, nil
+		return &dto.GetLatestInstallParamsInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	if data == nil {
 		return &dto.InstallParamsResponse{Code: 0, Message: "success"}, nil
@@ -178,72 +177,72 @@ func uninstallTask(item *service.UninstallTaskItem) dto.UninstallTask {
 }
 
 func createClusterServiceError(err error) dto.CreateClusterRes {
-	if errors.Is(err, dbrepo.ErrConflict) {
+	if service.IsConflict(err) {
 		return &dto.CreateClusterConflict{Code: 40900, Message: err.Error()}
 	}
 	if _, ok := err.(*service.ValidationError); ok {
 		return &dto.CreateClusterBadRequest{Code: 40000, Message: err.Error()}
 	}
-	return &dto.CreateClusterInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.CreateClusterInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func getClusterServiceError(err error) dto.GetClusterRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.GetClusterNotFound{Code: 40400, Message: "cluster not found"}
 	}
-	return &dto.GetClusterInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.GetClusterInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func updateClusterServiceError(err error) dto.UpdateClusterRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.UpdateClusterNotFound{Code: 40400, Message: "cluster not found"}
 	}
-	return &dto.UpdateClusterInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.UpdateClusterInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func deleteClusterServiceError(err error) dto.DeleteClusterRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.DeleteClusterNotFound{Code: 40400, Message: "cluster not found"}
 	}
-	if errors.Is(err, dbrepo.ErrConflict) {
+	if service.IsConflict(err) {
 		return &dto.DeleteClusterConflict{Code: 40900, Message: err.Error()}
 	}
-	return &dto.DeleteClusterInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.DeleteClusterInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func reissueClusterServiceError(err error) dto.ReissueClusterTokenRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.ReissueClusterTokenNotFound{Code: 40400, Message: "cluster not found"}
 	}
-	if errors.Is(err, dbrepo.ErrConflict) {
+	if service.IsConflict(err) {
 		return &dto.ReissueClusterTokenConflict{Code: 40900, Message: err.Error()}
 	}
-	return &dto.ReissueClusterTokenInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.ReissueClusterTokenInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func createUninstallServiceError(err error) dto.CreateUninstallTaskRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.CreateUninstallTaskNotFound{Code: 40400, Message: "cluster not found"}
 	}
-	if errors.Is(err, dbrepo.ErrConflict) {
+	if service.IsConflict(err) {
 		return &dto.CreateUninstallTaskConflict{Code: 40900, Message: err.Error()}
 	}
-	return &dto.CreateUninstallTaskInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.CreateUninstallTaskInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func listUninstallServiceError(err error) dto.ListUninstallTasksRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.ListUninstallTasksNotFound{Code: 40400, Message: "cluster not found"}
 	}
-	return &dto.ListUninstallTasksInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.ListUninstallTasksInternalServerError{Code: 50000, Message: "request failed"}
 }
 
 func retryUninstallServiceError(err error) dto.RetryUninstallTaskRes {
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.RetryUninstallTaskNotFound{Code: 40400, Message: "task not found"}
 	}
-	if errors.Is(err, dbrepo.ErrConflict) {
+	if service.IsConflict(err) {
 		return &dto.RetryUninstallTaskConflict{Code: 40900, Message: err.Error()}
 	}
-	return &dto.RetryUninstallTaskInternalServerError{Code: 50000, Message: err.Error()}
+	return &dto.RetryUninstallTaskInternalServerError{Code: 50000, Message: "request failed"}
 }

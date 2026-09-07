@@ -20,6 +20,14 @@ type ClusterPhaseCounts struct {
 
 func NewClusterRepo(db *gorm.DB) *ClusterRepo { return &ClusterRepo{db: db} }
 
+// WithTx binds the cluster, install-record, and uninstall-task repositories to
+// one transaction for console lifecycle operations that perform multiple writes.
+func (r *ClusterRepo) WithTx(ctx context.Context, fn func(*ClusterRepo, *InstallRecordRepo, *UninstallTaskRepo) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(&ClusterRepo{db: tx}, &InstallRecordRepo{db: tx}, &UninstallTaskRepo{db: tx})
+	})
+}
+
 func (r *ClusterRepo) Create(ctx context.Context, c *Cluster) error {
 	return r.db.WithContext(ctx).Create(c).Error
 }

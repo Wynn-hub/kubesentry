@@ -148,6 +148,7 @@ api-lint:
 	python3 scripts/bundle_openapi.py --check
 	$(MAKE) api-gen-check
 	$(MAKE) api-ts-check
+	cd web && npx redocly lint --config ../redocly.yaml ../api/console/console-api.yaml ../api/openapi.yaml
 	@tmp_file=$$(mktemp); trap 'rm -f "$$tmp_file"' EXIT; \
 	protoc --descriptor_set_out="$$tmp_file" --include_imports api/proto/gateway/v1/gateway.proto
 	helm lint charts/kubesentry charts/kubesentry-gateway
@@ -218,7 +219,7 @@ test-e2e-report: $(GOTESTSUM)
 	  exit $$EXIT
 
 # Full release gate: unit tests + build + E2E, all with report generation.
-test-all: test-report test-web build-image-e2e test-e2e-report
+test-all: api-lint test-report test-web build-image-e2e test-e2e-report
 	@echo ""
 	@echo "All tests passed. Reports saved to $(REPORT_DIR)/"
 	@printf "  %-40s (HTML)\n" "$(REPORT_DIR)/unit-tests.html"

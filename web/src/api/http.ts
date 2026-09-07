@@ -8,13 +8,9 @@ type OperationResponse<Operation extends keyof operations> =
 export type OperationData<Operation extends keyof operations> =
   OperationResponse<Operation> extends { data?: infer Data } ? Data : undefined
 
-type GeneratedEnvelope =
-  { [Operation in keyof operations]: OperationResponse<Operation> }[keyof operations]
-  | components['schemas']['ErrorResponse']
-
-type GeneratedClientResult = {
+type GeneratedClientResult<Operation extends keyof operations> = {
   response: Response
-  data?: GeneratedEnvelope
+  data?: OperationResponse<Operation>
   error?: components['schemas']['ErrorResponse']
 }
 
@@ -35,18 +31,19 @@ export class ApiError extends Error {
 // code 50000 is still an error, so the code is checked rather than the status.
 export function unwrap<Operation extends keyof operations>(
   status: number,
-  env: GeneratedEnvelope | undefined,
+  env: OperationResponse<Operation> | components['schemas']['ErrorResponse'] | undefined,
   fallbackMsg: string,
 ): OperationData<Operation> {
-  if (env && env.code === 0) {
+  const envelope = env as { code?: number; message?: string } | undefined
+  if (envelope?.code === 0) {
     return (env as OperationResponse<Operation> & { data?: OperationData<Operation> }).data as OperationData<Operation>
   }
   const error = env as components['schemas']['ErrorResponse'] | undefined
-  throw new ApiError(status, env?.message ?? fallbackMsg, env?.code, error?.data, error?.details)
+  throw new ApiError(status, envelope?.message ?? fallbackMsg, envelope?.code, error?.data, error?.details)
 }
 
 export async function extract<Operation extends keyof operations>(
-  result: Promise<GeneratedClientResult>,
+  result: Promise<GeneratedClientResult<Operation>>,
 ): Promise<OperationData<Operation>> {
   try {
     const response = await result

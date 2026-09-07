@@ -6,7 +6,6 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 func (h *Handler) ListExceptions(ctx context.Context, p dto.ListExceptionsParams) (dto.ListExceptionsRes, error) {
@@ -37,7 +36,7 @@ func (h *Handler) CreateException(ctx context.Context, r *dto.ExceptionRequest) 
 		if errors.As(e, &v) {
 			return &dto.CreateExceptionBadRequest{Code: 40000, Message: e.Error()}, nil
 		}
-		if errors.Is(e, dbrepo.ErrConflict) {
+		if service.IsConflict(e) {
 			return &dto.CreateExceptionConflict{Code: 40900, Message: e.Error()}, nil
 		}
 		return &dto.CreateExceptionInternalServerError{Code: 50000, Message: e.Error()}, nil
@@ -51,7 +50,7 @@ func (h *Handler) UpdateException(ctx context.Context, r *dto.ExceptionRequest, 
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.UpdateExceptionNotFound{Code: 40400, Message: e.Error()}, nil
 		}
-		if errors.Is(e, dbrepo.ErrConflict) {
+		if service.IsConflict(e) {
 			return &dto.UpdateExceptionConflict{Code: 40900, Message: e.Error()}, nil
 		}
 		var v *service.ValidationError

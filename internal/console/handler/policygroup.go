@@ -6,7 +6,6 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 func (h *Handler) ListPolicyGroups(ctx context.Context, p dto.ListPolicyGroupsParams) (dto.ListPolicyGroupsRes, error) {
@@ -40,7 +39,7 @@ func (h *Handler) CreatePolicyGroup(ctx context.Context, r *dto.PolicyGroupReque
 		if errors.As(e, &v) {
 			return &dto.CreatePolicyGroupBadRequest{Code: 40000, Message: e.Error()}, nil
 		}
-		if errors.Is(e, dbrepo.ErrConflict) || dbrepo.IsUniqueViolation(e) {
+		if service.IsConflict(e) || service.IsUniqueViolation(e) {
 			return &dto.CreatePolicyGroupConflict{Code: 40900, Message: e.Error()}, nil
 		}
 		return &dto.CreatePolicyGroupInternalServerError{Code: 50000, Message: e.Error()}, nil
@@ -57,7 +56,7 @@ func (h *Handler) UpdatePolicyGroup(ctx context.Context, r *dto.PolicyGroupReque
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.UpdatePolicyGroupNotFound{Code: 40400, Message: e.Error()}, nil
 		}
-		if errors.Is(e, dbrepo.ErrConflict) {
+		if service.IsConflict(e) {
 			return &dto.UpdatePolicyGroupConflict{Code: 40900, Message: e.Error()}, nil
 		}
 		var v *service.ValidationError
@@ -75,7 +74,7 @@ func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupE
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.SetPolicyGroupEnabledNotFound{Code: 40400, Message: e.Error()}, nil
 		}
-		if errors.Is(e, dbrepo.ErrConflict) {
+		if service.IsConflict(e) {
 			return &dto.SetPolicyGroupEnabledConflict{Code: 40900, Message: e.Error()}, nil
 		}
 		return &dto.SetPolicyGroupEnabledInternalServerError{Code: 50000, Message: e.Error()}, nil
