@@ -13,7 +13,7 @@ func (h *Handler) ListExceptions(ctx context.Context, p dto.ListExceptionsParams
 	size := int(p.PageSize.Or(dto.PageSize20))
 	d, e := h.svcs.Exception.List(ctx, page, size, string(p.SortBy.Or(dto.ListExceptionsSortByName)), string(p.SortOrder.Or(dto.ListExceptionsSortOrderAsc)))
 	if e != nil {
-		return &dto.ListExceptionsInternalServerError{Code: 50000, Message: e.Error()}, nil
+		return &dto.ListExceptionsInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.ExceptionListResponse{Code: 0, Message: "success", Data: dto.OptExceptionListData{Value: *d, Set: true}}, nil
 }
@@ -24,7 +24,7 @@ func (h *Handler) GetException(ctx context.Context, p dto.GetExceptionParams) (d
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.GetExceptionNotFound{Code: 40400, Message: e.Error()}, nil
 		}
-		return &dto.GetExceptionInternalServerError{Code: 50000, Message: e.Error()}, nil
+		return &dto.GetExceptionInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.ExceptionDetailResponse{Code: 0, Message: "success", Data: dto.OptExceptionDetail{Value: *d, Set: true}}, nil
 }
@@ -39,7 +39,7 @@ func (h *Handler) CreateException(ctx context.Context, r *dto.ExceptionRequest) 
 		if service.IsConflict(e) {
 			return &dto.CreateExceptionConflict{Code: 40900, Message: e.Error()}, nil
 		}
-		return &dto.CreateExceptionInternalServerError{Code: 50000, Message: e.Error()}, nil
+		return &dto.CreateExceptionInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.ExceptionNameResponse{Code: 0, Message: "success", Data: dto.OptExceptionNameResponseData{Value: dto.ExceptionNameResponseData{Name: r.Name.Or("")}, Set: true}}, nil
 }
@@ -57,7 +57,7 @@ func (h *Handler) UpdateException(ctx context.Context, r *dto.ExceptionRequest, 
 		if errors.As(e, &v) {
 			return &dto.UpdateExceptionBadRequest{Code: 40000, Message: e.Error()}, nil
 		}
-		return &dto.UpdateExceptionInternalServerError{Code: 50000, Message: e.Error()}, nil
+		return &dto.UpdateExceptionInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.ExceptionNameResponse{Code: 0, Message: "success", Data: dto.OptExceptionNameResponseData{Value: dto.ExceptionNameResponseData{Name: p.Name}, Set: true}}, nil
 }
@@ -68,7 +68,7 @@ func (h *Handler) DeleteException(ctx context.Context, p dto.DeleteExceptionPara
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.DeleteExceptionNotFound{Code: 40400, Message: e.Error()}, nil
 		}
-		return &dto.DeleteExceptionInternalServerError{Code: 50000, Message: e.Error()}, nil
+		return &dto.DeleteExceptionInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.Envelope{Code: 0, Message: "success"}, nil
 }
