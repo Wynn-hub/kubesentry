@@ -3,7 +3,7 @@ export GOROOT := /opt/homebrew/opt/go/libexec
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
         test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \
         build-image-local deploy-local undeploy-local web-build test-web dev-local \
-        proto api-gen api-gen-check api-ts-check api-bundle api-lint
+        proto api-gen api-gen-check api-ts-check api-bundle api-lint swagger swagger-check
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -18,6 +18,7 @@ REPORT_DIR = $(DIST_DIR)/test-reports
 # cannot exhaust Docker with dozens of simultaneous databases. Override with
 # TEST_PACKAGE_PARALLELISM only when the local Docker daemon has capacity.
 TEST_PACKAGE_PARALLELISM ?= 1
+SWAG_VERSION ?= v1.16.6
 
 # VERSION is the single source of truth for all artifact naming.
 # Override at the command line: make release VERSION=v0.1.0
@@ -108,6 +109,28 @@ proto:
 	  api/proto/gateway/v1/gateway.proto
 
 # ── OpenAPI codegen ───────────────────────────────────────────────────────────
+swagger:
+	go run github.com/swaggo/swag/cmd/swag@$(SWAG_VERSION) init -g swagger.go \
+	  -d cmd/console,internal/console/handler,internal/console/dto --parseInternal \
+	  --output api/swagger --outputTypes yaml
+
+swagger-check:
+	@set -eu; task_tmp=$$(mktemp -d); trap 'rm -rf "$$task_tmp"' EXIT; \
+	go run github.com/swaggo/swag/cmd/swag@$(SWAG_VERSION) init -g swagger.go \
+	  -d cmd/console,internal/console/handler,internal/console/dto --parseInternal \
+	  --output "$$task_tmp/swagger" --outputTypes yaml; \
+	cmp -s "$$task_tmp/swagger/swagger.yaml" api/swagger/swagger.yaml; \
+	python3 scripts/convert_swagger_to_openapi.py api/swagger/swagger.yaml "$$task_tmp/openapi-1.json"; \
+	python3 scripts/convert_swagger_to_openapi.py api/swagger/swagger.yaml "$$task_tmp/openapi-2.json"; \
+	python3 scripts/normalize_openapi_json.py "$$task_tmp/openapi-1.json" "$$task_tmp/normalized-1.json"; \
+	python3 scripts/normalize_openapi_json.py "$$task_tmp/openapi-2.json" "$$task_tmp/normalized-2.json"; \
+	cmp -s "$$task_tmp/normalized-1.json" "$$task_tmp/normalized-2.json"; \
+	python3 scripts/check_swag_spike.py internal/console/openapi_bundle.json "$$task_tmp/normalized-1.json"; \
+	python3 scripts/convert_swagger_to_openapi_test.py; \
+	cd web && node scripts/check-scalar-openapi.mjs "$$task_tmp/normalized-1.json"; \
+	npx --no-install redocly lint --config ../redocly.yaml "$$task_tmp/normalized-1.json"; \
+	npx --no-install openapi-typescript "$$task_tmp/normalized-1.json" -o "$$task_tmp/types.ts"
+
 # Generated files are COMMITTED; day-to-day builds never need ogen.
 # Requires: ogen on PATH (go install github.com/ogen-go/ogen/cmd/ogen@latest).
 OGEN = $(shell go env GOPATH)/bin/ogen

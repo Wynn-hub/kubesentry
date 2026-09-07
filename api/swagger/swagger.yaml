@@ -1,0 +1,217 @@
+basePath: /api/v1
+definitions:
+  dto.SwagErrorResponse:
+    properties:
+      code:
+        example: 40000
+        type: integer
+      data:
+        $ref: '#/definitions/dto.SwagReferencedByData'
+      details:
+        items:
+          type: string
+        type: array
+      message:
+        example: invalid request
+        type: string
+    required:
+    - code
+    - message
+    type: object
+  dto.SwagPolicyListData:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.SwagPolicyListItem'
+        type: array
+      page:
+        example: 1
+        type: integer
+      pageSize:
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        example: 20
+        type: integer
+      total:
+        example: 137
+        type: integer
+    required:
+    - items
+    - page
+    - pageSize
+    - total
+    type: object
+  dto.SwagPolicyListItem:
+    properties:
+      createdAt:
+        example: "2026-08-03T10:15:30Z"
+        format: date-time
+        type: string
+      description:
+        example: Deny privileged containers
+        type: string
+      enforcementMode:
+        enum:
+        - enforce
+        - audit
+        example: enforce
+        type: string
+      name:
+        example: deny-privileged-pod
+        type: string
+      phase:
+        enum:
+        - Ready
+        - Invalid
+        example: Ready
+        type: string
+      source:
+        enum:
+        - builtin
+        - custom
+        example: builtin
+        type: string
+      updatedAt:
+        example: "2026-08-03T11:20:45Z"
+        format: date-time
+        type: string
+    required:
+    - createdAt
+    - description
+    - enforcementMode
+    - name
+    - phase
+    - source
+    - updatedAt
+    type: object
+  dto.SwagPolicyListResponse:
+    properties:
+      code:
+        example: 0
+        type: integer
+      data:
+        $ref: '#/definitions/dto.SwagPolicyListData'
+      message:
+        example: success
+        type: string
+    required:
+    - code
+    - message
+    type: object
+  dto.SwagReferencedByData:
+    properties:
+      referencedBy:
+        items:
+          type: string
+        type: array
+    required:
+    - referencedBy
+    type: object
+info:
+  contact: {}
+  description: KubeSentry Console HTTP API.
+  title: KubeSentry Console API
+  version: 1.0.0
+paths:
+  /policies:
+    get:
+      description: List policies with pagination, sorting, and filters.
+      operationId: listPolicies
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        in: query
+        name: pageSize
+        type: integer
+      - default: name
+        description: Sort field
+        enum:
+        - name
+        - source
+        - enforcementMode
+        - phase
+        - createdAt
+        - updatedAt
+        in: query
+        name: sortBy
+        type: string
+      - default: asc
+        description: Sort direction
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
+      - collectionFormat: csv
+        description: Compile phases
+        in: query
+        items:
+          enum:
+          - Ready
+          - Invalid
+          type: string
+        name: phase
+        type: array
+      - collectionFormat: csv
+        description: Enforcement modes
+        in: query
+        items:
+          enum:
+          - enforce
+          - audit
+          type: string
+        name: mode
+        type: array
+      - collectionFormat: csv
+        description: Policy sources
+        in: query
+        items:
+          enum:
+          - builtin
+          - custom
+          type: string
+        name: source
+        type: array
+      - description: Search keyword
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagPolicyListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: List policies
+      tags:
+      - Policy
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

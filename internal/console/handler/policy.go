@@ -8,6 +8,23 @@ import (
 )
 
 // ListPolicies implements listPolicies.
+// @ID listPolicies
+// @Summary List policies
+// @Description List policies with pagination, sorting, and filters.
+// @Tags Policy
+// @Produce json
+// @Param page query int false "Page number" minimum(1) default(1)
+// @Param pageSize query int false "Page size" Enums(10,20,50,100) default(20)
+// @Param sortBy query string false "Sort field" Enums(name,source,enforcementMode,phase,createdAt,updatedAt) default(name)
+// @Param sortOrder query string false "Sort direction" Enums(asc,desc) default(asc)
+// @Param phase query []string false "Compile phases" collectionFormat(csv) Enums(Ready,Invalid)
+// @Param mode query []string false "Enforcement modes" collectionFormat(csv) Enums(enforce,audit)
+// @Param source query []string false "Policy sources" collectionFormat(csv) Enums(builtin,custom)
+// @Param keyword query string false "Search keyword"
+// @Success 200 {object} dto.SwagPolicyListResponse
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policies [get]
 func (h *Handler) ListPolicies(ctx context.Context, params dto.ListPoliciesParams) (dto.ListPoliciesRes, error) {
 	// Validate pagination params (protocol semantics, not business logic)
 	page := params.Page.Or(1)
