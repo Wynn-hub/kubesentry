@@ -16,6 +16,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -246,8 +247,8 @@ func TestSyncPushesSnapshotOnConnectAndChange(t *testing.T) {
 	// 建分发 → Notify → 收到多 2 对象的快照。
 	dist := &dbrepo.PolicyDistribution{
 		Name: "d1",
-		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
-			Clusters:     v1alpha1.DistributionClusters{ByName: []string{"prod"}},
+		Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{
+			Clusters:     gatewaymodel.DistributionClusters{ByName: []string{"prod"}},
 			PolicyGroups: []string{"g1"},
 		}),
 	}

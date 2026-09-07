@@ -13,6 +13,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -154,8 +155,8 @@ func TestPushLoopIncludesTraceIDFromNotifyChange(t *testing.T) {
 		// nothing new to push, trace_id included).
 		dist := &dbrepo.PolicyDistribution{
 			Name: "d1",
-			Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
-				Clusters:     v1alpha1.DistributionClusters{ByName: []string{"prod"}},
+			Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{
+				Clusters:     gatewaymodel.DistributionClusters{ByName: []string{"prod"}},
 				PolicyGroups: []string{"g1"},
 			}),
 		}
@@ -321,8 +322,8 @@ func TestNotifyChangeTraceIDGoesToTheClusterThatActuallyChanged(t *testing.T) {
 		}
 		if err := repos.Distributions.Create(ctx, &dbrepo.PolicyDistribution{
 			Name: dname,
-			Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
-				Clusters:     v1alpha1.DistributionClusters{ByName: []string{target}},
+			Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{
+				Clusters:     gatewaymodel.DistributionClusters{ByName: []string{target}},
 				PolicyGroups: []string{gname},
 			}),
 		}); err != nil {

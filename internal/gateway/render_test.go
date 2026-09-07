@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 func rPolicy(name, mode string) v1alpha1.Policy {
@@ -23,11 +24,11 @@ func rGroup(name string, refs ...v1alpha1.PolicyRef) v1alpha1.PolicyGroup {
 	}
 }
 
-func rDist(name string, clusters []string, groups []string, overrides ...v1alpha1.DistributionOverride) v1alpha1.PolicyDistribution {
-	return v1alpha1.PolicyDistribution{
+func rDist(name string, clusters []string, groups []string, overrides ...gatewaymodel.DistributionOverride) gatewaymodel.PolicyDistribution {
+	return gatewaymodel.PolicyDistribution{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: v1alpha1.PolicyDistributionSpec{
-			Clusters:     v1alpha1.DistributionClusters{ByName: clusters},
+		Spec: gatewaymodel.PolicyDistributionSpec{
+			Clusters:     gatewaymodel.DistributionClusters{ByName: clusters},
 			PolicyGroups: groups,
 			Overrides:    overrides,
 		},
@@ -50,9 +51,9 @@ func groupSpecOf(t *testing.T, res RenderResult, name string) v1alpha1.PolicyGro
 }
 
 func TestRenderBasicSnapshot(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
 	res := Render(cl,
-		[]v1alpha1.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
+		[]gatewaymodel.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
 		[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})},
 		[]v1alpha1.Policy{rPolicy("p1", v1alpha1.ModeAudit)})
 
@@ -80,14 +81,14 @@ func TestRenderBasicSnapshot(t *testing.T) {
 }
 
 func TestRenderSelectorAndOverride(t *testing.T) {
-	cl := &v1alpha1.Cluster{
+	cl := &gatewaymodel.Cluster{
 		ObjectMeta: metav1.ObjectMeta{Name: "c1"},
-		Spec:       v1alpha1.ClusterSpec{Labels: map[string]string{"env": "prod"}},
+		Spec:       gatewaymodel.ClusterSpec{Labels: map[string]string{"env": "prod"}},
 	}
-	d := rDist("d1", nil, []string{"g1"}, v1alpha1.DistributionOverride{Cluster: "c1", EnforcementMode: v1alpha1.ModeAudit})
+	d := rDist("d1", nil, []string{"g1"}, gatewaymodel.DistributionOverride{Cluster: "c1", EnforcementMode: v1alpha1.ModeAudit})
 	d.Spec.Clusters.ClusterSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"env": "prod"}}
 	res := Render(cl,
-		[]v1alpha1.PolicyDistribution{d},
+		[]gatewaymodel.PolicyDistribution{d},
 		[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1", EnforcementMode: v1alpha1.ModeEnforce})},
 		[]v1alpha1.Policy{rPolicy("p1", v1alpha1.ModeEnforce)})
 	if len(res.Matched) != 1 {
@@ -99,10 +100,10 @@ func TestRenderSelectorAndOverride(t *testing.T) {
 }
 
 func TestRenderStrictestAcrossDistributions(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
 	res := Render(cl,
-		[]v1alpha1.PolicyDistribution{
-			rDist("d-audit", []string{"c1"}, []string{"g1"}, v1alpha1.DistributionOverride{Cluster: "c1", EnforcementMode: v1alpha1.ModeAudit}),
+		[]gatewaymodel.PolicyDistribution{
+			rDist("d-audit", []string{"c1"}, []string{"g1"}, gatewaymodel.DistributionOverride{Cluster: "c1", EnforcementMode: v1alpha1.ModeAudit}),
 			rDist("d-enforce", []string{"c1"}, []string{"g1"}),
 		},
 		[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1", EnforcementMode: v1alpha1.ModeEnforce})},
@@ -116,9 +117,9 @@ func TestRenderStrictestAcrossDistributions(t *testing.T) {
 }
 
 func TestRenderMissingGroupIsLocalizedError(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
 	res := Render(cl,
-		[]v1alpha1.PolicyDistribution{
+		[]gatewaymodel.PolicyDistribution{
 			rDist("bad", []string{"c1"}, []string{"ghost"}),
 			rDist("good", []string{"c1"}, []string{"g1"}),
 		},
@@ -133,9 +134,9 @@ func TestRenderMissingGroupIsLocalizedError(t *testing.T) {
 }
 
 func TestRenderNoMatchIsEmptySnapshotWithHash(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "other"}}
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "other"}}
 	res := Render(cl,
-		[]v1alpha1.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
+		[]gatewaymodel.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
 		nil, nil)
 	if len(res.Objects) != 0 || len(res.Matched) != 0 || res.Hash == "" {
 		t.Fatalf("res = %+v", res)
@@ -143,9 +144,9 @@ func TestRenderNoMatchIsEmptySnapshotWithHash(t *testing.T) {
 }
 
 func TestRenderDeterministicHash(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
-	args := func() ([]v1alpha1.PolicyDistribution, []v1alpha1.PolicyGroup, []v1alpha1.Policy) {
-		return []v1alpha1.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	args := func() ([]gatewaymodel.PolicyDistribution, []v1alpha1.PolicyGroup, []v1alpha1.Policy) {
+		return []gatewaymodel.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
 			[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1"}, v1alpha1.PolicyRef{Name: "p2"})},
 			[]v1alpha1.Policy{rPolicy("p2", v1alpha1.ModeAudit), rPolicy("p1", v1alpha1.ModeAudit)}
 	}
@@ -157,11 +158,11 @@ func TestRenderDeterministicHash(t *testing.T) {
 }
 
 func TestRenderDisabledGroupContributesNoMembers(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
 	g := rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})
 	g.Spec.Enabled = false
 	res := Render(cl,
-		[]v1alpha1.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
+		[]gatewaymodel.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
 		[]v1alpha1.PolicyGroup{g},
 		[]v1alpha1.Policy{rPolicy("p1", v1alpha1.ModeAudit)})
 	if res.Errors["d1"] != "" {
@@ -178,13 +179,13 @@ func TestRenderDisabledGroupContributesNoMembers(t *testing.T) {
 }
 
 func TestDistMatchesMalformedSelectorRecordsErrorButStaysMatched(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
 	d := rDist("bad-selector", nil, []string{"g1"})
 	d.Spec.Clusters.ClusterSelector = &metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "k", Operator: "Bogus"}},
 	}
 	res := Render(cl,
-		[]v1alpha1.PolicyDistribution{d},
+		[]gatewaymodel.PolicyDistribution{d},
 		[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})},
 		[]v1alpha1.Policy{rPolicy("p1", v1alpha1.ModeAudit)})
 	if res.Errors["bad-selector"] == "" {
@@ -202,10 +203,10 @@ func TestDistMatchesMalformedSelectorRecordsErrorButStaysMatched(t *testing.T) {
 }
 
 func TestRenderHashChangesWithContent(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
 	base := func(mode string) RenderResult {
 		return Render(cl,
-			[]v1alpha1.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
+			[]gatewaymodel.PolicyDistribution{rDist("d1", []string{"c1"}, []string{"g1"})},
 			[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})},
 			[]v1alpha1.Policy{rPolicy("p1", mode)})
 	}
@@ -215,12 +216,12 @@ func TestRenderHashChangesWithContent(t *testing.T) {
 }
 
 func TestRenderSkipsDeletingDistribution(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "c1"}}
 	d := rDist("d1", []string{"c1"}, []string{"g1"})
 	now := metav1.Now()
 	d.DeletionTimestamp = &now
 	d.Finalizers = []string{"test"}
-	res := Render(cl, []v1alpha1.PolicyDistribution{d},
+	res := Render(cl, []gatewaymodel.PolicyDistribution{d},
 		[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})},
 		[]v1alpha1.Policy{rPolicy("p1", v1alpha1.ModeAudit)})
 	if len(res.Objects) != 0 || len(res.Matched) != 0 {
@@ -229,16 +230,16 @@ func TestRenderSkipsDeletingDistribution(t *testing.T) {
 }
 
 func TestRenderEmptyClusterSelectorMatchesEveryCluster(t *testing.T) {
-	cl := &v1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "any-cluster-no-labels"}}
-	dist := v1alpha1.PolicyDistribution{
+	cl := &gatewaymodel.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "any-cluster-no-labels"}}
+	dist := gatewaymodel.PolicyDistribution{
 		ObjectMeta: metav1.ObjectMeta{Name: "default"},
-		Spec: v1alpha1.PolicyDistributionSpec{
-			Clusters:     v1alpha1.DistributionClusters{ClusterSelector: &metav1.LabelSelector{}},
+		Spec: gatewaymodel.PolicyDistributionSpec{
+			Clusters:     gatewaymodel.DistributionClusters{ClusterSelector: &metav1.LabelSelector{}},
 			PolicyGroups: []string{"g1"},
 		},
 	}
 	res := Render(cl,
-		[]v1alpha1.PolicyDistribution{dist},
+		[]gatewaymodel.PolicyDistribution{dist},
 		[]v1alpha1.PolicyGroup{rGroup("g1", v1alpha1.PolicyRef{Name: "p1"})},
 		[]v1alpha1.Policy{rPolicy("p1", v1alpha1.ModeAudit)})
 

@@ -11,9 +11,9 @@ import (
 	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 const defaultDistributionName = "default"
@@ -29,14 +29,14 @@ type DistributionPage struct {
 	PageSize int                    `json:"pageSize"`
 }
 type DistributionDetail struct {
-	Name            string                          `json:"name"`
-	ResourceVersion string                          `json:"resourceVersion"`
-	Spec            v1alpha1.PolicyDistributionSpec `json:"spec"`
+	Name            string                              `json:"name"`
+	ResourceVersion string                              `json:"resourceVersion"`
+	Spec            gatewaymodel.PolicyDistributionSpec `json:"spec"`
 }
 type DistributionRequest struct {
-	Name            string                          `json:"name,omitempty"`
-	Spec            v1alpha1.PolicyDistributionSpec `json:"spec"`
-	ResourceVersion string                          `json:"resourceVersion,omitempty"`
+	Name            string                              `json:"name,omitempty"`
+	Spec            gatewaymodel.PolicyDistributionSpec `json:"spec"`
+	ResourceVersion string                              `json:"resourceVersion,omitempty"`
 }
 
 type DistributionService struct {

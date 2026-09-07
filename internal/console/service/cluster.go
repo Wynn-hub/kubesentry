@@ -11,10 +11,10 @@ import (
 	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 // ClusterImage describes one member-plane image used by the generated Helm
@@ -153,7 +153,7 @@ func (s *ClusterService) Create(ctx context.Context, req CreateClusterRequest) (
 	if err != nil {
 		return "", "", fmt.Errorf("generate token: %w", err)
 	}
-	c := &dbrepo.Cluster{Name: req.Name, Labels: datatypes.NewJSONType(req.Labels), Phase: v1alpha1.ClusterPhaseRegistering, RegTokenHash: gateway.HashToken(token)}
+	c := &dbrepo.Cluster{Name: req.Name, Labels: datatypes.NewJSONType(req.Labels), Phase: gatewaymodel.ClusterPhaseRegistering, RegTokenHash: gateway.HashToken(token)}
 	if err := s.repos.ClusterUOW.WithinTransaction(ctx, func(clusters repository.ClusterRepository, records repository.InstallRecordRepository, _ repository.UninstallTaskRepository) error {
 		if err := clusters.Create(ctx, c); err != nil {
 			return err
@@ -190,7 +190,7 @@ func (s *ClusterService) Delete(ctx context.Context, name string) error {
 		}
 		return fmt.Errorf("get cluster: %w", err)
 	}
-	if c.Phase == v1alpha1.ClusterPhaseOnline || c.Phase == v1alpha1.ClusterPhaseUninstalling {
+	if c.Phase == gatewaymodel.ClusterPhaseOnline || c.Phase == gatewaymodel.ClusterPhaseUninstalling {
 		return newConflict("online or uninstalling cluster cannot be deleted from here")
 	}
 	if err := s.repos.Clusters.Delete(ctx, c.ID); err != nil {
@@ -210,7 +210,7 @@ func (s *ClusterService) ReissueToken(ctx context.Context, name string, req Reis
 		}
 		return "", "", fmt.Errorf("get cluster: %w", err)
 	}
-	if c.Phase != v1alpha1.ClusterPhaseRegistering {
+	if c.Phase != gatewaymodel.ClusterPhaseRegistering {
 		return "", "", newConflict("token can only be reissued while the cluster is Registering")
 	}
 	token, err := gateway.NewToken()
@@ -247,7 +247,7 @@ func (s *ClusterService) CreateUninstall(ctx context.Context, name string) (*Uni
 		}
 		return nil, err
 	}
-	if c.Phase != v1alpha1.ClusterPhaseOnline {
+	if c.Phase != gatewaymodel.ClusterPhaseOnline {
 		return nil, newConflict("only an online cluster can be uninstalled")
 	}
 	active, err := s.repos.UninstallTasks.HasActive(ctx, c.ID)
@@ -262,7 +262,7 @@ func (s *ClusterService) CreateUninstall(ctx context.Context, name string) (*Uni
 		if err := tasks.Create(ctx, task); err != nil {
 			return err
 		}
-		return clusters.UpdatePhase(ctx, c.ID, v1alpha1.ClusterPhaseUninstalling)
+		return clusters.UpdatePhase(ctx, c.ID, gatewaymodel.ClusterPhaseUninstalling)
 	}); err != nil {
 		return nil, fmt.Errorf("create uninstall task: %w", err)
 	}
@@ -305,7 +305,7 @@ func (s *ClusterService) RetryUninstall(ctx context.Context, name string, taskID
 		if err := tasks.Retry(ctx, taskID, time.Now().UTC()); err != nil {
 			return err
 		}
-		return clusters.UpdatePhase(ctx, c.ID, v1alpha1.ClusterPhaseUninstalling)
+		return clusters.UpdatePhase(ctx, c.ID, gatewaymodel.ClusterPhaseUninstalling)
 	}); err != nil {
 		if errors.Is(err, dbrepo.ErrConflict) {
 			return newConflict("only a failed uninstall task can be retried")

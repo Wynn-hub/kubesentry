@@ -14,6 +14,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 type testExceptionRequest struct {
@@ -143,7 +144,7 @@ func TestCreateExceptionRollsBackWhenScopeWriteFails(t *testing.T) {
 	h, repos := newDBTestServer(t)
 	if err := repos.Distributions.Create(t.Context(), &dbrepo.PolicyDistribution{
 		Name: "scope-exception-my-exception",
-		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{}),
+		Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{}),
 	}); err != nil {
 		t.Fatal(err)
 	}

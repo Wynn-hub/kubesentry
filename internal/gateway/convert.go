@@ -5,6 +5,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 // toV1alpha1Cluster/toV1alpha1Policies/toV1alpha1Groups/toV1alpha1Dists adapt
@@ -12,10 +13,10 @@ import (
 // v1alpha1.X values Render expects — Render itself stays a pure function
 // over in-memory slices, unaware its inputs now come from Postgres.
 
-func toV1alpha1Cluster(c *dbrepo.Cluster) *v1alpha1.Cluster {
-	return &v1alpha1.Cluster{
+func toGatewayCluster(c *dbrepo.Cluster) *gatewaymodel.Cluster {
+	return &gatewaymodel.Cluster{
 		ObjectMeta: metav1.ObjectMeta{Name: c.Name},
-		Spec:       v1alpha1.ClusterSpec{Labels: c.Labels.Data()},
+		Spec:       gatewaymodel.ClusterSpec{Labels: c.Labels.Data()},
 	}
 }
 
@@ -44,10 +45,10 @@ func toV1alpha1Groups(in []dbrepo.PolicyGroup) []v1alpha1.PolicyGroup {
 	return out
 }
 
-func toV1alpha1Dists(in []dbrepo.PolicyDistribution) []v1alpha1.PolicyDistribution {
-	out := make([]v1alpha1.PolicyDistribution, len(in))
+func toGatewayDists(in []dbrepo.PolicyDistribution) []gatewaymodel.PolicyDistribution {
+	out := make([]gatewaymodel.PolicyDistribution, len(in))
 	for i, d := range in {
-		out[i] = v1alpha1.PolicyDistribution{ObjectMeta: metav1.ObjectMeta{Name: d.Name}, Spec: d.Spec.Data()}
+		out[i] = gatewaymodel.PolicyDistribution{ObjectMeta: metav1.ObjectMeta{Name: d.Name}, Spec: d.Spec.Data()}
 	}
 	return out
 }

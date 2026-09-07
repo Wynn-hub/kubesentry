@@ -369,7 +369,7 @@ func TestAddToScheme(t *testing.T) {
 		t.Fatalf("AddToScheme failed: %v", err)
 	}
 
-	// Verify all three types are registered
+	// Verify the member-cluster CRD types are registered.
 	testCases := []runtime.Object{
 		&v1alpha1.Policy{},
 		&v1alpha1.PolicyList{},
@@ -383,6 +383,12 @@ func TestAddToScheme(t *testing.T) {
 		gvks, _, err := scheme.ObjectKinds(obj)
 		if err != nil || len(gvks) == 0 {
 			t.Errorf("%T not registered in scheme", obj)
+		}
+	}
+
+	for _, kind := range []string{"Cluster", "ClusterList", "PolicyDistribution", "PolicyDistributionList"} {
+		if _, err := scheme.New(v1alpha1.GroupVersion.WithKind(kind)); err == nil {
+			t.Errorf("gateway-plane model %s must not be registered as a member CRD", kind)
 		}
 	}
 }

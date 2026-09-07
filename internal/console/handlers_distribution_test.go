@@ -6,18 +6,18 @@ import (
 
 	"gorm.io/datatypes"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 func seedDistribution(t *testing.T, repos gateway.Repos, name string, groups []string) *dbrepo.PolicyDistribution {
 	t.Helper()
 	d := &dbrepo.PolicyDistribution{
 		Name: name,
-		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
-			Clusters:     v1alpha1.DistributionClusters{ByName: []string{"local"}},
+		Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{
+			Clusters:     gatewaymodel.DistributionClusters{ByName: []string{"local"}},
 			PolicyGroups: groups,
 		}),
 	}
@@ -28,16 +28,16 @@ func seedDistribution(t *testing.T, repos gateway.Repos, name string, groups []s
 }
 
 type testDistributionRequest struct {
-	Name            string                          `json:"name,omitempty"`
-	Spec            v1alpha1.PolicyDistributionSpec `json:"spec"`
-	ResourceVersion string                          `json:"resourceVersion,omitempty"`
+	Name            string                              `json:"name,omitempty"`
+	Spec            gatewaymodel.PolicyDistributionSpec `json:"spec"`
+	ResourceVersion string                              `json:"resourceVersion,omitempty"`
 }
 
 func validDistributionReq() *testDistributionRequest {
 	return &testDistributionRequest{
 		Name: "my-dist",
-		Spec: v1alpha1.PolicyDistributionSpec{
-			Clusters:     v1alpha1.DistributionClusters{ByName: []string{"local"}},
+		Spec: gatewaymodel.PolicyDistributionSpec{
+			Clusters:     gatewaymodel.DistributionClusters{ByName: []string{"local"}},
 			PolicyGroups: []string{"g1"},
 		},
 	}

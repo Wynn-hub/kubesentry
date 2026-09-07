@@ -5,8 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -50,16 +50,16 @@ func (s *Server) markPushed(ctx context.Context, cluster string, res RenderResul
 		switch {
 		case matched[d.Name] && res.Errors[d.Name] != "":
 			s.setClusterStatus(ctx, d.ID, cl.ID, cluster, func(e *dbrepo.DistributionClusterStatus) {
-				e.Status = v1alpha1.DistributionError
+				e.Status = gatewaymodel.DistributionError
 				e.LastError = res.Errors[d.Name]
 			})
 		case matched[d.Name]:
 			s.setClusterStatus(ctx, d.ID, cl.ID, cluster, func(e *dbrepo.DistributionClusterStatus) {
 				if e.AppliedVersionHash == res.Hash &&
-					(e.Status == v1alpha1.DistributionSynced || e.Status == v1alpha1.DistributionError) {
+					(e.Status == gatewaymodel.DistributionSynced || e.Status == gatewaymodel.DistributionError) {
 					return // already resolved (success or failure) for this exact snapshot
 				}
-				e.Status = v1alpha1.DistributionPending
+				e.Status = gatewaymodel.DistributionPending
 				e.LastError = ""
 			})
 		default:
@@ -92,14 +92,14 @@ func (s *Server) markReported(ctx context.Context, cluster string, last RenderRe
 		}
 		if rep.ApplyError != "" {
 			s.setClusterStatus(ctx, d.ID, cl.ID, cluster, func(e *dbrepo.DistributionClusterStatus) {
-				e.Status = v1alpha1.DistributionError
+				e.Status = gatewaymodel.DistributionError
 				e.AppliedVersionHash = rep.AppliedVersion
 				e.LastError = rep.ApplyError
 			})
 			continue
 		}
 		s.setClusterStatus(ctx, d.ID, cl.ID, cluster, func(e *dbrepo.DistributionClusterStatus) {
-			e.Status = v1alpha1.DistributionSynced
+			e.Status = gatewaymodel.DistributionSynced
 			e.AppliedVersionHash = rep.AppliedVersion
 			e.LastError = ""
 		})

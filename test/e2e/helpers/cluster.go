@@ -20,6 +20,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 // RegisterLocalCluster seeds the "local" Cluster row directly in the
@@ -63,7 +64,7 @@ func RegisterLocalCluster(ctx context.Context, c client.Client, name string) (to
 	}
 	cl := &dbrepo.Cluster{
 		Name:         name,
-		Phase:        v1alpha1.ClusterPhaseRegistering,
+		Phase:        gatewaymodel.ClusterPhaseRegistering,
 		RegTokenHash: gateway.HashToken(token),
 	}
 	if err := repo.Create(ctx, cl); err != nil {
@@ -95,7 +96,7 @@ func WaitClusterOnline(ctx context.Context, name string, timeout time.Duration) 
 		if err != nil {
 			return false, nil
 		}
-		return cl.Phase == v1alpha1.ClusterPhaseOnline, nil
+		return cl.Phase == gatewaymodel.ClusterPhaseOnline, nil
 	})
 }
 

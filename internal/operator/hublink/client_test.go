@@ -24,6 +24,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -405,8 +406,8 @@ func TestLinkAppliesSnapshotAndReportsBack(t *testing.T) {
 	}
 	if err := repos.Distributions.Create(ctx0, &dbrepo.PolicyDistribution{
 		Name: "d1",
-		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
-			Clusters:     v1alpha1.DistributionClusters{ByName: []string{clusterName}},
+		Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{
+			Clusters:     gatewaymodel.DistributionClusters{ByName: []string{clusterName}},
 			PolicyGroups: []string{"g1"},
 		}),
 	}); err != nil {
@@ -464,7 +465,7 @@ func TestLinkAppliesSnapshotAndReportsBack(t *testing.T) {
 			return false
 		}
 		e, err := repos.Distributions.GetClusterStatus(context.Background(), d.ID, cl.ID)
-		return err == nil && e != nil && e.Status == v1alpha1.DistributionSynced
+		return err == nil && e != nil && e.Status == gatewaymodel.DistributionSynced
 	}, "hub distribution status never reached Synced")
 }
 
@@ -492,8 +493,8 @@ func TestLinkReappliesOnResendEvenWithUnchangedHash(t *testing.T) {
 	}
 	if err := repos.Distributions.Create(ctx0, &dbrepo.PolicyDistribution{
 		Name: "d1",
-		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{
-			Clusters:     v1alpha1.DistributionClusters{ByName: []string{clusterName}},
+		Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{
+			Clusters:     gatewaymodel.DistributionClusters{ByName: []string{clusterName}},
 			PolicyGroups: []string{"g1"},
 		}),
 	}); err != nil {

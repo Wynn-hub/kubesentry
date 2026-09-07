@@ -20,8 +20,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/platformobs"
 )
@@ -137,7 +137,7 @@ func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (
 		}
 		return nil, status.Errorf(codes.Internal, "get cluster: %v", err)
 	}
-	if cl.Phase == v1alpha1.ClusterPhaseUninstalling || cl.Phase == v1alpha1.ClusterPhaseUninstalled {
+	if cl.Phase == gatewaymodel.ClusterPhaseUninstalling || cl.Phase == gatewaymodel.ClusterPhaseUninstalled {
 		return nil, status.Error(codes.FailedPrecondition, "cluster is being uninstalled or has been uninstalled")
 	}
 
@@ -169,9 +169,9 @@ func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (
 	cl.AuthTokenHash = HashToken(token)
 	cl.ClusterUID = req.ClusterUid
 	cl.OperatorVersion = req.OperatorVersion
-	if cl.Phase == "" || cl.Phase == v1alpha1.ClusterPhaseRegistering {
+	if cl.Phase == "" || cl.Phase == gatewaymodel.ClusterPhaseRegistering {
 		// 保持 Registering；Online 由首个心跳 flush 置位。
-		cl.Phase = v1alpha1.ClusterPhaseRegistering
+		cl.Phase = gatewaymodel.ClusterPhaseRegistering
 	}
 	// 消费注册 token（一次性）：清空哈希而非删除单独的 Secret。
 	cl.RegTokenHash = ""
@@ -351,7 +351,7 @@ func (s *Server) renderFor(ctx context.Context, cluster string) (RenderResult, e
 			return RenderResult{}, err
 		}
 	}
-	res := RenderWithExceptions(toV1alpha1Cluster(cl), toV1alpha1Dists(dists), toV1alpha1Groups(groups), toV1alpha1Policies(policies), toV1alpha1Exceptions(exceptions))
+	res := RenderWithExceptions(toGatewayCluster(cl), toGatewayDists(dists), toV1alpha1Groups(groups), toV1alpha1Policies(policies), toV1alpha1Exceptions(exceptions))
 	if s.repos.UninstallTasks == nil || cl.ID == 0 {
 		return s.withAdmissionEventConfig(ctx, res)
 	}
@@ -644,13 +644,13 @@ func (s *Server) handleUninstallTaskReport(ctx context.Context, clusterName stri
 	}
 	switch next {
 	case dbrepo.UninstallTaskSucceeded:
-		err = s.repos.Clusters.UpdatePhase(ctx, cluster.ID, v1alpha1.ClusterPhaseUninstalled)
+		err = s.repos.Clusters.UpdatePhase(ctx, cluster.ID, gatewaymodel.ClusterPhaseUninstalled)
 	case dbrepo.UninstallTaskFailed:
 		// A failed self-uninstall leaves the member operator running and still
 		// connected. Keep its operational phase truthful so the console keeps
 		// offering an uninstall action; the durable task retains the failure
 		// reason and retry history.
-		err = s.repos.Clusters.UpdatePhase(ctx, cluster.ID, v1alpha1.ClusterPhaseOnline)
+		err = s.repos.Clusters.UpdatePhase(ctx, cluster.ID, gatewaymodel.ClusterPhaseOnline)
 	}
 	if err != nil {
 		slog.Warn("update cluster phase after uninstall report", "cluster", clusterName, "task_id", task.ID, "error", err)

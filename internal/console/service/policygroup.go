@@ -13,6 +13,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/groupresolve"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -77,7 +78,7 @@ func syncScope(ctx context.Context, r repository.Repositories, owner string, all
 			if e != nil {
 				return e
 			}
-			if c.Phase == v1alpha1.ClusterPhaseUninstalled {
+			if c.Phase == gatewaymodel.ClusterPhaseUninstalled {
 				return fmt.Errorf("target cluster %q is uninstalled", n)
 			}
 		}
@@ -86,7 +87,7 @@ func syncScope(ctx context.Context, r repository.Repositories, owner string, all
 	if e != nil {
 		return e
 	}
-	spec := v1alpha1.PolicyDistributionSpec{}
+	spec := gatewaymodel.PolicyDistributionSpec{}
 	if all {
 		spec.Clusters.ClusterSelector = &metav1.LabelSelector{}
 	} else {

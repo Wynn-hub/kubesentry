@@ -11,6 +11,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 type Cluster struct {
@@ -84,7 +85,7 @@ func (PolicyException) TableName() string { return "kubesentry.policy_exceptions
 type PolicyDistribution struct {
 	dbmodel.Base
 	Name      string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
-	Spec      datatypes.JSONType[v1alpha1.PolicyDistributionSpec]
+	Spec      datatypes.JSONType[gatewaymodel.PolicyDistributionSpec]
 	Managed   bool
 	OwnerType string
 	OwnerName string

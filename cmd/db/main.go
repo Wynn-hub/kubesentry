@@ -21,11 +21,11 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
 )
 
@@ -133,7 +133,7 @@ func runRegisterCluster(args []string) {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		cl := &dbrepo.Cluster{
 			Name:         *name,
-			Phase:        v1alpha1.ClusterPhaseRegistering,
+			Phase:        gatewaymodel.ClusterPhaseRegistering,
 			RegTokenHash: gateway.HashToken(token),
 		}
 		if err := repo.Create(ctx, cl); err != nil {

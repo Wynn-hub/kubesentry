@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -30,8 +30,8 @@ func TestTrackerMarkAliveAndSnapshot(t *testing.T) {
 
 func TestFlusherOnlineAndOffline(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", Phase: v1alpha1.ClusterPhaseRegistering})
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "stale", Phase: v1alpha1.ClusterPhaseOnline})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", Phase: gatewaymodel.ClusterPhaseRegistering})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "stale", Phase: gatewaymodel.ClusterPhaseOnline})
 
 	tr := NewHeartbeatTracker()
 	tr.MarkAlive("prod", "v2")
@@ -50,14 +50,14 @@ func TestFlusherOnlineAndOffline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Phase != v1alpha1.ClusterPhaseOnline || got.LastHeartbeatAt == nil || got.OperatorVersion != "v2" {
+	if got.Phase != gatewaymodel.ClusterPhaseOnline || got.LastHeartbeatAt == nil || got.OperatorVersion != "v2" {
 		t.Fatalf("prod status = %+v", got)
 	}
 	got, err = repos.Clusters.GetByName(ctx, "stale")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Phase != v1alpha1.ClusterPhaseOffline {
+	if got.Phase != gatewaymodel.ClusterPhaseOffline {
 		t.Fatalf("stale phase = %q, want Offline", got.Phase)
 	}
 }
@@ -85,14 +85,14 @@ func TestRecordStatusPreservesVersionAndFlushesSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Phase != v1alpha1.ClusterPhaseOnline || got.OperatorVersion != "v1" {
+	if got.Phase != gatewaymodel.ClusterPhaseOnline || got.OperatorVersion != "v1" {
 		t.Fatalf("flushed cluster = %+v", got)
 	}
 }
 
 func TestFlusherRestoresLegacyUninstallFailureToOnline(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "retryable", Phase: v1alpha1.ClusterPhaseUninstallFailed})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "retryable", Phase: gatewaymodel.ClusterPhaseUninstallFailed})
 
 	tr := NewHeartbeatTracker()
 	tr.MarkAlive("retryable", "v2")
@@ -103,7 +103,7 @@ func TestFlusherRestoresLegacyUninstallFailureToOnline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Phase != v1alpha1.ClusterPhaseOnline {
+	if got.Phase != gatewaymodel.ClusterPhaseOnline {
 		t.Fatalf("phase = %q, want Online", got.Phase)
 	}
 }

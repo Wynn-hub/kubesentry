@@ -15,6 +15,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -322,7 +323,7 @@ func validateExceptionScopeTargets(ctx context.Context, clusters repository.Clus
 				}
 				return fmt.Errorf("target cluster %q: %w", name, err)
 			}
-			if cluster.Phase == v1alpha1.ClusterPhaseUninstalled {
+			if cluster.Phase == gatewaymodel.ClusterPhaseUninstalled {
 				return &ValidationError{Msg: fmt.Sprintf("target cluster %q is uninstalled", name)}
 			}
 		}
@@ -331,7 +332,7 @@ func validateExceptionScopeTargets(ctx context.Context, clusters repository.Clus
 }
 
 func syncExceptionScope(ctx context.Context, distributions repository.DistributionRepository, owner string, all bool, names []string) error {
-	spec := v1alpha1.PolicyDistributionSpec{PolicyExceptions: []string{owner}}
+	spec := gatewaymodel.PolicyDistributionSpec{PolicyExceptions: []string{owner}}
 	if all {
 		spec.Clusters.ClusterSelector = &metav1.LabelSelector{}
 	} else {

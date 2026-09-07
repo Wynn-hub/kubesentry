@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -14,7 +14,7 @@ import (
 type HeartbeatInfo struct {
 	LastSeen        time.Time
 	OperatorVersion string
-	Summary         *v1alpha1.PolicySummary
+	Summary         *gatewaymodel.PolicySummary
 	// Inventory is the member's self-reported cluster facts from the last
 	// StatusReport, nil until one arrives. Heartbeats alone never set it.
 	Inventory *ClusterInventory
@@ -78,7 +78,7 @@ func (h *HeartbeatTracker) RecordStatus(cluster string, ready, invalid int32, in
 	defer h.mu.Unlock()
 	info := h.beats[cluster]
 	info.LastSeen = time.Now()
-	info.Summary = &v1alpha1.PolicySummary{Ready: ready, Invalid: invalid}
+	info.Summary = &gatewaymodel.PolicySummary{Ready: ready, Invalid: invalid}
 	if inventory != nil {
 		info.Inventory = inventory
 	}
@@ -100,7 +100,7 @@ func (h *HeartbeatTracker) Snapshot() map[string]HeartbeatInfo {
 // the gateway, alongside the gRPC and health servers.
 //
 // ponytail: dbrepo.Cluster has no PolicySummary column (unlike the old
-// v1alpha1.Cluster.Status CRD field) — ready/invalid policy counts are
+// gatewaymodel.ClusterStatus field) — ready/invalid policy counts are
 // tracked in-memory only via HeartbeatTracker.Snapshot()[x].Summary for now.
 // Add a column + persist here if a DB-backed summary view turns out to be
 // needed (e.g. for the console-api cluster list).
@@ -143,20 +143,20 @@ func (f *StatusFlusher) flushOnce(ctx context.Context) error {
 		// or completed its self-removal. Failed uninstalls deliberately remain
 		// eligible for normal heartbeat reconciliation: their operator is still
 		// connected and the cluster must return to Online.
-		if cl.Phase == v1alpha1.ClusterPhaseUninstalling ||
-			cl.Phase == v1alpha1.ClusterPhaseUninstalled {
+		if cl.Phase == gatewaymodel.ClusterPhaseUninstalling ||
+			cl.Phase == gatewaymodel.ClusterPhaseUninstalled {
 			continue
 		}
 		info, ok := snap[cl.Name]
 		switch {
 		case ok && now.Sub(info.LastSeen) <= f.offlineAfter:
 			t := info.LastSeen
-			cl.Phase = v1alpha1.ClusterPhaseOnline
+			cl.Phase = gatewaymodel.ClusterPhaseOnline
 			cl.LastHeartbeatAt = &t
 			cl.OperatorVersion = info.OperatorVersion
-		case cl.Phase == v1alpha1.ClusterPhaseOnline:
+		case cl.Phase == gatewaymodel.ClusterPhaseOnline:
 			// 有过心跳但超时（或 gateway 重启后内存丢失）→ Offline
-			cl.Phase = v1alpha1.ClusterPhaseOffline
+			cl.Phase = gatewaymodel.ClusterPhaseOffline
 		default:
 			continue // Registering/Offline 且无新心跳：不写
 		}

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"gorm.io/datatypes"
 )
 
@@ -16,13 +16,13 @@ func TestDistributionRepoUpdateCASSucceedsOnFreshRead(t *testing.T) {
 
 	d := &dbrepo.PolicyDistribution{
 		Name: "e2e-dist-cas",
-		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{PolicyGroups: []string{"g1"}}),
+		Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{PolicyGroups: []string{"g1"}}),
 	}
 	if err := repo.Create(ctx, d); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
-	newSpec := datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{PolicyGroups: []string{"g1", "g2"}})
+	newSpec := datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{PolicyGroups: []string{"g1", "g2"}})
 	if err := repo.UpdateCAS(ctx, d.ID, d.UpdatedAt, map[string]any{"spec": newSpec}); err != nil {
 		t.Fatalf("update cas: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestDistributionRepoUpdateCASFailsOnStaleRead(t *testing.T) {
 
 	d := &dbrepo.PolicyDistribution{
 		Name: "e2e-dist-stale",
-		Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{PolicyGroups: []string{"g1"}}),
+		Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{PolicyGroups: []string{"g1"}}),
 	}
 	if err := repo.Create(ctx, d); err != nil {
 		t.Fatalf("create: %v", err)
@@ -55,13 +55,13 @@ func TestDistributionRepoUpdateCASFailsOnStaleRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get by name: %v", err)
 	}
-	fresh.Spec = datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{PolicyGroups: []string{"g1", "concurrent"}})
+	fresh.Spec = datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{PolicyGroups: []string{"g1", "concurrent"}})
 	if err := repo.Update(ctx, fresh); err != nil {
 		t.Fatalf("concurrent update: %v", err)
 	}
 
 	// The stale caller's CAS must now fail.
-	newSpec := datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{PolicyGroups: []string{"g1", "stale-write"}})
+	newSpec := datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{PolicyGroups: []string{"g1", "stale-write"}})
 	if err := repo.UpdateCAS(ctx, d.ID, staleUpdatedAt, map[string]any{"spec": newSpec}); err == nil {
 		t.Fatal("expected ErrConflict on a stale updated_at, got nil")
 	}
@@ -75,7 +75,7 @@ func TestDistributionRepoListPage(t *testing.T) {
 	for _, name := range []string{"zz-page-dist-a", "zz-page-dist-b"} {
 		if err := repo.Create(ctx, &dbrepo.PolicyDistribution{
 			Name: name,
-			Spec: datatypes.NewJSONType(v1alpha1.PolicyDistributionSpec{PolicyGroups: []string{"default"}}),
+			Spec: datatypes.NewJSONType(gatewaymodel.PolicyDistributionSpec{PolicyGroups: []string{"default"}}),
 		}); err != nil {
 			t.Fatalf("create %s: %v", name, err)
 		}

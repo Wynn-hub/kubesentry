@@ -13,6 +13,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/groupresolve"
 )
@@ -61,13 +62,13 @@ func hashWithAdmissionEventConfig(base string, config *gatewaypb.AdmissionEventC
 // Render computes the snapshot from in-memory lists only — a pure function.
 // A distribution with a bad group reference contributes an Errors entry but
 // never blocks other distributions.
-func Render(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, groups []v1alpha1.PolicyGroup, policies []v1alpha1.Policy) RenderResult {
+func Render(cluster *gatewaymodel.Cluster, dists []gatewaymodel.PolicyDistribution, groups []v1alpha1.PolicyGroup, policies []v1alpha1.Policy) RenderResult {
 	return RenderWithExceptions(cluster, dists, groups, policies, nil)
 }
 
 // RenderWithExceptions extends the existing snapshot renderer with scoped
 // PolicyException objects while preserving Render's test-facing signature.
-func RenderWithExceptions(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDistribution, groups []v1alpha1.PolicyGroup, policies []v1alpha1.Policy, exceptions []v1alpha1.PolicyException) RenderResult {
+func RenderWithExceptions(cluster *gatewaymodel.Cluster, dists []gatewaymodel.PolicyDistribution, groups []v1alpha1.PolicyGroup, policies []v1alpha1.Policy, exceptions []v1alpha1.PolicyException) RenderResult {
 	res := RenderResult{Errors: map[string]string{}}
 
 	groupByName := make(map[string]*v1alpha1.PolicyGroup, len(groups))
@@ -201,7 +202,7 @@ func RenderWithExceptions(cluster *v1alpha1.Cluster, dists []v1alpha1.PolicyDist
 
 // distMatches: byName ∪ clusterSelector (against Cluster.spec.labels).
 // A malformed selector yields a non-empty error string.
-func distMatches(d *v1alpha1.PolicyDistribution, cluster *v1alpha1.Cluster) (bool, string) {
+func distMatches(d *gatewaymodel.PolicyDistribution, cluster *gatewaymodel.Cluster) (bool, string) {
 	for _, n := range d.Spec.Clusters.ByName {
 		if n == cluster.Name {
 			return true, ""
