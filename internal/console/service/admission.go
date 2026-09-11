@@ -224,7 +224,15 @@ func intOr(value *int, fallback int) int {
 	}
 	return *value
 }
+
 func boolOr(value *bool, fallback bool) bool {
+	if value == nil {
+		return fallback
+	}
+	return *value
+}
+
+func stringOr(value *string, fallback string) string {
 	if value == nil {
 		return fallback
 	}

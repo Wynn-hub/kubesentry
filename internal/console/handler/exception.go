@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
@@ -15,7 +16,11 @@ func (h *Handler) ListExceptions(ctx context.Context, p dto.ListExceptionsParams
 	if e != nil {
 		return &dto.ListExceptionsInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
-	return &dto.ExceptionListResponse{Code: 0, Message: "success", Data: dto.OptExceptionListData{Value: *d, Set: true}}, nil
+	v, err := dtoData[dto.ExceptionListData](d)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.ExceptionListResponse{Code: 0, Message: "success", Data: dto.NewOptExceptionListData(v)}, nil
 }
 
 func (h *Handler) GetException(ctx context.Context, p dto.GetExceptionParams) (dto.GetExceptionRes, error) {
@@ -26,11 +31,19 @@ func (h *Handler) GetException(ctx context.Context, p dto.GetExceptionParams) (d
 		}
 		return &dto.GetExceptionInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
-	return &dto.ExceptionDetailResponse{Code: 0, Message: "success", Data: dto.OptExceptionDetail{Value: *d, Set: true}}, nil
+	v, err := dtoData[dto.ExceptionDetail](d)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.ExceptionDetailResponse{Code: 0, Message: "success", Data: dto.NewOptExceptionDetail(v)}, nil
 }
 
 func (h *Handler) CreateException(ctx context.Context, r *dto.ExceptionRequest) (dto.CreateExceptionRes, error) {
-	e := h.svcs.Exception.Create(ctx, r)
+	input, e := exceptionInput(r)
+	if e != nil {
+		return nil, e
+	}
+	e = h.svcs.Exception.Create(ctx, input)
 	if e != nil {
 		var v *service.ValidationError
 		if errors.As(e, &v) {
@@ -41,11 +54,15 @@ func (h *Handler) CreateException(ctx context.Context, r *dto.ExceptionRequest) 
 		}
 		return &dto.CreateExceptionInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
-	return &dto.ExceptionNameResponse{Code: 0, Message: "success", Data: dto.OptExceptionNameResponseData{Value: dto.ExceptionNameResponseData{Name: r.Name.Or("")}, Set: true}}, nil
+	return &dto.ExceptionNameResponse{Code: 0, Message: "success", Data: dto.OptExceptionNameResponseData{Value: dto.ExceptionNameResponseData{Name: stringOr(input.Name)}, Set: true}}, nil
 }
 
 func (h *Handler) UpdateException(ctx context.Context, r *dto.ExceptionRequest, p dto.UpdateExceptionParams) (dto.UpdateExceptionRes, error) {
-	e := h.svcs.Exception.Update(ctx, p.Name, r)
+	input, e := exceptionInput(r)
+	if e != nil {
+		return nil, e
+	}
+	e = h.svcs.Exception.Update(ctx, p.Name, input)
 	if e != nil {
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.UpdateExceptionNotFound{Code: 40400, Message: e.Error()}, nil
@@ -60,6 +77,25 @@ func (h *Handler) UpdateException(ctx context.Context, r *dto.ExceptionRequest, 
 		return &dto.UpdateExceptionInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.ExceptionNameResponse{Code: 0, Message: "success", Data: dto.OptExceptionNameResponseData{Value: dto.ExceptionNameResponseData{Name: p.Name}, Set: true}}, nil
+}
+
+func exceptionInput(request *dto.ExceptionRequest) (*dto.ExceptionInput, error) {
+	data, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	var input dto.ExceptionInput
+	if err := json.Unmarshal(data, &input); err != nil {
+		return nil, err
+	}
+	return &input, nil
+}
+
+func stringOr(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func (h *Handler) DeleteException(ctx context.Context, p dto.DeleteExceptionParams) (dto.DeleteExceptionRes, error) {

@@ -31,7 +31,7 @@ func NewExceptionService(r repository.Repositories, n Notifier) *ExceptionServic
 	return &ExceptionService{repos: r, notifier: n}
 }
 
-func (s *ExceptionService) Get(ctx context.Context, name string) (*dto.ExceptionDetail, error) {
+func (s *ExceptionService) Get(ctx context.Context, name string) (*dto.ExceptionView, error) {
 	e, err := s.repos.Exceptions.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -39,42 +39,35 @@ func (s *ExceptionService) Get(ctx context.Context, name string) (*dto.Exception
 		}
 		return nil, err
 	}
-	var spec dto.ExceptionSpec
-	b, _ := json.Marshal(e.Spec.Data())
-	_ = json.Unmarshal(b, &spec)
-	var st dto.ExceptionStatus
-	st.Phase = dto.ExceptionStatusPhaseActive
+	spec := e.Spec.Data()
+	st := dto.ExceptionStatusView{Phase: "Active"}
 	if e.ExpiresAt != nil {
-		st.ExpiresAt.SetTo(*e.ExpiresAt)
+		st.ExpiresAt = e.ExpiresAt
 		st.EffectiveAt = e.CreatedAt
 		if e.ExpiresAt.Before(time.Now()) {
-			st.Phase = dto.ExceptionStatusPhaseExpired
+			st.Phase = "Expired"
 		}
 	}
 	scope, err := exceptionScopeFor(ctx, s.repos, name)
 	if err != nil {
 		return nil, err
 	}
-	return &dto.ExceptionDetail{Name: e.Name, ResourceVersion: strconv.FormatInt(e.UpdatedAt.UnixNano(), 10), Spec: spec, Status: st, Scope: scope}, nil
+	return &dto.ExceptionView{Name: e.Name, ResourceVersion: strconv.FormatInt(e.UpdatedAt.UnixNano(), 10), Spec: spec, Status: st, Scope: scope}, nil
 }
 
-func (s *ExceptionService) List(ctx context.Context, page, size int, sortBy, order string) (*dto.ExceptionListData, error) {
+func (s *ExceptionService) List(ctx context.Context, page, size int, sortBy, order string) (*dto.ExceptionPageView, error) {
 	xs, err := s.repos.Exceptions.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	items := make([]dto.ExceptionListItem, 0, len(xs))
+	items := make([]dto.ExceptionItem, 0, len(xs))
 	for _, e := range xs {
 		sp := e.Spec.Data()
-		phase := dto.ExceptionListItemPhaseActive
+		phase := "Active"
 		if e.ExpiresAt != nil && e.ExpiresAt.Before(time.Now()) {
-			phase = dto.ExceptionListItemPhaseExpired
+			phase = "Expired"
 		}
-		var expires dto.OptDateTime
-		if e.ExpiresAt != nil {
-			expires.SetTo(*e.ExpiresAt)
-		}
-		items = append(items, dto.ExceptionListItem{Name: e.Name, Phase: phase, Reason: sp.Reason, Duration: sp.Duration, TargetSummary: exceptionTarget(sp), ExpiresAt: expires})
+		items = append(items, dto.ExceptionItem{Name: e.Name, Phase: phase, Reason: sp.Reason, Duration: sp.Duration, TargetSummary: exceptionTarget(sp), ExpiresAt: e.ExpiresAt})
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i], items[j]
@@ -96,10 +89,10 @@ func (s *ExceptionService) List(ctx context.Context, page, size int, sortBy, ord
 	if end > total {
 		end = total
 	}
-	return &dto.ExceptionListData{Total: total, Page: page, PageSize: dto.ExceptionListDataPageSize(size), Items: items[start:end]}, nil
+	return &dto.ExceptionPageView{Total: total, Page: page, PageSize: size, Items: items[start:end]}, nil
 }
 
-func compareExceptionListItem(a, b dto.ExceptionListItem, sortBy string) int {
+func compareExceptionListItem(a, b dto.ExceptionItem, sortBy string) int {
 	switch sortBy {
 	case "phase":
 		return cmp.Compare(a.Phase, b.Phase)
@@ -113,17 +106,16 @@ func compareExceptionListItem(a, b dto.ExceptionListItem, sortBy string) int {
 		}
 		return cmp.Compare(a.Duration, b.Duration)
 	case "expiresAt":
-		aTime, aSet := a.ExpiresAt.Get()
-		bTime, bSet := b.ExpiresAt.Get()
+		aTime, bTime := a.ExpiresAt, b.ExpiresAt
 		switch {
-		case !aSet && !bSet:
+		case aTime == nil && bTime == nil:
 			return 0
-		case !aSet:
+		case aTime == nil:
 			return -1
-		case !bSet:
+		case bTime == nil:
 			return 1
 		default:
-			return aTime.Compare(bTime)
+			return aTime.Compare(*bTime)
 		}
 	default:
 		return cmp.Compare(a.Name, b.Name)
@@ -151,14 +143,14 @@ func summarizeExceptionRefs(refs []string) string {
 	return strings.Join(refs[:limit], ", ") + fmt.Sprintf(" (+%d more)", len(refs)-limit)
 }
 
-func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionRequest) error {
+func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionInput) error {
 	if err := validateExceptionRequest(r, true); err != nil {
 		return err
 	}
-	if err := validateExceptionScopeTargets(ctx, s.repos.Clusters, r.AllClusters.Or(false), r.ClusterNames); err != nil {
+	if err := validateExceptionScopeTargets(ctx, s.repos.Clusters, boolOr(r.AllClusters, false), r.ClusterNames); err != nil {
 		return err
 	}
-	name := r.Name.Or("")
+	name := stringOr(r.Name, "")
 	var spec v1alpha1.PolicyExceptionSpec
 	b, _ := json.Marshal(r)
 	if e := json.Unmarshal(b, &spec); e != nil {
@@ -176,7 +168,7 @@ func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionRequest) 
 			}
 			return err
 		}
-		return syncExceptionScope(ctx, distributions, name, r.AllClusters.Or(false), r.ClusterNames)
+		return syncExceptionScope(ctx, distributions, name, boolOr(r.AllClusters, false), r.ClusterNames)
 	}); err != nil {
 		return err
 	}
@@ -184,11 +176,11 @@ func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionRequest) 
 	return nil
 }
 func mustDuration(v string) time.Duration { d, _ := time.ParseDuration(v); return d }
-func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.ExceptionRequest) error {
+func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.ExceptionInput) error {
 	if err := validateExceptionRequest(r, false); err != nil {
 		return err
 	}
-	if err := validateExceptionScopeTargets(ctx, s.repos.Clusters, r.AllClusters.Or(false), r.ClusterNames); err != nil {
+	if err := validateExceptionScopeTargets(ctx, s.repos.Clusters, boolOr(r.AllClusters, false), r.ClusterNames); err != nil {
 		return err
 	}
 	var spec v1alpha1.PolicyExceptionSpec
@@ -208,7 +200,7 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 			}
 			return err
 		}
-		if rv, ok := r.ResourceVersion.Get(); ok && rv != "" && rv != strconv.FormatInt(e.UpdatedAt.UnixNano(), 10) {
+		if rv := stringOr(r.ResourceVersion, ""); rv != "" && rv != strconv.FormatInt(e.UpdatedAt.UnixNano(), 10) {
 			return newConflict("exception has been modified, refresh and retry")
 		}
 		if err := exceptions.UpdateCAS(ctx, e.ID, e.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec), "expires_at": &exp}); err != nil {
@@ -217,7 +209,7 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 			}
 			return err
 		}
-		return syncExceptionScope(ctx, distributions, name, r.AllClusters.Or(false), r.ClusterNames)
+		return syncExceptionScope(ctx, distributions, name, boolOr(r.AllClusters, false), r.ClusterNames)
 	}); err != nil {
 		return err
 	}
@@ -254,9 +246,9 @@ func (s *ExceptionService) notify(ctx context.Context) {
 	}
 }
 
-func validateExceptionRequest(req *dto.ExceptionRequest, create bool) error {
+func validateExceptionRequest(req *dto.ExceptionInput, create bool) error {
 	if create {
-		name := req.Name.Or("")
+		name := stringOr(req.Name, "")
 		if errs := validation.IsDNS1123Subdomain(name); len(errs) > 0 {
 			return &ValidationError{Msg: "invalid name: " + strings.Join(errs, "; ")}
 		}
@@ -268,7 +260,7 @@ func validateExceptionRequest(req *dto.ExceptionRequest, create bool) error {
 	if len(req.PolicyGroupRefs) > 0 {
 		targets++
 	}
-	if req.AllPolicies.Or(false) {
+	if boolOr(req.AllPolicies, false) {
 		targets++
 	}
 	if targets != 1 {
@@ -278,7 +270,7 @@ func validateExceptionRequest(req *dto.ExceptionRequest, create bool) error {
 	if err != nil || duration <= 0 {
 		return &ValidationError{Msg: fmt.Sprintf("duration must be a positive Go duration (e.g. 24h): %q", req.Duration)}
 	}
-	if retain := req.RetainAfterExpiry.Or(""); retain != "" {
+	if retain := stringOr(req.RetainAfterExpiry, ""); retain != "" {
 		retention, err := time.ParseDuration(retain)
 		if err != nil || retention < 0 {
 			return &ValidationError{Msg: fmt.Sprintf("retainAfterExpiry must be a non-negative Go duration: %q", retain)}
@@ -287,7 +279,7 @@ func validateExceptionRequest(req *dto.ExceptionRequest, create bool) error {
 	if strings.TrimSpace(req.Reason) == "" {
 		return &ValidationError{Msg: "reason is required"}
 	}
-	all := req.AllClusters.Or(false)
+	all := boolOr(req.AllClusters, false)
 	if all == (len(req.ClusterNames) > 0) {
 		return &ValidationError{Msg: "exactly one of allClusters or clusterNames must be set"}
 	}
@@ -299,18 +291,19 @@ func validateExceptionRequest(req *dto.ExceptionRequest, create bool) error {
 	return nil
 }
 
-func exceptionScopeFor(ctx context.Context, repos repository.Repositories, owner string) (dto.ExceptionScope, error) {
+func exceptionScopeFor(ctx context.Context, repos repository.Repositories, owner string) (dto.ExceptionScopeView, error) {
 	distributions, err := repos.Distributions.List(ctx)
 	if err != nil {
-		return dto.ExceptionScope{}, err
+		return dto.ExceptionScopeView{}, err
 	}
 	for _, distribution := range distributions {
 		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner {
 			spec := distribution.Spec.Data()
-			return dto.ExceptionScope{AllClusters: spec.Clusters.ClusterSelector != nil, ClusterNames: spec.Clusters.ByName}, nil
+			names := append([]string{}, spec.Clusters.ByName...)
+			return dto.ExceptionScopeView{AllClusters: spec.Clusters.ClusterSelector != nil, ClusterNames: names}, nil
 		}
 	}
-	return dto.ExceptionScope{AllClusters: true}, nil
+	return dto.ExceptionScopeView{AllClusters: true, ClusterNames: []string{}}, nil
 }
 
 func validateExceptionScopeTargets(ctx context.Context, clusters repository.ClusterRepository, all bool, names []string) error {
