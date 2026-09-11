@@ -11,5 +11,9 @@ func (h *Handler) GetSummary(ctx context.Context) (dto.GetSummaryRes, error) {
 	if e != nil {
 		return &dto.ErrorResponse{Code: 50000, Message: e.Error()}, nil
 	}
-	return &dto.SummaryResponse{Code: 0, Message: "success", Data: dto.OptSummaryData{Value: *d, Set: true}}, nil
+	v, err := dtoData[dto.SummaryData](d)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.SummaryResponse{Code: 0, Message: "success", Data: dto.NewOptSummaryData(v)}, nil
 }
