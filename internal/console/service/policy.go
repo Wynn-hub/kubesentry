@@ -51,7 +51,7 @@ type ListOptions struct {
 	Keyword                string
 }
 
-func (s *PolicyService) List(ctx context.Context, opts ListOptions) (*dto.PolicyListData, error) {
+func (s *PolicyService) List(ctx context.Context, opts ListOptions) (*dto.PolicyPageView, error) {
 	policies, total, err := s.policies.ListPage(ctx, dbrepo.PolicyPageOptions{
 		PageOptions: dbrepo.PageOptions{
 			Limit:  opts.PageSize,
@@ -68,20 +68,20 @@ func (s *PolicyService) List(ctx context.Context, opts ListOptions) (*dto.Policy
 		return nil, fmt.Errorf("list policies: %w", err)
 	}
 
-	items := make([]dto.PolicyListItem, 0, len(policies))
+	items := make([]dto.PolicyItem, 0, len(policies))
 	for i := range policies {
 		items = append(items, dto.PolicyToListItem(&policies[i]))
 	}
 
-	return &dto.PolicyListData{
+	return &dto.PolicyPageView{
 		Items:    items,
 		Total:    int(total),
 		Page:     opts.Page,
-		PageSize: dto.PolicyListDataPageSize(opts.PageSize),
+		PageSize: opts.PageSize,
 	}, nil
 }
 
-func (s *PolicyService) Get(ctx context.Context, name string) (*dto.PolicyDetail, error) {
+func (s *PolicyService) Get(ctx context.Context, name string) (*dto.PolicyView, error) {
 	p, err := s.policies.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -99,22 +99,22 @@ func (s *PolicyService) Get(ctx context.Context, name string) (*dto.PolicyDetail
 	return &detail, nil
 }
 
-func (s *PolicyService) Create(ctx context.Context, req *dto.PolicyRequest) error {
+func (s *PolicyService) Create(ctx context.Context, req *dto.PolicyInput) error {
 	if err := s.validatePolicyRequest(req, true); err != nil {
 		return err
 	}
 
 	p := &dbrepo.Policy{
-		Name:            req.Name.Or(""),
-		Description:     req.Description.Or(""),
+		Name:            stringOr(req.Name, ""),
+		Description:     stringOr(req.Description, ""),
 		Rego:            req.Rego,
 		EnforcementMode: string(req.EnforcementMode),
-		Match:           datatypes.NewJSONType(dto.MatchFromDTO(req.Match)),
+		Match:           datatypes.NewJSONType(req.Match),
 		CompileOK:       true,
 		// Or(nil) preserves the legacy handler's behavior exactly: an absent
 		// labels field persisted a nil map, not an empty object.
-		Labels:      datatypes.NewJSONType(map[string]string(req.Labels.Or(nil))),
-		Annotations: datatypes.NewJSONType(applyAnnotations(nil, req.Annotations.Or(nil))),
+		Labels:      datatypes.NewJSONType(mapOrNil(req.Labels)),
+		Annotations: datatypes.NewJSONType(applyAnnotations(nil, mapOrNil(req.Annotations))),
 	}
 
 	err := s.policies.CreateWithVersion(ctx, p, &dbrepo.PolicyVersion{
@@ -125,7 +125,7 @@ func (s *PolicyService) Create(ctx context.Context, req *dto.PolicyRequest) erro
 	})
 	if err != nil {
 		if dbrepo.IsUniqueViolation(err) {
-			return newConflict("policy %s already exists", req.Name.Or(""))
+			return newConflict("policy %s already exists", stringOr(req.Name, ""))
 		}
 		return fmt.Errorf("create policy: %w", err)
 	}
@@ -136,7 +136,7 @@ func (s *PolicyService) Create(ctx context.Context, req *dto.PolicyRequest) erro
 	return nil
 }
 
-func (s *PolicyService) Update(ctx context.Context, name string, req *dto.PolicyRequest) error {
+func (s *PolicyService) Update(ctx context.Context, name string, req *dto.PolicyInput) error {
 	if err := s.validatePolicyRequest(req, false); err != nil {
 		return err
 	}
@@ -149,26 +149,26 @@ func (s *PolicyService) Update(ctx context.Context, name string, req *dto.Policy
 		return fmt.Errorf("get policy: %w", err)
 	}
 
-	if rv, ok := req.ResourceVersion.Get(); ok && rv != "" && rv != dto.PolicyResourceVersion(p) {
+	if rv := stringOr(req.ResourceVersion, ""); rv != "" && rv != dto.PolicyResourceVersion(p) {
 		return newConflict("policy has been modified, refresh and retry")
 	}
 
 	expectedUpdatedAt := p.UpdatedAt
 
 	lbl := p.Labels.Data()
-	if reqLabels, ok := req.Labels.Get(); ok {
+	if req.Labels != nil {
 		if lbl == nil {
 			lbl = map[string]string{}
 		}
-		for k, v := range reqLabels {
+		for k, v := range *req.Labels {
 			lbl[k] = v
 		}
 	}
 
 	ann := p.Annotations.Data()
 	delete(ann, visualBuilderSpecAnnotation)
-	if reqAnn, ok := req.Annotations.Get(); ok {
-		ann = applyAnnotations(ann, reqAnn)
+	if req.Annotations != nil {
+		ann = applyAnnotations(ann, *req.Annotations)
 	}
 
 	versions, err := s.policies.ListVersions(ctx, p.ID)
@@ -180,10 +180,10 @@ func (s *PolicyService) Update(ctx context.Context, name string, req *dto.Policy
 		current = versions[0].Version
 	}
 
-	p.Match = datatypes.NewJSONType(dto.MatchFromDTO(req.Match))
+	p.Match = datatypes.NewJSONType(req.Match)
 	p.EnforcementMode = string(req.EnforcementMode)
 	p.Rego = req.Rego
-	p.Description = req.Description.Or("")
+	p.Description = stringOr(req.Description, "")
 	p.CompileOK = true
 	p.CompileError = ""
 	p.Labels = datatypes.NewJSONType(lbl)
@@ -255,7 +255,7 @@ func (s *PolicyService) Delete(ctx context.Context, name string, force bool) err
 	return nil
 }
 
-func (s *PolicyService) ListVersions(ctx context.Context, name string) (*dto.PolicyVersionList, error) {
+func (s *PolicyService) ListVersions(ctx context.Context, name string) (*dto.PolicyVersionListView, error) {
 	p, err := s.policies.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -274,22 +274,22 @@ func (s *PolicyService) ListVersions(ctx context.Context, name string) (*dto.Pol
 		current = versions[0].Version
 	}
 
-	entries := make([]dto.PolicyVersionEntry, 0, len(versions))
+	entries := make([]dto.PolicyVersionItemView, 0, len(versions))
 	for i := range versions {
 		v := &versions[i]
 		snap := v.SpecSnapshot.Data()
-		entries = append(entries, dto.PolicyVersionEntry{
+		entries = append(entries, dto.PolicyVersionItemView{
 			Version:         v.Version,
 			CreatedAt:       v.CreatedAt,
-			Phase:           dto.PolicyVersionEntryPhaseReady,
+			Phase:           v1alpha1.PhaseReady,
 			Rego:            v.Rego,
-			Match:           dto.MatchToDTO(snap.Match),
-			EnforcementMode: dto.PolicyVersionEntryEnforcementMode(snap.EnforcementMode),
+			Match:           dto.NormalizePolicyMatch(snap.Match),
+			EnforcementMode: snap.EnforcementMode,
 			IsCurrent:       v.Version == current,
 		})
 	}
 
-	return &dto.PolicyVersionList{
+	return &dto.PolicyVersionListView{
 		CurrentVersion: current,
 		Cursor:         current,
 		Head:           current,
@@ -300,7 +300,7 @@ func (s *PolicyService) ListVersions(ctx context.Context, name string) (*dto.Pol
 	}, nil
 }
 
-func (s *PolicyService) Rollback(ctx context.Context, name string, direction string) (*dto.RollbackResult, error) {
+func (s *PolicyService) Rollback(ctx context.Context, name string, direction string) (*dto.PolicyRollbackView, error) {
 	if direction != "prev" && direction != "next" {
 		return nil, &ValidationError{Msg: `direction must be "prev" or "next"`}
 	}
@@ -379,13 +379,13 @@ func (s *PolicyService) Rollback(ctx context.Context, name string, direction str
 		s.notifier.NotifyChange(ctx, "policy")
 	}
 
-	return &dto.RollbackResult{
+	return &dto.PolicyRollbackView{
 		RestoredFromVersion: target,
 		NewVersion:          newVersion,
 	}, nil
 }
 
-func (s *PolicyService) ResourceSuggestions(ctx context.Context) (*dto.ResourceSuggestions, error) {
+func (s *PolicyService) ResourceSuggestions(ctx context.Context) (*dto.ResourceSuggestionsView, error) {
 	policies, err := s.policies.List(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list policies: %w", err)
@@ -417,23 +417,23 @@ func (s *PolicyService) ResourceSuggestions(ctx context.Context) (*dto.ResourceS
 		}
 	}
 
-	byGroup := make(dto.ResourceSuggestionsResourcesByGroup, len(resourcesByGroup))
+	byGroup := make(map[string][]string, len(resourcesByGroup))
 	for g, rsc := range resourcesByGroup {
 		byGroup[g] = sortedKeys(rsc)
 	}
 
-	return &dto.ResourceSuggestions{
-		ApiGroups:        sortedKeys(groups),
-		ApiVersions:      sortedKeys(versions),
+	return &dto.ResourceSuggestionsView{
+		APIGroups:        sortedKeys(groups),
+		APIVersions:      sortedKeys(versions),
 		Resources:        sortedKeys(resources),
 		ResourcesByGroup: byGroup,
 	}, nil
 }
 
 // validatePolicyRequest runs client-side validation before persistence.
-func (s *PolicyService) validatePolicyRequest(req *dto.PolicyRequest, isCreate bool) error {
+func (s *PolicyService) validatePolicyRequest(req *dto.PolicyInput, isCreate bool) error {
 	if isCreate {
-		name := req.Name.Or("")
+		name := stringOr(req.Name, "")
 		if name == "" {
 			return &ValidationError{Msg: "name is required"}
 		}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
@@ -62,10 +63,14 @@ func (h *Handler) ListPolicies(ctx context.Context, params dto.ListPoliciesParam
 		return &dto.ListPoliciesInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 
+	v, err := dtoData[dto.PolicyListData](data)
+	if err != nil {
+		return nil, err
+	}
 	return &dto.PolicyListResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.OptPolicyListData{Value: *data, Set: true},
+		Data:    dto.NewOptPolicyListData(v),
 	}, nil
 }
 
@@ -75,29 +80,41 @@ func (h *Handler) GetPolicy(ctx context.Context, params dto.GetPolicyParams) (dt
 	if err != nil {
 		return mapGetPolicyError(err), nil
 	}
+	v, err := dtoData[dto.PolicyDetail](detail)
+	if err != nil {
+		return nil, err
+	}
 	return &dto.PolicyDetailResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.OptPolicyDetail{Value: *detail, Set: true},
+		Data:    dto.NewOptPolicyDetail(v),
 	}, nil
 }
 
 // CreatePolicy implements createPolicy.
 func (h *Handler) CreatePolicy(ctx context.Context, req *dto.PolicyRequest) (dto.CreatePolicyRes, error) {
-	err := h.svcs.Policy.Create(ctx, req)
+	input, err := policyInput(req)
+	if err != nil {
+		return nil, err
+	}
+	err = h.svcs.Policy.Create(ctx, input)
 	if err != nil {
 		return mapCreatePolicyError(err), nil
 	}
 	return &dto.PolicyNameResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.OptPolicyNameData{Value: dto.PolicyNameData{Name: req.Name.Or("")}, Set: true},
+		Data:    dto.OptPolicyNameData{Value: dto.PolicyNameData{Name: stringOr(input.Name)}, Set: true},
 	}, nil
 }
 
 // UpdatePolicy implements updatePolicy.
 func (h *Handler) UpdatePolicy(ctx context.Context, req *dto.PolicyRequest, params dto.UpdatePolicyParams) (dto.UpdatePolicyRes, error) {
-	err := h.svcs.Policy.Update(ctx, params.Name, req)
+	input, err := policyInput(req)
+	if err != nil {
+		return nil, err
+	}
+	err = h.svcs.Policy.Update(ctx, params.Name, input)
 	if err != nil {
 		return mapUpdatePolicyError(err), nil
 	}
@@ -123,10 +140,14 @@ func (h *Handler) ListPolicyVersions(ctx context.Context, params dto.ListPolicyV
 	if err != nil {
 		return mapListPolicyVersionsError(err), nil
 	}
+	v, err := dtoData[dto.PolicyVersionList](list)
+	if err != nil {
+		return nil, err
+	}
 	return &dto.PolicyVersionListResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.OptPolicyVersionList{Value: *list, Set: true},
+		Data:    dto.NewOptPolicyVersionList(v),
 	}, nil
 }
 
@@ -136,10 +157,14 @@ func (h *Handler) RollbackPolicy(ctx context.Context, req *dto.RollbackRequest, 
 	if err != nil {
 		return mapRollbackPolicyError(err), nil
 	}
+	v, err := dtoData[dto.RollbackResult](result)
+	if err != nil {
+		return nil, err
+	}
 	return &dto.RollbackResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.OptRollbackResult{Value: *result, Set: true},
+		Data:    dto.NewOptRollbackResult(v),
 	}, nil
 }
 
@@ -159,9 +184,25 @@ func (h *Handler) GetResourceSuggestions(ctx context.Context) (dto.GetResourceSu
 	if err != nil {
 		return &dto.GetResourceSuggestionsInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
+	v, err := dtoData[dto.ResourceSuggestions](sugg)
+	if err != nil {
+		return nil, err
+	}
 	return &dto.ResourceSuggestionsResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.OptResourceSuggestions{Value: *sugg, Set: true},
+		Data:    dto.NewOptResourceSuggestions(v),
 	}, nil
+}
+
+func policyInput(request *dto.PolicyRequest) (*dto.PolicyInput, error) {
+	data, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	var input dto.PolicyInput
+	if err := json.Unmarshal(data, &input); err != nil {
+		return nil, err
+	}
+	return &input, nil
 }

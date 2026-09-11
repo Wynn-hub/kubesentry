@@ -42,19 +42,19 @@ func PolicyResourceVersion(p *dbrepo.Policy) string {
 // shape to what handlers_policy.go's policySpecSnapshot produces.
 func PolicySpecSnapshot(p *dbrepo.Policy) v1alpha1.PolicySpec {
 	return v1alpha1.PolicySpec{
-		Match:           p.Match.Data(),
+		Match:           NormalizePolicyMatch(p.Match.Data()),
 		EnforcementMode: p.EnforcementMode,
 		Rego:            p.Rego,
 		Description:     p.Description,
 	}
 }
 
-func PolicyToListItem(p *dbrepo.Policy) PolicyListItem {
-	return PolicyListItem{
+func PolicyToListItem(p *dbrepo.Policy) PolicyItem {
+	return PolicyItem{
 		Name:            p.Name,
-		Source:          PolicyListItemSource(policySource(p.Labels.Data())),
-		EnforcementMode: PolicyListItemEnforcementMode(p.EnforcementMode),
-		Phase:           PolicyListItemPhase(policyPhase(p.CompileOK)),
+		Source:          policySource(p.Labels.Data()),
+		EnforcementMode: p.EnforcementMode,
+		Phase:           policyPhase(p.CompileOK),
 		Description:     p.Description,
 		CreatedAt:       p.CreatedAt,
 		UpdatedAt:       p.UpdatedAt,
@@ -64,61 +64,46 @@ func PolicyToListItem(p *dbrepo.Policy) PolicyListItem {
 // PolicyToDetail builds the GET response. referencedBy is normalized to a
 // non-nil slice: a nil slice would serialize as null, violating the spec's
 // required-array contract (incident P2-CF1).
-func PolicyToDetail(p *dbrepo.Policy, referencedBy []string) PolicyDetail {
+func PolicyToDetail(p *dbrepo.Policy, referencedBy []string) PolicyView {
 	if referencedBy == nil {
 		referencedBy = []string{}
 	}
-	d := PolicyDetail{
+	labels, annotations := p.Labels.Data(), p.Annotations.Data()
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	d := PolicyView{
 		Name:            p.Name,
-		Source:          PolicyDetailSource(policySource(p.Labels.Data())),
+		Source:          policySource(p.Labels.Data()),
 		Description:     p.Description,
-		Labels:          PolicyDetailLabels(p.Labels.Data()),
-		Annotations:     PolicyDetailAnnotations(p.Annotations.Data()),
-		EnforcementMode: PolicyDetailEnforcementMode(p.EnforcementMode),
-		Match:           MatchToDTO(p.Match.Data()),
+		Labels:          labels,
+		Annotations:     annotations,
+		EnforcementMode: p.EnforcementMode,
+		Match:           NormalizePolicyMatch(p.Match.Data()),
 		Rego:            p.Rego,
-		Phase:           PolicyDetailPhase(policyPhase(p.CompileOK)),
+		Phase:           policyPhase(p.CompileOK),
 		ReferencedBy:    referencedBy,
 		ResourceVersion: PolicyResourceVersion(p),
 		CreatedAt:       p.CreatedAt,
 		UpdatedAt:       p.UpdatedAt,
 	}
 	if p.CompileError != "" {
-		d.CompileError.SetTo(p.CompileError)
+		d.CompileError = &p.CompileError
 	}
 	// Labels/Annotations: dbrepo declares the columns JSONB NOT NULL DEFAULT
 	// '{}' (0001_init_schema.up.sql:36-37) so .Data() never yields nil here.
 	return d
 }
 
-func MatchToDTO(m v1alpha1.PolicyMatch) PolicyMatch {
-	ops := make([]PolicyMatchOperationsItem, 0, len(m.Operations))
-	for _, op := range m.Operations {
-		ops = append(ops, PolicyMatchOperationsItem(op))
-	}
-	res := make([]MatchResource, 0, len(m.Resources))
-	for _, r := range m.Resources {
-		res = append(res, MatchResource{
-			ApiGroups:   append([]string(nil), r.APIGroups...),
-			ApiVersions: append([]string(nil), r.APIVersions...),
-			Resources:   append([]string(nil), r.Resources...),
+func NormalizePolicyMatch(match v1alpha1.PolicyMatch) v1alpha1.PolicyMatch {
+	result := v1alpha1.PolicyMatch{Operations: append([]string{}, match.Operations...), Resources: make([]v1alpha1.MatchResource, 0, len(match.Resources))}
+	for _, resource := range match.Resources {
+		result.Resources = append(result.Resources, v1alpha1.MatchResource{
+			APIGroups: append([]string{}, resource.APIGroups...), APIVersions: append([]string{}, resource.APIVersions...), Resources: append([]string{}, resource.Resources...),
 		})
 	}
-	return PolicyMatch{Operations: ops, Resources: res}
-}
-
-func MatchFromDTO(m PolicyMatch) v1alpha1.PolicyMatch {
-	ops := make([]string, 0, len(m.Operations))
-	for _, op := range m.Operations {
-		ops = append(ops, string(op))
-	}
-	res := make([]v1alpha1.MatchResource, 0, len(m.Resources))
-	for _, r := range m.Resources {
-		res = append(res, v1alpha1.MatchResource{
-			APIGroups:   append([]string(nil), r.ApiGroups...),
-			APIVersions: append([]string(nil), r.ApiVersions...),
-			Resources:   append([]string(nil), r.Resources...),
-		})
-	}
-	return v1alpha1.PolicyMatch{Operations: ops, Resources: res}
+	return result
 }

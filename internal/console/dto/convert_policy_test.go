@@ -40,13 +40,13 @@ func TestPolicyToListItem(t *testing.T) {
 	if item.Name != "deny-privileged" {
 		t.Fatalf("name = %q", item.Name)
 	}
-	if item.Source != PolicyListItemSourceBuiltin {
+	if item.Source != "builtin" {
 		t.Fatalf("source = %q, want builtin", item.Source)
 	}
-	if item.EnforcementMode != PolicyListItemEnforcementModeEnforce {
+	if item.EnforcementMode != "enforce" {
 		t.Fatalf("enforcementMode = %q", item.EnforcementMode)
 	}
-	if item.Phase != PolicyListItemPhaseReady {
+	if item.Phase != "Ready" {
 		t.Fatalf("phase = %q, want Ready", item.Phase)
 	}
 }
@@ -55,7 +55,7 @@ func TestPolicyToListItemInvalidPhase(t *testing.T) {
 	p := policyFixture()
 	p.CompileOK = false
 	item := PolicyToListItem(p)
-	if item.Phase != PolicyListItemPhaseInvalid {
+	if item.Phase != "Invalid" {
 		t.Fatalf("phase = %q, want Invalid", item.Phase)
 	}
 }
@@ -65,13 +65,13 @@ func TestPolicyToDetailCompileError(t *testing.T) {
 	p.CompileOK = false
 	p.CompileError = "rego_parse_error: eof"
 	d := PolicyToDetail(p, []string{})
-	if !d.CompileError.IsSet() || d.CompileError.Value != "rego_parse_error: eof" {
+	if d.CompileError == nil || *d.CompileError != "rego_parse_error: eof" {
 		t.Fatalf("compileError = %+v, want set", d.CompileError)
 	}
 	// CompileOK=true must leave compileError unset (omitempty semantics).
 	ok := policyFixture()
 	ok.CompileOK = true // explicit — don't rely on fixture default
-	if d2 := PolicyToDetail(ok, []string{}); d2.CompileError.IsSet() {
+	if d2 := PolicyToDetail(ok, []string{}); d2.CompileError != nil {
 		t.Fatalf("compileError should be unset, got %+v", d2.CompileError)
 	}
 }
@@ -85,6 +85,15 @@ func TestPolicyToDetailReferencedByNeverNil(t *testing.T) {
 	}
 	if len(d.ReferencedBy) != 0 {
 		t.Fatalf("referencedBy = %v, want empty", d.ReferencedBy)
+	}
+}
+
+func TestPolicyToDetailNormalizesMatchArrays(t *testing.T) {
+	p := policyFixture()
+	p.Match = datatypes.NewJSONType(v1alpha1.PolicyMatch{Resources: []v1alpha1.MatchResource{{}}})
+	d := PolicyToDetail(p, nil)
+	if d.Match.Operations == nil || d.Match.Resources == nil || d.Match.Resources[0].APIGroups == nil || d.Match.Resources[0].APIVersions == nil || d.Match.Resources[0].Resources == nil {
+		t.Fatalf("match arrays were not normalized: %+v", d.Match)
 	}
 }
 
@@ -134,33 +143,13 @@ func TestPolicyToListItemModeAndSource(t *testing.T) {
 			p.EnforcementMode = tt.mode
 			p.Labels = datatypes.NewJSONType(tt.labels)
 			item := PolicyToListItem(p)
-			if item.EnforcementMode != tt.wantMode {
+			if item.EnforcementMode != string(tt.wantMode) {
 				t.Errorf("enforcementMode = %q, want %q", item.EnforcementMode, tt.wantMode)
 			}
-			if item.Source != tt.wantSrc {
+			if item.Source != string(tt.wantSrc) {
 				t.Errorf("source = %q, want %q", item.Source, tt.wantSrc)
 			}
 		})
-	}
-}
-
-func TestMatchRoundTrip(t *testing.T) {
-	m := v1alpha1.PolicyMatch{
-		Operations: []string{"CREATE", "UPDATE"},
-		Resources: []v1alpha1.MatchResource{
-			{APIGroups: []string{"apps"}, APIVersions: []string{"v1"}, Resources: []string{"deployments"}},
-		},
-	}
-	d := MatchToDTO(m)
-	if len(d.Operations) != 2 || d.Operations[0] != PolicyMatchOperationsItemCREATE {
-		t.Fatalf("operations = %v", d.Operations)
-	}
-	back := MatchFromDTO(d)
-	if len(back.Operations) != 2 || back.Operations[0] != "CREATE" {
-		t.Fatalf("round trip operations = %v", back.Operations)
-	}
-	if len(back.Resources) != 1 || back.Resources[0].APIGroups[0] != "apps" {
-		t.Fatalf("round trip resources = %v", back.Resources)
 	}
 }
 

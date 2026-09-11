@@ -153,17 +153,16 @@ func (n *recordingNotifier) NotifyChange(ctx context.Context, topic string) {
 
 const testRego = "package kubesentry\n\ndeny[msg] {\n\tfalse\n\tmsg := \"test\"\n}"
 
-func policyRequestFixture() *dto.PolicyRequest {
-	name := dto.OptString{Value: "test-policy", Set: true}
-	desc := dto.OptString{Value: "test description", Set: true}
-	return &dto.PolicyRequest{
-		Name:            name,
-		Description:     desc,
-		EnforcementMode: dto.PolicyRequestEnforcementModeAudit,
-		Match: dto.PolicyMatch{
-			Operations: []dto.PolicyMatchOperationsItem{dto.PolicyMatchOperationsItemCREATE},
-			Resources: []dto.MatchResource{
-				{ApiGroups: []string{""}, ApiVersions: []string{"v1"}, Resources: []string{"pods"}},
+func policyRequestFixture() *dto.PolicyInput {
+	name, desc := "test-policy", "test description"
+	return &dto.PolicyInput{
+		Name:            &name,
+		Description:     &desc,
+		EnforcementMode: "audit",
+		Match: v1alpha1.PolicyMatch{
+			Operations: []string{"CREATE"},
+			Resources: []v1alpha1.MatchResource{
+				{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}},
 			},
 		},
 		Rego: testRego,
@@ -237,7 +236,8 @@ func TestConflictMessagesMatchLegacyHandlers(t *testing.T) {
 			t.Fatalf("seed: %v", err)
 		}
 		req := policyRequestFixture()
-		req.ResourceVersion = dto.OptString{Value: "999999999999", Set: true}
+		resourceVersion := "999999999999"
+		req.ResourceVersion = &resourceVersion
 		err := s.Update(context.Background(), "test-policy", req)
 		if err == nil || err.Error() != wantModified {
 			t.Fatalf("err = %v, want exactly %q", err, wantModified)
@@ -304,7 +304,7 @@ func TestCreateInvalidRegoRejectedBeforeStore(t *testing.T) {
 func TestCreateMissingNameValidation(t *testing.T) {
 	s := NewPolicyService(newFakePolicyRepo(), &fakeGroupRepo{}, nil)
 	req := policyRequestFixture()
-	req.Name = dto.OptString{}
+	req.Name = nil
 	var ve *ValidationError
 	if err := s.Create(context.Background(), req); !errors.As(err, &ve) {
 		t.Fatalf("err = %v, want ValidationError for missing name", err)
@@ -326,7 +326,8 @@ func TestUpdateStaleResourceVersion(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	req := policyRequestFixture()
-	req.ResourceVersion = dto.OptString{Value: "999999999999", Set: true}
+	resourceVersion := "999999999999"
+	req.ResourceVersion = &resourceVersion
 	err := s.Update(context.Background(), "test-policy", req)
 	if !errors.Is(err, dbrepo.ErrConflict) {
 		t.Fatalf("err = %v, want ErrConflict", err)

@@ -239,6 +239,13 @@ func stringOr(value *string, fallback string) string {
 	return *value
 }
 
+func mapOrNil(value *map[string]string) map[string]string {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
 var admissionResourcePart = regexp.MustCompile(`^[a-z0-9](?:[-a-z0-9.]*[a-z0-9])?$`)
 
 func validAdmissionGVR(value string) bool {
