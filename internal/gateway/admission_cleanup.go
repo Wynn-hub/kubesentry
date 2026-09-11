@@ -8,12 +8,6 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
-// AdmissionEventSettingsTopic is the NotifyChange topic console sends after
-// writing the admission event configuration. The gateway treats it as the
-// trigger for a full cleanup pass, so a narrowed rule set takes effect within
-// seconds instead of waiting out the daily ticker.
-const AdmissionEventSettingsTopic = "admission-event-settings"
-
 type AdmissionCleaner struct {
 	repo     *dbrepo.AdmissionRepo
 	interval time.Duration

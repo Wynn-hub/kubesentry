@@ -16,6 +16,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
@@ -43,7 +44,7 @@ func startBufconnGateway(t *testing.T, s *Server) gatewaypb.HubClient {
 func TestSyncHeartbeatFlow(t *testing.T) {
 	repos := newTestRepos(t)
 	mustCreateCluster(t, repos, &dbrepo.Cluster{
-		Name: "prod", AuthTokenHash: HashToken("secret-token"), ClusterUID: "uid-1",
+		Name: "prod", AuthTokenHash: gatewayauth.HashToken("secret-token"), ClusterUID: "uid-1",
 	})
 	tr := NewHeartbeatTracker()
 	client := startBufconnGateway(t, NewServer(repos, gatewayNS, tr, NewNotifier(), "test-token"))
@@ -92,7 +93,7 @@ func TestSyncHeartbeatFlow(t *testing.T) {
 
 func TestSyncRejectsBadToken(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("right")})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: gatewayauth.HashToken("right")})
 	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(),
@@ -110,7 +111,7 @@ func TestSyncRejectsBadToken(t *testing.T) {
 
 func TestSyncAdmissionStorageFailureReturnsRetryableWithoutClosingStream(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "uid-1"})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: gatewayauth.HashToken("tok"), ClusterUID: "uid-1"})
 	// Force the same handler error path as a database write failure without
 	// destroying the repositories needed by authentication and pushLoop.
 	repos.Admission = nil
@@ -206,7 +207,7 @@ func sendLeaderIdentity(t *testing.T, stream gatewaypb.Hub_SyncClient, instance 
 func TestSyncPushesSnapshotOnConnectAndChange(t *testing.T) {
 	repos := newTestRepos(t)
 	ctx := context.Background()
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: gatewayauth.HashToken("tok"), ClusterUID: "u"})
 	if err := repos.Policies.Create(ctx, &dbrepo.Policy{
 		Name: "p1", EnforcementMode: v1alpha1.ModeAudit,
 	}); err != nil {
@@ -278,7 +279,7 @@ func TestSyncResendsOnResyncTickEvenWithUnchangedHash(t *testing.T) {
 	defer func() { pushResync = orig }()
 
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: gatewayauth.HashToken("tok"), ClusterUID: "u"})
 	notifier := NewNotifier()
 	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), notifier, "test-token"))
 

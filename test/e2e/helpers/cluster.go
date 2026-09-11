@@ -20,6 +20,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
@@ -51,7 +52,7 @@ func RegisterLocalCluster(ctx context.Context, c client.Client, name string) (to
 		return "", "", fmt.Errorf("init id generator: %w", err)
 	}
 
-	token, err = gateway.NewToken()
+	token, err = gatewayauth.NewToken()
 	if err != nil {
 		return "", "", fmt.Errorf("generate registration token: %w", err)
 	}
@@ -65,7 +66,7 @@ func RegisterLocalCluster(ctx context.Context, c client.Client, name string) (to
 	cl := &dbrepo.Cluster{
 		Name:         name,
 		Phase:        gatewaymodel.ClusterPhaseRegistering,
-		RegTokenHash: gateway.HashToken(token),
+		RegTokenHash: gatewayauth.HashToken(token),
 	}
 	if err := repo.Create(ctx, cl); err != nil {
 		return "", "", fmt.Errorf("create cluster row: %w", err)

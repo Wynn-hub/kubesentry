@@ -24,7 +24,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
 )
@@ -112,7 +112,7 @@ func runRegisterCluster(args []string) {
 		os.Exit(1)
 	}
 
-	token, err := gateway.NewToken()
+	token, err := gatewayauth.NewToken()
 	if err != nil {
 		slog.Error("generate token", "error", err)
 		os.Exit(1)
@@ -125,7 +125,7 @@ func runRegisterCluster(args []string) {
 	case err == nil:
 		// Idempotent re-run: reissue a fresh one-time token for the
 		// existing row rather than failing on a unique-name conflict.
-		existing.RegTokenHash = gateway.HashToken(token)
+		existing.RegTokenHash = gatewayauth.HashToken(token)
 		if err := repo.Update(ctx, existing); err != nil {
 			slog.Error("update cluster", "error", err)
 			os.Exit(1)
@@ -134,7 +134,7 @@ func runRegisterCluster(args []string) {
 		cl := &dbrepo.Cluster{
 			Name:         *name,
 			Phase:        gatewaymodel.ClusterPhaseRegistering,
-			RegTokenHash: gateway.HashToken(token),
+			RegTokenHash: gatewayauth.HashToken(token),
 		}
 		if err := repo.Create(ctx, cl); err != nil {
 			slog.Error("create cluster", "error", err)

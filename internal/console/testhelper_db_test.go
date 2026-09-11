@@ -12,10 +12,9 @@ import (
 	gormpg "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
 // newTestDB starts a throwaway PG container, runs migrations, and returns a
@@ -55,29 +54,17 @@ func newTestDB(t *testing.T) *gorm.DB {
 
 // dbRepos wraps a fresh newTestDB in the repos the policy/group/exception
 // handlers need.
-func dbRepos(t *testing.T) gateway.Repos {
+func dbRepos(t *testing.T) repository.Repositories {
 	t.Helper()
-	db := newTestDB(t)
-	return gateway.Repos{
-		Clusters:       dbrepo.NewClusterRepo(db),
-		Policies:       dbrepo.NewPolicyRepo(db),
-		Groups:         dbrepo.NewGroupRepo(db),
-		Exceptions:     dbrepo.NewExceptionRepo(db),
-		InstallRecords: dbrepo.NewInstallRecordRepo(db),
-		Distributions:  dbrepo.NewDistributionRepo(db),
-		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
-		Admission:      dbrepo.NewAdmissionRepo(db),
-		Incidents:      dbrepo.NewIncidentRepo(db),
-		Platform:       dbrepo.NewPlatformObservabilityRepo(db),
-	}
+	return repository.New(newTestDB(t))
 }
 
 // newDBTestServer builds a console server backed by a real (testcontainers)
-// Postgres via gateway.Repos, for the GORM-backed policy/group/exception
+// Postgres via the console repository bundle, for the GORM-backed policy/group/exception
 // handler tests. Distinct from newTestServer (handlers_test.go), which still
 // backs the not-yet-converted summary/schema handlers with a fake
 // controller-runtime client.
-func newDBTestServer(t *testing.T) (http.Handler, gateway.Repos) {
+func newDBTestServer(t *testing.T) (http.Handler, repository.Repositories) {
 	t.Helper()
 	repos := dbRepos(t)
 	h := &Handlers{Repos: repos}
@@ -92,7 +79,7 @@ func newDBTestServer(t *testing.T) (http.Handler, gateway.Repos) {
 // *Handlers, so a test can set h.Gateway (e.g. to a fakeHubClient) before
 // issuing requests — used to verify NotifyChange best-effort wiring (Task
 // 11) without needing a real gateway.
-func newDBTestServerWithHandlers(t *testing.T) (http.Handler, gateway.Repos, *Handlers) {
+func newDBTestServerWithHandlers(t *testing.T) (http.Handler, repository.Repositories, *Handlers) {
 	t.Helper()
 	repos := dbRepos(t)
 	h := &Handlers{Repos: repos}
@@ -105,7 +92,7 @@ func newDBTestServerWithHandlers(t *testing.T) (http.Handler, gateway.Repos, *Ha
 
 // enableAdmissionObservation turns on the pipeline funnel switch, which lives
 // with the admission event settings it instruments.
-func enableAdmissionObservation(ctx context.Context, repos gateway.Repos) error {
+func enableAdmissionObservation(ctx context.Context, repos repository.Repositories) error {
 	settings, err := repos.Admission.GetSettings(ctx)
 	if err != nil {
 		return err

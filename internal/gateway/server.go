@@ -21,6 +21,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/platformobs"
@@ -39,11 +40,7 @@ func SetPushResyncForTest(d time.Duration) func() {
 	return func() { pushResync = orig }
 }
 
-// Repos bundles the GORM repositories the gateway server reads/writes at
-// runtime, replacing the controller-runtime client this server used to hold.
-// Exceptions is unused by the gateway's own render/push path today but lives
-// here so console-api (internal/console) can share this same bundle type
-// (task 9: console-api GORM handlers) instead of defining a second one.
+// Repos bundles the GORM repositories used by the gateway server.
 type Repos struct {
 	Clusters       *dbrepo.ClusterRepo
 	Policies       *dbrepo.PolicyRepo
@@ -142,7 +139,7 @@ func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (
 	}
 
 	// 校验一次性注册 token：gateway 只存哈希。
-	if subtle.ConstantTimeCompare([]byte(cl.RegTokenHash), []byte(HashToken(req.RegistrationToken))) != 1 {
+	if subtle.ConstantTimeCompare([]byte(cl.RegTokenHash), []byte(gatewayauth.HashToken(req.RegistrationToken))) != 1 {
 		s.recordGatewayIncident(admissionobs.ReasonAuthFailure, 1, admissionobs.ReasonRegisterAuthFailed, time.Now().UTC())
 		return nil, status.Error(codes.PermissionDenied, "invalid registration token")
 	}
@@ -162,11 +159,11 @@ func (s *Server) Register(ctx context.Context, req *gatewaypb.RegisterRequest) (
 	}
 
 	// 签发长期 token：gateway 只存哈希。
-	token, err := NewToken()
+	token, err := gatewayauth.NewToken()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "issue token: %v", err)
 	}
-	cl.AuthTokenHash = HashToken(token)
+	cl.AuthTokenHash = gatewayauth.HashToken(token)
 	cl.ClusterUID = req.ClusterUid
 	cl.OperatorVersion = req.OperatorVersion
 	if cl.Phase == "" || cl.Phase == gatewaymodel.ClusterPhaseRegistering {
@@ -190,7 +187,7 @@ func (s *Server) validateSyncAuth(ctx context.Context, clusterName, token string
 	if err != nil {
 		return fmt.Errorf("cluster not registered")
 	}
-	if subtle.ConstantTimeCompare([]byte(cl.AuthTokenHash), []byte(HashToken(token))) != 1 {
+	if subtle.ConstantTimeCompare([]byte(cl.AuthTokenHash), []byte(gatewayauth.HashToken(token))) != 1 {
 		return fmt.Errorf("invalid cluster token")
 	}
 	return nil
@@ -289,7 +286,7 @@ func (ss *syncSession) deliverReply(env *gatewaypb.Envelope) {
 // DeadlineExceeded — the wire path and correlation bookkeeping are laid
 // down for a later task to complete.
 func (ss *syncSession) dispatch(ctx context.Context, to string, payload []byte) (*gatewaypb.DispatchResponse, error) {
-	corrID, err := NewToken()
+	corrID, err := gatewayauth.NewToken()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "generate correlation id: %v", err)
 	}
@@ -672,7 +669,7 @@ func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRe
 	// A storage-rule change also applies retroactively to stored events, so
 	// kick a full cleanup pass. Fire-and-forget: the console write already
 	// committed, and the daily pass is the fallback if this is dropped.
-	if req.Topic == AdmissionEventSettingsTopic {
+	if req.Topic == gatewaypb.AdmissionEventSettingsTopic {
 		s.cleaner.TriggerFullCleanup()
 		if s.incidentCleaner != nil {
 			s.incidentCleaner.Trigger()
@@ -688,7 +685,7 @@ func (s *Server) NotifyChange(ctx context.Context, req *gatewaypb.NotifyChangeRe
 			}
 		}
 	}
-	if req.Topic == PlatformObservabilitySettingsTopic {
+	if req.Topic == gatewaypb.PlatformObservabilitySettingsTopic {
 		if s.repos.Platform != nil {
 			if settings, err := s.repos.Platform.GetSettings(ctx); err != nil {
 				slog.Warn("reload platform observability settings", "error", err)

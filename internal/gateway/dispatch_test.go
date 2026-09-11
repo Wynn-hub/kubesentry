@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -40,7 +41,7 @@ func TestDispatchRequiresTo(t *testing.T) {
 // delivers that reply back to the caller.
 func TestDispatchRoundTripsViaCorrelationID(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: gatewayauth.HashToken("tok"), ClusterUID: "u"})
 	srv := NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token")
 	client := startBufconnGateway(t, srv)
 
@@ -100,7 +101,7 @@ func TestDispatchRoundTripsViaCorrelationID(t *testing.T) {
 // sessionRegistry or syncSession.pending.
 func TestSessionRegistryRaceSafeUnderConcurrentChurn(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: gatewayauth.HashToken("tok"), ClusterUID: "u"})
 	srv := NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token")
 	client := startBufconnGateway(t, srv)
 

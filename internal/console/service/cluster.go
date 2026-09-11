@@ -13,7 +13,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
@@ -149,11 +149,11 @@ func (s *ClusterService) Create(ctx context.Context, req CreateClusterRequest) (
 	if err := validateInstallParams(&req.InstallParams); err != nil {
 		return "", "", err
 	}
-	token, err := gateway.NewToken()
+	token, err := gatewayauth.NewToken()
 	if err != nil {
 		return "", "", fmt.Errorf("generate token: %w", err)
 	}
-	c := &dbrepo.Cluster{Name: req.Name, Labels: datatypes.NewJSONType(req.Labels), Phase: gatewaymodel.ClusterPhaseRegistering, RegTokenHash: gateway.HashToken(token)}
+	c := &dbrepo.Cluster{Name: req.Name, Labels: datatypes.NewJSONType(req.Labels), Phase: gatewaymodel.ClusterPhaseRegistering, RegTokenHash: gatewayauth.HashToken(token)}
 	if err := s.repos.ClusterUOW.WithinTransaction(ctx, func(clusters repository.ClusterRepository, records repository.InstallRecordRepository, _ repository.UninstallTaskRepository) error {
 		if err := clusters.Create(ctx, c); err != nil {
 			return err
@@ -213,12 +213,12 @@ func (s *ClusterService) ReissueToken(ctx context.Context, name string, req Reis
 	if c.Phase != gatewaymodel.ClusterPhaseRegistering {
 		return "", "", newConflict("token can only be reissued while the cluster is Registering")
 	}
-	token, err := gateway.NewToken()
+	token, err := gatewayauth.NewToken()
 	if err != nil {
 		return "", "", fmt.Errorf("generate token: %w", err)
 	}
 	if err := s.repos.ClusterUOW.WithinTransaction(ctx, func(clusters repository.ClusterRepository, records repository.InstallRecordRepository, _ repository.UninstallTaskRepository) error {
-		if err := clusters.UpdateRegToken(ctx, c.ID, gateway.HashToken(token)); err != nil {
+		if err := clusters.UpdateRegToken(ctx, c.ID, gatewayauth.HashToken(token)); err != nil {
 			return err
 		}
 		return records.Create(ctx, installRecord(c.Name, &req.InstallParams))

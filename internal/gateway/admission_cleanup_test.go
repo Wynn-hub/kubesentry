@@ -25,7 +25,7 @@ func TestNotifyChangeTriggersFullAdmissionCleanup(t *testing.T) {
 		t.Fatalf("unrelated topic queued a cleanup pass")
 	}
 
-	req := &gatewaypb.NotifyChangeRequest{Topic: AdmissionEventSettingsTopic}
+	req := &gatewaypb.NotifyChangeRequest{Topic: gatewaypb.AdmissionEventSettingsTopic}
 	if _, err := srv.NotifyChange(context.Background(), req); err != nil {
 		t.Fatalf("notify settings change: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestNotifyChangeTriggersFullAdmissionCleanup(t *testing.T) {
 // servers without one — NotifyChange must stay a no-op rather than panic.
 func TestNotifyChangeToleratesMissingAdmissionCleaner(t *testing.T) {
 	srv := NewServer(Repos{}, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token")
-	req := &gatewaypb.NotifyChangeRequest{Topic: AdmissionEventSettingsTopic}
+	req := &gatewaypb.NotifyChangeRequest{Topic: gatewaypb.AdmissionEventSettingsTopic}
 	if _, err := srv.NotifyChange(context.Background(), req); err != nil {
 		t.Fatalf("notify without cleaner: %v", err)
 	}

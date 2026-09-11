@@ -9,12 +9,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
-func RevalidateAllPolicies(ctx context.Context, repos gateway.Repos) error {
-	policies, err := repos.Policies.List(ctx)
+func RevalidateAllPolicies(ctx context.Context, policiesRepo *dbrepo.PolicyRepo) error {
+	policies, err := policiesRepo.List(ctx)
 	if err != nil {
 		return fmt.Errorf("list policies for revalidation: %w", err)
 	}
@@ -28,7 +28,7 @@ func RevalidateAllPolicies(ctx context.Context, repos gateway.Repos) error {
 		} else {
 			p.CompileError = ""
 		}
-		if err := repos.Policies.Update(ctx, p); err != nil {
+		if err := policiesRepo.Update(ctx, p); err != nil {
 			errs = append(errs, fmt.Errorf("update policy %q after revalidation: %w", p.Name, err))
 			continue
 		}

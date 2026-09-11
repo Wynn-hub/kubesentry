@@ -15,7 +15,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 
@@ -50,7 +50,7 @@ func (s *AdmissionService) UpdateSettings(ctx context.Context, req *dto.Admissio
 		return nil, err
 	}
 	if s.notifier != nil {
-		s.notifier.NotifyChange(ctx, gateway.AdmissionEventSettingsTopic)
+		s.notifier.NotifyChange(ctx, gatewaypb.AdmissionEventSettingsTopic)
 	}
 	return s.Settings(ctx)
 }

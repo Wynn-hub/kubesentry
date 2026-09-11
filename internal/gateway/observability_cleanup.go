@@ -8,8 +8,6 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
-const PlatformObservabilitySettingsTopic = "platform-observability-settings"
-
 type IncidentCleaner struct {
 	repo     *dbrepo.IncidentRepo
 	settings *dbrepo.AdmissionRepo

@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/console/model"
+	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 // This file holds the ONLY mapping between database entities and the
@@ -34,13 +34,13 @@ func policyPhase(compileOK bool) string {
 
 // PolicyResourceVersion derives an opaque optimistic-concurrency token from
 // the row's UpdatedAt, mirroring the CRD-era resourceVersion contract.
-func PolicyResourceVersion(p *model.Policy) string {
+func PolicyResourceVersion(p *dbrepo.Policy) string {
 	return strconv.FormatInt(p.UpdatedAt.UnixNano(), 10)
 }
 
 // PolicySpecSnapshot is the content stored on every version row — identical
 // shape to what handlers_policy.go's policySpecSnapshot produces.
-func PolicySpecSnapshot(p *model.Policy) v1alpha1.PolicySpec {
+func PolicySpecSnapshot(p *dbrepo.Policy) v1alpha1.PolicySpec {
 	return v1alpha1.PolicySpec{
 		Match:           p.Match.Data(),
 		EnforcementMode: p.EnforcementMode,
@@ -49,7 +49,7 @@ func PolicySpecSnapshot(p *model.Policy) v1alpha1.PolicySpec {
 	}
 }
 
-func PolicyToListItem(p *model.Policy) PolicyListItem {
+func PolicyToListItem(p *dbrepo.Policy) PolicyListItem {
 	return PolicyListItem{
 		Name:            p.Name,
 		Source:          PolicyListItemSource(policySource(p.Labels.Data())),
@@ -64,7 +64,7 @@ func PolicyToListItem(p *model.Policy) PolicyListItem {
 // PolicyToDetail builds the GET response. referencedBy is normalized to a
 // non-nil slice: a nil slice would serialize as null, violating the spec's
 // required-array contract (incident P2-CF1).
-func PolicyToDetail(p *model.Policy, referencedBy []string) PolicyDetail {
+func PolicyToDetail(p *dbrepo.Policy, referencedBy []string) PolicyDetail {
 	if referencedBy == nil {
 		referencedBy = []string{}
 	}

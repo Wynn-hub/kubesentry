@@ -12,7 +12,6 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/handler"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -23,7 +22,7 @@ type Handlers struct {
 	// handlers_schema.go, the one remaining handler that legitimately talks
 	// to a live cluster (OpenAPI field schema for the visual policy builder)
 	// rather than the database — out of scope for this task.
-	Repos         gateway.Repos
+	Repos         repository.Repositories
 	Discovery     discoveryInterface
 	SchemaFetcher schemaFetcher // optional override for tests; nil uses discoverySchemaFetcher
 
@@ -64,7 +63,7 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 	mux.HandleFunc("GET /api/docs/openapi.json", h.openAPISpec)
 
 	{
-		svcs := service.New(repository.FromGatewayRepos(h.Repos), h.notifier())
+		svcs := service.New(h.Repos, h.notifier())
 		svcs.Schema = h.fieldSchema
 		ogenServer, err := dto.NewServer(
 			handler.New(svcs),

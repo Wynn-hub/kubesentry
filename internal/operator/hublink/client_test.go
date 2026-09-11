@@ -24,6 +24,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
@@ -103,7 +104,7 @@ func startHub(t *testing.T, repos gateway.Repos) (dial func(ctx context.Context)
 
 func TestLinkRegistersAndHeartbeats(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gateway.HashToken("reg-tok")})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gatewayauth.HashToken("reg-tok")})
 	dial, tracker := startHub(t, repos)
 
 	// 成员集群侧：kube-system（提供 UID）+ 注册 token Secret
@@ -148,7 +149,7 @@ func TestLinkRegistersAndHeartbeats(t *testing.T) {
 
 func TestOnlyLeaderConsumesRegistrationTokenInHA(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gateway.HashToken("reg-tok")})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gatewayauth.HashToken("reg-tok")})
 	dial, _ := startHub(t, repos)
 
 	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
@@ -234,7 +235,7 @@ func TestLinkReusesStoredToken(t *testing.T) {
 	// 成员侧 auth Secret 已存在（此前注册过）→ 不走 Register，直接用存量 token 心跳
 	repos := newTestRepos(t)
 	mustCreateCluster(t, repos, &dbrepo.Cluster{
-		Name: "prod", AuthTokenHash: gateway.HashToken("stored-token"), ClusterUID: "uid-1",
+		Name: "prod", AuthTokenHash: gatewayauth.HashToken("stored-token"), ClusterUID: "uid-1",
 	})
 	dial, tracker := startHub(t, repos)
 
@@ -270,7 +271,7 @@ func TestLinkReusesStoredToken(t *testing.T) {
 // (ctx cancellation while heartbeating still counts as "was connected").
 func TestRunOnceConnectedReporting(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gateway.HashToken("reg-tok")})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gatewayauth.HashToken("reg-tok")})
 	dial, _ := startHub(t, repos)
 
 	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
@@ -326,7 +327,7 @@ func TestLinkSelfHealsAfterTokenRotation(t *testing.T) {
 	repos := newTestRepos(t)
 	// Deliberately no AuthTokenHash set: the member's stored token below is
 	// orphaned/unrecognized by the hub.
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gateway.HashToken("fresh-reg-tok")})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gatewayauth.HashToken("fresh-reg-tok")})
 	dial, tracker := startHub(t, repos)
 
 	kubeSystem := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
@@ -387,7 +388,7 @@ func TestLinkAppliesSnapshotAndReportsBack(t *testing.T) {
 	repos := newTestRepos(t)
 	ctx0 := context.Background()
 	mustCreateCluster(t, repos, &dbrepo.Cluster{
-		Name: clusterName, AuthTokenHash: gateway.HashToken("tok"), ClusterUID: "uid-1",
+		Name: clusterName, AuthTokenHash: gatewayauth.HashToken("tok"), ClusterUID: "uid-1",
 	})
 	if err := repos.Policies.Create(ctx0, &dbrepo.Policy{
 		Name: "p1", EnforcementMode: v1alpha1.ModeAudit,
@@ -474,7 +475,7 @@ func TestLinkReappliesOnResendEvenWithUnchangedHash(t *testing.T) {
 	repos := newTestRepos(t)
 	ctx0 := context.Background()
 	mustCreateCluster(t, repos, &dbrepo.Cluster{
-		Name: clusterName, AuthTokenHash: gateway.HashToken("tok"), ClusterUID: "uid-1",
+		Name: clusterName, AuthTokenHash: gatewayauth.HashToken("tok"), ClusterUID: "uid-1",
 	})
 	if err := repos.Policies.Create(ctx0, &dbrepo.Policy{
 		Name: "p1", EnforcementMode: v1alpha1.ModeAudit,

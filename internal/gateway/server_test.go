@@ -13,6 +13,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
@@ -32,7 +33,7 @@ func doRegister(t *testing.T, repos Repos, req *gatewaypb.RegisterRequest) (*gat
 
 func TestRegisterHappyPath(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: HashToken("tok123")})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gatewayauth.HashToken("tok123")})
 
 	resp, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "prod", RegistrationToken: "tok123",
@@ -55,7 +56,7 @@ func TestRegisterHappyPath(t *testing.T) {
 		t.Fatal("reg token hash still present")
 	}
 	// auth 只存哈希 + 绑定 UID
-	if cl.AuthTokenHash != HashToken(resp.ClusterToken) {
+	if cl.AuthTokenHash != gatewayauth.HashToken(resp.ClusterToken) {
 		t.Fatal("stored hash does not match issued token")
 	}
 	if cl.ClusterUID != "uid-1" || cl.OperatorVersion != "v1.2.0" {
@@ -65,7 +66,7 @@ func TestRegisterHappyPath(t *testing.T) {
 
 func TestRegisterWrongToken(t *testing.T) {
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: HashToken("tok123")})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gatewayauth.HashToken("tok123")})
 
 	_, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "prod", RegistrationToken: "WRONG", ClusterUid: "uid-1",
@@ -102,7 +103,7 @@ func TestRegisterUnknownCluster(t *testing.T) {
 func TestRegisterUIDConflictAcrossClusters(t *testing.T) {
 	repos := newTestRepos(t)
 	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "other", ClusterUID: "uid-1"})
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: HashToken("tok123")})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", RegTokenHash: gatewayauth.HashToken("tok123")})
 
 	_, err := doRegister(t, repos, &gatewaypb.RegisterRequest{
 		ClusterName: "prod", RegistrationToken: "tok123", ClusterUid: "uid-1",
@@ -122,7 +123,7 @@ func TestPushLoopIncludesTraceIDFromNotifyChange(t *testing.T) {
 	t.Run("NotifyChange trace_id reaches the push", func(t *testing.T) {
 		repos := newTestRepos(t)
 		ctx := context.Background()
-		mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
+		mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: gatewayauth.HashToken("tok"), ClusterUID: "u"})
 		if err := repos.Policies.Create(ctx, &dbrepo.Policy{Name: "p1", EnforcementMode: v1alpha1.ModeAudit}); err != nil {
 			t.Fatal(err)
 		}
@@ -177,7 +178,7 @@ func TestPushLoopIncludesTraceIDFromNotifyChange(t *testing.T) {
 		defer restore()
 
 		repos := newTestRepos(t)
-		mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: HashToken("tok"), ClusterUID: "u"})
+		mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", AuthTokenHash: gatewayauth.HashToken("tok"), ClusterUID: "u"})
 		client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
 
 		ctx := metadata.AppendToOutgoingContext(context.Background(),
@@ -268,8 +269,8 @@ func (r *dsReader) expectNone(t *testing.T, timeout time.Duration) {
 func TestNotifyChangeTraceIDGoesToTheClusterThatActuallyChanged(t *testing.T) {
 	repos := newTestRepos(t)
 	ctx := context.Background()
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "cluster-a", AuthTokenHash: HashToken("tok-a"), ClusterUID: "ua"})
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "cluster-b", AuthTokenHash: HashToken("tok-b"), ClusterUID: "ub"})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "cluster-a", AuthTokenHash: gatewayauth.HashToken("tok-a"), ClusterUID: "ua"})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "cluster-b", AuthTokenHash: gatewayauth.HashToken("tok-b"), ClusterUID: "ub"})
 
 	client := startBufconnGateway(t, NewServer(repos, gatewayNS, NewHeartbeatTracker(), NewNotifier(), "test-token"))
 
@@ -350,7 +351,7 @@ func TestReRegisterSameUIDRotatesToken(t *testing.T) {
 	// 已注册集群（绑定 uid-1）重新注册：管理员触发重发 reg token 后，此处模拟
 	// 新一轮注册必须校验 UID 一致。
 	repos := newTestRepos(t)
-	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", ClusterUID: "uid-1", RegTokenHash: HashToken("tok456")})
+	mustCreateCluster(t, repos, &dbrepo.Cluster{Name: "prod", ClusterUID: "uid-1", RegTokenHash: gatewayauth.HashToken("tok456")})
 
 	// UID 不一致 → 拒绝
 	_, err := doRegister(t, repos, &gatewaypb.RegisterRequest{

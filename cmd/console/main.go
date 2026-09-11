@@ -18,9 +18,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/Wynn-hub/kubesentry/internal/console"
+	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
 )
@@ -57,18 +56,7 @@ func main() {
 		slog.Error("init id generator", "error", err)
 		os.Exit(1)
 	}
-	repos := gateway.Repos{
-		Clusters:       dbrepo.NewClusterRepo(db),
-		Policies:       dbrepo.NewPolicyRepo(db),
-		Groups:         dbrepo.NewGroupRepo(db),
-		Exceptions:     dbrepo.NewExceptionRepo(db),
-		InstallRecords: dbrepo.NewInstallRecordRepo(db),
-		Distributions:  dbrepo.NewDistributionRepo(db),
-		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
-		Admission:      dbrepo.NewAdmissionRepo(db),
-		Incidents:      dbrepo.NewIncidentRepo(db),
-		Platform:       dbrepo.NewPlatformObservabilityRepo(db),
-	}
+	repos := repository.New(db)
 
 	// console-api's k8s footprint is intentionally minimal: only a discovery
 	// client, kept for handlers_schema.go's OpenAPI field lookups. Every
@@ -128,7 +116,7 @@ func main() {
 	// worth backgrounding — but a failure here is logged and never fatal:
 	// console-api must still come up even if revalidation itself errors.
 	revalidateCtx, revalidateCancel := context.WithTimeout(context.Background(), startupRevalidateTimeout)
-	err = console.RevalidateAllPolicies(revalidateCtx, repos)
+	err = console.RevalidateAllPolicies(revalidateCtx, repos.Policies)
 	revalidateCancel()
 	if err != nil {
 		slog.Error("revalidate policies at startup", "error", err)

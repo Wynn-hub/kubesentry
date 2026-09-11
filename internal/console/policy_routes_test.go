@@ -10,8 +10,8 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
+	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
 // These aliases keep the migrated assertions focused on the JSON contract
@@ -56,7 +56,7 @@ func testMatch() v1alpha1.PolicyMatch {
 // seedPolicyBare inserts a Policy row without any policy_versions rows —
 // used by the "pruned snapshot" tests, which need a policy whose early
 // version history has already been garbage-collected.
-func seedPolicyBare(t *testing.T, repos gateway.Repos, name, mode string) *dbrepo.Policy {
+func seedPolicyBare(t *testing.T, repos repository.Repositories, name, mode string) *dbrepo.Policy {
 	t.Helper()
 	p := &dbrepo.Policy{
 		Name:            name,
@@ -72,7 +72,7 @@ func seedPolicyBare(t *testing.T, repos gateway.Repos, name, mode string) *dbrep
 	return p
 }
 
-func seedPolicyVersion(t *testing.T, repos gateway.Repos, p *dbrepo.Policy, version int, mode string) {
+func seedPolicyVersion(t *testing.T, repos repository.Repositories, p *dbrepo.Policy, version int, mode string) {
 	t.Helper()
 	if err := repos.Policies.CreateVersion(context.Background(), &dbrepo.PolicyVersion{
 		PolicyID: p.ID,
@@ -88,7 +88,7 @@ func seedPolicyVersion(t *testing.T, repos gateway.Repos, p *dbrepo.Policy, vers
 
 // seedPolicy inserts a Policy row plus its matching v1 policy_versions row —
 // the shape every policy created through the console API has.
-func seedPolicy(t *testing.T, repos gateway.Repos, name, mode string) *dbrepo.Policy {
+func seedPolicy(t *testing.T, repos repository.Repositories, name, mode string) *dbrepo.Policy {
 	t.Helper()
 	p := seedPolicyBare(t, repos, name, mode)
 	seedPolicyVersion(t, repos, p, 1, mode)

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"gorm.io/gorm"
 )
 
 type DistributionRepository interface {
@@ -106,43 +106,41 @@ func (u exceptionUnitOfWork) WithinTransaction(ctx context.Context, fn func(Exce
 	})
 }
 
-// Repositories is the console's data-access bundle. It grows one field per
-// migrated resource domain; batches that haven't migrated yet keep using
-// gateway.Repos directly from the legacy handlers.
+// Repositories is the console's data-access bundle.
 type Repositories struct {
-	Policies       PolicyRepository
-	Groups         GroupRepository
-	PolicyGroups   PolicyGroupRepository
-	Exceptions     ExceptionRepository
-	Distributions  DistributionRepository
-	Clusters       ClusterRepository
-	InstallRecords InstallRecordRepository
-	UninstallTasks UninstallTaskRepository
-	Incidents      IncidentRepository
-	Admission      AdmissionRepository
-	Platform       PlatformRepository
+	Policies       *dbrepo.PolicyRepo
+	Groups         *dbrepo.GroupRepo
+	PolicyGroups   *dbrepo.GroupRepo
+	Exceptions     *dbrepo.ExceptionRepo
+	Distributions  *dbrepo.DistributionRepo
+	Clusters       *dbrepo.ClusterRepo
+	InstallRecords *dbrepo.InstallRecordRepo
+	UninstallTasks *dbrepo.UninstallTaskRepo
+	Incidents      *dbrepo.IncidentRepo
+	Admission      *dbrepo.AdmissionRepo
+	Platform       *dbrepo.PlatformObservabilityRepo
 	ExceptionUOW   ExceptionUnitOfWork
 	ClusterUOW     ClusterUnitOfWork
 }
 
-// FromGatewayRepos narrows the shared gateway.Repos bundle down to the
-// console's interfaces. cmd/console keeps constructing gateway.Repos (it is
-// what internal/gateway and cmd/db also use); this is the single adaptation
-// point rather than threading concrete repo types through the service layer.
-func FromGatewayRepos(r gateway.Repos) Repositories {
+// New constructs the console's repository adapters from its database.
+func New(db *gorm.DB) Repositories {
+	clusters := dbrepo.NewClusterRepo(db)
+	groups := dbrepo.NewGroupRepo(db)
+	exceptions := dbrepo.NewExceptionRepo(db)
 	return Repositories{
-		Policies:       r.Policies,
-		Groups:         r.Groups,
-		PolicyGroups:   r.Groups,
-		Exceptions:     r.Exceptions,
-		Distributions:  r.Distributions,
-		Clusters:       r.Clusters,
-		InstallRecords: r.InstallRecords,
-		UninstallTasks: r.UninstallTasks,
-		Incidents:      r.Incidents,
-		Admission:      r.Admission,
-		Platform:       r.Platform,
-		ExceptionUOW:   exceptionUnitOfWork{repo: r.Exceptions},
-		ClusterUOW:     clusterUnitOfWork{repo: r.Clusters},
+		Policies:       dbrepo.NewPolicyRepo(db),
+		Groups:         groups,
+		PolicyGroups:   groups,
+		Exceptions:     exceptions,
+		Distributions:  dbrepo.NewDistributionRepo(db),
+		Clusters:       clusters,
+		InstallRecords: dbrepo.NewInstallRecordRepo(db),
+		UninstallTasks: dbrepo.NewUninstallTaskRepo(db),
+		Incidents:      dbrepo.NewIncidentRepo(db),
+		Admission:      dbrepo.NewAdmissionRepo(db),
+		Platform:       dbrepo.NewPlatformObservabilityRepo(db),
+		ExceptionUOW:   exceptionUnitOfWork{repo: exceptions},
+		ClusterUOW:     clusterUnitOfWork{repo: clusters},
 	}
 }

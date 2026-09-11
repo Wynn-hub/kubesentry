@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
 func TestRevalidateAllPoliciesFlagsBrokenRego(t *testing.T) {
@@ -22,7 +21,7 @@ func TestRevalidateAllPoliciesFlagsBrokenRego(t *testing.T) {
 		t.Fatalf("create bad: %v", err)
 	}
 
-	if err := RevalidateAllPolicies(ctx, repos); err != nil {
+	if err := RevalidateAllPolicies(ctx, repos.Policies); err != nil {
 		t.Fatalf("revalidate: %v", err)
 	}
 
@@ -67,7 +66,7 @@ func TestRevalidateAllPoliciesRecoversFixedPolicy(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	if err := RevalidateAllPolicies(ctx, repos); err != nil {
+	if err := RevalidateAllPolicies(ctx, repos.Policies); err != nil {
 		t.Fatalf("revalidate: %v", err)
 	}
 
@@ -90,14 +89,14 @@ func TestRevalidateAllPoliciesRecoversFixedPolicy(t *testing.T) {
 // the failing row's name surfaced in the returned aggregate error.
 func TestRevalidateAllPoliciesContinuesPastUpdateFailure(t *testing.T) {
 	db := newTestDB(t)
-	repos := gateway.Repos{Policies: dbrepo.NewPolicyRepo(db)}
+	repos := dbrepo.NewPolicyRepo(db)
 	ctx := context.Background()
 
 	victim := &dbrepo.Policy{Name: "victim", Rego: "package kubesentry\ndeny[msg]{false;msg:=\"x\"}", CompileOK: true}
 	okPeer := &dbrepo.Policy{Name: "ok-peer", Rego: "package kubesentry\ndeny[msg]{false;msg:=\"x\"}", CompileOK: true}
 	badPeer := &dbrepo.Policy{Name: "bad-peer", Rego: "not valid rego {{{", CompileOK: true}
 	for _, p := range []*dbrepo.Policy{victim, okPeer, badPeer} {
-		if err := repos.Policies.Create(ctx, p); err != nil {
+		if err := repos.Create(ctx, p); err != nil {
 			t.Fatalf("create %s: %v", p.Name, err)
 		}
 	}
@@ -130,7 +129,7 @@ func TestRevalidateAllPoliciesContinuesPastUpdateFailure(t *testing.T) {
 
 	// The peers must have been revalidated and persisted despite the victim
 	// row's write failure — proving the scan did not abort early.
-	gotOK, err := repos.Policies.GetByName(ctx, "ok-peer")
+	gotOK, err := repos.GetByName(ctx, "ok-peer")
 	if err != nil {
 		t.Fatalf("get ok-peer: %v", err)
 	}
@@ -138,7 +137,7 @@ func TestRevalidateAllPoliciesContinuesPastUpdateFailure(t *testing.T) {
 		t.Errorf("expected ok-peer revalidated as compile_ok=true, got ok=%v err=%q", gotOK.CompileOK, gotOK.CompileError)
 	}
 
-	gotBad, err := repos.Policies.GetByName(ctx, "bad-peer")
+	gotBad, err := repos.GetByName(ctx, "bad-peer")
 	if err != nil {
 		t.Fatalf("get bad-peer: %v", err)
 	}

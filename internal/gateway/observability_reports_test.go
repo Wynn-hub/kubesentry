@@ -85,7 +85,7 @@ func TestNotifyChangeTriggersIncidentCleanupFromAdmissionSettings(t *testing.T) 
 	if len(cleaner.trigger) != 0 {
 		t.Fatal("unrelated topic triggered incident cleanup")
 	}
-	if _, err := server.NotifyChange(context.Background(), &gatewaypb.NotifyChangeRequest{Topic: AdmissionEventSettingsTopic}); err != nil {
+	if _, err := server.NotifyChange(context.Background(), &gatewaypb.NotifyChangeRequest{Topic: gatewaypb.AdmissionEventSettingsTopic}); err != nil {
 		t.Fatal(err)
 	}
 	if len(cleaner.trigger) != 1 {

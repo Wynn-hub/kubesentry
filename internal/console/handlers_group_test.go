@@ -11,11 +11,11 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
+	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
-func seedGroup(t *testing.T, repos gateway.Repos, name string, enabled bool) *dbrepo.PolicyGroup {
+func seedGroup(t *testing.T, repos repository.Repositories, name string, enabled bool) *dbrepo.PolicyGroup {
 	t.Helper()
 	g := &dbrepo.PolicyGroup{
 		Name: name,

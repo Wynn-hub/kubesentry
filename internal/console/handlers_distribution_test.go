@@ -7,12 +7,12 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
+	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
-func seedDistribution(t *testing.T, repos gateway.Repos, name string, groups []string) *dbrepo.PolicyDistribution {
+func seedDistribution(t *testing.T, repos repository.Repositories, name string, groups []string) *dbrepo.PolicyDistribution {
 	t.Helper()
 	d := &dbrepo.PolicyDistribution{
 		Name: name,

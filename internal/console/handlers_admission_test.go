@@ -6,7 +6,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
 func TestAdmissionEventSettingsRoundTrip(t *testing.T) {
@@ -93,7 +93,7 @@ func TestAdmissionEventSettingsNotifyGatewayWithCleanupTopic(t *testing.T) {
 		t.Fatalf("update settings = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	topics, _ := fake.calls()
-	if len(topics) != 1 || topics[0] != gateway.AdmissionEventSettingsTopic {
-		t.Fatalf("NotifyChange topics = %v, want [%s]", topics, gateway.AdmissionEventSettingsTopic)
+	if len(topics) != 1 || topics[0] != gatewaypb.AdmissionEventSettingsTopic {
+		t.Fatalf("NotifyChange topics = %v, want [%s]", topics, gatewaypb.AdmissionEventSettingsTopic)
 	}
 }

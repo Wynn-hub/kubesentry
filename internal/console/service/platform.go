@@ -15,7 +15,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/platformobs"
 )
 
@@ -275,7 +275,7 @@ func (s *PlatformService) UpdateSettings(ctx context.Context, request *dto.Platf
 		return dto.PlatformSettings{}, err
 	}
 	if s.notifier != nil {
-		s.notifier.NotifyChange(ctx, gateway.PlatformObservabilitySettingsTopic)
+		s.notifier.NotifyChange(ctx, gatewaypb.PlatformObservabilitySettingsTopic)
 	}
 	return s.Settings(ctx)
 }
