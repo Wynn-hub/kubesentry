@@ -44,28 +44,22 @@ func policyList(in []dbrepo.Policy) []v1alpha1.Policy {
 	return out
 }
 
-func groupSpec(req *dto.PolicyGroupRequest) (v1alpha1.PolicyGroupSpec, error) {
-	b, e := json.Marshal(req)
-	if e != nil {
-		return v1alpha1.PolicyGroupSpec{}, e
-	}
-	var s v1alpha1.PolicyGroupSpec
-	e = json.Unmarshal(b, &s)
-	return s, e
+func groupSpec(req *dto.PolicyGroupInput) v1alpha1.PolicyGroupSpec {
+	return v1alpha1.PolicyGroupSpec{DisplayName: stringOr(req.DisplayName, ""), Description: stringOr(req.Description, ""), Enabled: req.Enabled, NamespaceSelector: req.NamespaceSelector, Policies: req.Policies, SelectorEnforcementMode: stringOr(req.SelectorEnforcementMode, "")}
 }
 
-func scopeFor(ctx context.Context, r repository.Repositories, owner string) (dto.PolicyGroupScope, error) {
+func scopeFor(ctx context.Context, r repository.Repositories, owner string) (dto.PolicyGroupScopeView, error) {
 	ds, e := r.Distributions.List(ctx)
 	if e != nil {
-		return dto.PolicyGroupScope{}, e
+		return dto.PolicyGroupScopeView{}, e
 	}
 	for _, d := range ds {
 		if d.Managed && d.OwnerType == "PolicyGroup" && d.OwnerName == owner {
 			s := d.Spec.Data()
-			return dto.PolicyGroupScope{AllClusters: s.Clusters.ClusterSelector != nil, ClusterNames: s.Clusters.ByName}, nil
+			return dto.PolicyGroupScopeView{AllClusters: s.Clusters.ClusterSelector != nil, ClusterNames: append([]string{}, s.Clusters.ByName...)}, nil
 		}
 	}
-	return dto.PolicyGroupScope{AllClusters: true}, nil
+	return dto.PolicyGroupScopeView{AllClusters: true, ClusterNames: []string{}}, nil
 }
 
 func syncScope(ctx context.Context, r repository.Repositories, owner string, all bool, names []string) error {
@@ -116,28 +110,31 @@ func deleteScope(ctx context.Context, r repository.Repositories, owner string) e
 	return nil
 }
 
-func detail(g *dbrepo.PolicyGroup, ps []v1alpha1.Policy, scope dto.PolicyGroupScope) dto.PolicyGroupDetail {
+func detail(g *dbrepo.PolicyGroup, ps []v1alpha1.Policy, scope dto.PolicyGroupScopeView) dto.PolicyGroupView {
 	s := g.Spec.Data()
 	m, c := groupresolve.Resolve(s, ps)
-	phase := dto.PolicyGroupStatusPhaseReady
+	phase := "Ready"
 	if len(c) > 0 {
-		phase = dto.PolicyGroupStatusPhaseInvalid
+		phase = "Invalid"
 	}
-	source := dto.PolicyGroupDetailSourceCustom
+	source := "custom"
 	if g.Labels.Data()["kubesentry.io/builtin"] == "true" {
-		source = dto.PolicyGroupDetailSourceBuiltin
+		source = "builtin"
 	}
-	var spec dto.PolicyGroupSpec
-	b, _ := json.Marshal(s)
-	_ = json.Unmarshal(b, &spec)
-	members := make([]dto.EffectiveMember, 0, len(m))
+	members := make([]dto.EffectiveMemberView, 0, len(m))
 	for _, x := range m {
-		members = append(members, dto.EffectiveMember{Name: x.Name, EnforcementMode: dto.EffectiveMemberEnforcementMode(x.EnforcementMode), Source: dto.EffectiveMemberSource(x.Source)})
+		members = append(members, dto.EffectiveMemberView{Name: x.Name, EnforcementMode: x.EnforcementMode, Source: x.Source})
 	}
-	return dto.PolicyGroupDetail{Name: g.Name, Source: source, ResourceVersion: strconv.FormatInt(g.UpdatedAt.UnixNano(), 10), Spec: spec, Status: dto.PolicyGroupStatus{Phase: phase, ResolvedCount: len(m), ResolvedPolicies: members}, Scope: scope}
+	return dto.PolicyGroupView{Name: g.Name, Source: source, ResourceVersion: strconv.FormatInt(g.UpdatedAt.UnixNano(), 10), Spec: normalizeGroupSpec(s), Status: dto.PolicyGroupStatusView{Phase: phase, ResolvedCount: len(m), ResolvedPolicies: members}, Scope: scope}
 }
 
-func (s *PolicyGroupService) Get(ctx context.Context, name string) (*dto.PolicyGroupDetail, error) {
+func normalizeGroupSpec(spec v1alpha1.PolicyGroupSpec) v1alpha1.PolicyGroupSpec {
+	spec.Policies.ByName = append([]v1alpha1.PolicyRef{}, spec.Policies.ByName...)
+	spec.Policies.Exclude = append([]string{}, spec.Policies.Exclude...)
+	return spec
+}
+
+func (s *PolicyGroupService) Get(ctx context.Context, name string) (*dto.PolicyGroupView, error) {
 	g, e := s.repos.PolicyGroups.GetByName(ctx, name)
 	if e != nil {
 		if errors.Is(e, gorm.ErrRecordNotFound) {
@@ -157,7 +154,7 @@ func (s *PolicyGroupService) Get(ctx context.Context, name string) (*dto.PolicyG
 	return &d, nil
 }
 
-func (s *PolicyGroupService) List(ctx context.Context, page, size int, sortBy, order string) (*dto.PolicyGroupListData, error) {
+func (s *PolicyGroupService) List(ctx context.Context, page, size int, sortBy, order string) (*dto.PolicyGroupPageView, error) {
 	gs, e := s.repos.PolicyGroups.List(ctx)
 	if e != nil {
 		return nil, e
@@ -167,10 +164,10 @@ func (s *PolicyGroupService) List(ctx context.Context, page, size int, sortBy, o
 		return nil, e
 	}
 	pol := policyList(ps)
-	items := make([]dto.PolicyGroupListItem, 0, len(gs))
+	items := make([]dto.PolicyGroupItem, 0, len(gs))
 	for _, g := range gs {
-		d := detail(&g, pol, dto.PolicyGroupScope{})
-		items = append(items, dto.PolicyGroupListItem{Name: g.Name, Source: dto.PolicyGroupListItemSource(d.Source), DisplayName: d.Spec.DisplayName.Or(""), Enabled: d.Spec.Enabled, Phase: dto.PolicyGroupListItemPhase(d.Status.Phase), ResolvedCount: d.Status.ResolvedCount})
+		d := detail(&g, pol, dto.PolicyGroupScopeView{})
+		items = append(items, dto.PolicyGroupItem{Name: g.Name, Source: d.Source, DisplayName: d.Spec.DisplayName, Enabled: d.Spec.Enabled, Phase: d.Status.Phase, ResolvedCount: d.Status.ResolvedCount})
 	}
 	sort.Slice(items, func(i, j int) bool {
 		a, b := items[i], items[j]
@@ -201,11 +198,11 @@ func (s *PolicyGroupService) List(ctx context.Context, page, size int, sortBy, o
 	if end > total {
 		end = total
 	}
-	return &dto.PolicyGroupListData{Total: total, Page: page, PageSize: dto.PolicyGroupListDataPageSize(size), Items: items[start:end]}, nil
+	return &dto.PolicyGroupPageView{Total: total, Page: page, PageSize: size, Items: items[start:end]}, nil
 }
 
-func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupRequest) error {
-	name := req.Name.Or("")
+func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupInput) error {
+	name := stringOr(req.Name, "")
 	if errs := validation.IsDNS1123Subdomain(name); len(errs) > 0 {
 		return &ValidationError{Msg: "invalid name: " + strings.Join(errs, "; ")}
 	}
@@ -217,21 +214,18 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupReq
 			return &ValidationError{Msg: "excluded policy name must not be empty"}
 		}
 	}
-	spec, e := groupSpec(req)
-	if e != nil {
-		return e
-	}
-	if e = validatePolicyGroupScope(req.AllClusters.Or(false), req.ClusterNames); e != nil {
+	spec := groupSpec(req)
+	if e := validatePolicyGroupScope(boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
 		return e
 	}
 	g := &dbrepo.PolicyGroup{Name: name, Spec: datatypes.NewJSONType(spec), Labels: datatypes.NewJSONType(map[string]string{}), Annotations: datatypes.NewJSONType(map[string]string{})}
-	if e = s.repos.PolicyGroups.Create(ctx, g); e != nil {
+	if e := s.repos.PolicyGroups.Create(ctx, g); e != nil {
 		if dbrepo.IsUniqueViolation(e) {
 			return newConflict("policygroup %s already exists", name)
 		}
 		return e
 	}
-	if e = syncScope(ctx, s.repos, name, req.AllClusters.Or(false), req.ClusterNames); e != nil {
+	if e := syncScope(ctx, s.repos, name, boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
 		return e
 	}
 	if s.notifier != nil {
@@ -240,7 +234,7 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupReq
 	return nil
 }
 
-func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.PolicyGroupRequest) error {
+func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.PolicyGroupInput) error {
 	if name == defaultGroupName {
 		return fmt.Errorf("default policy group scope is managed; use the enabled endpoint to disable it")
 	}
@@ -249,7 +243,7 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 			return &ValidationError{Msg: "excluded policy name must not be empty"}
 		}
 	}
-	if e := validatePolicyGroupScope(req.AllClusters.Or(false), req.ClusterNames); e != nil {
+	if e := validatePolicyGroupScope(boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
 		return e
 	}
 	g, e := s.repos.PolicyGroups.GetByName(ctx, name)
@@ -259,17 +253,14 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 		}
 		return e
 	}
-	if rv, ok := req.ResourceVersion.Get(); ok && rv != "" && rv != strconv.FormatInt(g.UpdatedAt.UnixNano(), 10) {
+	if rv := stringOr(req.ResourceVersion, ""); rv != "" && rv != strconv.FormatInt(g.UpdatedAt.UnixNano(), 10) {
 		return newConflict("policygroup has been modified, refresh and retry")
 	}
-	spec, e := groupSpec(req)
-	if e != nil {
-		return e
-	}
+	spec := groupSpec(req)
 	if e = s.repos.PolicyGroups.UpdateCAS(ctx, g.ID, g.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec)}); e != nil {
 		return e
 	}
-	if e = syncScope(ctx, s.repos, name, req.AllClusters.Or(false), req.ClusterNames); e != nil {
+	if e = syncScope(ctx, s.repos, name, boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
 		return e
 	}
 	s.notify(ctx)

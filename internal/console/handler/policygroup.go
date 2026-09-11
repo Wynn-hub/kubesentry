@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
@@ -18,7 +19,11 @@ func (h *Handler) ListPolicyGroups(ctx context.Context, p dto.ListPolicyGroupsPa
 	if e != nil {
 		return &dto.ListPolicyGroupsInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
-	return &dto.PolicyGroupListResponse{Code: 0, Message: "success", Data: dto.OptPolicyGroupListData{Value: *d, Set: true}}, nil
+	v, err := dtoData[dto.PolicyGroupListData](d)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.PolicyGroupListResponse{Code: 0, Message: "success", Data: dto.NewOptPolicyGroupListData(v)}, nil
 }
 
 func (h *Handler) GetPolicyGroup(ctx context.Context, p dto.GetPolicyGroupParams) (dto.GetPolicyGroupRes, error) {
@@ -29,11 +34,19 @@ func (h *Handler) GetPolicyGroup(ctx context.Context, p dto.GetPolicyGroupParams
 		}
 		return &dto.GetPolicyGroupInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
-	return &dto.PolicyGroupDetailResponse{Code: 0, Message: "success", Data: dto.OptPolicyGroupDetail{Value: *d, Set: true}}, nil
+	v, err := dtoData[dto.PolicyGroupDetail](d)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.PolicyGroupDetailResponse{Code: 0, Message: "success", Data: dto.NewOptPolicyGroupDetail(v)}, nil
 }
 
 func (h *Handler) CreatePolicyGroup(ctx context.Context, r *dto.PolicyGroupRequest) (dto.CreatePolicyGroupRes, error) {
-	e := h.svcs.PolicyGroup.Create(ctx, r)
+	input, e := policyGroupInput(r)
+	if e != nil {
+		return nil, e
+	}
+	e = h.svcs.PolicyGroup.Create(ctx, input)
 	if e != nil {
 		var v *service.ValidationError
 		if errors.As(e, &v) {
@@ -44,11 +57,15 @@ func (h *Handler) CreatePolicyGroup(ctx context.Context, r *dto.PolicyGroupReque
 		}
 		return &dto.CreatePolicyGroupInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
-	return &dto.PolicyGroupNameResponse{Code: 0, Message: "success", Data: dto.OptPolicyGroupNameData{Value: dto.PolicyGroupNameData{Name: r.Name.Or("")}, Set: true}}, nil
+	return &dto.PolicyGroupNameResponse{Code: 0, Message: "success", Data: dto.OptPolicyGroupNameData{Value: dto.PolicyGroupNameData{Name: stringOr(input.Name)}, Set: true}}, nil
 }
 
 func (h *Handler) UpdatePolicyGroup(ctx context.Context, r *dto.PolicyGroupRequest, p dto.UpdatePolicyGroupParams) (dto.UpdatePolicyGroupRes, error) {
-	e := h.svcs.PolicyGroup.Update(ctx, p.Name, r)
+	input, e := policyGroupInput(r)
+	if e != nil {
+		return nil, e
+	}
+	e = h.svcs.PolicyGroup.Update(ctx, p.Name, input)
 	if e != nil {
 		if p.Name == "default" {
 			return &dto.UpdatePolicyGroupForbidden{Code: 40300, Message: e.Error()}, nil
@@ -66,6 +83,18 @@ func (h *Handler) UpdatePolicyGroup(ctx context.Context, r *dto.PolicyGroupReque
 		return &dto.UpdatePolicyGroupInternalServerError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.PolicyGroupNameResponse{Code: 0, Message: "success", Data: dto.OptPolicyGroupNameData{Value: dto.PolicyGroupNameData{Name: p.Name}, Set: true}}, nil
+}
+
+func policyGroupInput(request *dto.PolicyGroupRequest) (*dto.PolicyGroupInput, error) {
+	data, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	var input dto.PolicyGroupInput
+	if err := json.Unmarshal(data, &input); err != nil {
+		return nil, err
+	}
+	return &input, nil
 }
 
 func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupEnabledRequest, p dto.SetPolicyGroupEnabledParams) (dto.SetPolicyGroupEnabledRes, error) {
