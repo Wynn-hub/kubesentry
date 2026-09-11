@@ -37,3 +37,22 @@ func TestStableDTOJSONCompatibility(t *testing.T) {
 		t.Fatalf("empty groups must remain an array: %s", data)
 	}
 }
+
+func TestIncidentSampleDatabaseIDOmission(t *testing.T) {
+	data, err := json.Marshal(IncidentSampleView{EventID: "expired", Expired: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "eventDatabaseId") {
+		t.Fatalf("expired sample database ID must be omitted: %s", data)
+	}
+
+	id := "42"
+	data, err = json.Marshal(IncidentSampleView{EventID: "stored", EventDatabaseID: &id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"eventDatabaseId":"42"`) {
+		t.Fatalf("stored sample database ID must be a string: %s", data)
+	}
+}
