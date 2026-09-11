@@ -22,7 +22,7 @@ func (h *Handler) ListDistributions(ctx context.Context, p dto.ListDistributions
 }
 
 func (h *Handler) CreateDistribution(ctx context.Context, req *dto.DistributionRequest) (dto.CreateDistributionRes, error) {
-	var input service.DistributionRequest
+	var input dto.DistributionInput
 	b, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (h *Handler) GetDistribution(ctx context.Context, p dto.GetDistributionPara
 }
 
 func (h *Handler) UpdateDistribution(ctx context.Context, req *dto.DistributionRequest, p dto.UpdateDistributionParams) (dto.UpdateDistributionRes, error) {
-	var input service.DistributionRequest
+	var input dto.DistributionInput
 	b, err := json.Marshal(req)
 	if err != nil {
 		return nil, err

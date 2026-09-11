@@ -3,13 +3,15 @@ package service
 import (
 	"strings"
 	"testing"
+
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 )
 
 func TestValidateInstallParamsRejectsShellMetacharacters(t *testing.T) {
-	params := ClusterInstallParams{
+	params := dto.ClusterInstallInput{
 		Namespace:      "kubesentry-system",
-		WebhookImage:   ClusterImage{Repository: "example/webhook", Tag: "local", PullPolicy: "IfNotPresent"},
-		OperatorImage:  ClusterImage{Repository: "example/operator", Tag: "local", PullPolicy: "IfNotPresent"},
+		WebhookImage:   dto.ClusterImageInput{Repository: "example/webhook", Tag: "local", PullPolicy: "IfNotPresent"},
+		OperatorImage:  dto.ClusterImageInput{Repository: "example/operator", Tag: "local", PullPolicy: "IfNotPresent"},
 		GatewayAddress: "gateway:30443",
 	}
 	params.GatewayAddress = "gateway:30443$HOME"
@@ -19,10 +21,10 @@ func TestValidateInstallParamsRejectsShellMetacharacters(t *testing.T) {
 }
 
 func TestBuildInstallCommandIncludesHAAndRegistration(t *testing.T) {
-	params := ClusterInstallParams{
+	params := dto.ClusterInstallInput{
 		Namespace:        "kubesentry-system",
-		WebhookImage:     ClusterImage{Repository: "example/webhook", Tag: "local", PullPolicy: "IfNotPresent"},
-		OperatorImage:    ClusterImage{Repository: "example/operator", Tag: "local", PullPolicy: "IfNotPresent"},
+		WebhookImage:     dto.ClusterImageInput{Repository: "example/webhook", Tag: "local", PullPolicy: "IfNotPresent"},
+		OperatorImage:    dto.ClusterImageInput{Repository: "example/operator", Tag: "local", PullPolicy: "IfNotPresent"},
 		HighAvailability: true,
 		GatewayAddress:   "gateway:30443",
 	}

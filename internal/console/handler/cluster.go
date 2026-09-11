@@ -35,7 +35,7 @@ func (h *Handler) ListClusters(ctx context.Context, p dto.ListClustersParams) (d
 }
 
 func (h *Handler) CreateCluster(ctx context.Context, req *dto.ClusterCreateRequest) (dto.CreateClusterRes, error) {
-	var input service.CreateClusterRequest
+	var input dto.ClusterCreateInput
 	b, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (h *Handler) GetCluster(ctx context.Context, p dto.GetClusterParams) (dto.G
 }
 
 func (h *Handler) UpdateCluster(ctx context.Context, req *dto.ClusterLabelsRequest, p dto.UpdateClusterParams) (dto.UpdateClusterRes, error) {
-	var input service.UpdateClusterLabelsRequest
+	var input dto.ClusterLabelsInput
 	b, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (h *Handler) DeleteCluster(ctx context.Context, p dto.DeleteClusterParams) 
 }
 
 func (h *Handler) ReissueClusterToken(ctx context.Context, req *dto.ClusterTokenRequest, p dto.ReissueClusterTokenParams) (dto.ReissueClusterTokenRes, error) {
-	var input service.ReissueClusterTokenRequest
+	var input dto.ClusterTokenInput
 	b, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (h *Handler) ListInstallRecords(ctx context.Context, p dto.ListInstallRecor
 	return &dto.InstallRecordListResponse{Code: 0, Message: "success", Data: v}, nil
 }
 
-func uninstallTask(item *service.UninstallTaskItem) dto.UninstallTask {
+func uninstallTask(item *dto.UninstallTaskView) dto.UninstallTask {
 	result := dto.UninstallTask{
 		ID:          dto.ResourceID(strconv.FormatInt(item.ID, 10)),
 		Status:      dto.UninstallTaskStatus(item.Status),

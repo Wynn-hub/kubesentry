@@ -11,33 +11,12 @@ import (
 	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/util/validation"
 
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 const defaultDistributionName = "default"
-
-type DistributionListItem struct {
-	Name         string   `json:"name"`
-	PolicyGroups []string `json:"policyGroups"`
-}
-type DistributionPage struct {
-	Items    []DistributionListItem `json:"items"`
-	Total    int                    `json:"total"`
-	Page     int                    `json:"page"`
-	PageSize int                    `json:"pageSize"`
-}
-type DistributionDetail struct {
-	Name            string                              `json:"name"`
-	ResourceVersion string                              `json:"resourceVersion"`
-	Spec            gatewaymodel.PolicyDistributionSpec `json:"spec"`
-}
-type DistributionRequest struct {
-	Name            string                              `json:"name,omitempty"`
-	Spec            gatewaymodel.PolicyDistributionSpec `json:"spec"`
-	ResourceVersion string                              `json:"resourceVersion,omitempty"`
-}
 
 type DistributionService struct {
 	repos    repository.Repositories
@@ -48,19 +27,19 @@ func NewDistributionService(repos repository.Repositories, notifier Notifier) *D
 	return &DistributionService{repos: repos, notifier: notifier}
 }
 
-func (s *DistributionService) List(ctx context.Context, page, pageSize int, sortBy, sortOrder string) (*DistributionPage, error) {
+func (s *DistributionService) List(ctx context.Context, page, pageSize int, sortBy, sortOrder string) (*dto.DistributionPageView, error) {
 	rows, total, err := s.repos.Distributions.ListPage(ctx, dbrepo.PageOptions{Limit: pageSize, Offset: (page - 1) * pageSize, SortBy: sortBy, Desc: sortOrder == "desc"})
 	if err != nil {
 		return nil, fmt.Errorf("list policy distributions: %w", err)
 	}
-	items := make([]DistributionListItem, 0, len(rows))
+	items := make([]dto.DistributionItem, 0, len(rows))
 	for _, d := range rows {
-		items = append(items, DistributionListItem{Name: d.Name, PolicyGroups: d.Spec.Data().PolicyGroups})
+		items = append(items, dto.DistributionItem{Name: d.Name, PolicyGroups: d.Spec.Data().PolicyGroups})
 	}
-	return &DistributionPage{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
+	return &dto.DistributionPageView{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
 }
 
-func (s *DistributionService) Get(ctx context.Context, name string) (*DistributionDetail, error) {
+func (s *DistributionService) Get(ctx context.Context, name string) (*dto.DistributionView, error) {
 	d, err := s.repos.Distributions.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -68,10 +47,10 @@ func (s *DistributionService) Get(ctx context.Context, name string) (*Distributi
 		}
 		return nil, fmt.Errorf("get policydistribution: %w", err)
 	}
-	return &DistributionDetail{Name: d.Name, ResourceVersion: strconv.FormatInt(d.UpdatedAt.UnixNano(), 10), Spec: d.Spec.Data()}, nil
+	return &dto.DistributionView{Name: d.Name, ResourceVersion: strconv.FormatInt(d.UpdatedAt.UnixNano(), 10), Spec: d.Spec.Data()}, nil
 }
 
-func (s *DistributionService) Create(ctx context.Context, req DistributionRequest) error {
+func (s *DistributionService) Create(ctx context.Context, req dto.DistributionInput) error {
 	if err := validateDistributionRequest(&req, true); err != nil {
 		return err
 	}
@@ -86,7 +65,7 @@ func (s *DistributionService) Create(ctx context.Context, req DistributionReques
 	return nil
 }
 
-func (s *DistributionService) Update(ctx context.Context, name string, req DistributionRequest) error {
+func (s *DistributionService) Update(ctx context.Context, name string, req dto.DistributionInput) error {
 	if err := validateDistributionRequest(&req, false); err != nil {
 		return err
 	}
@@ -134,7 +113,7 @@ func (s *DistributionService) notify(ctx context.Context, topic string) {
 	}
 }
 
-func validateDistributionRequest(req *DistributionRequest, create bool) error {
+func validateDistributionRequest(req *dto.DistributionInput, create bool) error {
 	if create {
 		if errs := validation.IsDNS1123Subdomain(req.Name); len(errs) > 0 {
 			return &ValidationError{Msg: "invalid name: " + strings.Join(errs, "; ")}

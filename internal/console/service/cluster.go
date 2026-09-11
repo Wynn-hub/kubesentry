@@ -11,103 +11,12 @@ import (
 	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/util/validation"
 
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
-
-// ClusterImage describes one member-plane image used by the generated Helm
-// command. It deliberately contains no credentials or registration token.
-type ClusterImage struct {
-	Repository string `json:"repository"`
-	Tag        string `json:"tag"`
-	PullPolicy string `json:"pullPolicy"`
-}
-
-type ClusterInstallParams struct {
-	Namespace            string       `json:"namespace"`
-	WebhookImage         ClusterImage `json:"webhookImage"`
-	OperatorImage        ClusterImage `json:"operatorImage"`
-	HighAvailability     bool         `json:"highAvailability"`
-	GatewayAddress       string       `json:"gatewayAddress"`
-	GatewayTLSServerName string       `json:"gatewayTlsServerName,omitempty"`
-	GatewayCABundle      string       `json:"gatewayCaBundle,omitempty"`
-}
-
-type CreateClusterRequest struct {
-	Name          string               `json:"name"`
-	Labels        map[string]string    `json:"labels,omitempty"`
-	InstallParams ClusterInstallParams `json:"installParams"`
-}
-
-type ReissueClusterTokenRequest struct {
-	InstallParams ClusterInstallParams `json:"installParams"`
-}
-
-type UpdateClusterLabelsRequest struct {
-	Labels map[string]string `json:"labels"`
-}
-
-type ClusterListItem struct {
-	Name              string     `json:"name"`
-	Phase             string     `json:"phase"`
-	OperatorVersion   string     `json:"operatorVersion"`
-	KubernetesVersion string     `json:"kubernetesVersion"`
-	NodeCount         int        `json:"nodeCount"`
-	ReadyNodeCount    int        `json:"readyNodeCount"`
-	LastHeartbeatAt   *time.Time `json:"lastHeartbeatAt,omitempty"`
-	CreatedAt         time.Time  `json:"createdAt"`
-}
-
-type ClusterDetail struct {
-	Name              string            `json:"name"`
-	ClusterUID        string            `json:"clusterUid"`
-	Phase             string            `json:"phase"`
-	OperatorVersion   string            `json:"operatorVersion"`
-	LastHeartbeatAt   *time.Time        `json:"lastHeartbeatAt,omitempty"`
-	KubernetesVersion string            `json:"kubernetesVersion"`
-	APIServerAddress  string            `json:"apiServerAddress"`
-	NodeCount         int               `json:"nodeCount"`
-	ReadyNodeCount    int               `json:"readyNodeCount"`
-	Labels            map[string]string `json:"labels"`
-	CreatedAt         time.Time         `json:"createdAt"`
-	UpdatedAt         time.Time         `json:"updatedAt"`
-}
-
-type InstallRecordItem struct {
-	ClusterName        string    `json:"clusterName"`
-	Namespace          string    `json:"namespace"`
-	WebhookRepository  string    `json:"webhookRepository"`
-	WebhookTag         string    `json:"webhookTag"`
-	OperatorRepository string    `json:"operatorRepository"`
-	OperatorTag        string    `json:"operatorTag"`
-	HighAvailability   bool      `json:"highAvailability"`
-	GatewayAddress     string    `json:"gatewayAddress"`
-	CreatedAt          time.Time `json:"createdAt"`
-}
-
-type UninstallTaskItem struct {
-	ID          int64      `json:"id"`
-	Status      string     `json:"status"`
-	Error       string     `json:"error,omitempty"`
-	RequestedAt time.Time  `json:"requestedAt"`
-	CompletedAt *time.Time `json:"completedAt,omitempty"`
-}
-
-type ClusterPage struct {
-	Items    []ClusterListItem `json:"items"`
-	Total    int               `json:"total"`
-	Page     int               `json:"page"`
-	PageSize int               `json:"pageSize"`
-}
-
-type InstallRecordPage struct {
-	Items    []InstallRecordItem `json:"items"`
-	Total    int                 `json:"total"`
-	Page     int                 `json:"page"`
-	PageSize int                 `json:"pageSize"`
-}
 
 type ClusterService struct {
 	repos    repository.Repositories
@@ -118,20 +27,20 @@ func NewClusterService(repos repository.Repositories, notifier Notifier) *Cluste
 	return &ClusterService{repos: repos, notifier: notifier}
 }
 
-func (s *ClusterService) List(ctx context.Context, page, pageSize int, sortBy, sortOrder string) (*ClusterPage, error) {
+func (s *ClusterService) List(ctx context.Context, page, pageSize int, sortBy, sortOrder string) (*dto.ClusterPageView, error) {
 	rows, total, err := s.repos.Clusters.ListPage(ctx, dbrepo.PageOptions{Limit: pageSize, Offset: (page - 1) * pageSize, SortBy: sortBy, Desc: sortOrder == "desc"})
 	if err != nil {
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
-	items := make([]ClusterListItem, 0, len(rows))
+	items := make([]dto.ClusterItem, 0, len(rows))
 	for i := range rows {
 		c := rows[i]
-		items = append(items, ClusterListItem{Name: c.Name, Phase: c.Phase, OperatorVersion: c.OperatorVersion, KubernetesVersion: c.KubernetesVersion, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, LastHeartbeatAt: c.LastHeartbeatAt, CreatedAt: c.CreatedAt})
+		items = append(items, dto.ClusterItem{Name: c.Name, Phase: c.Phase, OperatorVersion: c.OperatorVersion, KubernetesVersion: c.KubernetesVersion, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, LastHeartbeatAt: c.LastHeartbeatAt, CreatedAt: c.CreatedAt})
 	}
-	return &ClusterPage{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
+	return &dto.ClusterPageView{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
 }
 
-func (s *ClusterService) Get(ctx context.Context, name string) (*ClusterDetail, error) {
+func (s *ClusterService) Get(ctx context.Context, name string) (*dto.ClusterView, error) {
 	c, err := s.repos.Clusters.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -139,10 +48,10 @@ func (s *ClusterService) Get(ctx context.Context, name string) (*ClusterDetail, 
 		}
 		return nil, fmt.Errorf("get cluster: %w", err)
 	}
-	return &ClusterDetail{Name: c.Name, ClusterUID: c.ClusterUID, Phase: c.Phase, OperatorVersion: c.OperatorVersion, LastHeartbeatAt: c.LastHeartbeatAt, KubernetesVersion: c.KubernetesVersion, APIServerAddress: c.APIServerAddress, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, Labels: c.Labels.Data(), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}, nil
+	return &dto.ClusterView{Name: c.Name, ClusterUID: c.ClusterUID, Phase: c.Phase, OperatorVersion: c.OperatorVersion, LastHeartbeatAt: c.LastHeartbeatAt, KubernetesVersion: c.KubernetesVersion, APIServerAddress: c.APIServerAddress, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, Labels: c.Labels.Data(), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}, nil
 }
 
-func (s *ClusterService) Create(ctx context.Context, req CreateClusterRequest) (string, string, error) {
+func (s *ClusterService) Create(ctx context.Context, req dto.ClusterCreateInput) (string, string, error) {
 	if errs := validation.IsDNS1123Subdomain(req.Name); len(errs) > 0 {
 		return "", "", &ValidationError{Msg: "invalid name: " + strings.Join(errs, "; ")}
 	}
@@ -168,7 +77,7 @@ func (s *ClusterService) Create(ctx context.Context, req CreateClusterRequest) (
 	return c.Name, buildInstallCommand(c.Name, token, &req.InstallParams), nil
 }
 
-func (s *ClusterService) UpdateLabels(ctx context.Context, name string, req UpdateClusterLabelsRequest) error {
+func (s *ClusterService) UpdateLabels(ctx context.Context, name string, req dto.ClusterLabelsInput) error {
 	c, err := s.repos.Clusters.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -199,7 +108,7 @@ func (s *ClusterService) Delete(ctx context.Context, name string) error {
 	return nil
 }
 
-func (s *ClusterService) ReissueToken(ctx context.Context, name string, req ReissueClusterTokenRequest) (string, string, error) {
+func (s *ClusterService) ReissueToken(ctx context.Context, name string, req dto.ClusterTokenInput) (string, string, error) {
 	if err := validateInstallParams(&req.InstallParams); err != nil {
 		return "", "", err
 	}
@@ -228,7 +137,7 @@ func (s *ClusterService) ReissueToken(ctx context.Context, name string, req Reis
 	return c.Name, buildInstallCommand(c.Name, token, &req.InstallParams), nil
 }
 
-func (s *ClusterService) LatestInstallParams(ctx context.Context, name string) (*ClusterInstallParams, error) {
+func (s *ClusterService) LatestInstallParams(ctx context.Context, name string) (*dto.ClusterInstallInput, error) {
 	rec, err := s.repos.InstallRecords.LatestForCluster(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("latest install params: %w", err)
@@ -236,10 +145,10 @@ func (s *ClusterService) LatestInstallParams(ctx context.Context, name string) (
 	if rec == nil {
 		return nil, nil
 	}
-	return &ClusterInstallParams{Namespace: rec.Namespace, WebhookImage: ClusterImage{Repository: rec.WebhookRepository, Tag: rec.WebhookTag, PullPolicy: rec.WebhookPullPolicy}, OperatorImage: ClusterImage{Repository: rec.OperatorRepository, Tag: rec.OperatorTag, PullPolicy: rec.OperatorPullPolicy}, HighAvailability: rec.HighAvailability, GatewayAddress: rec.GatewayAddress, GatewayTLSServerName: rec.GatewayTLSServerName, GatewayCABundle: rec.GatewayCABundle}, nil
+	return &dto.ClusterInstallInput{Namespace: rec.Namespace, WebhookImage: dto.ClusterImageInput{Repository: rec.WebhookRepository, Tag: rec.WebhookTag, PullPolicy: rec.WebhookPullPolicy}, OperatorImage: dto.ClusterImageInput{Repository: rec.OperatorRepository, Tag: rec.OperatorTag, PullPolicy: rec.OperatorPullPolicy}, HighAvailability: rec.HighAvailability, GatewayAddress: rec.GatewayAddress, GatewayTLSServerName: rec.GatewayTLSServerName, GatewayCABundle: rec.GatewayCABundle}, nil
 }
 
-func (s *ClusterService) CreateUninstall(ctx context.Context, name string) (*UninstallTaskItem, error) {
+func (s *ClusterService) CreateUninstall(ctx context.Context, name string) (*dto.UninstallTaskView, error) {
 	c, err := s.repos.Clusters.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -267,10 +176,10 @@ func (s *ClusterService) CreateUninstall(ctx context.Context, name string) (*Uni
 		return nil, fmt.Errorf("create uninstall task: %w", err)
 	}
 	s.notify(ctx, "cluster-uninstall")
-	return &UninstallTaskItem{ID: task.ID, Status: task.Status, RequestedAt: task.RequestedAt}, nil
+	return &dto.UninstallTaskView{ID: task.ID, Status: task.Status, RequestedAt: task.RequestedAt}, nil
 }
 
-func (s *ClusterService) ListUninstall(ctx context.Context, name string) ([]UninstallTaskItem, error) {
+func (s *ClusterService) ListUninstall(ctx context.Context, name string) ([]dto.UninstallTaskView, error) {
 	c, err := s.repos.Clusters.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -282,9 +191,9 @@ func (s *ClusterService) ListUninstall(ctx context.Context, name string) ([]Unin
 	if err != nil {
 		return nil, fmt.Errorf("list uninstall tasks: %w", err)
 	}
-	out := make([]UninstallTaskItem, 0, len(rows))
+	out := make([]dto.UninstallTaskView, 0, len(rows))
 	for _, t := range rows {
-		out = append(out, UninstallTaskItem{ID: t.ID, Status: t.Status, Error: t.Error, RequestedAt: t.RequestedAt, CompletedAt: t.CompletedAt})
+		out = append(out, dto.UninstallTaskView{ID: t.ID, Status: t.Status, Error: t.Error, RequestedAt: t.RequestedAt, CompletedAt: t.CompletedAt})
 	}
 	return out, nil
 }
@@ -316,23 +225,23 @@ func (s *ClusterService) RetryUninstall(ctx context.Context, name string, taskID
 	return nil
 }
 
-func (s *ClusterService) ListInstallRecords(ctx context.Context, page, pageSize int, sortBy, sortOrder string) (*InstallRecordPage, error) {
+func (s *ClusterService) ListInstallRecords(ctx context.Context, page, pageSize int, sortBy, sortOrder string) (*dto.InstallRecordPageView, error) {
 	rows, total, err := s.repos.InstallRecords.ListPage(ctx, dbrepo.PageOptions{Limit: pageSize, Offset: (page - 1) * pageSize, SortBy: sortBy, Desc: sortOrder == "desc"})
 	if err != nil {
 		return nil, fmt.Errorf("list install records: %w", err)
 	}
-	items := make([]InstallRecordItem, 0, len(rows))
+	items := make([]dto.InstallRecordItemView, 0, len(rows))
 	for _, rec := range rows {
-		items = append(items, InstallRecordItem{ClusterName: rec.ClusterName, Namespace: rec.Namespace, WebhookRepository: rec.WebhookRepository, WebhookTag: rec.WebhookTag, OperatorRepository: rec.OperatorRepository, OperatorTag: rec.OperatorTag, HighAvailability: rec.HighAvailability, GatewayAddress: rec.GatewayAddress, CreatedAt: rec.CreatedAt})
+		items = append(items, dto.InstallRecordItemView{ClusterName: rec.ClusterName, Namespace: rec.Namespace, WebhookRepository: rec.WebhookRepository, WebhookTag: rec.WebhookTag, OperatorRepository: rec.OperatorRepository, OperatorTag: rec.OperatorTag, HighAvailability: rec.HighAvailability, GatewayAddress: rec.GatewayAddress, CreatedAt: rec.CreatedAt})
 	}
-	return &InstallRecordPage{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
+	return &dto.InstallRecordPageView{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
 }
 
-func (s *ClusterService) recordInstall(ctx context.Context, clusterName string, p *ClusterInstallParams) error {
+func (s *ClusterService) recordInstall(ctx context.Context, clusterName string, p *dto.ClusterInstallInput) error {
 	return s.repos.InstallRecords.Create(ctx, installRecord(clusterName, p))
 }
 
-func installRecord(clusterName string, p *ClusterInstallParams) *dbrepo.ClusterInstallRecord {
+func installRecord(clusterName string, p *dto.ClusterInstallInput) *dbrepo.ClusterInstallRecord {
 	return &dbrepo.ClusterInstallRecord{ClusterName: clusterName, Namespace: p.Namespace, WebhookRepository: p.WebhookImage.Repository, WebhookTag: p.WebhookImage.Tag, WebhookPullPolicy: p.WebhookImage.PullPolicy, OperatorRepository: p.OperatorImage.Repository, OperatorTag: p.OperatorImage.Tag, OperatorPullPolicy: p.OperatorImage.PullPolicy, HighAvailability: p.HighAvailability, GatewayAddress: p.GatewayAddress, GatewayTLSServerName: p.GatewayTLSServerName, GatewayCABundle: p.GatewayCABundle}
 }
 
@@ -344,7 +253,7 @@ func (s *ClusterService) notify(ctx context.Context, topic string) {
 
 const dangerousShellChars = "`$\\\""
 
-func validateInstallParams(p *ClusterInstallParams) error {
+func validateInstallParams(p *dto.ClusterInstallInput) error {
 	if errs := validation.IsDNS1123Subdomain(p.Namespace); len(errs) > 0 {
 		return &ValidationError{Msg: "invalid namespace: " + strings.Join(errs, "; ")}
 	}
@@ -364,7 +273,7 @@ func validateInstallParams(p *ClusterInstallParams) error {
 	return nil
 }
 
-func buildInstallCommand(clusterName, token string, p *ClusterInstallParams) string {
+func buildInstallCommand(clusterName, token string, p *dto.ClusterInstallInput) string {
 	var b strings.Builder
 	fmt.Fprint(&b, "helm upgrade --install kubesentry charts/kubesentry \\\n  --namespace "+p.Namespace+" --create-namespace \\\n")
 	fmt.Fprintf(&b, "  --set webhook.image.repository=%q \\\n", p.WebhookImage.Repository)
