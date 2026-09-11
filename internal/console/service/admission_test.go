@@ -71,10 +71,10 @@ func TestAdmissionListOwnsPaginationMappingAndPolicyFallback(t *testing.T) {
 		}},
 	}
 	svc := NewAdmissionService(repo, nil)
-	params := dto.ListAdmissionEventsParams{
-		Page:     dto.NewOptInt(2),
-		PageSize: dto.NewOptPageSize(dto.PageSize10),
-		Verdict:  []dto.ListAdmissionEventsVerdictItem{dto.ListAdmissionEventsVerdictItemDeny},
+	params := dto.AdmissionEventListOptions{
+		Page:     2,
+		PageSize: 10,
+		Verdicts: []string{"deny"},
 	}
 	data, err := svc.List(t.Context(), params)
 	if err != nil {
@@ -90,7 +90,7 @@ func TestAdmissionListOwnsPaginationMappingAndPolicyFallback(t *testing.T) {
 
 func TestAdmissionGetNormalizesRepositoryNotFound(t *testing.T) {
 	svc := NewAdmissionService(&admissionRepositoryStub{getEventErr: gorm.ErrRecordNotFound}, nil)
-	_, err := svc.Get(t.Context(), dto.ResourceID("42"))
+	_, err := svc.Get(t.Context(), "42")
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("error = %v, want ErrNotFound", err)
 	}
@@ -99,18 +99,20 @@ func TestAdmissionGetNormalizesRepositoryNotFound(t *testing.T) {
 func TestAdmissionUpdateSettingsRejectsVersionedGVRBeforeWrite(t *testing.T) {
 	repo := &admissionRepositoryStub{}
 	svc := NewAdmissionService(repo, nil)
-	_, err := svc.UpdateSettings(t.Context(), &dto.AdmissionEventSettingsRequest{
+	retryEnabled, maxRetryAttempts, queueCapacity := true, 3, 1024
+	incidentRetentionDays, observationEnabled := 7, false
+	_, err := svc.UpdateSettings(t.Context(), &dto.AdmissionSettingsInput{
 		DefaultRetentionDays:  14,
-		RetryEnabled:          dto.NewOptBool(true),
-		MaxRetryAttempts:      dto.NewOptInt(3),
-		QueueCapacity:         dto.NewOptInt(1024),
-		IncidentRetentionDays: dto.NewOptInt(7),
-		ObservationEnabled:    dto.NewOptBool(false),
-		StoragePolicies: []dto.AdmissionStoragePolicy{{
-			MatchMode:  dto.AdmissionStoragePolicyMatchModeInclude,
-			Verdicts:   []dto.AdmissionStoragePolicyVerdictsItem{dto.AdmissionStoragePolicyVerdictsItemDeny},
+		RetryEnabled:          &retryEnabled,
+		MaxRetryAttempts:      &maxRetryAttempts,
+		QueueCapacity:         &queueCapacity,
+		IncidentRetentionDays: &incidentRetentionDays,
+		ObservationEnabled:    &observationEnabled,
+		StoragePolicies: []dto.AdmissionStoragePolicyView{{
+			MatchMode:  "include",
+			Verdicts:   []string{"deny"},
 			Clusters:   []string{},
-			Gvks:       []string{"apps/v1/deployments"},
+			GVRs:       []string{"apps/v1/deployments"},
 			Namespaces: []string{},
 		}},
 	})
