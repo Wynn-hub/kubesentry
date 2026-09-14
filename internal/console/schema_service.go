@@ -8,14 +8,14 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 )
 
-func (h *Handlers) fieldSchema(ctx context.Context, p dto.GetFieldSchemaParams) ([]dto.FieldNode, error) {
-	group := p.Group.Or("")
+func (h *Handlers) fieldSchema(ctx context.Context, p dto.FieldSchemaOptions) ([]dto.FieldNodeView, error) {
+	group := p.Group
 	version, resource := p.Version, p.Resource
 	if version == "" || resource == "" {
 		return nil, fmt.Errorf("version and resource query params are required")
 	}
 	key := group + "/" + version + "/" + resource
-	if !p.Refresh.Or(false) {
+	if !p.Refresh {
 		if v, ok := h.schemaCache().Load(key); ok {
 			e := v.(schemaCacheEntry)
 			if ctx.Err() == nil && time.Now().Before(e.expiresAt) {
@@ -35,14 +35,15 @@ func (h *Handlers) fieldSchema(ctx context.Context, p dto.GetFieldSchemaParams) 
 	return toDTOFields(fields), nil
 }
 
-func toDTOFields(in []FieldNode) []dto.FieldNode {
-	out := make([]dto.FieldNode, len(in))
+func toDTOFields(in []FieldNode) []dto.FieldNodeView {
+	out := make([]dto.FieldNodeView, len(in))
 	for i := range in {
-		var mapValue dto.OptString
+		var mapValue *string
 		if in[i].MapValueType != "" {
-			mapValue.SetTo(in[i].MapValueType)
+			value := in[i].MapValueType
+			mapValue = &value
 		}
-		out[i] = dto.FieldNode{Name: in[i].Name, Type: dto.FieldNodeType(in[i].Type), IsArray: in[i].IsArray, IsMap: in[i].IsMap, MapValueType: mapValue, Children: toDTOFields(in[i].Children)}
+		out[i] = dto.FieldNodeView{Name: in[i].Name, Type: in[i].Type, IsArray: in[i].IsArray, IsMap: in[i].IsMap, MapValueType: mapValue, Children: toDTOFields(in[i].Children)}
 	}
 	return out
 }

@@ -21,7 +21,7 @@ type Services struct {
 	Incident     *IncidentService
 	Cluster      *ClusterService
 	Distribution *DistributionService
-	Schema       func(context.Context, dto.GetFieldSchemaParams) ([]dto.FieldNode, error)
+	Schema       func(context.Context, dto.FieldSchemaOptions) ([]dto.FieldNodeView, error)
 	Platform     *PlatformService
 }
 
