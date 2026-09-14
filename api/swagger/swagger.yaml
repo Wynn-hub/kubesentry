@@ -195,6 +195,113 @@ definitions:
     - readyNodeCount
     - updatedAt
     type: object
+  dto.DistributionClusters:
+    properties:
+      byName:
+        items:
+          type: string
+        type: array
+      clusterSelector:
+        $ref: '#/definitions/dto.LabelSelectorView'
+    type: object
+  dto.DistributionInput:
+    properties:
+      name:
+        type: string
+      resourceVersion:
+        type: string
+      spec:
+        $ref: '#/definitions/dto.DistributionSpecView'
+    required:
+    - spec
+    type: object
+  dto.DistributionItem:
+    properties:
+      name:
+        type: string
+      policyGroups:
+        items:
+          type: string
+        type: array
+    required:
+    - name
+    - policyGroups
+    type: object
+  dto.DistributionNameView:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  dto.DistributionOverride:
+    properties:
+      cluster:
+        type: string
+      enforcementMode:
+        enum:
+        - audit
+        - enforce
+        type: string
+    required:
+    - cluster
+    - enforcementMode
+    type: object
+  dto.DistributionPageView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.DistributionItem'
+        type: array
+      page:
+        type: integer
+      pageSize:
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        type: integer
+      total:
+        type: integer
+    required:
+    - items
+    - page
+    - pageSize
+    - total
+    type: object
+  dto.DistributionSpecView:
+    properties:
+      clusters:
+        $ref: '#/definitions/dto.DistributionClusters'
+      overrides:
+        items:
+          $ref: '#/definitions/dto.DistributionOverride'
+        type: array
+      policyExceptions:
+        items:
+          type: string
+        type: array
+      policyGroups:
+        items:
+          type: string
+        type: array
+    required:
+    - policyGroups
+    type: object
+  dto.DistributionView:
+    properties:
+      name:
+        type: string
+      resourceVersion:
+        type: string
+      spec:
+        $ref: '#/definitions/dto.DistributionSpecView'
+    required:
+    - name
+    - resourceVersion
+    - spec
+    type: object
   dto.InstallRecordItemView:
     properties:
       clusterName:
@@ -249,6 +356,36 @@ definitions:
     - page
     - pageSize
     - total
+    type: object
+  dto.LabelSelectorRequirementView:
+    properties:
+      key:
+        type: string
+      operator:
+        enum:
+        - In
+        - NotIn
+        - Exists
+        - DoesNotExist
+        type: string
+      values:
+        items:
+          type: string
+        type: array
+    required:
+    - key
+    - operator
+    type: object
+  dto.LabelSelectorView:
+    properties:
+      matchExpressions:
+        items:
+          $ref: '#/definitions/dto.LabelSelectorRequirementView'
+        type: array
+      matchLabels:
+        additionalProperties:
+          type: string
+        type: object
     type: object
   dto.SwagEmptyResponse:
     properties:
@@ -835,6 +972,216 @@ paths:
       summary: 重试集群卸载任务
       tags:
       - Cluster
+  /distributions:
+    get:
+      description: 查询策略组到集群的分发配置。
+      operationId: listDistributions
+      parameters:
+      - default: 1
+        description: 页码，从 1 开始
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        in: query
+        name: pageSize
+        type: integer
+      - default: name
+        description: 排序字段
+        enum:
+        - name
+        in: query
+        name: sortBy
+        type: string
+      - default: asc
+        description: 排序方向
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.DistributionPageView'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 分页查询策略分发
+      tags:
+      - Distribution
+    post:
+      consumes:
+      - application/json
+      description: 创建策略组到指定集群范围的分发配置。
+      operationId: createDistribution
+      parameters:
+      - description: 策略分发
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DistributionInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.DistributionNameView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 创建策略分发
+      tags:
+      - Distribution
+  /distributions/{name}:
+    delete:
+      description: 删除指定策略分发配置。
+      operationId: deleteDistribution
+      parameters:
+      - description: 策略分发名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 删除策略分发
+      tags:
+      - Distribution
+    get:
+      description: 查询指定策略分发的集群范围和策略组配置。
+      operationId: getDistribution
+      parameters:
+      - description: 策略分发名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.DistributionView'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询策略分发详情
+      tags:
+      - Distribution
+    put:
+      consumes:
+      - application/json
+      description: 更新策略分发的集群范围和策略组配置。
+      operationId: updateDistribution
+      parameters:
+      - description: 策略分发名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 策略分发
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DistributionInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.DistributionNameView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 更新策略分发
+      tags:
+      - Distribution
   /install-records:
     get:
       description: 分页查询平台生成的集群安装参数记录。

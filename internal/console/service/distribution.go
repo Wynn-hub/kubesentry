@@ -92,7 +92,7 @@ func (s *DistributionService) Update(ctx context.Context, name string, req dto.D
 
 func distributionSpecModel(spec dto.DistributionSpecView) gatewaymodel.PolicyDistributionSpec {
 	return gatewaymodel.PolicyDistributionSpec{
-		Clusters:         gatewaymodel.DistributionClusters{ByName: spec.Clusters.ByName, ClusterSelector: spec.Clusters.ClusterSelector},
+		Clusters:         gatewaymodel.DistributionClusters{ByName: spec.Clusters.ByName, ClusterSelector: labelSelectorModel(spec.Clusters.ClusterSelector)},
 		PolicyGroups:     spec.PolicyGroups,
 		PolicyExceptions: spec.PolicyExceptions,
 		Overrides:        distributionOverridesModel(spec.Overrides),
@@ -101,7 +101,7 @@ func distributionSpecModel(spec dto.DistributionSpecView) gatewaymodel.PolicyDis
 
 func distributionSpecView(spec gatewaymodel.PolicyDistributionSpec) dto.DistributionSpecView {
 	return dto.DistributionSpecView{
-		Clusters:         dto.DistributionClusters{ByName: spec.Clusters.ByName, ClusterSelector: spec.Clusters.ClusterSelector},
+		Clusters:         dto.DistributionClusters{ByName: spec.Clusters.ByName, ClusterSelector: labelSelectorView(spec.Clusters.ClusterSelector)},
 		PolicyGroups:     spec.PolicyGroups,
 		PolicyExceptions: spec.PolicyExceptions,
 		Overrides:        distributionOverridesView(spec.Overrides),
