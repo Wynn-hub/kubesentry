@@ -387,6 +387,340 @@ definitions:
           type: string
         type: object
     type: object
+  dto.PlatformClusterView:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/dto.PlatformComponentView'
+        type: array
+      health:
+        enum:
+        - ok
+        - degraded
+        - unavailable
+        type: string
+      name:
+        type: string
+      phase:
+        enum:
+        - Registering
+        - Online
+        - Offline
+        - Uninstalling
+        type: string
+    required:
+    - components
+    - health
+    - name
+    - phase
+    type: object
+  dto.PlatformComponentView:
+    properties:
+      component:
+        enum:
+        - gateway
+        - postgres
+        - console-api
+        - console-web
+        - operator
+        - webhook
+        type: string
+      hasLeadership:
+        type: boolean
+      health:
+        enum:
+        - ok
+        - degraded
+        - unavailable
+        - pending
+        type: string
+      healthReason:
+        type: string
+      instances:
+        items:
+          $ref: '#/definitions/dto.PlatformInstanceView'
+        type: array
+      lastLeadershipChange:
+        format: date-time
+        type: string
+      noLeader:
+        type: boolean
+      singleReplica:
+        type: boolean
+    required:
+    - component
+    - hasLeadership
+    - health
+    - healthReason
+    - instances
+    - noLeader
+    - singleReplica
+    type: object
+  dto.PlatformDatabaseStatsView:
+    properties:
+      cacheHitRatio:
+        format: double
+        type: number
+      connections:
+        type: integer
+      databaseBytes:
+        type: integer
+      maxConnections:
+        type: integer
+      poolIdle:
+        type: integer
+      poolInUse:
+        type: integer
+      poolWaitCount:
+        type: integer
+      poolWaitSeconds:
+        format: double
+        type: number
+      rollbacks:
+        type: integer
+      transactions:
+        type: integer
+    required:
+    - cacheHitRatio
+    - connections
+    - databaseBytes
+    - maxConnections
+    - poolIdle
+    - poolInUse
+    - poolWaitCount
+    - poolWaitSeconds
+    - rollbacks
+    - transactions
+    type: object
+  dto.PlatformInstanceView:
+    properties:
+      cpuMillis:
+        type: integer
+      dbStats:
+        $ref: '#/definitions/dto.PlatformDatabaseStatsView'
+      goroutines:
+        type: integer
+      health:
+        enum:
+        - ok
+        - degraded
+        - no_data
+        type: string
+      healthReason:
+        type: string
+      heapAllocBytes:
+        type: integer
+      heapSysBytes:
+        type: integer
+      instance:
+        type: string
+      lastObservedAt:
+        format: date-time
+        type: string
+      memoryBytes:
+        type: integer
+      memoryLimitBytes:
+        type: integer
+      restartCount:
+        type: integer
+      role:
+        enum:
+        - leader
+        - standby
+        - none
+        type: string
+      uptimeSeconds:
+        type: integer
+    required:
+    - cpuMillis
+    - goroutines
+    - health
+    - healthReason
+    - heapAllocBytes
+    - heapSysBytes
+    - instance
+    - lastObservedAt
+    - memoryBytes
+    - memoryLimitBytes
+    - restartCount
+    - role
+    - uptimeSeconds
+    type: object
+  dto.PlatformLeadershipEventView:
+    properties:
+      changedAt:
+        format: date-time
+        type: string
+      clusterId:
+        pattern: ^[0-9]+$
+        type: string
+      clusterName:
+        type: string
+      component:
+        type: string
+      createdAt:
+        format: date-time
+        type: string
+      detectedBy:
+        type: string
+      id:
+        pattern: ^[0-9]+$
+        type: string
+      instance:
+        type: string
+      roleFrom:
+        enum:
+        - leader
+        - standby
+        - none
+        type: string
+      roleTo:
+        enum:
+        - leader
+        - standby
+        - none
+        type: string
+    required:
+    - changedAt
+    - clusterId
+    - clusterName
+    - component
+    - createdAt
+    - detectedBy
+    - id
+    - instance
+    - roleFrom
+    - roleTo
+    type: object
+  dto.PlatformLeadershipPageView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.PlatformLeadershipEventView'
+        type: array
+      page:
+        type: integer
+      pageSize:
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        type: integer
+      total:
+        type: integer
+    required:
+    - items
+    - page
+    - pageSize
+    - total
+    type: object
+  dto.PlatformMemberPlaneView:
+    properties:
+      clusters:
+        items:
+          $ref: '#/definitions/dto.PlatformClusterView'
+        type: array
+      page:
+        type: integer
+      pageSize:
+        type: integer
+      total:
+        type: integer
+    required:
+    - clusters
+    - page
+    - pageSize
+    - total
+    type: object
+  dto.PlatformOverviewView:
+    properties:
+      enabled:
+        type: boolean
+      gatewayPlane:
+        items:
+          $ref: '#/definitions/dto.PlatformComponentView'
+        type: array
+      memberPlane:
+        $ref: '#/definitions/dto.PlatformMemberPlaneView'
+      platformHealth:
+        enum:
+        - ok
+        - degraded
+        - unavailable
+        - disabled
+        type: string
+    required:
+    - enabled
+    - gatewayPlane
+    - memberPlane
+    - platformHealth
+    type: object
+  dto.PlatformSettingsInput:
+    properties:
+      enabled:
+        type: boolean
+      retentionDays:
+        minimum: 1
+        type: integer
+    required:
+    - enabled
+    - retentionDays
+    type: object
+  dto.PlatformSettingsView:
+    properties:
+      enabled:
+        type: boolean
+      maxRetentionDays:
+        type: integer
+      retentionDays:
+        minimum: 1
+        type: integer
+    required:
+    - enabled
+    - maxRetentionDays
+    - retentionDays
+    type: object
+  dto.PlatformTrendPointView:
+    properties:
+      bucketStartedAt:
+        format: date-time
+        type: string
+      cpuUsageMicros:
+        type: integer
+      gcPauseMicros:
+        type: integer
+      goroutines:
+        type: integer
+      memoryBytes:
+        type: integer
+    required:
+    - bucketStartedAt
+    - cpuUsageMicros
+    - gcPauseMicros
+    - goroutines
+    - memoryBytes
+    type: object
+  dto.PlatformTrendView:
+    properties:
+      from:
+        format: date-time
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/dto.PlatformTrendPointView'
+        type: array
+      stepSeconds:
+        type: integer
+      to:
+        format: date-time
+        type: string
+    required:
+    - from
+    - items
+    - stepSeconds
+    - to
+    type: object
   dto.SwagEmptyResponse:
     properties:
       code:
@@ -544,6 +878,7 @@ definitions:
       error:
         type: string
       id:
+        pattern: ^[0-9]+$
         type: string
       requestedAt:
         format: date-time
@@ -564,6 +899,7 @@ definitions:
   dto.UninstallTaskIDView:
     properties:
       id:
+        pattern: ^[0-9]+$
         type: string
     required:
     - id
@@ -1239,6 +1575,252 @@ paths:
       summary: 查询安装记录
       tags:
       - Cluster
+  /platform/instances/{component}/{instance}/trend:
+    get:
+      description: 查询指定平台组件实例在时间范围内的资源趋势。
+      operationId: getPlatformInstanceTrend
+      parameters:
+      - description: 平台组件名称
+        enum:
+        - webhook
+        - operator
+        - gateway
+        - console-api
+        - console-web
+        - postgres
+        in: path
+        name: component
+        required: true
+        type: string
+      - description: 平台组件实例名称
+        in: path
+        name: instance
+        required: true
+        type: string
+      - description: 成员面组件所属的集群名称；Gateway 平面组件省略
+        in: query
+        name: cluster
+        type: string
+      - description: 查询起始时间，RFC3339 格式
+        format: date-time
+        in: query
+        name: from
+        type: string
+      - description: 查询结束时间，RFC3339 格式
+        format: date-time
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.PlatformTrendView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 获取平台实例趋势
+      tags:
+      - Platform
+  /platform/leadership-events:
+    get:
+      description: 分页查询平台组件 Leader 变更记录。
+      operationId: listPlatformLeadershipEvents
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: 每页记录数
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        in: query
+        name: pageSize
+        type: integer
+      - description: 按发生领导权变更的组件筛选
+        enum:
+        - webhook
+        - operator
+        - gateway
+        - console-api
+        - console-web
+        - postgres
+        in: query
+        name: component
+        type: string
+      - description: 按关联成员集群筛选；Gateway 平面事件省略
+        in: query
+        name: cluster
+        type: string
+      - description: 查询起始时间，RFC3339 格式
+        format: date-time
+        in: query
+        name: from
+        type: string
+      - description: 查询结束时间，RFC3339 格式
+        format: date-time
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.PlatformLeadershipPageView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询平台领导权事件
+      tags:
+      - Platform
+  /platform/overview:
+    get:
+      description: 查询控制面和成员集群的组件健康、实例和资源摘要。
+      operationId: getPlatformOverview
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: 每页记录数
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        in: query
+        name: pageSize
+        type: integer
+      - description: 按成员集群聚合健康状态筛选
+        enum:
+        - ok
+        - degraded
+        - unavailable
+        in: query
+        name: health
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.PlatformOverviewView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 获取平台运行概览
+      tags:
+      - Platform
+  /platform/settings:
+    get:
+      description: 查询平台组件采样和历史保存配置。
+      operationId: getPlatformSettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.PlatformSettingsView'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 获取平台可观测性设置
+      tags:
+      - Platform
+    put:
+      consumes:
+      - application/json
+      description: 更新平台组件采样和历史保存配置。
+      operationId: updatePlatformSettings
+      parameters:
+      - description: 平台可观测性设置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.PlatformSettingsInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.PlatformSettingsView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 更新平台可观测性设置
+      tags:
+      - Platform
   /policies:
     get:
       description: List policies with pagination, sorting, and filters.

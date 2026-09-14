@@ -18,7 +18,7 @@ REPORT_DIR = $(DIST_DIR)/test-reports
 # cannot exhaust Docker with dozens of simultaneous databases. Override with
 # TEST_PACKAGE_PARALLELISM only when the local Docker daemon has capacity.
 TEST_PACKAGE_PARALLELISM ?= 1
-SWAG_VERSION ?= v1.16.6
+SWAG_VERSION ?= v2.0.0-rc5
 
 # VERSION is the single source of truth for all artifact naming.
 # Override at the command line: make release VERSION=v0.1.0
@@ -110,13 +110,13 @@ proto:
 
 # ── OpenAPI codegen ───────────────────────────────────────────────────────────
 swagger:
-	go run github.com/swaggo/swag/cmd/swag@$(SWAG_VERSION) init -g swagger.go \
+	go run github.com/swaggo/swag/v2/cmd/swag@$(SWAG_VERSION) init -g swagger.go \
 	  -d cmd/console,internal/console/handler,internal/console/dto --parseInternal \
 	  --output api/swagger --outputTypes yaml
 
 swagger-check:
 	@set -eu; task_tmp=$$(mktemp -d); trap 'rm -rf "$$task_tmp"' EXIT; \
-	go run github.com/swaggo/swag/cmd/swag@$(SWAG_VERSION) init -g swagger.go \
+	go run github.com/swaggo/swag/v2/cmd/swag@$(SWAG_VERSION) init -g swagger.go \
 	  -d cmd/console,internal/console/handler,internal/console/dto --parseInternal \
 	  --output "$$task_tmp/swagger" --outputTypes yaml; \
 	cmp -s "$$task_tmp/swagger/swagger.yaml" api/swagger/swagger.yaml; \

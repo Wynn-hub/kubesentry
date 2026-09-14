@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 
-SCHEMA_KEYS = ("type", "format", "enum", "default", "minimum", "maximum", "nullable")
+SCHEMA_KEYS = ("type", "format", "enum", "default", "minimum", "maximum", "pattern", "nullable")
 
 
 def keyword_counts(node: object) -> dict[str, int]:
@@ -127,6 +127,20 @@ def check_spike(old: dict, new: dict) -> None:
         raise ValueError("nullable/union keyword inventory differs")
 
 
+def check_resource_id_patterns(old: dict, new: dict) -> None:
+    expected = old["components"]["schemas"]["ResourceID"]["pattern"]
+    fields = (
+        ("dto.UninstallTaskHTTPView", "id"),
+        ("dto.UninstallTaskIDView", "id"),
+        ("dto.PlatformLeadershipEventView", "id"),
+        ("dto.PlatformLeadershipEventView", "clusterId"),
+    )
+    for schema_name, field_name in fields:
+        actual = new["components"]["schemas"][schema_name]["properties"][field_name].get("pattern")
+        if actual != expected:
+            raise ValueError(f"{schema_name}.{field_name} pattern differs")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("baseline", type=Path)
@@ -136,6 +150,7 @@ def main() -> None:
         baseline = json.loads(args.baseline.read_text())
         candidate = json.loads(args.candidate.read_text())
         check_spike(baseline, candidate)
+        check_resource_id_patterns(baseline, candidate)
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         print(f"Swag spike contract mismatch: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc

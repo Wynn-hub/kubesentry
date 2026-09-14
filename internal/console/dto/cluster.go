@@ -88,7 +88,7 @@ type UninstallTaskView struct {
 }
 
 type UninstallTaskHTTPView struct {
-	ID          string     `json:"id" binding:"required"`
+	ID          string     `json:"id" binding:"required" pattern:"^[0-9]+$"`
 	Status      string     `json:"status" binding:"required" enums:"Pending,Received,Running,Succeeded,Failed"`
 	Error       string     `json:"error,omitempty"`
 	RequestedAt time.Time  `json:"requestedAt" binding:"required" format:"date-time"`
@@ -96,7 +96,7 @@ type UninstallTaskHTTPView struct {
 }
 
 type UninstallTaskIDView struct {
-	ID string `json:"id" binding:"required"`
+	ID string `json:"id" binding:"required" pattern:"^[0-9]+$"`
 }
 
 type ClusterPageView struct {
