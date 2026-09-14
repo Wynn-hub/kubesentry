@@ -52,22 +52,21 @@ func NewPlatformService(platform repository.PlatformRepository, clusters reposit
 	}
 }
 
-func (s *PlatformService) Overview(ctx context.Context, p dto.GetPlatformOverviewParams) (dto.PlatformOverview, error) {
+func (s *PlatformService) Overview(ctx context.Context, p dto.PlatformOverviewOptions) (dto.PlatformOverviewView, error) {
 	if s.platform == nil || s.clusters == nil {
-		return dto.PlatformOverview{}, errors.New("platform observability is unavailable")
+		return dto.PlatformOverviewView{}, errors.New("platform observability is unavailable")
 	}
-	page := p.Page.Or(1)
-	pageSize := int(p.PageSize.Or(dto.PageSize20))
+	page, pageSize := p.Page, p.PageSize
 	settings, err := s.platform.GetSettings(ctx)
 	if err != nil {
-		return dto.PlatformOverview{}, err
+		return dto.PlatformOverviewView{}, err
 	}
 	if !settings.Enabled {
-		return dto.PlatformOverview{
-			PlatformHealth: dto.PlatformOverviewHealthDisabled,
-			GatewayPlane:   []dto.PlatformComponent{},
-			MemberPlane: dto.PlatformOverviewMemberPlane{
-				Clusters: []dto.PlatformCluster{}, Page: page, PageSize: pageSize,
+		return dto.PlatformOverviewView{
+			PlatformHealth: "disabled",
+			GatewayPlane:   []dto.PlatformComponentView{},
+			MemberPlane: dto.PlatformMemberPlaneView{
+				Clusters: []dto.PlatformClusterView{}, Page: page, PageSize: pageSize,
 			},
 		}, nil
 	}
@@ -79,11 +78,11 @@ func (s *PlatformService) Overview(ctx context.Context, p dto.GetPlatformOvervie
 	}
 	samples, err := s.platform.LatestSamples(ctx, now.Add(-retention))
 	if err != nil {
-		return dto.PlatformOverview{}, err
+		return dto.PlatformOverviewView{}, err
 	}
 	restartedRows, err := s.platform.RestartedInstances(ctx, now.Add(-platformHealthRange))
 	if err != nil {
-		return dto.PlatformOverview{}, err
+		return dto.PlatformOverviewView{}, err
 	}
 	signals := platformHealthSignals{
 		restarted: map[string]bool{},
@@ -95,21 +94,21 @@ func (s *PlatformService) Overview(ctx context.Context, p dto.GetPlatformOvervie
 	}
 	pressuredRows, err := s.platform.MemoryPressuredInstances(ctx, now.Add(-platformHealthRange))
 	if err != nil {
-		return dto.PlatformOverview{}, err
+		return dto.PlatformOverviewView{}, err
 	}
 	for _, row := range pressuredRows {
 		signals.pressured[platformInstanceKey(row.Component, row.Instance, row.ClusterID)] = true
 	}
 	cpuRows, err := s.platform.LatestCPUUsage(ctx, now.Add(-retention))
 	if err != nil {
-		return dto.PlatformOverview{}, err
+		return dto.PlatformOverviewView{}, err
 	}
 	for _, row := range cpuRows {
 		signals.cpuUsage[platformInstanceKey(row.Component, row.Instance, row.ClusterID)] = row.CPUUsageMicros
 	}
 	events, err := s.platform.LatestLeadershipEvents(ctx, now.Add(-dbrepo.PlatformLeadershipRetention))
 	if err != nil {
-		return dto.PlatformOverview{}, err
+		return dto.PlatformOverviewView{}, err
 	}
 	lastChanges := map[string]time.Time{}
 	for _, event := range events {
@@ -120,28 +119,25 @@ func (s *PlatformService) Overview(ctx context.Context, p dto.GetPlatformOvervie
 	}
 
 	grouped := groupPlatformSamples(samples)
-	result := dto.PlatformOverview{
+	result := dto.PlatformOverviewView{
 		Enabled:        true,
-		PlatformHealth: dto.PlatformOverviewHealthOk,
-		GatewayPlane:   make([]dto.PlatformComponent, 0, len(gatewayPlaneOrder)),
+		PlatformHealth: "ok",
+		GatewayPlane:   make([]dto.PlatformComponentView, 0, len(gatewayPlaneOrder)),
 	}
 	for _, component := range gatewayPlaneOrder {
 		item := buildPlatformComponent(component, grouped[platformComponentKey(string(component), 0)], lastChanges[platformComponentKey(string(component), 0)], signals, now)
 		result.GatewayPlane = append(result.GatewayPlane, item)
-		result.PlatformHealth = dto.PlatformOverviewHealth(worsePlatformHealth(string(result.PlatformHealth), string(item.Health)))
+		result.PlatformHealth = worsePlatformHealth(result.PlatformHealth, item.Health)
 	}
 
 	clusters, err := s.clusters.List(ctx)
 	if err != nil {
-		return dto.PlatformOverview{}, err
+		return dto.PlatformOverviewView{}, err
 	}
-	filter := ""
-	if p.Health.Set {
-		filter = strings.TrimSpace(string(p.Health.Value))
-	}
-	all := make([]dto.PlatformCluster, 0, len(clusters))
+	filter := strings.TrimSpace(p.Health)
+	all := make([]dto.PlatformClusterView, 0, len(clusters))
 	for _, cluster := range clusters {
-		components := make([]dto.PlatformComponent, 0, len(memberPlaneOrder))
+		components := make([]dto.PlatformComponentView, 0, len(memberPlaneOrder))
 		for _, component := range memberPlaneOrder {
 			components = append(components, buildPlatformComponent(component,
 				grouped[platformComponentKey(string(component), cluster.ID)],
@@ -149,18 +145,18 @@ func (s *PlatformService) Overview(ctx context.Context, p dto.GetPlatformOvervie
 		}
 		health := "ok"
 		for _, component := range components {
-			health = worsePlatformHealth(health, string(component.Health))
+			health = worsePlatformHealth(health, component.Health)
 		}
 		if filter != "" && health != filter {
 			continue
 		}
-		all = append(all, dto.PlatformCluster{
-			Name: cluster.Name, Phase: dto.PlatformClusterPhase(cluster.Phase),
-			Health: dto.PlatformClusterHealth(health), Components: components,
+		all = append(all, dto.PlatformClusterView{
+			Name: cluster.Name, Phase: cluster.Phase,
+			Health: health, Components: components,
 		})
 	}
-	result.MemberPlane = dto.PlatformOverviewMemberPlane{
-		Total: len(all), Page: page, PageSize: pageSize, Clusters: []dto.PlatformCluster{},
+	result.MemberPlane = dto.PlatformMemberPlaneView{
+		Total: len(all), Page: page, PageSize: pageSize, Clusters: []dto.PlatformClusterView{},
 	}
 	start := (page - 1) * pageSize
 	if start < len(all) {
@@ -170,109 +166,105 @@ func (s *PlatformService) Overview(ctx context.Context, p dto.GetPlatformOvervie
 	return result, nil
 }
 
-func (s *PlatformService) InstanceTrend(ctx context.Context, p dto.GetPlatformInstanceTrendParams) (dto.PlatformTrend, error) {
+func (s *PlatformService) InstanceTrend(ctx context.Context, p dto.PlatformTrendOptions) (dto.PlatformTrendView, error) {
 	if s.platform == nil || s.clusters == nil {
-		return dto.PlatformTrend{}, errors.New("platform observability is unavailable")
+		return dto.PlatformTrendView{}, errors.New("platform observability is unavailable")
 	}
 	from, to, err := s.platformWindow(p.From, p.To, dbrepo.PlatformSampleRetentionMax, 24*time.Hour)
 	if err != nil {
-		return dto.PlatformTrend{}, err
+		return dto.PlatformTrendView{}, err
 	}
 	clusterID := int64(0)
-	if p.Cluster.Set && p.Cluster.Value != "" {
-		cluster, err := s.clusters.GetByName(ctx, p.Cluster.Value)
+	if p.Cluster != "" {
+		cluster, err := s.clusters.GetByName(ctx, p.Cluster)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return dto.PlatformTrend{}, ErrNotFound
+				return dto.PlatformTrendView{}, ErrNotFound
 			}
-			return dto.PlatformTrend{}, err
+			return dto.PlatformTrendView{}, err
 		}
 		clusterID = cluster.ID
 	}
 	step := observationTrendStep(to.Sub(from))
-	rows, err := s.platform.Trend(ctx, string(p.Component), p.Instance, clusterID, from, to, step)
+	rows, err := s.platform.Trend(ctx, p.Component, p.Instance, clusterID, from, to, step)
 	if err != nil {
-		return dto.PlatformTrend{}, err
+		return dto.PlatformTrendView{}, err
 	}
-	items := make([]dto.PlatformTrendPoint, 0, len(rows))
+	items := make([]dto.PlatformTrendPointView, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, dto.PlatformTrendPoint{
+		items = append(items, dto.PlatformTrendPointView{
 			BucketStartedAt: row.BucketStartedAt,
 			MemoryBytes:     int(row.MemoryBytes),
-			CpuUsageMicros:  int(row.CPUUsageMicros),
+			CPUUsageMicros:  int(row.CPUUsageMicros),
 			Goroutines:      int(row.Goroutines),
-			GcPauseMicros:   int(row.GCPauseMicros),
+			GCPauseMicros:   int(row.GCPauseMicros),
 		})
 	}
-	return dto.PlatformTrend{Items: items, StepSeconds: int(step / time.Second), From: from, To: to}, nil
+	return dto.PlatformTrendView{Items: items, StepSeconds: int(step / time.Second), From: from, To: to}, nil
 }
 
-func (s *PlatformService) LeadershipEvents(ctx context.Context, p dto.ListPlatformLeadershipEventsParams) (dto.LeadershipEventListResponseData, error) {
+func (s *PlatformService) LeadershipEvents(ctx context.Context, p dto.PlatformLeadershipOptions) (dto.PlatformLeadershipPageView, error) {
 	if s.platform == nil || s.clusters == nil {
-		return dto.LeadershipEventListResponseData{}, errors.New("platform observability is unavailable")
+		return dto.PlatformLeadershipPageView{}, errors.New("platform observability is unavailable")
 	}
-	page := p.Page.Or(1)
-	pageSize := int(p.PageSize.Or(dto.PageSize20))
+	page, pageSize := p.Page, p.PageSize
 	from, to, err := s.platformWindow(p.From, p.To, dbrepo.PlatformLeadershipRetention, 24*time.Hour)
 	if err != nil {
-		return dto.LeadershipEventListResponseData{}, err
+		return dto.PlatformLeadershipPageView{}, err
 	}
 	var clusterID *int64
-	if p.Cluster.Set && p.Cluster.Value != "" {
-		cluster, err := s.clusters.GetByName(ctx, p.Cluster.Value)
+	if p.Cluster != "" {
+		cluster, err := s.clusters.GetByName(ctx, p.Cluster)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return dto.LeadershipEventListResponseData{}, ErrNotFound
+				return dto.PlatformLeadershipPageView{}, ErrNotFound
 			}
-			return dto.LeadershipEventListResponseData{}, err
+			return dto.PlatformLeadershipPageView{}, err
 		}
 		clusterID = &cluster.ID
 	}
-	component := ""
-	if p.Component.Set {
-		component = string(p.Component.Value)
-	}
+	component := p.Component
 	result, err := s.platform.LeadershipEvents(ctx, component, clusterID, from, to, page, pageSize)
 	if err != nil {
-		return dto.LeadershipEventListResponseData{}, err
+		return dto.PlatformLeadershipPageView{}, err
 	}
-	items := make([]dto.LeadershipEvent, 0, len(result.Items))
+	items := make([]dto.PlatformLeadershipEventView, 0, len(result.Items))
 	for _, event := range result.Items {
-		items = append(items, dto.LeadershipEvent{
-			ID: dto.ResourceID(strconv.FormatInt(event.ID, 10)), Component: event.Component,
-			ClusterId: dto.ResourceID(strconv.FormatInt(event.ClusterID, 10)),
+		items = append(items, dto.PlatformLeadershipEventView{
+			ID: strconv.FormatInt(event.ID, 10), Component: event.Component,
+			ClusterID: strconv.FormatInt(event.ClusterID, 10),
 			Instance:  event.Instance, ClusterName: event.ClusterName,
-			RoleFrom: dto.LeadershipEventRoleFrom(event.RoleFrom), RoleTo: dto.LeadershipEventRoleTo(event.RoleTo),
+			RoleFrom: event.RoleFrom, RoleTo: event.RoleTo,
 			ChangedAt: event.ChangedAt, DetectedBy: event.DetectedBy, CreatedAt: event.CreatedAt,
 		})
 	}
-	return dto.LeadershipEventListResponseData{
+	return dto.PlatformLeadershipPageView{
 		Items: items, Total: int(result.Total), Page: page,
-		PageSize: dto.LeadershipEventListResponseDataPageSize(pageSize),
+		PageSize: pageSize,
 	}, nil
 }
 
-func (s *PlatformService) Settings(ctx context.Context) (dto.PlatformSettings, error) {
+func (s *PlatformService) Settings(ctx context.Context) (dto.PlatformSettingsView, error) {
 	if s.platform == nil {
-		return dto.PlatformSettings{}, errors.New("platform observability is unavailable")
+		return dto.PlatformSettingsView{}, errors.New("platform observability is unavailable")
 	}
 	settings, err := s.platform.GetSettings(ctx)
 	if err != nil {
-		return dto.PlatformSettings{}, err
+		return dto.PlatformSettingsView{}, err
 	}
 	return platformSettingsOf(settings), nil
 }
 
-func (s *PlatformService) UpdateSettings(ctx context.Context, request *dto.PlatformSettingsRequest) (dto.PlatformSettings, error) {
+func (s *PlatformService) UpdateSettings(ctx context.Context, request dto.PlatformSettingsInput) (dto.PlatformSettingsView, error) {
 	if s.platform == nil {
-		return dto.PlatformSettings{}, errors.New("platform observability is unavailable")
+		return dto.PlatformSettingsView{}, errors.New("platform observability is unavailable")
 	}
 	maximum := int(dbrepo.PlatformSampleRetentionMax / (24 * time.Hour))
 	if request.RetentionDays < 1 || request.RetentionDays > maximum {
-		return dto.PlatformSettings{}, &ValidationError{Msg: fmt.Sprintf("retentionDays must be between 1 and %d", maximum)}
+		return dto.PlatformSettingsView{}, &ValidationError{Msg: fmt.Sprintf("retentionDays must be between 1 and %d", maximum)}
 	}
 	if err := s.platform.UpdateSettings(ctx, request.Enabled, request.RetentionDays); err != nil {
-		return dto.PlatformSettings{}, err
+		return dto.PlatformSettingsView{}, err
 	}
 	if s.notifier != nil {
 		s.notifier.NotifyChange(ctx, gatewaypb.PlatformObservabilitySettingsTopic)
@@ -280,22 +272,22 @@ func (s *PlatformService) UpdateSettings(ctx context.Context, request *dto.Platf
 	return s.Settings(ctx)
 }
 
-func platformSettingsOf(settings *dbrepo.PlatformObservabilitySettings) dto.PlatformSettings {
-	return dto.PlatformSettings{
+func platformSettingsOf(settings *dbrepo.PlatformObservabilitySettings) dto.PlatformSettingsView {
+	return dto.PlatformSettingsView{
 		Enabled: settings.Enabled, RetentionDays: settings.RetentionDays,
 		MaxRetentionDays: int(dbrepo.PlatformSampleRetentionMax / (24 * time.Hour)),
 	}
 }
 
-func (s *PlatformService) platformWindow(fromValue, toValue dto.OptDateTime, retention, defaultSpan time.Duration) (time.Time, time.Time, error) {
+func (s *PlatformService) platformWindow(fromValue, toValue *time.Time, retention, defaultSpan time.Duration) (time.Time, time.Time, error) {
 	now := s.now().UTC()
 	to := now
 	from := now.Add(-defaultSpan)
-	if toValue.Set {
-		to = toValue.Value
+	if toValue != nil {
+		to = *toValue
 	}
-	if fromValue.Set {
-		from = fromValue.Value
+	if fromValue != nil {
+		from = *fromValue
 	}
 	if to.After(now) {
 		to = now
@@ -333,14 +325,14 @@ type platformHealthSignals struct {
 	cpuUsage  map[string]int64
 }
 
-func buildPlatformComponent(component platformobs.Component, rows []dbrepo.PlatformComponentSample, lastChange time.Time, signals platformHealthSignals, now time.Time) dto.PlatformComponent {
+func buildPlatformComponent(component platformobs.Component, rows []dbrepo.PlatformComponentSample, lastChange time.Time, signals platformHealthSignals, now time.Time) dto.PlatformComponentView {
 	hasLeadership := component == platformobs.ComponentGateway || component == platformobs.ComponentOperator
-	result := dto.PlatformComponent{
-		Component: dto.PlatformComponentComponent(component), Health: dto.PlatformComponentHealthUnavailable,
-		HasLeadership: hasLeadership, Instances: make([]dto.PlatformInstance, 0, len(rows)),
+	result := dto.PlatformComponentView{
+		Component: string(component), Health: "unavailable",
+		HasLeadership: hasLeadership, Instances: make([]dto.PlatformInstanceView, 0, len(rows)),
 	}
 	if !lastChange.IsZero() {
-		result.LastLeadershipChange = dto.NewOptDateTime(lastChange)
+		result.LastLeadershipChange = &lastChange
 	}
 	leaderCount, noDataCount := 0, 0
 	for _, row := range rows {
@@ -372,15 +364,15 @@ func buildPlatformComponent(component platformobs.Component, rows []dbrepo.Platf
 		if value, exists := signals.cpuUsage[key]; exists && value >= 0 {
 			cpuMillis = value / 1000
 		}
-		instance := dto.PlatformInstance{
-			Instance: row.Instance, Role: dto.PlatformInstanceRole(row.Role), Health: dto.PlatformInstanceHealth(health),
+		instance := dto.PlatformInstanceView{
+			Instance: row.Instance, Role: row.Role, Health: health,
 			HealthReason: reason, UptimeSeconds: int(uptime), RestartCount: int(row.RestartCount),
-			MemoryBytes: int(row.MemoryBytes), MemoryLimitBytes: int(row.MemoryLimitBytes), CpuMillis: int(cpuMillis),
+			MemoryBytes: int(row.MemoryBytes), MemoryLimitBytes: int(row.MemoryLimitBytes), CPUMillis: int(cpuMillis),
 			Goroutines: int(row.Goroutines), HeapAllocBytes: int(row.HeapAllocBytes), HeapSysBytes: int(row.HeapSysBytes),
 			LastObservedAt: row.LastObservedAt,
 		}
 		if stats, ok := databaseStatsOf(dbrepo.DecodeDBStats(row)); ok {
-			instance.DbStats = dto.NewOptDatabaseStats(stats)
+			instance.DBStats = &stats
 		}
 		result.Instances = append(result.Instances, instance)
 	}
@@ -393,48 +385,48 @@ func buildPlatformComponent(component platformobs.Component, rows []dbrepo.Platf
 	})
 	switch {
 	case len(rows) == 0:
-		result.Health = dto.PlatformComponentHealthPending
+		result.Health = "pending"
 		result.HealthReason = "component_pending"
 	case noDataCount == len(rows):
-		result.Health = dto.PlatformComponentHealthUnavailable
+		result.Health = "unavailable"
 		result.HealthReason = "component_no_samples"
 	case noDataCount > 0:
-		result.Health = dto.PlatformComponentHealthDegraded
+		result.Health = "degraded"
 		result.HealthReason = "component_partial_no_data"
 	default:
-		result.Health = dto.PlatformComponentHealthOk
+		result.Health = "ok"
 		for _, instance := range result.Instances {
-			if instance.Health == dto.PlatformInstanceHealthDegraded {
-				result.Health = dto.PlatformComponentHealthDegraded
+			if instance.Health == "degraded" {
+				result.Health = "degraded"
 				if result.HealthReason == "" {
 					result.HealthReason = instance.HealthReason
 				}
 			}
 		}
 	}
-	if hasLeadership && result.Health != dto.PlatformComponentHealthUnavailable && result.Health != dto.PlatformComponentHealthPending && leaderCount != 1 {
-		result.Health = dto.PlatformComponentHealthDegraded
+	if hasLeadership && result.Health != "unavailable" && result.Health != "pending" && leaderCount != 1 {
+		result.Health = "degraded"
 		result.NoLeader = true
 		result.HealthReason = "no_leader"
 	}
-	if result.Health == dto.PlatformComponentHealthDegraded && result.HealthReason == "" {
+	if result.Health == "degraded" && result.HealthReason == "" {
 		result.HealthReason = "unspecified"
 	}
 	result.SingleReplica = hasLeadership && len(result.Instances) == 1 && !result.NoLeader
 	return result
 }
 
-func databaseStatsOf(values map[string]any) (dto.DatabaseStats, bool) {
+func databaseStatsOf(values map[string]any) (dto.PlatformDatabaseStatsView, bool) {
 	if len(values) == 0 {
-		return dto.DatabaseStats{}, false
+		return dto.PlatformDatabaseStatsView{}, false
 	}
 	data, err := json.Marshal(values)
 	if err != nil {
-		return dto.DatabaseStats{}, false
+		return dto.PlatformDatabaseStatsView{}, false
 	}
-	var stats dto.DatabaseStats
+	var stats dto.PlatformDatabaseStatsView
 	if err := json.Unmarshal(data, &stats); err != nil {
-		return dto.DatabaseStats{}, false
+		return dto.PlatformDatabaseStatsView{}, false
 	}
 	return stats, true
 }

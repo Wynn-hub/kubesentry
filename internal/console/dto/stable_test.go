@@ -56,3 +56,22 @@ func TestIncidentSampleDatabaseIDOmission(t *testing.T) {
 		t.Fatalf("stored sample database ID must be a string: %s", data)
 	}
 }
+
+func TestPlatformDTOJSONCompatibility(t *testing.T) {
+	data, err := json.Marshal(PlatformOverviewView{
+		GatewayPlane: []PlatformComponentView{},
+		MemberPlane: PlatformMemberPlaneView{
+			Clusters: []PlatformClusterView{},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(data)
+	if !strings.Contains(got, `"gatewayPlane":[]`) || !strings.Contains(got, `"clusters":[]`) {
+		t.Fatalf("empty platform collections must remain arrays: %s", got)
+	}
+	if strings.Contains(got, "lastLeadershipChange") || strings.Contains(got, "dbStats") {
+		t.Fatalf("nil platform optionals must be omitted: %s", got)
+	}
+}

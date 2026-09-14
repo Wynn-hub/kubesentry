@@ -78,7 +78,7 @@ func TestPlatformServiceUsesTypedRepositoriesForSettings(t *testing.T) {
 		t.Fatalf("settings = %+v", settings)
 	}
 
-	updated, err := svc.UpdateSettings(context.Background(), &dto.PlatformSettingsRequest{
+	updated, err := svc.UpdateSettings(context.Background(), dto.PlatformSettingsInput{
 		Enabled: true, RetentionDays: 3,
 	})
 	if err != nil {
@@ -96,11 +96,11 @@ func TestPlatformServiceOverviewPreservesDisabledState(t *testing.T) {
 	repo := &fakePlatformRepository{settings: dbrepo.PlatformObservabilitySettings{Enabled: false, RetentionDays: 1}}
 	svc := NewPlatformService(repo, fakePlatformClusterRepository{}, nil)
 
-	overview, err := svc.Overview(context.Background(), dto.GetPlatformOverviewParams{})
+	overview, err := svc.Overview(context.Background(), dto.PlatformOverviewOptions{Page: 1, PageSize: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if overview.Enabled || overview.PlatformHealth != dto.PlatformOverviewHealthDisabled {
+	if overview.Enabled || overview.PlatformHealth != "disabled" {
 		t.Fatalf("overview = %+v", overview)
 	}
 	if overview.GatewayPlane == nil || overview.MemberPlane.Clusters == nil {
@@ -119,14 +119,14 @@ func TestBuildPlatformComponentPreservesHealthSemantics(t *testing.T) {
 	}
 
 	healthy := buildPlatformComponent(platformobs.ComponentOperator, []dbrepo.PlatformComponentSample{row}, time.Time{}, quiet, now)
-	if healthy.Health != dto.PlatformComponentHealthOk || !healthy.SingleReplica || healthy.NoLeader {
+	if healthy.Health != "ok" || !healthy.SingleReplica || healthy.NoLeader {
 		t.Fatalf("healthy single leader = %+v", healthy)
 	}
 
 	standby := row
 	standby.Role = string(platformobs.RoleStandby)
 	leaderless := buildPlatformComponent(platformobs.ComponentOperator, []dbrepo.PlatformComponentSample{standby}, time.Time{}, quiet, now)
-	if leaderless.Health != dto.PlatformComponentHealthDegraded || !leaderless.NoLeader || leaderless.HealthReason != "no_leader" {
+	if leaderless.Health != "degraded" || !leaderless.NoLeader || leaderless.HealthReason != "no_leader" {
 		t.Fatalf("leaderless component = %+v", leaderless)
 	}
 
@@ -135,12 +135,12 @@ func TestBuildPlatformComponentPreservesHealthSemantics(t *testing.T) {
 	stale.Role = string(platformobs.RoleNone)
 	stale.LastObservedAt = now.Add(-platformNoDataAfter - time.Second)
 	stopped := buildPlatformComponent(platformobs.ComponentConsoleWeb, []dbrepo.PlatformComponentSample{stale}, time.Time{}, quiet, now)
-	if stopped.Health != dto.PlatformComponentHealthUnavailable || stopped.Instances[0].HealthReason != "sample_stale_collected_by_console_api" {
+	if stopped.Health != "unavailable" || stopped.Instances[0].HealthReason != "sample_stale_collected_by_console_api" {
 		t.Fatalf("stale component = %+v", stopped)
 	}
 
 	pending := buildPlatformComponent(platformobs.ComponentOperator, nil, time.Time{}, quiet, now)
-	if pending.Health != dto.PlatformComponentHealthPending || pending.NoLeader || worsePlatformHealth("ok", string(pending.Health)) != "ok" {
+	if pending.Health != "pending" || pending.NoLeader || worsePlatformHealth("ok", pending.Health) != "ok" {
 		t.Fatalf("pending component = %+v", pending)
 	}
 }
@@ -157,19 +157,19 @@ func TestBuildPlatformComponentUsesPressureAndRestartSignals(t *testing.T) {
 
 	quiet := platformHealthSignals{restarted: map[string]bool{}, pressured: map[string]bool{}, cpuUsage: map[string]int64{}}
 	component := buildPlatformComponent(platformobs.ComponentConsoleAPI, []dbrepo.PlatformComponentSample{row}, time.Time{}, quiet, now)
-	if component.Health != dto.PlatformComponentHealthOk {
+	if component.Health != "ok" {
 		t.Fatalf("high memory ratio without pressure = %+v", component)
 	}
 
 	pressured := platformHealthSignals{restarted: map[string]bool{}, pressured: map[string]bool{key: true}, cpuUsage: map[string]int64{}}
 	component = buildPlatformComponent(platformobs.ComponentConsoleAPI, []dbrepo.PlatformComponentSample{row}, time.Time{}, pressured, now)
-	if component.Health != dto.PlatformComponentHealthDegraded || component.Instances[0].HealthReason != "memory_pressure_events" {
+	if component.Health != "degraded" || component.Instances[0].HealthReason != "memory_pressure_events" {
 		t.Fatalf("pressured component = %+v", component)
 	}
 
 	restarted := platformHealthSignals{restarted: map[string]bool{key: true}, pressured: map[string]bool{}, cpuUsage: map[string]int64{}}
 	component = buildPlatformComponent(platformobs.ComponentConsoleAPI, []dbrepo.PlatformComponentSample{row}, time.Time{}, restarted, now)
-	if component.Health != dto.PlatformComponentHealthDegraded || component.Instances[0].HealthReason != "restarted_in_health_window" {
+	if component.Health != "degraded" || component.Instances[0].HealthReason != "restarted_in_health_window" {
 		t.Fatalf("restarted component = %+v", component)
 	}
 }
