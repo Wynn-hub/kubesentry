@@ -14,6 +14,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 const defaultDistributionName = "default"
@@ -47,14 +48,14 @@ func (s *DistributionService) Get(ctx context.Context, name string) (*dto.Distri
 		}
 		return nil, fmt.Errorf("get policydistribution: %w", err)
 	}
-	return &dto.DistributionView{Name: d.Name, ResourceVersion: strconv.FormatInt(d.UpdatedAt.UnixNano(), 10), Spec: d.Spec.Data()}, nil
+	return &dto.DistributionView{Name: d.Name, ResourceVersion: strconv.FormatInt(d.UpdatedAt.UnixNano(), 10), Spec: distributionSpecView(d.Spec.Data())}, nil
 }
 
 func (s *DistributionService) Create(ctx context.Context, req dto.DistributionInput) error {
 	if err := validateDistributionRequest(&req, true); err != nil {
 		return err
 	}
-	d := &dbrepo.PolicyDistribution{Name: req.Name, Spec: datatypes.NewJSONType(req.Spec)}
+	d := &dbrepo.PolicyDistribution{Name: req.Name, Spec: datatypes.NewJSONType(distributionSpecModel(req.Spec))}
 	if err := s.repos.Distributions.Create(ctx, d); err != nil {
 		if dbrepo.IsUniqueViolation(err) {
 			return newConflict("policydistribution %s already exists", req.Name)
@@ -79,7 +80,7 @@ func (s *DistributionService) Update(ctx context.Context, name string, req dto.D
 	if req.ResourceVersion != "" && req.ResourceVersion != strconv.FormatInt(d.UpdatedAt.UnixNano(), 10) {
 		return newConflict("policydistribution has been modified, refresh and retry")
 	}
-	if err := s.repos.Distributions.UpdateCAS(ctx, d.ID, d.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(req.Spec)}); err != nil {
+	if err := s.repos.Distributions.UpdateCAS(ctx, d.ID, d.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(distributionSpecModel(req.Spec))}); err != nil {
 		if errors.Is(err, dbrepo.ErrConflict) {
 			return newConflict("policydistribution has been modified, refresh and retry")
 		}
@@ -87,6 +88,40 @@ func (s *DistributionService) Update(ctx context.Context, name string, req dto.D
 	}
 	s.notify(ctx, "distribution")
 	return nil
+}
+
+func distributionSpecModel(spec dto.DistributionSpecView) gatewaymodel.PolicyDistributionSpec {
+	return gatewaymodel.PolicyDistributionSpec{
+		Clusters:         gatewaymodel.DistributionClusters{ByName: spec.Clusters.ByName, ClusterSelector: spec.Clusters.ClusterSelector},
+		PolicyGroups:     spec.PolicyGroups,
+		PolicyExceptions: spec.PolicyExceptions,
+		Overrides:        distributionOverridesModel(spec.Overrides),
+	}
+}
+
+func distributionSpecView(spec gatewaymodel.PolicyDistributionSpec) dto.DistributionSpecView {
+	return dto.DistributionSpecView{
+		Clusters:         dto.DistributionClusters{ByName: spec.Clusters.ByName, ClusterSelector: spec.Clusters.ClusterSelector},
+		PolicyGroups:     spec.PolicyGroups,
+		PolicyExceptions: spec.PolicyExceptions,
+		Overrides:        distributionOverridesView(spec.Overrides),
+	}
+}
+
+func distributionOverridesModel(values []dto.DistributionOverride) []gatewaymodel.DistributionOverride {
+	result := make([]gatewaymodel.DistributionOverride, len(values))
+	for i := range values {
+		result[i] = gatewaymodel.DistributionOverride{Cluster: values[i].Cluster, EnforcementMode: values[i].EnforcementMode}
+	}
+	return result
+}
+
+func distributionOverridesView(values []gatewaymodel.DistributionOverride) []dto.DistributionOverride {
+	result := make([]dto.DistributionOverride, len(values))
+	for i := range values {
+		result[i] = dto.DistributionOverride{Cluster: values[i].Cluster, EnforcementMode: values[i].EnforcementMode}
+	}
+	return result
 }
 
 func (s *DistributionService) Delete(ctx context.Context, name string) error {
