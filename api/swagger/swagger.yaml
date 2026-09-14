@@ -1,5 +1,267 @@
 basePath: /api/v1
 definitions:
+  dto.ClusterCommandView:
+    properties:
+      command:
+        type: string
+      name:
+        type: string
+    required:
+    - command
+    - name
+    type: object
+  dto.ClusterCreateInput:
+    properties:
+      installParams:
+        $ref: '#/definitions/dto.ClusterInstallInput'
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+    required:
+    - installParams
+    - name
+    type: object
+  dto.ClusterImageInput:
+    properties:
+      pullPolicy:
+        enum:
+        - Always
+        - IfNotPresent
+        - Never
+        type: string
+      repository:
+        type: string
+      tag:
+        type: string
+    required:
+    - pullPolicy
+    - repository
+    - tag
+    type: object
+  dto.ClusterInstallInput:
+    properties:
+      gatewayAddress:
+        type: string
+      gatewayCaBundle:
+        type: string
+      gatewayTlsServerName:
+        type: string
+      highAvailability:
+        type: boolean
+      namespace:
+        type: string
+      operatorImage:
+        $ref: '#/definitions/dto.ClusterImageInput'
+      webhookImage:
+        $ref: '#/definitions/dto.ClusterImageInput'
+    required:
+    - gatewayAddress
+    - highAvailability
+    - namespace
+    - operatorImage
+    - webhookImage
+    type: object
+  dto.ClusterItem:
+    properties:
+      createdAt:
+        format: date-time
+        type: string
+      kubernetesVersion:
+        type: string
+      lastHeartbeatAt:
+        format: date-time
+        type: string
+      name:
+        type: string
+      nodeCount:
+        type: integer
+      operatorVersion:
+        type: string
+      phase:
+        enum:
+        - Registering
+        - Online
+        - Offline
+        - Uninstalling
+        - Uninstalled
+        type: string
+      readyNodeCount:
+        type: integer
+    required:
+    - createdAt
+    - kubernetesVersion
+    - name
+    - nodeCount
+    - operatorVersion
+    - phase
+    - readyNodeCount
+    type: object
+  dto.ClusterLabelsInput:
+    properties:
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+    required:
+    - labels
+    type: object
+  dto.ClusterNameView:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  dto.ClusterPageView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.ClusterItem'
+        type: array
+      page:
+        type: integer
+      pageSize:
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        type: integer
+      total:
+        type: integer
+    required:
+    - items
+    - page
+    - pageSize
+    - total
+    type: object
+  dto.ClusterTokenInput:
+    properties:
+      installParams:
+        $ref: '#/definitions/dto.ClusterInstallInput'
+    required:
+    - installParams
+    type: object
+  dto.ClusterView:
+    properties:
+      apiServerAddress:
+        type: string
+      clusterUid:
+        type: string
+      createdAt:
+        format: date-time
+        type: string
+      kubernetesVersion:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      lastHeartbeatAt:
+        format: date-time
+        type: string
+      name:
+        type: string
+      nodeCount:
+        type: integer
+      operatorVersion:
+        type: string
+      phase:
+        enum:
+        - Registering
+        - Online
+        - Offline
+        - Uninstalling
+        - Uninstalled
+        type: string
+      readyNodeCount:
+        type: integer
+      updatedAt:
+        format: date-time
+        type: string
+    required:
+    - apiServerAddress
+    - clusterUid
+    - createdAt
+    - kubernetesVersion
+    - labels
+    - name
+    - nodeCount
+    - operatorVersion
+    - phase
+    - readyNodeCount
+    - updatedAt
+    type: object
+  dto.InstallRecordItemView:
+    properties:
+      clusterName:
+        type: string
+      createdAt:
+        format: date-time
+        type: string
+      gatewayAddress:
+        type: string
+      highAvailability:
+        type: boolean
+      namespace:
+        type: string
+      operatorRepository:
+        type: string
+      operatorTag:
+        type: string
+      webhookRepository:
+        type: string
+      webhookTag:
+        type: string
+    required:
+    - clusterName
+    - createdAt
+    - gatewayAddress
+    - highAvailability
+    - namespace
+    - operatorRepository
+    - operatorTag
+    - webhookRepository
+    - webhookTag
+    type: object
+  dto.InstallRecordPageView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.InstallRecordItemView'
+        type: array
+      page:
+        type: integer
+      pageSize:
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        type: integer
+      total:
+        type: integer
+    required:
+    - items
+    - page
+    - pageSize
+    - total
+    type: object
+  dto.SwagEmptyResponse:
+    properties:
+      code:
+        example: 0
+        type: integer
+      message:
+        example: success
+        type: string
+    required:
+    - code
+    - message
+    type: object
   dto.SwagErrorResponse:
     properties:
       code:
@@ -13,6 +275,19 @@ definitions:
         type: array
       message:
         example: invalid request
+        type: string
+    required:
+    - code
+    - message
+    type: object
+  dto.SwagOptionalResponse:
+    properties:
+      code:
+        example: 0
+        type: integer
+      data: {}
+      message:
+        example: success
         type: string
     required:
     - code
@@ -110,12 +385,513 @@ definitions:
     required:
     - referencedBy
     type: object
+  dto.SwagSuccessResponse:
+    properties:
+      code:
+        example: 0
+        type: integer
+      data: {}
+      message:
+        example: success
+        type: string
+    required:
+    - code
+    - data
+    - message
+    type: object
+  dto.UninstallTaskHTTPView:
+    properties:
+      completedAt:
+        format: date-time
+        type: string
+      error:
+        type: string
+      id:
+        type: string
+      requestedAt:
+        format: date-time
+        type: string
+      status:
+        enum:
+        - Pending
+        - Received
+        - Running
+        - Succeeded
+        - Failed
+        type: string
+    required:
+    - id
+    - requestedAt
+    - status
+    type: object
+  dto.UninstallTaskIDView:
+    properties:
+      id:
+        type: string
+    required:
+    - id
+    type: object
 info:
   contact: {}
   description: KubeSentry Console HTTP API.
   title: KubeSentry Console API
   version: 1.0.0
 paths:
+  /clusters:
+    get:
+      description: 查询平台已登记的集群及其在线状态和节点摘要。
+      operationId: listClusters
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: 每页记录数
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        in: query
+        name: pageSize
+        type: integer
+      - default: name
+        description: 排序字段
+        enum:
+        - name
+        - phase
+        - operatorVersion
+        - lastHeartbeatAt
+        - createdAt
+        in: query
+        name: sortBy
+        type: string
+      - default: asc
+        description: 排序方向
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ClusterPageView'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 分页查询集群
+      tags:
+      - Cluster
+    post:
+      consumes:
+      - application/json
+      description: 创建集群登记记录并生成一次性 Helm 安装命令。
+      operationId: createCluster
+      parameters:
+      - description: 集群登记
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ClusterCreateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ClusterCommandView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 创建集群登记
+      tags:
+      - Cluster
+  /clusters/{name}:
+    delete:
+      description: 删除已卸载的集群登记；在线集群不能删除。
+      operationId: deleteCluster
+      parameters:
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 删除集群登记
+      tags:
+      - Cluster
+    get:
+      description: 查询指定集群的连接状态、版本和节点信息。
+      operationId: getCluster
+      parameters:
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ClusterView'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询集群详情
+      tags:
+      - Cluster
+    put:
+      consumes:
+      - application/json
+      description: 更新指定集群的控制台标签。
+      operationId: updateCluster
+      parameters:
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 集群标签
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ClusterLabelsInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ClusterNameView'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 更新集群标签
+      tags:
+      - Cluster
+  /clusters/{name}/latest-install-params:
+    get:
+      description: 查询指定集群最近一次生成的非敏感安装参数。
+      operationId: getLatestInstallParams
+      parameters:
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ClusterInstallInput'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询最新安装参数
+      tags:
+      - Cluster
+  /clusters/{name}/reissue-token:
+    post:
+      consumes:
+      - application/json
+      description: 为尚未完成注册的集群重新签发一次性安装令牌。
+      operationId: reissueClusterToken
+      parameters:
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 安装参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ClusterTokenInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ClusterCommandView'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 重新签发集群令牌
+      tags:
+      - Cluster
+  /clusters/{name}/uninstall:
+    post:
+      description: 向在线集群下发卸载其成员组件的持久化任务。
+      operationId: createUninstallTask
+      parameters:
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UninstallTaskHTTPView'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 创建集群卸载任务
+      tags:
+      - Cluster
+  /clusters/{name}/uninstall-tasks:
+    get:
+      description: 查询指定集群的全部卸载任务及失败原因。
+      operationId: listUninstallTasks
+      parameters:
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.UninstallTaskHTTPView'
+                  type: array
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询集群卸载任务
+      tags:
+      - Cluster
+  /clusters/{name}/uninstall-tasks/{taskID}/retry:
+    post:
+      description: 重新投递失败的集群卸载任务。
+      operationId: retryUninstallTask
+      parameters:
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 卸载任务 ID
+        in: path
+        name: taskID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UninstallTaskIDView'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 重试集群卸载任务
+      tags:
+      - Cluster
+  /install-records:
+    get:
+      description: 分页查询平台生成的集群安装参数记录。
+      operationId: listInstallRecords
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: 每页记录数
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        in: query
+        name: pageSize
+        type: integer
+      - default: createdAt
+        description: 排序字段
+        enum:
+        - clusterName
+        - namespace
+        - createdAt
+        in: query
+        name: sortBy
+        type: string
+      - default: desc
+        description: 排序方向
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagSuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.InstallRecordPageView'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询安装记录
+      tags:
+      - Cluster
   /policies:
     get:
       description: List policies with pagination, sorting, and filters.
