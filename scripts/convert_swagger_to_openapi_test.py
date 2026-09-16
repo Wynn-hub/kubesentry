@@ -105,6 +105,36 @@ class ConvertSwaggerToOpenAPITest(unittest.TestCase):
             spike_check.schema_contract({}, plain),
         )
 
+    def test_schema_comparison_normalizes_recursive_refs(self):
+        old = {"components": {"schemas": {"Node": {
+            "type": "object",
+            "properties": {"children": {"type": "array", "items": {"$ref": "#/components/schemas/Node"}}},
+        }}}}
+        new = {"components": {"schemas": {"RenamedNode": {
+            "type": "object",
+            "properties": {"children": {"type": "array", "items": {"$ref": "#/components/schemas/RenamedNode"}}},
+        }}}}
+
+        self.assertEqual(
+            spike_check.schema_contract(old, {"$ref": "#/components/schemas/Node"}),
+            spike_check.schema_contract(new, {"$ref": "#/components/schemas/RenamedNode"}),
+        )
+
+    def test_schema_comparison_distinguishes_recursive_targets(self):
+        root_cycle = {"components": {"schemas": {
+            "A": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/B"}}},
+            "B": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/A"}}},
+        }}}
+        self_cycle = {"components": {"schemas": {
+            "X": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/Y"}}},
+            "Y": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/Y"}}},
+        }}}
+
+        self.assertNotEqual(
+            spike_check.schema_contract(root_cycle, {"$ref": "#/components/schemas/A"}),
+            spike_check.schema_contract(self_cycle, {"$ref": "#/components/schemas/X"}),
+        )
+
     def test_operation_set_rejects_removed_operation(self):
         document = {"paths": {"/kept": {"get": {"operationId": "kept"}}}}
 

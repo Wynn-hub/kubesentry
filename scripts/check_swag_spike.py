@@ -34,6 +34,7 @@ EXPECTED_MIGRATED_OPERATION_IDS = {
     "deleteDistribution",
     "getCluster",
     "getDistribution",
+    "getFieldSchema",
     "getLatestInstallParams",
     "getPlatformInstanceTrend",
     "getPlatformOverview",
@@ -100,31 +101,35 @@ def merge_contracts(parts: list[dict]) -> dict:
     return merged
 
 
-def schema_contract(document: dict, value: object) -> object:
-    value = resolve(document, value)
+def schema_contract(document: dict, value: object, ref_stack: tuple[str, ...] = ()) -> object:
+    if isinstance(value, dict) and isinstance(value.get("$ref"), str):
+        ref = value["$ref"]
+        if ref in ref_stack:
+            return {"$recursive": len(ref_stack) - ref_stack.index(ref)}
+        return schema_contract(document, resolve(document, value), ref_stack + (ref,))
     if not isinstance(value, dict):
         return value
     if isinstance(value.get("allOf"), list):
         base = {key: child for key, child in value.items() if key != "allOf"}
-        parts = [schema_contract(document, child) for child in value["allOf"]]
-        parts.append(schema_contract(document, base))
+        parts = [schema_contract(document, child, ref_stack) for child in value["allOf"]]
+        parts.append(schema_contract(document, base, ref_stack))
         return merge_contracts([part for part in parts if isinstance(part, dict)])
     contract = {key: value[key] for key in SCHEMA_KEYS if key in value}
     if isinstance(value.get("required"), list):
         contract["required"] = sorted(value["required"])
     if isinstance(value.get("properties"), dict):
         contract["properties"] = {
-            name: schema_contract(document, child)
+            name: schema_contract(document, child, ref_stack)
             for name, child in sorted(value["properties"].items())
         }
     if "items" in value:
-        contract["items"] = schema_contract(document, value["items"])
+        contract["items"] = schema_contract(document, value["items"], ref_stack)
     if "additionalProperties" in value:
         child = value["additionalProperties"]
-        contract["additionalProperties"] = schema_contract(document, child) if isinstance(child, dict) else child
+        contract["additionalProperties"] = schema_contract(document, child, ref_stack) if isinstance(child, dict) else child
     for key in ("oneOf", "anyOf"):
         if isinstance(value.get(key), list):
-            contract[key] = [schema_contract(document, child) for child in value[key]]
+            contract[key] = [schema_contract(document, child, ref_stack) for child in value[key]]
     return contract
 
 

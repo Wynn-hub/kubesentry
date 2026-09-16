@@ -302,6 +302,36 @@ definitions:
     - resourceVersion
     - spec
     type: object
+  dto.FieldNodeView:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/dto.FieldNodeView'
+        type: array
+      isArray:
+        type: boolean
+      isMap:
+        type: boolean
+      mapValueType:
+        type: string
+      name:
+        type: string
+      type:
+        enum:
+        - string
+        - integer
+        - number
+        - boolean
+        - array
+        - object
+        type: string
+    required:
+    - children
+    - isArray
+    - isMap
+    - name
+    - type
+    type: object
   dto.InstallRecordItemView:
     properties:
       clusterName:
@@ -1964,6 +1994,55 @@ paths:
       summary: List policies
       tags:
       - Policy
+  /schema/fields:
+    get:
+      description: 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。
+      operationId: getFieldSchema
+      parameters:
+      - description: API 组，核心组为空
+        in: query
+        name: group
+        type: string
+      - description: API 版本
+        in: query
+        name: version
+        required: true
+        type: string
+      - description: 资源复数名
+        in: query
+        name: resource
+        required: true
+        type: string
+      - default: false
+        description: 是否强制刷新缓存
+        in: query
+        name: refresh
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.FieldNodeView'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 获取 Kubernetes 资源字段树
+      tags:
+      - Schema
   /summary:
     get:
       description: 查询策略、策略组、例外和集群的汇总数量。
