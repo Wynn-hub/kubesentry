@@ -9,6 +9,19 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
 )
 
+// @ID listExceptions
+// @Summary 分页查询策略例外
+// @Description 分页查询策略例外及其生效状态。
+// @Tags Exception
+// @Produce json
+// @Param page query int false "页码，从 1 开始。省略时为 1" minimum(1) default(1)
+// @Param pageSize query int false "每页记录数。仅接受 10、20、50、100。省略时为 20" Enums(10,20,50,100) default(20)
+// @Param sortBy query string false "排序字段" Enums(name,phase,targetSummary,duration,expiresAt) default(name)
+// @Param sortOrder query string false "排序方向" Enums(asc,desc) default(asc)
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.ExceptionPageView}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /exceptions [get]
 func (h *Handler) ListExceptions(ctx context.Context, p dto.ListExceptionsParams) (dto.ListExceptionsRes, error) {
 	page := p.Page.Or(1)
 	size := int(p.PageSize.Or(dto.PageSize20))
@@ -23,6 +36,16 @@ func (h *Handler) ListExceptions(ctx context.Context, p dto.ListExceptionsParams
 	return &dto.ExceptionListResponse{Code: 0, Message: "success", Data: dto.NewOptExceptionListData(v)}, nil
 }
 
+// @ID getException
+// @Summary 查询策略例外详情
+// @Description 查询策略例外的匹配条件、作用范围和过期时间。
+// @Tags Exception
+// @Produce json
+// @Param name path dto.ExceptionPath true "例外名称"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagExceptionDetail}
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /exceptions/{name} [get]
 func (h *Handler) GetException(ctx context.Context, p dto.GetExceptionParams) (dto.GetExceptionRes, error) {
 	d, e := h.svcs.Exception.Get(ctx, p.Name)
 	if e != nil {
@@ -38,6 +61,18 @@ func (h *Handler) GetException(ctx context.Context, p dto.GetExceptionParams) (d
 	return &dto.ExceptionDetailResponse{Code: 0, Message: "success", Data: dto.NewOptExceptionDetail(v)}, nil
 }
 
+// @ID createException
+// @Summary 创建策略例外
+// @Description 创建针对资源、命名空间或集群范围的策略例外。
+// @Tags Exception
+// @Accept json
+// @Produce json
+// @Param body body dto.SwagExceptionInput true "策略例外"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.ExceptionNameView}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /exceptions [post]
 func (h *Handler) CreateException(ctx context.Context, r *dto.ExceptionRequest) (dto.CreateExceptionRes, error) {
 	input, e := exceptionInput(r)
 	if e != nil {
@@ -57,6 +92,20 @@ func (h *Handler) CreateException(ctx context.Context, r *dto.ExceptionRequest) 
 	return &dto.ExceptionNameResponse{Code: 0, Message: "success", Data: dto.OptExceptionNameResponseData{Value: dto.ExceptionNameResponseData{Name: stringOr(input.Name)}, Set: true}}, nil
 }
 
+// @ID updateException
+// @Summary 更新策略例外
+// @Description 更新策略例外的匹配条件和作用范围。
+// @Tags Exception
+// @Accept json
+// @Produce json
+// @Param name path dto.ExceptionPath true "例外名称"
+// @Param body body dto.SwagExceptionInput true "策略例外"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.ExceptionNameView}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /exceptions/{name} [put]
 func (h *Handler) UpdateException(ctx context.Context, r *dto.ExceptionRequest, p dto.UpdateExceptionParams) (dto.UpdateExceptionRes, error) {
 	input, e := exceptionInput(r)
 	if e != nil {
@@ -98,6 +147,16 @@ func stringOr(value *string) string {
 	return *value
 }
 
+// @ID deleteException
+// @Summary 删除策略例外
+// @Description 删除指定策略例外。
+// @Tags Exception
+// @Produce json
+// @Param name path dto.ExceptionPath true "例外名称"
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /exceptions/{name} [delete]
 func (h *Handler) DeleteException(ctx context.Context, p dto.DeleteExceptionParams) (dto.DeleteExceptionRes, error) {
 	e := h.svcs.Exception.Delete(ctx, p.Name)
 	if e != nil {

@@ -576,6 +576,89 @@ definitions:
     - resourceVersion
     - spec
     type: object
+  dto.ExceptionItem:
+    properties:
+      duration:
+        type: string
+      expiresAt:
+        format: date-time
+        type: string
+      name:
+        type: string
+      phase:
+        enum:
+        - Active
+        - Expired
+        type: string
+      reason:
+        type: string
+      targetSummary:
+        type: string
+    required:
+    - duration
+    - name
+    - phase
+    - reason
+    - targetSummary
+    type: object
+  dto.ExceptionNameView:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  dto.ExceptionPageView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.ExceptionItem'
+        type: array
+      page:
+        type: integer
+      pageSize:
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        type: integer
+      total:
+        type: integer
+    required:
+    - items
+    - page
+    - pageSize
+    - total
+    type: object
+  dto.ExceptionScopeView:
+    properties:
+      allClusters:
+        type: boolean
+      clusterNames:
+        items:
+          type: string
+        type: array
+    required:
+    - allClusters
+    type: object
+  dto.ExceptionStatusView:
+    properties:
+      effectiveAt:
+        format: date-time
+        type: string
+      expiresAt:
+        format: date-time
+        type: string
+      phase:
+        enum:
+        - Active
+        - Expired
+        type: string
+    required:
+    - effectiveAt
+    - phase
+    type: object
   dto.FieldNodeView:
     properties:
       children:
@@ -1236,6 +1319,96 @@ definitions:
     required:
     - code
     - message
+    type: object
+  dto.SwagExceptionDetail:
+    properties:
+      name:
+        type: string
+      resourceVersion:
+        type: string
+      scope:
+        $ref: '#/definitions/dto.ExceptionScopeView'
+      spec:
+        $ref: '#/definitions/dto.SwagExceptionSpec'
+      status:
+        $ref: '#/definitions/dto.ExceptionStatusView'
+    required:
+    - name
+    - resourceVersion
+    - scope
+    - spec
+    - status
+    type: object
+  dto.SwagExceptionInput:
+    properties:
+      allClusters:
+        type: boolean
+      allPolicies:
+        type: boolean
+      clusterNames:
+        items:
+          type: string
+        type: array
+      duration:
+        type: string
+      match:
+        $ref: '#/definitions/dto.SwagExceptionMatch'
+      name:
+        type: string
+      policyGroupRefs:
+        items:
+          type: string
+        type: array
+      policyRefs:
+        items:
+          type: string
+        type: array
+      reason:
+        type: string
+      resourceVersion:
+        type: string
+      retainAfterExpiry:
+        type: string
+    required:
+    - duration
+    - match
+    - reason
+    type: object
+  dto.SwagExceptionMatch:
+    properties:
+      namespaceSelector:
+        $ref: '#/definitions/dto.LabelSelectorView'
+      namespaces:
+        items:
+          type: string
+        type: array
+      resourceSelector:
+        $ref: '#/definitions/dto.LabelSelectorView'
+    type: object
+  dto.SwagExceptionSpec:
+    properties:
+      allPolicies:
+        type: boolean
+      duration:
+        type: string
+      match:
+        $ref: '#/definitions/dto.SwagExceptionMatch'
+      policyGroupRefs:
+        items:
+          type: string
+        type: array
+      policyRefs:
+        items:
+          type: string
+        type: array
+      reason:
+        type: string
+      retainAfterExpiry:
+        type: string
+    required:
+    - duration
+    - match
+    - reason
     type: object
   dto.SwagOptionalResponse:
     properties:
@@ -2395,6 +2568,216 @@ paths:
       summary: 更新策略分发
       tags:
       - Distribution
+  /exceptions:
+    get:
+      description: 分页查询策略例外及其生效状态。
+      operationId: listExceptions
+      parameters:
+      - default: 1
+        description: 页码，从 1 开始。省略时为 1
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: 每页记录数。仅接受 10、20、50、100。省略时为 20
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        in: query
+        name: pageSize
+        type: integer
+      - default: name
+        description: 排序字段
+        enum:
+        - name
+        - phase
+        - targetSummary
+        - duration
+        - expiresAt
+        in: query
+        name: sortBy
+        type: string
+      - default: asc
+        description: 排序方向
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ExceptionPageView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 分页查询策略例外
+      tags:
+      - Exception
+    post:
+      consumes:
+      - application/json
+      description: 创建针对资源、命名空间或集群范围的策略例外。
+      operationId: createException
+      parameters:
+      - description: 策略例外
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SwagExceptionInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ExceptionNameView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 创建策略例外
+      tags:
+      - Exception
+  /exceptions/{name}:
+    delete:
+      description: 删除指定策略例外。
+      operationId: deleteException
+      parameters:
+      - description: 策略例外名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 删除策略例外
+      tags:
+      - Exception
+    get:
+      description: 查询策略例外的匹配条件、作用范围和过期时间。
+      operationId: getException
+      parameters:
+      - description: 策略例外名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SwagExceptionDetail'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询策略例外详情
+      tags:
+      - Exception
+    put:
+      consumes:
+      - application/json
+      description: 更新策略例外的匹配条件和作用范围。
+      operationId: updateException
+      parameters:
+      - description: 策略例外名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 策略例外
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SwagExceptionInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ExceptionNameView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 更新策略例外
+      tags:
+      - Exception
   /install-records:
     get:
       description: 分页查询平台生成的集群安装参数记录。
