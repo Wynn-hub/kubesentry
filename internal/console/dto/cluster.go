@@ -99,6 +99,11 @@ type UninstallTaskIDView struct {
 	ID string `json:"id" binding:"required" pattern:"^[0-9]+$"`
 }
 
+type RetryUninstallTaskPath struct {
+	// 卸载任务 ID
+	TaskID string `uri:"taskID" binding:"required" pattern:"^[0-9]+$"`
+}
+
 type ClusterPageView struct {
 	Items    []ClusterItem `json:"items" binding:"required"`
 	Total    int           `json:"total" binding:"required"`

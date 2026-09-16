@@ -105,6 +105,12 @@ class ConvertSwaggerToOpenAPITest(unittest.TestCase):
             spike_check.schema_contract({}, plain),
         )
 
+    def test_operation_set_rejects_removed_operation(self):
+        document = {"paths": {"/kept": {"get": {"operationId": "kept"}}}}
+
+        with self.assertRaisesRegex(ValueError, "missing=\\['removed'\\]"):
+            spike_check.check_operation_set(document, {"kept", "removed"})
+
     def test_counts_nullable_and_union_keywords(self):
         document = {"nullable": True, "nested": [{"oneOf": []}, {"anyOf": []}]}
         self.assertEqual(

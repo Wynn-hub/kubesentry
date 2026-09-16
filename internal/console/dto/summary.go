@@ -1,22 +1,22 @@
 package dto
 
 type SummaryView struct {
-	Totals        map[string]int     `json:"totals"`
-	ClusterPhases SummaryPhasesView  `json:"clusterPhases"`
-	Groups        []SummaryGroupView `json:"groups"`
+	Totals        map[string]int     `json:"totals" binding:"required"`
+	ClusterPhases SummaryPhasesView  `json:"clusterPhases" binding:"required"`
+	Groups        []SummaryGroupView `json:"groups" binding:"required"`
 }
 
 type SummaryPhasesView struct {
-	Online      int `json:"online"`
-	Offline     int `json:"offline"`
-	Registering int `json:"registering"`
+	Online      int `json:"online" binding:"required"`
+	Offline     int `json:"offline" binding:"required"`
+	Registering int `json:"registering" binding:"required"`
 }
 
 type SummaryGroupView struct {
-	Name          string `json:"name"`
-	DisplayName   string `json:"displayName"`
-	Enabled       bool   `json:"enabled"`
-	ResolvedCount int    `json:"resolvedCount"`
-	EnforceCount  int    `json:"enforceCount"`
-	AuditCount    int    `json:"auditCount"`
+	Name          string `json:"name" binding:"required"`
+	DisplayName   string `json:"displayName" binding:"required"`
+	Enabled       bool   `json:"enabled" binding:"required"`
+	ResolvedCount int    `json:"resolvedCount" binding:"required"`
+	EnforceCount  int    `json:"enforceCount" binding:"required"`
+	AuditCount    int    `json:"auditCount" binding:"required"`
 }

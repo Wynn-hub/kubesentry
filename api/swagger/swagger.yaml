@@ -721,6 +721,58 @@ definitions:
     - stepSeconds
     - to
     type: object
+  dto.SummaryGroupView:
+    properties:
+      auditCount:
+        type: integer
+      displayName:
+        type: string
+      enabled:
+        type: boolean
+      enforceCount:
+        type: integer
+      name:
+        type: string
+      resolvedCount:
+        type: integer
+    required:
+    - auditCount
+    - displayName
+    - enabled
+    - enforceCount
+    - name
+    - resolvedCount
+    type: object
+  dto.SummaryPhasesView:
+    properties:
+      offline:
+        type: integer
+      online:
+        type: integer
+      registering:
+        type: integer
+    required:
+    - offline
+    - online
+    - registering
+    type: object
+  dto.SummaryView:
+    properties:
+      clusterPhases:
+        $ref: '#/definitions/dto.SummaryPhasesView'
+      groups:
+        items:
+          $ref: '#/definitions/dto.SummaryGroupView'
+        type: array
+      totals:
+        additionalProperties:
+          type: integer
+        type: object
+    required:
+    - clusterPhases
+    - groups
+    - totals
+    type: object
   dto.SwagEmptyResponse:
     properties:
       code:
@@ -931,8 +983,7 @@ paths:
         in: query
         name: pageSize
         type: integer
-      - default: name
-        description: 排序字段
+      - description: 排序字段
         enum:
         - name
         - phase
@@ -1279,6 +1330,7 @@ paths:
       - description: 卸载任务 ID
         in: path
         name: taskID
+        pattern: ^[0-9]+$
         required: true
         type: string
       produces:
@@ -1329,8 +1381,7 @@ paths:
         in: query
         name: pageSize
         type: integer
-      - default: name
-        description: 排序字段
+      - description: 排序字段
         enum:
         - name
         in: query
@@ -1539,8 +1590,7 @@ paths:
         in: query
         name: pageSize
         type: integer
-      - default: createdAt
-        description: 排序字段
+      - description: 排序字段
         enum:
         - clusterName
         - namespace
@@ -1914,6 +1964,29 @@ paths:
       summary: List policies
       tags:
       - Policy
+  /summary:
+    get:
+      description: 查询策略、策略组、例外和集群的汇总数量。
+      operationId: getSummary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SummaryView'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 获取平台资源摘要
+      tags:
+      - Summary
 securityDefinitions:
   BearerAuth:
     in: header

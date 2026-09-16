@@ -16,7 +16,7 @@ import (
 // @Produce json
 // @Param page query int false "页码，从 1 开始" minimum(1) default(1)
 // @Param pageSize query int false "每页数量" Enums(10,20,50,100) default(20)
-// @Param sortBy query string false "排序字段" Enums(name) default(name)
+// @Param sortBy query string false "排序字段" Enums(name)
 // @Param sortOrder query string false "排序方向" Enums(asc,desc) default(asc)
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.DistributionPageView}
 // @Failure 500 {object} dto.SwagErrorResponse

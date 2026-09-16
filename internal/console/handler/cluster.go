@@ -29,7 +29,7 @@ func dtoData[T any](data any) (T, error) {
 // @Produce json
 // @Param page query int false "页码" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数" Enums(10,20,50,100) default(20)
-// @Param sortBy query string false "排序字段" Enums(name,phase,operatorVersion,lastHeartbeatAt,createdAt) default(name)
+// @Param sortBy query string false "排序字段" Enums(name,phase,operatorVersion,lastHeartbeatAt,createdAt)
 // @Param sortOrder query string false "排序方向" Enums(asc,desc) default(asc)
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.ClusterPageView}
 // @Failure 500 {object} dto.SwagErrorResponse
@@ -246,7 +246,7 @@ func (h *Handler) ListUninstallTasks(ctx context.Context, p dto.ListUninstallTas
 // @Tags Cluster
 // @Produce json
 // @Param name path string true "集群名称"
-// @Param taskID path string true "卸载任务 ID"
+// @Param taskID path dto.RetryUninstallTaskPath true "卸载任务 ID"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.UninstallTaskIDView}
 // @Failure 404 {object} dto.SwagErrorResponse
 // @Failure 409 {object} dto.SwagErrorResponse
@@ -270,7 +270,7 @@ func (h *Handler) RetryUninstallTask(ctx context.Context, p dto.RetryUninstallTa
 // @Produce json
 // @Param page query int false "页码" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数" Enums(10,20,50,100) default(20)
-// @Param sortBy query string false "排序字段" Enums(clusterName,namespace,createdAt) default(createdAt)
+// @Param sortBy query string false "排序字段" Enums(clusterName,namespace,createdAt)
 // @Param sortOrder query string false "排序方向" Enums(asc,desc) default(desc)
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.InstallRecordPageView}
 // @Failure 500 {object} dto.SwagErrorResponse

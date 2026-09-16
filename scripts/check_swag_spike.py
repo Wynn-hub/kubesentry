@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the GET /policies Swag spike with the reviewed OAS 3.1 contract."""
+"""Compare migrated Swag operations with the reviewed OAS 3.1 contract."""
 
 import argparse
 import json
@@ -7,7 +7,50 @@ from pathlib import Path
 import sys
 
 
-SCHEMA_KEYS = ("type", "format", "enum", "default", "minimum", "maximum", "pattern", "nullable")
+SCHEMA_KEYS = (
+    "type",
+    "format",
+    "enum",
+    "default",
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "minLength",
+    "maxLength",
+    "minItems",
+    "maxItems",
+    "uniqueItems",
+    "multipleOf",
+    "pattern",
+    "nullable",
+)
+HTTP_METHODS = {"delete", "get", "head", "options", "patch", "post", "put", "trace"}
+EXPECTED_MIGRATED_OPERATION_IDS = {
+    "createCluster",
+    "createDistribution",
+    "createUninstallTask",
+    "deleteCluster",
+    "deleteDistribution",
+    "getCluster",
+    "getDistribution",
+    "getLatestInstallParams",
+    "getPlatformInstanceTrend",
+    "getPlatformOverview",
+    "getPlatformSettings",
+    "getSummary",
+    "listClusters",
+    "listDistributions",
+    "listInstallRecords",
+    "listPlatformLeadershipEvents",
+    "listPolicies",
+    "listUninstallTasks",
+    "reissueClusterToken",
+    "retryUninstallTask",
+    "updateCluster",
+    "updateDistribution",
+    "updatePlatformSettings",
+}
 
 
 def keyword_counts(node: object) -> dict[str, int]:
@@ -92,6 +135,7 @@ def parameter_contract(document: dict, parameter: object) -> dict:
     return {
         "name": parameter.get("name"),
         "in": parameter.get("in"),
+        "described": bool(parameter.get("description")),
         "required": parameter.get("required", False),
         "style": parameter.get("style"),
         "explode": parameter.get("explode"),
@@ -107,15 +151,32 @@ def response_schema(document: dict, response: object) -> object:
     return schema_contract(document, media.get("schema", {}))
 
 
-def check_spike(old: dict, new: dict) -> None:
-    old_operation = old["paths"]["/policies"]["get"]
-    new_operation = new["paths"]["/policies"]["get"]
+def request_body_contract(document: dict, operation: dict) -> object:
+    if "requestBody" not in operation:
+        return None
+    body = resolve(document, operation["requestBody"])
+    if not isinstance(body, dict):
+        raise ValueError("request body is not an object")
+    media = body.get("content", {}).get("application/json", {})
+    return {
+        "required": body.get("required", False),
+        "schema": schema_contract(document, media.get("schema", {})),
+    }
+
+
+def check_operation(old: dict, new: dict, path: str, method: str) -> None:
+    old_operation = old["paths"][path][method]
+    new_operation = new["paths"][path][method]
     if old_operation["operationId"] != new_operation["operationId"]:
         raise ValueError("operationId differs")
-    old_parameters = [parameter_contract(old, value) for value in old_operation["parameters"]]
-    new_parameters = [parameter_contract(new, value) for value in new_operation["parameters"]]
+    old_values = old["paths"][path].get("parameters", []) + old_operation.get("parameters", [])
+    new_values = new["paths"][path].get("parameters", []) + new_operation.get("parameters", [])
+    old_parameters = [parameter_contract(old, value) for value in old_values]
+    new_parameters = [parameter_contract(new, value) for value in new_values]
     if old_parameters != new_parameters:
         raise ValueError("parameters differ")
+    if request_body_contract(old, old_operation) != request_body_contract(new, new_operation):
+        raise ValueError("request body differs")
     if set(old_operation["responses"]) != set(new_operation["responses"]):
         raise ValueError("response statuses differ")
     for status in old_operation["responses"]:
@@ -123,8 +184,34 @@ def check_spike(old: dict, new: dict) -> None:
         new_schema = response_schema(new, new_operation["responses"][status])
         if old_schema != new_schema:
             raise ValueError(f"response schema differs for {status}")
-    if keyword_counts(old) != keyword_counts(new):
-        raise ValueError("nullable/union keyword inventory differs")
+
+
+def check_migrated_operations(old: dict, new: dict) -> int:
+    check_operation_set(new, EXPECTED_MIGRATED_OPERATION_IDS)
+    count = 0
+    for path, path_item in new["paths"].items():
+        for method in path_item:
+            if method not in HTTP_METHODS:
+                continue
+            try:
+                check_operation(old, new, path, method)
+            except (KeyError, ValueError) as exc:
+                raise ValueError(f"{method.upper()} {path}: {exc}") from exc
+            count += 1
+    return count
+
+
+def check_operation_set(document: dict, expected: set[str]) -> None:
+    actual = {
+        operation["operationId"]
+        for path_item in document["paths"].values()
+        for method, operation in path_item.items()
+        if method in HTTP_METHODS
+    }
+    if actual != expected:
+        missing = sorted(expected - actual)
+        unexpected = sorted(actual - expected)
+        raise ValueError(f"operation set differs: missing={missing}, unexpected={unexpected}")
 
 
 def check_resource_id_patterns(old: dict, new: dict) -> None:
@@ -149,12 +236,14 @@ def main() -> None:
     try:
         baseline = json.loads(args.baseline.read_text())
         candidate = json.loads(args.candidate.read_text())
-        check_spike(baseline, candidate)
+        operation_count = check_migrated_operations(baseline, candidate)
         check_resource_id_patterns(baseline, candidate)
+        if keyword_counts(baseline) != keyword_counts(candidate):
+            raise ValueError("nullable/union keyword inventory differs")
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         print(f"Swag spike contract mismatch: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
-    print(f"Swag spike contract OK: GET /policies; nullable/union={keyword_counts(baseline)}")
+    print(f"Swag contract OK: {operation_count} operation(s); nullable/union={keyword_counts(baseline)}")
 
 
 if __name__ == "__main__":
