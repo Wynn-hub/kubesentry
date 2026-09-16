@@ -27,6 +27,9 @@ SCHEMA_KEYS = (
 )
 HTTP_METHODS = {"delete", "get", "head", "options", "patch", "post", "put", "trace"}
 EXPECTED_MIGRATED_OPERATION_IDS = {
+    "getAdmissionEvent",
+    "getAdmissionEventSettings",
+    "getAdmissionEventTrend",
     "createCluster",
     "createDistribution",
     "createUninstallTask",
@@ -41,6 +44,7 @@ EXPECTED_MIGRATED_OPERATION_IDS = {
     "getPlatformSettings",
     "getSummary",
     "listClusters",
+    "listAdmissionEvents",
     "listDistributions",
     "listInstallRecords",
     "listPlatformLeadershipEvents",
@@ -49,6 +53,7 @@ EXPECTED_MIGRATED_OPERATION_IDS = {
     "reissueClusterToken",
     "retryUninstallTask",
     "updateCluster",
+    "updateAdmissionEventSettings",
     "updateDistribution",
     "updatePlatformSettings",
 }
@@ -126,7 +131,8 @@ def schema_contract(document: dict, value: object, ref_stack: tuple[str, ...] = 
         contract["items"] = schema_contract(document, value["items"], ref_stack)
     if "additionalProperties" in value:
         child = value["additionalProperties"]
-        contract["additionalProperties"] = schema_contract(document, child, ref_stack) if isinstance(child, dict) else child
+        if child is not True:
+            contract["additionalProperties"] = schema_contract(document, child, ref_stack) if isinstance(child, dict) else child
     for key in ("oneOf", "anyOf"):
         if isinstance(value.get(key), list):
             contract[key] = [schema_contract(document, child, ref_stack) for child in value[key]]
@@ -156,6 +162,18 @@ def response_schema(document: dict, response: object) -> object:
     return schema_contract(document, media.get("schema", {}))
 
 
+def check_parameters(old_parameters: list[dict], new_parameters: list[dict]) -> None:
+    if len(old_parameters) != len(new_parameters):
+        raise ValueError("parameters differ")
+    for old, new in zip(old_parameters, new_parameters):
+        old = dict(old)
+        new = dict(new)
+        old_described = old.pop("described")
+        new_described = new.pop("described")
+        if old != new or old_described and not new_described:
+            raise ValueError("parameters differ")
+
+
 def request_body_contract(document: dict, operation: dict) -> object:
     if "requestBody" not in operation:
         return None
@@ -178,8 +196,7 @@ def check_operation(old: dict, new: dict, path: str, method: str) -> None:
     new_values = new["paths"][path].get("parameters", []) + new_operation.get("parameters", [])
     old_parameters = [parameter_contract(old, value) for value in old_values]
     new_parameters = [parameter_contract(new, value) for value in new_values]
-    if old_parameters != new_parameters:
-        raise ValueError("parameters differ")
+    check_parameters(old_parameters, new_parameters)
     if request_body_contract(old, old_operation) != request_body_contract(new, new_operation):
         raise ValueError("request body differs")
     if set(old_operation["responses"]) != set(new_operation["responses"]):

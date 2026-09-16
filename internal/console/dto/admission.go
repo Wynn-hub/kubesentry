@@ -15,70 +15,75 @@ type AdmissionEventListOptions struct {
 }
 
 type AdmissionEventItemView struct {
-	ID           string    `json:"id"`
-	EventID      string    `json:"eventId"`
-	ClusterName  string    `json:"clusterName"`
-	OccurredAt   time.Time `json:"occurredAt"`
-	Verdict      string    `json:"verdict"`
-	APIGroup     string    `json:"apiGroup"`
-	APIVersion   string    `json:"apiVersion"`
-	Resource     string    `json:"resource"`
-	Operation    string    `json:"operation"`
-	Namespace    string    `json:"namespace"`
-	ResourceName string    `json:"resourceName"`
-	Username     string    `json:"username"`
-	PolicyNames  []string  `json:"policyNames"`
-	Violations   []string  `json:"violations"`
+	ID           string    `json:"id" binding:"required" pattern:"^[0-9]+$"`
+	EventID      string    `json:"eventId" binding:"required"`
+	ClusterName  string    `json:"clusterName" binding:"required"`
+	OccurredAt   time.Time `json:"occurredAt" binding:"required" format:"date-time"`
+	Verdict      string    `json:"verdict" binding:"required" enums:"audit,deny"`
+	APIGroup     string    `json:"apiGroup" binding:"required"`
+	APIVersion   string    `json:"apiVersion" binding:"required"`
+	Resource     string    `json:"resource" binding:"required"`
+	Operation    string    `json:"operation" binding:"required"`
+	Namespace    string    `json:"namespace" binding:"required"`
+	ResourceName string    `json:"resourceName" binding:"required"`
+	Username     string    `json:"username" binding:"required"`
+	PolicyNames  []string  `json:"policyNames" binding:"required"`
+	Violations   []string  `json:"violations" binding:"required"`
 }
 
 type AdmissionEventPageView struct {
-	Total    int                      `json:"total"`
-	Page     int                      `json:"page"`
-	PageSize int                      `json:"pageSize"`
-	Items    []AdmissionEventItemView `json:"items"`
+	Total    int                      `json:"total" binding:"required"`
+	Page     int                      `json:"page" binding:"required"`
+	PageSize int                      `json:"pageSize" binding:"required" enums:"10,20,50,100"`
+	Items    []AdmissionEventItemView `json:"items" binding:"required"`
 }
 
 type AdmissionEventDetailView struct {
 	AdmissionEventItemView
-	RequestUID           string                     `json:"requestUid"`
-	UserGroups           []string                   `json:"userGroups"`
-	PolicyGroupNames     []string                   `json:"policyGroupNames"`
-	MetadataSnapshot     map[string]json.RawMessage `json:"metadataSnapshot"`
-	SpecSnapshot         map[string]json.RawMessage `json:"specSnapshot"`
-	StoragePolicyVersion string                     `json:"storagePolicyVersion"`
+	RequestUID           string                     `json:"requestUid" binding:"required"`
+	UserGroups           []string                   `json:"userGroups" binding:"required"`
+	PolicyGroupNames     []string                   `json:"policyGroupNames" binding:"required"`
+	MetadataSnapshot     map[string]json.RawMessage `json:"metadataSnapshot" binding:"required" swaggertype:"object"`
+	SpecSnapshot         map[string]json.RawMessage `json:"specSnapshot" binding:"required" swaggertype:"object"`
+	StoragePolicyVersion string                     `json:"storagePolicyVersion" binding:"required"`
+}
+
+type AdmissionEventPath struct {
+	// 准入事件数据库 ID
+	ID string `uri:"id" binding:"required" pattern:"^[0-9]+$"`
 }
 
 type AdmissionStoragePolicyView struct {
-	Verdicts   []string `json:"verdicts"`
-	Clusters   []string `json:"clusters"`
-	GVRs       []string `json:"gvks"`
-	Namespaces []string `json:"namespaces"`
-	MatchMode  string   `json:"matchMode"`
+	Verdicts   []string `json:"verdicts" binding:"required" enums:"audit,deny"`
+	Clusters   []string `json:"clusters" binding:"required"`
+	GVRs       []string `json:"gvks" binding:"required"`
+	Namespaces []string `json:"namespaces" binding:"required"`
+	MatchMode  string   `json:"matchMode" binding:"required" enums:"include,exclude"`
 }
 
 type AdmissionSettingsView struct {
-	DefaultRetentionDays  int                          `json:"defaultRetentionDays"`
-	RetryEnabled          bool                         `json:"retryEnabled"`
-	MaxRetryAttempts      int                          `json:"maxRetryAttempts"`
-	QueueCapacity         int                          `json:"queueCapacity"`
-	IncidentRetentionDays int                          `json:"incidentRetentionDays"`
-	ObservationEnabled    bool                         `json:"observationEnabled"`
-	StoragePolicyVersion  int64                        `json:"storagePolicyVersion"`
-	StoragePolicies       []AdmissionStoragePolicyView `json:"storagePolicies"`
+	DefaultRetentionDays  int                          `json:"defaultRetentionDays" binding:"required" minimum:"1" maximum:"365"`
+	RetryEnabled          bool                         `json:"retryEnabled" binding:"required"`
+	MaxRetryAttempts      int                          `json:"maxRetryAttempts" binding:"required" minimum:"1" maximum:"100"`
+	QueueCapacity         int                          `json:"queueCapacity" binding:"required" minimum:"1" maximum:"10000"`
+	IncidentRetentionDays int                          `json:"incidentRetentionDays" binding:"required" minimum:"1" maximum:"365"`
+	ObservationEnabled    bool                         `json:"observationEnabled" binding:"required"`
+	StoragePolicyVersion  int64                        `json:"storagePolicyVersion" binding:"required" format:"int64"`
+	StoragePolicies       []AdmissionStoragePolicyView `json:"storagePolicies" binding:"required"`
 }
 
 type AdmissionSettingsInput struct {
-	DefaultRetentionDays  int                          `json:"defaultRetentionDays"`
+	DefaultRetentionDays  int                          `json:"defaultRetentionDays" binding:"required" minimum:"1" maximum:"365"`
 	RetryEnabled          *bool                        `json:"retryEnabled,omitempty"`
-	MaxRetryAttempts      *int                         `json:"maxRetryAttempts,omitempty"`
-	QueueCapacity         *int                         `json:"queueCapacity,omitempty"`
-	IncidentRetentionDays *int                         `json:"incidentRetentionDays,omitempty"`
+	MaxRetryAttempts      *int                         `json:"maxRetryAttempts,omitempty" minimum:"1" maximum:"100"`
+	QueueCapacity         *int                         `json:"queueCapacity,omitempty" minimum:"1" maximum:"10000"`
+	IncidentRetentionDays *int                         `json:"incidentRetentionDays,omitempty" minimum:"1" maximum:"365"`
 	ObservationEnabled    *bool                        `json:"observationEnabled,omitempty"`
 	StoragePolicies       []AdmissionStoragePolicyView `json:"storagePolicies"`
 }
 
 type AdmissionTrendItemView struct {
-	Bucket  time.Time `json:"bucket"`
-	Verdict string    `json:"verdict"`
-	Count   int64     `json:"count"`
+	Bucket  time.Time `json:"bucket" binding:"required" format:"date-time"`
+	Verdict string    `json:"verdict" binding:"required" enums:"audit,deny"`
+	Count   int64     `json:"count" binding:"required" format:"int64"`
 }
