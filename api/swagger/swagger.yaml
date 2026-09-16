@@ -606,6 +606,136 @@ definitions:
     - name
     - type
     type: object
+  dto.IncidentItem:
+    properties:
+      affectedCount:
+        format: int64
+        type: integer
+      clusterName:
+        type: string
+      component:
+        enum:
+        - webhook
+        - operator
+        - gateway
+        type: string
+      id:
+        pattern: ^[0-9]+$
+        type: string
+      lastSeenAt:
+        format: date-time
+        type: string
+      reason:
+        type: string
+      reporterInstanceId:
+        type: string
+      startedAt:
+        format: date-time
+        type: string
+      status:
+        enum:
+        - active
+        - interrupted
+        - closed
+        type: string
+    required:
+    - affectedCount
+    - clusterName
+    - component
+    - id
+    - lastSeenAt
+    - reason
+    - reporterInstanceId
+    - startedAt
+    - status
+    type: object
+  dto.IncidentPageView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.IncidentItem'
+        type: array
+      page:
+        type: integer
+      pageSize:
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        type: integer
+      total:
+        type: integer
+    required:
+    - items
+    - page
+    - pageSize
+    - total
+    type: object
+  dto.IncidentSampleView:
+    properties:
+      eventDatabaseId:
+        pattern: ^[0-9]+$
+        type: string
+      eventId:
+        type: string
+      expired:
+        type: boolean
+    required:
+    - eventId
+    - expired
+    type: object
+  dto.IncidentView:
+    properties:
+      affectedCount:
+        format: int64
+        type: integer
+      clusterName:
+        type: string
+      component:
+        enum:
+        - webhook
+        - operator
+        - gateway
+        type: string
+      detail:
+        type: string
+      id:
+        pattern: ^[0-9]+$
+        type: string
+      lastSeenAt:
+        format: date-time
+        type: string
+      reason:
+        type: string
+      reporterInstanceId:
+        type: string
+      samples:
+        items:
+          $ref: '#/definitions/dto.IncidentSampleView'
+        type: array
+      startedAt:
+        format: date-time
+        type: string
+      status:
+        enum:
+        - active
+        - interrupted
+        - closed
+        type: string
+    required:
+    - affectedCount
+    - clusterName
+    - component
+    - detail
+    - id
+    - lastSeenAt
+    - reason
+    - reporterInstanceId
+    - samples
+    - startedAt
+    - status
+    type: object
   dto.InstallRecordItemView:
     properties:
       clusterName:
@@ -1522,6 +1652,142 @@ paths:
       summary: 查询准入事件趋势
       tags:
       - AdmissionEvent
+  /admission-link-incidents:
+    get:
+      description: 按集群、组件、原因和状态检索准入事件链路异常。
+      operationId: listAdmissionLinkIncidents
+      parameters:
+      - default: 1
+        description: 页码，从 1 开始。省略时为 1
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: 每页记录数。仅接受 10、20、50、100。省略时为 20
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        in: query
+        name: pageSize
+        type: integer
+      - collectionFormat: csv
+        description: 按集群名称筛选，逗号分隔
+        in: query
+        items:
+          type: string
+        name: cluster
+        type: array
+      - collectionFormat: csv
+        description: 按组件筛选，逗号分隔
+        in: query
+        items:
+          enum:
+          - webhook
+          - operator
+          - gateway
+          type: string
+        name: component
+        type: array
+      - collectionFormat: csv
+        description: 按原因筛选，逗号分隔
+        in: query
+        items:
+          type: string
+        name: reason
+        type: array
+      - collectionFormat: csv
+        description: 按状态筛选，逗号分隔
+        in: query
+        items:
+          enum:
+          - active
+          - interrupted
+          - closed
+          type: string
+        name: status
+        type: array
+      - description: 起始时间（RFC3339）
+        format: date-time
+        in: query
+        name: from
+        type: string
+      - description: 结束时间（RFC3339）
+        format: date-time
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IncidentPageView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 分页查询准入链路异常
+      tags:
+      - LinkIncident
+  /admission-link-incidents/{id}:
+    get:
+      description: 查询单条准入事件链路异常及其样本事件。
+      operationId: getAdmissionLinkIncident
+      parameters:
+      - description: 准入链路异常记录 ID
+        in: path
+        name: id
+        pattern: ^[0-9]+$
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IncidentView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询准入链路异常详情
+      tags:
+      - LinkIncident
   /clusters:
     get:
       description: 查询平台已登记的集群及其在线状态和节点摘要。

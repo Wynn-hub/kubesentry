@@ -10,32 +10,37 @@ type IncidentListOptions struct {
 }
 
 type IncidentItem struct {
-	ID                 string    `json:"id"`
-	ClusterName        string    `json:"clusterName"`
-	ReporterInstanceID string    `json:"reporterInstanceId"`
-	Component          string    `json:"component"`
-	Reason             string    `json:"reason"`
-	StartedAt          time.Time `json:"startedAt"`
-	LastSeenAt         time.Time `json:"lastSeenAt"`
-	AffectedCount      int64     `json:"affectedCount"`
-	Status             string    `json:"status"`
+	ID                 string    `json:"id" binding:"required" pattern:"^[0-9]+$"`
+	ClusterName        string    `json:"clusterName" binding:"required"`
+	ReporterInstanceID string    `json:"reporterInstanceId" binding:"required"`
+	Component          string    `json:"component" binding:"required" enums:"webhook,operator,gateway"`
+	Reason             string    `json:"reason" binding:"required"`
+	StartedAt          time.Time `json:"startedAt" binding:"required" format:"date-time"`
+	LastSeenAt         time.Time `json:"lastSeenAt" binding:"required" format:"date-time"`
+	AffectedCount      int64     `json:"affectedCount" binding:"required" format:"int64"`
+	Status             string    `json:"status" binding:"required" enums:"active,interrupted,closed"`
 }
 
 type IncidentPageView struct {
-	Total    int            `json:"total"`
-	Page     int            `json:"page"`
-	PageSize int            `json:"pageSize"`
-	Items    []IncidentItem `json:"items"`
+	Total    int            `json:"total" binding:"required"`
+	Page     int            `json:"page" binding:"required"`
+	PageSize int            `json:"pageSize" binding:"required" enums:"10,20,50,100"`
+	Items    []IncidentItem `json:"items" binding:"required"`
 }
 
 type IncidentSampleView struct {
-	EventID         string  `json:"eventId"`
-	EventDatabaseID *string `json:"eventDatabaseId,omitempty"`
-	Expired         bool    `json:"expired"`
+	EventID         string  `json:"eventId" binding:"required"`
+	EventDatabaseID *string `json:"eventDatabaseId,omitempty" pattern:"^[0-9]+$"`
+	Expired         bool    `json:"expired" binding:"required"`
 }
 
 type IncidentView struct {
 	IncidentItem
-	Detail  string               `json:"detail"`
-	Samples []IncidentSampleView `json:"samples"`
+	Detail  string               `json:"detail" binding:"required"`
+	Samples []IncidentSampleView `json:"samples" binding:"required"`
+}
+
+type AdmissionLinkIncidentPath struct {
+	// 准入链路异常记录 ID
+	ID string `uri:"id" binding:"required" pattern:"^[0-9]+$"`
 }

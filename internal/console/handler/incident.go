@@ -9,6 +9,24 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
 )
 
+// @ID listAdmissionLinkIncidents
+// @Summary 分页查询准入链路异常
+// @Description 按集群、组件、原因和状态检索准入事件链路异常。
+// @Tags LinkIncident
+// @Produce json
+// @Param page query int false "页码，从 1 开始。省略时为 1" minimum(1) default(1)
+// @Param pageSize query int false "每页记录数。仅接受 10、20、50、100。省略时为 20" Enums(10,20,50,100) default(20)
+// @Param cluster query []string false "按集群名称筛选，逗号分隔" collectionFormat(csv)
+// @Param component query []string false "按组件筛选，逗号分隔" collectionFormat(csv) Enums(webhook,operator,gateway)
+// @Param reason query []string false "按原因筛选，逗号分隔" collectionFormat(csv)
+// @Param status query []string false "按状态筛选，逗号分隔" collectionFormat(csv) Enums(active,interrupted,closed)
+// @Param from query string false "起始时间（RFC3339）" format(date-time)
+// @Param to query string false "结束时间（RFC3339）" format(date-time)
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.IncidentPageView}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Failure 503 {object} dto.SwagErrorResponse
+// @Router /admission-link-incidents [get]
 func (h *Handler) ListAdmissionLinkIncidents(ctx context.Context, p dto.ListAdmissionLinkIncidentsParams) (dto.ListAdmissionLinkIncidentsRes, error) {
 	components := make([]string, len(p.Component))
 	for i := range p.Component {
@@ -42,6 +60,18 @@ func (h *Handler) ListAdmissionLinkIncidents(ctx context.Context, p dto.ListAdmi
 	return &dto.AdmissionLinkIncidentListResponse{Code: 0, Message: "success", Data: dto.NewOptAdmissionLinkIncidentListData(data)}, nil
 }
 
+// @ID getAdmissionLinkIncident
+// @Summary 查询准入链路异常详情
+// @Description 查询单条准入事件链路异常及其样本事件。
+// @Tags LinkIncident
+// @Produce json
+// @Param id path dto.AdmissionLinkIncidentPath true "准入链路异常记录 ID"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.IncidentView}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Failure 503 {object} dto.SwagErrorResponse
+// @Router /admission-link-incidents/{id} [get]
 func (h *Handler) GetAdmissionLinkIncident(ctx context.Context, p dto.GetAdmissionLinkIncidentParams) (dto.GetAdmissionLinkIncidentRes, error) {
 	d, err := h.svcs.Incident.Get(ctx, string(p.ID))
 	if err != nil {
