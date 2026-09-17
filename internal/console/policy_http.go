@@ -124,7 +124,7 @@ func requestContext(r *http.Request) context.Context {
 }
 
 type consoleJSONBody interface {
-	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest
+	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest | *dto.ExceptionRequest
 	UnmarshalJSON([]byte) error
 }
 
@@ -321,23 +321,28 @@ func responseStatus(response any) int {
 	case *dto.PolicyListResponse, *dto.PolicyNameResponse, *dto.PolicyDetailResponse,
 		*dto.ResourceSuggestionsResponse, *dto.Envelope, *dto.PolicyVersionListResponse,
 		*dto.RollbackResponse, *dto.PolicyGroupListResponse, *dto.PolicyGroupNameResponse,
-		*dto.PolicyGroupDetailResponse, *dto.PolicyGroupEnabledResponse:
+		*dto.PolicyGroupDetailResponse, *dto.PolicyGroupEnabledResponse,
+		*dto.ExceptionListResponse, *dto.ExceptionNameResponse, *dto.ExceptionDetailResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
 		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,
 		*dto.ListPolicyGroupsBadRequest, *dto.CreatePolicyGroupBadRequest,
-		*dto.UpdatePolicyGroupBadRequest, *dto.SetPolicyGroupEnabledBadRequest:
+		*dto.UpdatePolicyGroupBadRequest, *dto.SetPolicyGroupEnabledBadRequest,
+		*dto.ListExceptionsBadRequest, *dto.CreateExceptionBadRequest,
+		*dto.UpdateExceptionBadRequest:
 		return http.StatusBadRequest
 	case *dto.UpdatePolicyGroupForbidden, *dto.DeletePolicyGroupForbidden:
 		return http.StatusForbidden
 	case *dto.GetPolicyNotFound, *dto.UpdatePolicyNotFound, *dto.DeletePolicyNotFound,
 		*dto.ListPolicyVersionsNotFound, *dto.RollbackPolicyNotFound,
 		*dto.GetPolicyGroupNotFound, *dto.UpdatePolicyGroupNotFound,
-		*dto.DeletePolicyGroupNotFound, *dto.SetPolicyGroupEnabledNotFound:
+		*dto.DeletePolicyGroupNotFound, *dto.SetPolicyGroupEnabledNotFound,
+		*dto.GetExceptionNotFound, *dto.UpdateExceptionNotFound, *dto.DeleteExceptionNotFound:
 		return http.StatusNotFound
 	case *dto.CreatePolicyConflict, *dto.UpdatePolicyConflict, *dto.DeletePolicyConflict,
 		*dto.RollbackPolicyConflict, *dto.CreatePolicyGroupConflict,
-		*dto.UpdatePolicyGroupConflict, *dto.SetPolicyGroupEnabledConflict:
+		*dto.UpdatePolicyGroupConflict, *dto.SetPolicyGroupEnabledConflict,
+		*dto.CreateExceptionConflict, *dto.UpdateExceptionConflict:
 		return http.StatusConflict
 	case *dto.RollbackPolicyGone:
 		return http.StatusGone
@@ -347,7 +352,10 @@ func responseStatus(response any) int {
 		*dto.RollbackPolicyInternalServerError, *dto.GetResourceSuggestionsInternalServerError,
 		*dto.ListPolicyGroupsInternalServerError, *dto.CreatePolicyGroupInternalServerError,
 		*dto.GetPolicyGroupInternalServerError, *dto.UpdatePolicyGroupInternalServerError,
-		*dto.DeletePolicyGroupInternalServerError, *dto.SetPolicyGroupEnabledInternalServerError:
+		*dto.DeletePolicyGroupInternalServerError, *dto.SetPolicyGroupEnabledInternalServerError,
+		*dto.ListExceptionsInternalServerError, *dto.CreateExceptionInternalServerError,
+		*dto.GetExceptionInternalServerError, *dto.UpdateExceptionInternalServerError,
+		*dto.DeleteExceptionInternalServerError:
 		return http.StatusInternalServerError
 	default:
 		return 0

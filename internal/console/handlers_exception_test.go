@@ -3,6 +3,7 @@ package console
 
 import (
 	"errors"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -97,6 +98,42 @@ func TestExceptionCRUD(t *testing.T) {
 	}
 	if _, err := repos.Exceptions.GetByName(t.Context(), "my-exception"); err == nil {
 		t.Fatal("exception should be deleted")
+	}
+}
+
+func TestExceptionMutationsNotifyGateway(t *testing.T) {
+	h, _, handlers := newDBTestServerWithHandlers(t)
+	fake := &fakeHubClient{}
+	handlers.Gateway = fake
+	headers := map[string]string{"X-Request-Id": "exception-trace"}
+
+	create := validExceptionReq()
+	update := validExceptionReq()
+	update.Name = ""
+	update.Reason = "updated"
+	for _, mutation := range []struct {
+		method string
+		path   string
+		body   any
+	}{
+		{method: http.MethodPost, path: "/api/v1/exceptions", body: create},
+		{method: http.MethodPut, path: "/api/v1/exceptions/my-exception", body: update},
+		{method: http.MethodDelete, path: "/api/v1/exceptions/my-exception"},
+	} {
+		rec, env := doRequestWithHeaders(t, h, mutation.method, mutation.path, mutation.body, headers)
+		if rec.Code != http.StatusOK || env.Code != 0 {
+			t.Fatalf("%s %s: code=%d body=%s", mutation.method, mutation.path, rec.Code, rec.Body.String())
+		}
+	}
+
+	topics, traces := fake.calls()
+	if len(topics) != 3 || topics[0] != "exception" || topics[1] != "exception" || topics[2] != "exception" {
+		t.Fatalf("topics = %v, want three exception notifications", topics)
+	}
+	for _, trace := range traces {
+		if trace != "exception-trace" {
+			t.Fatalf("traces = %v, want request trace preserved", traces)
+		}
 	}
 }
 
