@@ -65,8 +65,10 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 	{
 		svcs := service.New(h.Repos, h.notifier())
 		svcs.Schema = h.fieldSchema
+		apiHandler := handler.New(svcs)
+		registerPolicyRoutes(mux, apiHandler)
 		ogenServer, err := dto.NewServer(
-			handler.New(svcs),
+			apiHandler,
 			dto.WithPathPrefix("/api/v1"),
 			dto.WithMiddleware(TraceIDMiddleware()),
 			dto.WithErrorHandler(ogenErrorHandler),

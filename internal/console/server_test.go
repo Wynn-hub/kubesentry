@@ -67,6 +67,41 @@ func TestUnknownNonAPIRouteIs404(t *testing.T) {
 	}
 }
 
+func TestPolicyRoutesUseNetHTTPPatterns(t *testing.T) {
+	srv, err := NewServer(&Handlers{}, func() bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux, ok := srv.Handler.(*http.ServeMux)
+	if !ok {
+		t.Fatalf("handler type = %T, want *http.ServeMux", srv.Handler)
+	}
+
+	tests := []struct {
+		method  string
+		path    string
+		pattern string
+	}{
+		{http.MethodGet, "/api/v1/policies", "GET /api/v1/policies"},
+		{http.MethodPost, "/api/v1/policies", "POST /api/v1/policies"},
+		{http.MethodGet, "/api/v1/policies/resource-suggestions", "GET /api/v1/policies/resource-suggestions"},
+		{http.MethodPost, "/api/v1/policies/validate", "POST /api/v1/policies/validate"},
+		{http.MethodGet, "/api/v1/policies/example", "GET /api/v1/policies/{name}"},
+		{http.MethodPut, "/api/v1/policies/example", "PUT /api/v1/policies/{name}"},
+		{http.MethodDelete, "/api/v1/policies/example", "DELETE /api/v1/policies/{name}"},
+		{http.MethodGet, "/api/v1/policies/example/versions", "GET /api/v1/policies/{name}/versions"},
+		{http.MethodPost, "/api/v1/policies/example/rollback", "POST /api/v1/policies/{name}/rollback"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
+			_, got := mux.Handler(httptest.NewRequest(tt.method, tt.path, nil))
+			if got != tt.pattern {
+				t.Fatalf("matched pattern = %q, want %q", got, tt.pattern)
+			}
+		})
+	}
+}
+
 func TestOpenAPIDocumentationEndpoints(t *testing.T) {
 	h := newBareServer(func() bool { return true })
 

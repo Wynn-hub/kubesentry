@@ -229,13 +229,13 @@ func TestCreatePolicyNotifiesGatewayOnSuccess(t *testing.T) {
 	fake := &fakeHubClient{}
 	handlers.Gateway = fake
 
-	rec, env := doRequest(t, h, "POST", "/api/v1/policies", validReq())
+	rec, env := doRequestWithHeaders(t, h, "POST", "/api/v1/policies", validReq(), map[string]string{"X-Request-Id": "policy-trace"})
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("code=%d env=%+v", rec.Code, env)
 	}
-	topics, _ := fake.calls()
-	if len(topics) != 1 || topics[0] != "policy" {
-		t.Fatalf("NotifyChange topics = %v, want [policy]", topics)
+	topics, traces := fake.calls()
+	if len(topics) != 1 || topics[0] != "policy" || len(traces) != 1 || traces[0] != "policy-trace" {
+		t.Fatalf("NotifyChange topics=%v traces=%v, want policy with request trace", topics, traces)
 	}
 }
 
