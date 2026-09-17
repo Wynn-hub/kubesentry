@@ -75,6 +75,16 @@ func (h *Handler) ListPolicies(ctx context.Context, params dto.ListPoliciesParam
 }
 
 // GetPolicy implements getPolicy.
+// @ID getPolicy
+// @Summary 查询策略详情
+// @Description 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。
+// @Tags Policy
+// @Produce json
+// @Param name path dto.PolicyPath true "策略名称"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyDetail}
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policies/{name} [get]
 func (h *Handler) GetPolicy(ctx context.Context, params dto.GetPolicyParams) (dto.GetPolicyRes, error) {
 	detail, err := h.svcs.Policy.Get(ctx, params.Name)
 	if err != nil {
@@ -92,6 +102,18 @@ func (h *Handler) GetPolicy(ctx context.Context, params dto.GetPolicyParams) (dt
 }
 
 // CreatePolicy implements createPolicy.
+// @ID createPolicy
+// @Summary 创建策略
+// @Description 创建策略并同时写入 v1 版本快照，两者在同一事务内提交。Rego 在写库前同步编译校验，编译失败返回 40000 且不落库。
+// @Tags Policy
+// @Accept json
+// @Produce json
+// @Param body body dto.SwagPolicyInput true "策略"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.PolicyNameView}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policies [post]
 func (h *Handler) CreatePolicy(ctx context.Context, req *dto.PolicyRequest) (dto.CreatePolicyRes, error) {
 	input, err := policyInput(req)
 	if err != nil {
@@ -109,6 +131,20 @@ func (h *Handler) CreatePolicy(ctx context.Context, req *dto.PolicyRequest) (dto
 }
 
 // UpdatePolicy implements updatePolicy.
+// @ID updatePolicy
+// @Summary 更新策略
+// @Description 更新策略并追加新版本快照，两者在同一事务内提交。labels 与现有值合并；annotations 中值为空字符串的键表示删除。提供 resourceVersion 时做比较并交换，不匹配返回 40900。
+// @Tags Policy
+// @Accept json
+// @Produce json
+// @Param name path dto.PolicyPath true "策略名称"
+// @Param body body dto.SwagPolicyInput true "策略"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.PolicyNameView}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policies/{name} [put]
 func (h *Handler) UpdatePolicy(ctx context.Context, req *dto.PolicyRequest, params dto.UpdatePolicyParams) (dto.UpdatePolicyRes, error) {
 	input, err := policyInput(req)
 	if err != nil {
@@ -126,6 +162,18 @@ func (h *Handler) UpdatePolicy(ctx context.Context, req *dto.PolicyRequest, para
 }
 
 // DeletePolicy implements deletePolicy.
+// @ID deletePolicy
+// @Summary 删除策略
+// @Description 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy 列出引用方。force=true 跳过该检查强制删除。
+// @Tags Policy
+// @Produce json
+// @Param name path dto.PolicyPath true "策略名称"
+// @Param force query bool false "为 true 时跳过引用检查强制删除" default(false)
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policies/{name} [delete]
 func (h *Handler) DeletePolicy(ctx context.Context, params dto.DeletePolicyParams) (dto.DeletePolicyRes, error) {
 	err := h.svcs.Policy.Delete(ctx, params.Name, params.Force.Or(false))
 	if err != nil {
@@ -135,6 +183,16 @@ func (h *Handler) DeletePolicy(ctx context.Context, params dto.DeletePolicyParam
 }
 
 // ListPolicyVersions implements listPolicyVersions.
+// @ID listPolicyVersions
+// @Summary 查询策略版本历史
+// @Description 返回版本快照列表，按版本号倒序，并标记当前生效版本。
+// @Tags Policy
+// @Produce json
+// @Param name path dto.PolicyPath true "策略名称"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyVersionList}
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policies/{name}/versions [get]
 func (h *Handler) ListPolicyVersions(ctx context.Context, params dto.ListPolicyVersionsParams) (dto.ListPolicyVersionsRes, error) {
 	list, err := h.svcs.Policy.ListVersions(ctx, params.Name)
 	if err != nil {
@@ -152,6 +210,21 @@ func (h *Handler) ListPolicyVersions(ctx context.Context, params dto.ListPolicyV
 }
 
 // RollbackPolicy implements rollbackPolicy.
+// @ID rollbackPolicy
+// @Summary 回滚策略到上一版本
+// @Description 以追加新版本的方式回滚（roll-forward），类似 git revert，不修改历史。direction 为 next 恒返回 40000。已在最早版本时返回 40000。目标版本快照已被保留策略清理时返回 41000。
+// @Tags Policy
+// @Accept json
+// @Produce json
+// @Param name path dto.PolicyPath true "策略名称"
+// @Param body body dto.SwagRollbackInput true "回滚方向"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagRollbackResult}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Failure 410 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policies/{name}/rollback [post]
 func (h *Handler) RollbackPolicy(ctx context.Context, req *dto.RollbackRequest, params dto.RollbackPolicyParams) (dto.RollbackPolicyRes, error) {
 	result, err := h.svcs.Policy.Rollback(ctx, params.Name, string(req.Direction))
 	if err != nil {
@@ -169,6 +242,16 @@ func (h *Handler) RollbackPolicy(ctx context.Context, req *dto.RollbackRequest, 
 }
 
 // ValidatePolicyRego implements validatePolicyRego.
+// @ID validatePolicyRego
+// @Summary 校验 Rego 源码
+// @Description 只做 Rego 编译校验，不落库、不校验其他字段。编译通过返回 code 0 且无 data，失败返回 40000 并在 message 中给出编译器原文。
+// @Tags Policy
+// @Accept json
+// @Produce json
+// @Param body body dto.SwagValidateRegoInput true "Rego 源码"
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Router /policies/validate [post]
 func (h *Handler) ValidatePolicyRego(ctx context.Context, req *dto.ValidateRegoRequest) (dto.ValidatePolicyRegoRes, error) {
 	err := h.svcs.Policy.ValidateRego(ctx, req.Rego)
 	if err != nil {
@@ -179,6 +262,15 @@ func (h *Handler) ValidatePolicyRego(ctx context.Context, req *dto.ValidateRegoR
 }
 
 // GetResourceSuggestions implements getResourceSuggestions.
+// @ID getResourceSuggestions
+// @Summary 查询资源建议
+// @Description 聚合所有策略 match 中用过的 apiGroups / apiVersions / resources 并去重排序，供前端可视化编辑器的下拉建议使用。不读取 rego 字段以避免传输大字段。
+// @Tags Policy
+// @Produce json
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagResourceSuggestions}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policies/resource-suggestions [get]
 func (h *Handler) GetResourceSuggestions(ctx context.Context) (dto.GetResourceSuggestionsRes, error) {
 	sugg, err := h.svcs.Policy.ResourceSuggestions(ctx)
 	if err != nil {

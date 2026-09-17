@@ -1238,6 +1238,13 @@ definitions:
     - stepSeconds
     - to
     type: object
+  dto.PolicyNameView:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
   dto.SummaryGroupView:
     properties:
       auditCount:
@@ -1410,6 +1417,25 @@ definitions:
     - match
     - reason
     type: object
+  dto.SwagMatchResource:
+    properties:
+      apiGroups:
+        items:
+          type: string
+        type: array
+      apiVersions:
+        items:
+          type: string
+        type: array
+      resources:
+        items:
+          type: string
+        type: array
+    required:
+    - apiGroups
+    - apiVersions
+    - resources
+    type: object
   dto.SwagOptionalResponse:
     properties:
       code:
@@ -1422,6 +1448,98 @@ definitions:
     required:
     - code
     - message
+    type: object
+  dto.SwagPolicyDetail:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        type: object
+      compileError:
+        type: string
+      createdAt:
+        format: date-time
+        type: string
+      description:
+        type: string
+      enforcementMode:
+        enum:
+        - enforce
+        - audit
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      match:
+        $ref: '#/definitions/dto.SwagPolicyMatch'
+      name:
+        type: string
+      phase:
+        enum:
+        - Ready
+        - Invalid
+        type: string
+      referencedBy:
+        items:
+          type: string
+        type: array
+      rego:
+        type: string
+      resourceVersion:
+        type: string
+      source:
+        enum:
+        - builtin
+        - custom
+        type: string
+      updatedAt:
+        format: date-time
+        type: string
+    required:
+    - annotations
+    - createdAt
+    - description
+    - enforcementMode
+    - labels
+    - match
+    - name
+    - phase
+    - referencedBy
+    - rego
+    - resourceVersion
+    - source
+    - updatedAt
+    type: object
+  dto.SwagPolicyInput:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        type: object
+      description:
+        type: string
+      enforcementMode:
+        enum:
+        - enforce
+        - audit
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      match:
+        $ref: '#/definitions/dto.SwagPolicyMatch'
+      name:
+        type: string
+      rego:
+        type: string
+      resourceVersion:
+        type: string
+    required:
+    - enforcementMode
+    - match
+    - rego
     type: object
   dto.SwagPolicyListData:
     properties:
@@ -1506,6 +1624,84 @@ definitions:
     - code
     - message
     type: object
+  dto.SwagPolicyMatch:
+    properties:
+      operations:
+        items:
+          enum:
+          - CREATE
+          - UPDATE
+          - DELETE
+          - CONNECT
+          type: string
+        type: array
+      resources:
+        items:
+          $ref: '#/definitions/dto.SwagMatchResource'
+        type: array
+    required:
+    - operations
+    - resources
+    type: object
+  dto.SwagPolicyVersionEntry:
+    properties:
+      createdAt:
+        format: date-time
+        type: string
+      enforcementMode:
+        enum:
+        - enforce
+        - audit
+        type: string
+      isCurrent:
+        type: boolean
+      match:
+        $ref: '#/definitions/dto.SwagPolicyMatch'
+      phase:
+        enum:
+        - Ready
+        - Invalid
+        type: string
+      rego:
+        type: string
+      version:
+        type: integer
+    required:
+    - createdAt
+    - enforcementMode
+    - isCurrent
+    - match
+    - phase
+    - rego
+    - version
+    type: object
+  dto.SwagPolicyVersionList:
+    properties:
+      currentVersion:
+        type: integer
+      cursor:
+        type: integer
+      head:
+        type: integer
+      inFlight:
+        type: boolean
+      nextEnabled:
+        type: boolean
+      prevEnabled:
+        type: boolean
+      versions:
+        items:
+          $ref: '#/definitions/dto.SwagPolicyVersionEntry'
+        type: array
+    required:
+    - currentVersion
+    - cursor
+    - head
+    - inFlight
+    - nextEnabled
+    - prevEnabled
+    - versions
+    type: object
   dto.SwagReferencedByData:
     properties:
       referencedBy:
@@ -1514,6 +1710,52 @@ definitions:
         type: array
     required:
     - referencedBy
+    type: object
+  dto.SwagResourceSuggestions:
+    properties:
+      apiGroups:
+        items:
+          type: string
+        type: array
+      apiVersions:
+        items:
+          type: string
+        type: array
+      resources:
+        items:
+          type: string
+        type: array
+      resourcesByGroup:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+    required:
+    - apiGroups
+    - apiVersions
+    - resources
+    - resourcesByGroup
+    type: object
+  dto.SwagRollbackInput:
+    properties:
+      direction:
+        enum:
+        - prev
+        - next
+        type: string
+    required:
+    - direction
+    type: object
+  dto.SwagRollbackResult:
+    properties:
+      newVersion:
+        type: integer
+      restoredFromVersion:
+        type: integer
+    required:
+    - newVersion
+    - restoredFromVersion
     type: object
   dto.SwagSuccessResponse:
     properties:
@@ -1528,6 +1770,13 @@ definitions:
     - code
     - data
     - message
+    type: object
+  dto.SwagValidateRegoInput:
+    properties:
+      rego:
+        type: string
+    required:
+    - rego
     type: object
   dto.UninstallTaskHTTPView:
     properties:
@@ -3171,6 +3420,307 @@ paths:
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
       summary: List policies
+      tags:
+      - Policy
+    post:
+      consumes:
+      - application/json
+      description: 创建策略并同时写入 v1 版本快照，两者在同一事务内提交。Rego 在写库前同步编译校验，编译失败返回 40000 且不落库。
+      operationId: createPolicy
+      parameters:
+      - description: 策略
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SwagPolicyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.PolicyNameView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 创建策略
+      tags:
+      - Policy
+  /policies/{name}:
+    delete:
+      description: 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy 列出引用方。force=true
+        跳过该检查强制删除。
+      operationId: deletePolicy
+      parameters:
+      - description: 策略名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - default: false
+        description: 为 true 时跳过引用检查强制删除
+        in: query
+        name: force
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 删除策略
+      tags:
+      - Policy
+    get:
+      description: 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。
+      operationId: getPolicy
+      parameters:
+      - description: 策略名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SwagPolicyDetail'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询策略详情
+      tags:
+      - Policy
+    put:
+      consumes:
+      - application/json
+      description: 更新策略并追加新版本快照，两者在同一事务内提交。labels 与现有值合并；annotations 中值为空字符串的键表示删除。提供
+        resourceVersion 时做比较并交换，不匹配返回 40900。
+      operationId: updatePolicy
+      parameters:
+      - description: 策略名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 策略
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SwagPolicyInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.PolicyNameView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 更新策略
+      tags:
+      - Policy
+  /policies/{name}/rollback:
+    post:
+      consumes:
+      - application/json
+      description: 以追加新版本的方式回滚（roll-forward），类似 git revert，不修改历史。direction 为 next
+        恒返回 40000。已在最早版本时返回 40000。目标版本快照已被保留策略清理时返回 41000。
+      operationId: rollbackPolicy
+      parameters:
+      - description: 策略名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 回滚方向
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SwagRollbackInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SwagRollbackResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "410":
+          description: Gone
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 回滚策略到上一版本
+      tags:
+      - Policy
+  /policies/{name}/versions:
+    get:
+      description: 返回版本快照列表，按版本号倒序，并标记当前生效版本。
+      operationId: listPolicyVersions
+      parameters:
+      - description: 策略名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SwagPolicyVersionList'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询策略版本历史
+      tags:
+      - Policy
+  /policies/resource-suggestions:
+    get:
+      description: 聚合所有策略 match 中用过的 apiGroups / apiVersions / resources 并去重排序，供前端可视化编辑器的下拉建议使用。不读取
+        rego 字段以避免传输大字段。
+      operationId: getResourceSuggestions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SwagResourceSuggestions'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询资源建议
+      tags:
+      - Policy
+  /policies/validate:
+    post:
+      consumes:
+      - application/json
+      description: 只做 Rego 编译校验，不落库、不校验其他字段。编译通过返回 code 0 且无 data，失败返回 40000 并在 message
+        中给出编译器原文。
+      operationId: validatePolicyRego
+      parameters:
+      - description: Rego 源码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SwagValidateRegoInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 校验 Rego 源码
       tags:
       - Policy
   /schema/fields:
