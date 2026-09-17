@@ -20,7 +20,7 @@ func TestPolicyNetHTTPMatchesOgenRouteMatrix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	oracle := newPolicyOgenOracle(t, repos)
+	oracle := newOgenOracle(t, repos)
 
 	validValidate := `{"rego":` + strconvQuote(validRego) + `}`
 	tests := []struct {
@@ -70,7 +70,7 @@ func TestPolicyNetHTTPMatchesOgenRouteMatrix(t *testing.T) {
 	}
 }
 
-func newPolicyOgenOracle(t *testing.T, repos repository.Repositories) http.Handler {
+func newOgenOracle(t *testing.T, repos repository.Repositories) http.Handler {
 	t.Helper()
 	svcs := service.New(repos, nil)
 	ogen, err := dto.NewServer(

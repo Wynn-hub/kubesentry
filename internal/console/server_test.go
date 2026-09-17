@@ -67,15 +67,12 @@ func TestUnknownNonAPIRouteIs404(t *testing.T) {
 	}
 }
 
-func TestPolicyRoutesUseNetHTTPPatterns(t *testing.T) {
+func TestPolicyAndPolicyGroupRoutesUseNetHTTPPatterns(t *testing.T) {
 	srv, err := NewServer(&Handlers{}, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}
-	mux, ok := srv.Handler.(*http.ServeMux)
-	if !ok {
-		t.Fatalf("handler type = %T, want *http.ServeMux", srv.Handler)
-	}
+	mux := srv.mux
 
 	tests := []struct {
 		method  string
@@ -91,6 +88,12 @@ func TestPolicyRoutesUseNetHTTPPatterns(t *testing.T) {
 		{http.MethodDelete, "/api/v1/policies/example", "DELETE /api/v1/policies/{name}"},
 		{http.MethodGet, "/api/v1/policies/example/versions", "GET /api/v1/policies/{name}/versions"},
 		{http.MethodPost, "/api/v1/policies/example/rollback", "POST /api/v1/policies/{name}/rollback"},
+		{http.MethodGet, "/api/v1/policygroups", "GET /api/v1/policygroups"},
+		{http.MethodPost, "/api/v1/policygroups", "POST /api/v1/policygroups"},
+		{http.MethodGet, "/api/v1/policygroups/example", "GET /api/v1/policygroups/{name}"},
+		{http.MethodPut, "/api/v1/policygroups/example", "PUT /api/v1/policygroups/{name}"},
+		{http.MethodDelete, "/api/v1/policygroups/example", "DELETE /api/v1/policygroups/{name}"},
+		{http.MethodPut, "/api/v1/policygroups/example/enabled", "PUT /api/v1/policygroups/{name}/enabled"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
@@ -99,6 +102,64 @@ func TestPolicyRoutesUseNetHTTPPatterns(t *testing.T) {
 				t.Fatalf("matched pattern = %q, want %q", got, tt.pattern)
 			}
 		})
+	}
+}
+
+func TestNonMigratedRoutesRemainOnOgenFallback(t *testing.T) {
+	srv, err := NewServer(&Handlers{}, func() bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := srv.mux
+
+	routes := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/api/v1/clusters"},
+		{http.MethodPost, "/api/v1/clusters"},
+		{http.MethodGet, "/api/v1/clusters/example"},
+		{http.MethodPut, "/api/v1/clusters/example"},
+		{http.MethodDelete, "/api/v1/clusters/example"},
+		{http.MethodPost, "/api/v1/clusters/example/reissue-token"},
+		{http.MethodGet, "/api/v1/clusters/example/latest-install-params"},
+		{http.MethodPost, "/api/v1/clusters/example/uninstall"},
+		{http.MethodGet, "/api/v1/clusters/example/uninstall-tasks"},
+		{http.MethodPost, "/api/v1/clusters/example/uninstall-tasks/task/retry"},
+		{http.MethodGet, "/api/v1/install-records"},
+		{http.MethodGet, "/api/v1/distributions"},
+		{http.MethodPost, "/api/v1/distributions"},
+		{http.MethodGet, "/api/v1/distributions/example"},
+		{http.MethodPut, "/api/v1/distributions/example"},
+		{http.MethodDelete, "/api/v1/distributions/example"},
+		{http.MethodGet, "/api/v1/platform/overview"},
+		{http.MethodGet, "/api/v1/platform/instances/console/example/trend"},
+		{http.MethodGet, "/api/v1/platform/leadership-events"},
+		{http.MethodGet, "/api/v1/platform/settings"},
+		{http.MethodPut, "/api/v1/platform/settings"},
+		{http.MethodGet, "/api/v1/schema/fields"},
+		{http.MethodGet, "/api/v1/summary"},
+		{http.MethodGet, "/api/v1/admission-events"},
+		{http.MethodGet, "/api/v1/admission-events/event"},
+		{http.MethodGet, "/api/v1/admission-events/trend"},
+		{http.MethodGet, "/api/v1/admission-event-settings"},
+		{http.MethodPut, "/api/v1/admission-event-settings"},
+		{http.MethodGet, "/api/v1/admission-link-incidents"},
+		{http.MethodGet, "/api/v1/admission-link-incidents/incident"},
+		{http.MethodGet, "/api/v1/exceptions"},
+		{http.MethodPost, "/api/v1/exceptions"},
+		{http.MethodGet, "/api/v1/exceptions/example"},
+		{http.MethodPut, "/api/v1/exceptions/example"},
+		{http.MethodDelete, "/api/v1/exceptions/example"},
+	}
+	if len(routes) != 35 {
+		t.Fatalf("fallback route count = %d, want 35", len(routes))
+	}
+	for _, route := range routes {
+		_, pattern := mux.Handler(httptest.NewRequest(route.method, route.path, nil))
+		if pattern != "/api/v1/" {
+			t.Errorf("%s %s matched %q, want Ogen fallback", route.method, route.path, pattern)
+		}
 	}
 }
 

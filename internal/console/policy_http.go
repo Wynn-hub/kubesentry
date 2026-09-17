@@ -24,7 +24,7 @@ func registerPolicyRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 	mux.HandleFunc("PUT /api/v1/policies/resource-suggestions", policyMethodNotAllowed("GET"))
 	mux.HandleFunc("DELETE /api/v1/policies/resource-suggestions", policyMethodNotAllowed("GET"))
 	mux.HandleFunc("GET /api/v1/policies", func(w http.ResponseWriter, r *http.Request) {
-		if rejectPolicyHead(w, r, "GET,POST") {
+		if rejectHead(w, r, "GET,POST") {
 			return
 		}
 		params, err := decodeListPoliciesQuery(r.URL.Query())
@@ -32,46 +32,46 @@ func registerPolicyRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		response, err := h.ListPolicies(policyContext(r), params)
-		writePolicyResponse(w, response, err)
+		response, err := h.ListPolicies(requestContext(r), params)
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/policies", func(w http.ResponseWriter, r *http.Request) {
 		var body dto.PolicyRequest
-		if !decodePolicyJSON(w, r, "CreatePolicy", &body) {
+		if !decodeJSON(w, r, "CreatePolicy", &body) {
 			return
 		}
-		response, err := h.CreatePolicy(policyContext(r), &body)
-		writePolicyResponse(w, response, err)
+		response, err := h.CreatePolicy(requestContext(r), &body)
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("GET /api/v1/policies/resource-suggestions", func(w http.ResponseWriter, r *http.Request) {
-		if rejectPolicyHead(w, r, "GET") {
+		if rejectHead(w, r, "GET") {
 			return
 		}
-		response, err := h.GetResourceSuggestions(policyContext(r))
-		writePolicyResponse(w, response, err)
+		response, err := h.GetResourceSuggestions(requestContext(r))
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/policies/validate", func(w http.ResponseWriter, r *http.Request) {
 		var body dto.ValidateRegoRequest
-		if !decodePolicyJSON(w, r, "ValidatePolicyRego", &body) {
+		if !decodeJSON(w, r, "ValidatePolicyRego", &body) {
 			return
 		}
-		response, err := h.ValidatePolicyRego(policyContext(r), &body)
-		writePolicyResponse(w, response, err)
+		response, err := h.ValidatePolicyRego(requestContext(r), &body)
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("GET /api/v1/policies/{name}", func(w http.ResponseWriter, r *http.Request) {
-		if rejectPolicyHead(w, r, "GET,PUT,DELETE") {
+		if rejectHead(w, r, "GET,PUT,DELETE") {
 			return
 		}
-		response, err := h.GetPolicy(policyContext(r), dto.GetPolicyParams{Name: r.PathValue("name")})
-		writePolicyResponse(w, response, err)
+		response, err := h.GetPolicy(requestContext(r), dto.GetPolicyParams{Name: r.PathValue("name")})
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("PUT /api/v1/policies/{name}", func(w http.ResponseWriter, r *http.Request) {
 		var body dto.PolicyRequest
-		if !decodePolicyJSON(w, r, "UpdatePolicy", &body) {
+		if !decodeJSON(w, r, "UpdatePolicy", &body) {
 			return
 		}
-		response, err := h.UpdatePolicy(policyContext(r), &body, dto.UpdatePolicyParams{Name: r.PathValue("name")})
-		writePolicyResponse(w, response, err)
+		response, err := h.UpdatePolicy(requestContext(r), &body, dto.UpdatePolicyParams{Name: r.PathValue("name")})
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("DELETE /api/v1/policies/{name}", func(w http.ResponseWriter, r *http.Request) {
 		force, err := queryBool(r.URL.Query(), "force")
@@ -83,23 +83,23 @@ func registerPolicyRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		if force != nil {
 			params.Force.SetTo(*force)
 		}
-		response, err := h.DeletePolicy(policyContext(r), params)
-		writePolicyResponse(w, response, err)
+		response, err := h.DeletePolicy(requestContext(r), params)
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("GET /api/v1/policies/{name}/versions", func(w http.ResponseWriter, r *http.Request) {
-		if rejectPolicyHead(w, r, "GET") {
+		if rejectHead(w, r, "GET") {
 			return
 		}
-		response, err := h.ListPolicyVersions(policyContext(r), dto.ListPolicyVersionsParams{Name: r.PathValue("name")})
-		writePolicyResponse(w, response, err)
+		response, err := h.ListPolicyVersions(requestContext(r), dto.ListPolicyVersionsParams{Name: r.PathValue("name")})
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/policies/{name}/rollback", func(w http.ResponseWriter, r *http.Request) {
 		var body dto.RollbackRequest
-		if !decodePolicyJSON(w, r, "RollbackPolicy", &body) {
+		if !decodeJSON(w, r, "RollbackPolicy", &body) {
 			return
 		}
-		response, err := h.RollbackPolicy(policyContext(r), &body, dto.RollbackPolicyParams{Name: r.PathValue("name")})
-		writePolicyResponse(w, response, err)
+		response, err := h.RollbackPolicy(requestContext(r), &body, dto.RollbackPolicyParams{Name: r.PathValue("name")})
+		writeResponse(w, response, err)
 	})
 }
 
@@ -110,7 +110,7 @@ func policyMethodNotAllowed(allowed string) http.HandlerFunc {
 	}
 }
 
-func rejectPolicyHead(w http.ResponseWriter, r *http.Request, allowed string) bool {
+func rejectHead(w http.ResponseWriter, r *http.Request, allowed string) bool {
 	if r.Method != http.MethodHead {
 		return false
 	}
@@ -119,16 +119,16 @@ func rejectPolicyHead(w http.ResponseWriter, r *http.Request, allowed string) bo
 	return true
 }
 
-func policyContext(r *http.Request) context.Context {
+func requestContext(r *http.Request) context.Context {
 	return context.WithValue(r.Context(), traceIDKey{}, TraceIDFromRequest(r))
 }
 
-type policyJSONBody interface {
-	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest
+type consoleJSONBody interface {
+	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest
 	UnmarshalJSON([]byte) error
 }
 
-func decodePolicyJSON[T policyJSONBody](w http.ResponseWriter, r *http.Request, operation string, dst T) bool {
+func decodeJSON[T consoleJSONBody](w http.ResponseWriter, r *http.Request, operation string, dst T) bool {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, fmt.Sprintf("operation %s: decode request: parse media type: %v", operation, err))
@@ -140,7 +140,7 @@ func decodePolicyJSON[T policyJSONBody](w http.ResponseWriter, r *http.Request, 
 	}
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
-		writePolicyDecodeError(w, operation, err.Error())
+		writeDecodeError(w, operation, err.Error())
 		return false
 	}
 	if len(raw) == 0 {
@@ -148,29 +148,29 @@ func decodePolicyJSON[T policyJSONBody](w http.ResponseWriter, r *http.Request, 
 		return false
 	}
 	if err := dst.UnmarshalJSON(raw); err != nil {
-		writePolicyDecodeError(w, operation, err.Error())
+		writeDecodeError(w, operation, err.Error())
 		return false
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	var value json.RawMessage
 	if err := decoder.Decode(&value); err != nil {
-		writePolicyDecodeError(w, operation, err.Error())
+		writeDecodeError(w, operation, err.Error())
 		return false
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		writePolicyDecodeError(w, operation, "unexpected trailing data")
+		writeDecodeError(w, operation, "unexpected trailing data")
 		return false
 	}
 	if validator, ok := any(dst).(interface{ Validate() error }); ok {
 		if err := validator.Validate(); err != nil {
-			writePolicyDecodeError(w, operation, err.Error())
+			writeDecodeError(w, operation, err.Error())
 			return false
 		}
 	}
 	return true
 }
 
-func writePolicyDecodeError(w http.ResponseWriter, operation, message string) {
+func writeDecodeError(w http.ResponseWriter, operation, message string) {
 	writeErr(w, http.StatusBadRequest, fmt.Sprintf("operation %s: decode request: decode application/json: %s", operation, message))
 }
 
@@ -301,12 +301,12 @@ func policyQueryError(operation, name string, err error) error {
 	return fmt.Errorf("operation %s: decode params: query: %q: %w", operation, name, err)
 }
 
-func writePolicyResponse(w http.ResponseWriter, response any, err error) {
+func writeResponse(w http.ResponseWriter, response any, err error) {
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "request failed")
 		return
 	}
-	status := policyResponseStatus(response)
+	status := responseStatus(response)
 	if status == 0 {
 		writeErr(w, http.StatusInternalServerError, "request failed")
 		return
@@ -316,27 +316,38 @@ func writePolicyResponse(w http.ResponseWriter, response any, err error) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func policyResponseStatus(response any) int {
+func responseStatus(response any) int {
 	switch response.(type) {
 	case *dto.PolicyListResponse, *dto.PolicyNameResponse, *dto.PolicyDetailResponse,
 		*dto.ResourceSuggestionsResponse, *dto.Envelope, *dto.PolicyVersionListResponse,
-		*dto.RollbackResponse:
+		*dto.RollbackResponse, *dto.PolicyGroupListResponse, *dto.PolicyGroupNameResponse,
+		*dto.PolicyGroupDetailResponse, *dto.PolicyGroupEnabledResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
-		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest:
+		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,
+		*dto.ListPolicyGroupsBadRequest, *dto.CreatePolicyGroupBadRequest,
+		*dto.UpdatePolicyGroupBadRequest, *dto.SetPolicyGroupEnabledBadRequest:
 		return http.StatusBadRequest
+	case *dto.UpdatePolicyGroupForbidden, *dto.DeletePolicyGroupForbidden:
+		return http.StatusForbidden
 	case *dto.GetPolicyNotFound, *dto.UpdatePolicyNotFound, *dto.DeletePolicyNotFound,
-		*dto.ListPolicyVersionsNotFound, *dto.RollbackPolicyNotFound:
+		*dto.ListPolicyVersionsNotFound, *dto.RollbackPolicyNotFound,
+		*dto.GetPolicyGroupNotFound, *dto.UpdatePolicyGroupNotFound,
+		*dto.DeletePolicyGroupNotFound, *dto.SetPolicyGroupEnabledNotFound:
 		return http.StatusNotFound
 	case *dto.CreatePolicyConflict, *dto.UpdatePolicyConflict, *dto.DeletePolicyConflict,
-		*dto.RollbackPolicyConflict:
+		*dto.RollbackPolicyConflict, *dto.CreatePolicyGroupConflict,
+		*dto.UpdatePolicyGroupConflict, *dto.SetPolicyGroupEnabledConflict:
 		return http.StatusConflict
 	case *dto.RollbackPolicyGone:
 		return http.StatusGone
 	case *dto.ListPoliciesInternalServerError, *dto.CreatePolicyInternalServerError,
 		*dto.GetPolicyInternalServerError, *dto.UpdatePolicyInternalServerError,
 		*dto.DeletePolicyInternalServerError, *dto.ListPolicyVersionsInternalServerError,
-		*dto.RollbackPolicyInternalServerError, *dto.GetResourceSuggestionsInternalServerError:
+		*dto.RollbackPolicyInternalServerError, *dto.GetResourceSuggestionsInternalServerError,
+		*dto.ListPolicyGroupsInternalServerError, *dto.CreatePolicyGroupInternalServerError,
+		*dto.GetPolicyGroupInternalServerError, *dto.UpdatePolicyGroupInternalServerError,
+		*dto.DeletePolicyGroupInternalServerError, *dto.SetPolicyGroupEnabledInternalServerError:
 		return http.StatusInternalServerError
 	default:
 		return 0

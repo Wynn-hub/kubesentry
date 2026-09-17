@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"strings"
 	"sync"
 
@@ -41,6 +42,7 @@ type Handlers struct {
 // here and serves the built SPA itself — see charts/kubesentry-gateway/console).
 type Server struct {
 	Handler http.Handler
+	mux     *http.ServeMux
 }
 
 // NewServer wires the REST API only; the SPA is served by a separate nginx
@@ -67,6 +69,7 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		svcs.Schema = h.fieldSchema
 		apiHandler := handler.New(svcs)
 		registerPolicyRoutes(mux, apiHandler)
+		registerPolicyGroupRoutes(mux, apiHandler)
 		ogenServer, err := dto.NewServer(
 			apiHandler,
 			dto.WithPathPrefix("/api/v1"),
@@ -105,7 +108,25 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		http.NotFound(w, r)
 	})
 
-	return &Server{Handler: mux}, nil
+	return &Server{Handler: rejectNonCanonicalAPIPaths(mux), mux: mux}, nil
+}
+
+func rejectNonCanonicalAPIPaths(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		escaped := r.URL.EscapedPath()
+		cleaned := path.Clean(escaped)
+		if strings.HasSuffix(escaped, "/") && cleaned != "/" {
+			cleaned += "/"
+		}
+		isAPIPath := func(value string) bool {
+			return value == "/api/v1" || strings.HasPrefix(value, "/api/v1/")
+		}
+		if (isAPIPath(escaped) || isAPIPath(cleaned) || r.URL.Path == "/api/v1") && (cleaned != escaped || r.URL.Path == "/api/v1") {
+			writeErr(w, http.StatusNotFound, "unknown API route")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // ogenErrorHandler keeps parser and validator failures in the same envelope
