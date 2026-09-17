@@ -576,6 +576,25 @@ definitions:
     - resourceVersion
     - spec
     type: object
+  dto.EffectiveMemberView:
+    properties:
+      enforcementMode:
+        enum:
+        - enforce
+        - audit
+        type: string
+      name:
+        type: string
+      source:
+        enum:
+        - builtin
+        - custom
+        type: string
+    required:
+    - enforcementMode
+    - name
+    - source
+    type: object
   dto.ExceptionItem:
     properties:
       duration:
@@ -1238,6 +1257,86 @@ definitions:
     - stepSeconds
     - to
     type: object
+  dto.PolicyGroupItem:
+    properties:
+      displayName:
+        type: string
+      enabled:
+        type: boolean
+      name:
+        type: string
+      phase:
+        enum:
+        - Ready
+        - Invalid
+        type: string
+      resolvedCount:
+        type: integer
+      source:
+        enum:
+        - builtin
+        - custom
+        type: string
+    required:
+    - displayName
+    - enabled
+    - name
+    - phase
+    - resolvedCount
+    - source
+    type: object
+  dto.PolicyGroupPageView:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.PolicyGroupItem'
+        type: array
+      page:
+        type: integer
+      pageSize:
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        type: integer
+      total:
+        type: integer
+    required:
+    - items
+    - page
+    - pageSize
+    - total
+    type: object
+  dto.PolicyGroupScopeView:
+    properties:
+      allClusters:
+        type: boolean
+      clusterNames:
+        items:
+          type: string
+        type: array
+    required:
+    - allClusters
+    type: object
+  dto.PolicyGroupStatusView:
+    properties:
+      phase:
+        enum:
+        - Ready
+        - Invalid
+        type: string
+      resolvedCount:
+        type: integer
+      resolvedPolicies:
+        items:
+          $ref: '#/definitions/dto.EffectiveMemberView'
+        type: array
+    required:
+    - phase
+    - resolvedCount
+    - resolvedPolicies
+    type: object
   dto.PolicyNameView:
     properties:
       name:
@@ -1511,6 +1610,117 @@ definitions:
     - source
     - updatedAt
     type: object
+  dto.SwagPolicyGroupDetail:
+    properties:
+      name:
+        type: string
+      resourceVersion:
+        type: string
+      scope:
+        $ref: '#/definitions/dto.PolicyGroupScopeView'
+      source:
+        enum:
+        - builtin
+        - custom
+        type: string
+      spec:
+        $ref: '#/definitions/dto.SwagPolicyGroupSpec'
+      status:
+        $ref: '#/definitions/dto.PolicyGroupStatusView'
+    required:
+    - name
+    - resourceVersion
+    - scope
+    - source
+    - spec
+    - status
+    type: object
+  dto.SwagPolicyGroupEnabled:
+    properties:
+      enabled:
+        type: boolean
+    required:
+    - enabled
+    type: object
+  dto.SwagPolicyGroupEnabledInput:
+    properties:
+      enabled:
+        type: boolean
+    required:
+    - enabled
+    type: object
+  dto.SwagPolicyGroupInput:
+    properties:
+      allClusters:
+        type: boolean
+      clusterNames:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      displayName:
+        type: string
+      enabled:
+        type: boolean
+      name:
+        type: string
+      namespaceSelector:
+        $ref: '#/definitions/dto.LabelSelectorView'
+      policies:
+        $ref: '#/definitions/dto.SwagPolicyGroupPolicies'
+      resourceVersion:
+        type: string
+      selectorEnforcementMode:
+        enum:
+        - enforce
+        - audit
+        type: string
+    required:
+    - enabled
+    - policies
+    type: object
+  dto.SwagPolicyGroupName:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  dto.SwagPolicyGroupPolicies:
+    properties:
+      byName:
+        items:
+          $ref: '#/definitions/dto.SwagPolicyRef'
+        type: array
+      bySelector:
+        $ref: '#/definitions/dto.LabelSelectorView'
+      exclude:
+        items:
+          type: string
+        type: array
+    type: object
+  dto.SwagPolicyGroupSpec:
+    properties:
+      description:
+        type: string
+      displayName:
+        type: string
+      enabled:
+        type: boolean
+      namespaceSelector:
+        $ref: '#/definitions/dto.LabelSelectorView'
+      policies:
+        $ref: '#/definitions/dto.SwagPolicyGroupPolicies'
+      selectorEnforcementMode:
+        enum:
+        - enforce
+        - audit
+        type: string
+    required:
+    - enabled
+    - policies
+    type: object
   dto.SwagPolicyInput:
     properties:
       annotations:
@@ -1642,6 +1852,18 @@ definitions:
     required:
     - operations
     - resources
+    type: object
+  dto.SwagPolicyRef:
+    properties:
+      enforcementMode:
+        enum:
+        - enforce
+        - audit
+        type: string
+      name:
+        type: string
+    required:
+    - name
     type: object
   dto.SwagPolicyVersionEntry:
     properties:
@@ -3723,6 +3945,273 @@ paths:
       summary: 校验 Rego 源码
       tags:
       - Policy
+  /policygroups:
+    get:
+      description: 分页查询策略组及其当前解析出的策略数量。
+      operationId: listPolicyGroups
+      parameters:
+      - default: 1
+        description: 页码，从 1 开始。省略时为 1
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: 每页记录数。仅接受 10、20、50、100。省略时为 20
+        enum:
+        - 10
+        - 20
+        - 50
+        - 100
+        in: query
+        name: pageSize
+        type: integer
+      - default: name
+        description: 排序字段
+        enum:
+        - name
+        - displayName
+        - enabled
+        - phase
+        - resolvedCount
+        in: query
+        name: sortBy
+        type: string
+      - default: asc
+        description: 排序方向
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.PolicyGroupPageView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 分页查询策略组列表
+      tags:
+      - PolicyGroup
+    post:
+      consumes:
+      - application/json
+      description: 创建策略组并配置其集群作用范围和策略选择规则。
+      operationId: createPolicyGroup
+      parameters:
+      - description: 策略组
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SwagPolicyGroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SwagPolicyGroupName'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 创建策略组
+      tags:
+      - PolicyGroup
+  /policygroups/{name}:
+    delete:
+      description: 删除非内置策略组。
+      operationId: deletePolicyGroup
+      parameters:
+      - description: 策略组名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 删除策略组
+      tags:
+      - PolicyGroup
+    get:
+      description: 查询策略组配置、集群作用范围和解析状态。
+      operationId: getPolicyGroup
+      parameters:
+      - description: 策略组名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SwagPolicyGroupDetail'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询策略组详情
+      tags:
+      - PolicyGroup
+    put:
+      consumes:
+      - application/json
+      description: 更新策略组配置及其集群作用范围。
+      operationId: updatePolicyGroup
+      parameters:
+      - description: 策略组名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 策略组
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SwagPolicyGroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SwagPolicyGroupName'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 更新策略组
+      tags:
+      - PolicyGroup
+  /policygroups/{name}/enabled:
+    put:
+      consumes:
+      - application/json
+      description: 启用或关闭指定策略组，不改变其成员选择规则。
+      operationId: setPolicyGroupEnabled
+      parameters:
+      - description: 策略组名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 启用状态
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SwagPolicyGroupEnabledInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SwagPolicyGroupEnabled'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 设置策略组启用状态
+      tags:
+      - PolicyGroup
   /schema/fields:
     get:
       description: 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。

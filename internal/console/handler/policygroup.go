@@ -9,6 +9,19 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
 )
 
+// @ID listPolicyGroups
+// @Summary 分页查询策略组列表
+// @Description 分页查询策略组及其当前解析出的策略数量。
+// @Tags PolicyGroup
+// @Produce json
+// @Param page query int false "页码，从 1 开始。省略时为 1" minimum(1) default(1)
+// @Param pageSize query int false "每页记录数。仅接受 10、20、50、100。省略时为 20" Enums(10,20,50,100) default(20)
+// @Param sortBy query string false "排序字段" Enums(name,displayName,enabled,phase,resolvedCount) default(name)
+// @Param sortOrder query string false "排序方向" Enums(asc,desc) default(asc)
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.PolicyGroupPageView}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policygroups [get]
 func (h *Handler) ListPolicyGroups(ctx context.Context, p dto.ListPolicyGroupsParams) (dto.ListPolicyGroupsRes, error) {
 	page := p.Page.Or(1)
 	size := int(p.PageSize.Or(dto.PageSize20))
@@ -26,6 +39,16 @@ func (h *Handler) ListPolicyGroups(ctx context.Context, p dto.ListPolicyGroupsPa
 	return &dto.PolicyGroupListResponse{Code: 0, Message: "success", Data: dto.NewOptPolicyGroupListData(v)}, nil
 }
 
+// @ID getPolicyGroup
+// @Summary 查询策略组详情
+// @Description 查询策略组配置、集群作用范围和解析状态。
+// @Tags PolicyGroup
+// @Produce json
+// @Param name path dto.PolicyGroupPath true "策略组名称"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyGroupDetail}
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policygroups/{name} [get]
 func (h *Handler) GetPolicyGroup(ctx context.Context, p dto.GetPolicyGroupParams) (dto.GetPolicyGroupRes, error) {
 	d, e := h.svcs.PolicyGroup.Get(ctx, p.Name)
 	if e != nil {
@@ -41,6 +64,18 @@ func (h *Handler) GetPolicyGroup(ctx context.Context, p dto.GetPolicyGroupParams
 	return &dto.PolicyGroupDetailResponse{Code: 0, Message: "success", Data: dto.NewOptPolicyGroupDetail(v)}, nil
 }
 
+// @ID createPolicyGroup
+// @Summary 创建策略组
+// @Description 创建策略组并配置其集群作用范围和策略选择规则。
+// @Tags PolicyGroup
+// @Accept json
+// @Produce json
+// @Param body body dto.SwagPolicyGroupInput true "策略组"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyGroupName}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policygroups [post]
 func (h *Handler) CreatePolicyGroup(ctx context.Context, r *dto.PolicyGroupRequest) (dto.CreatePolicyGroupRes, error) {
 	input, e := policyGroupInput(r)
 	if e != nil {
@@ -60,6 +95,21 @@ func (h *Handler) CreatePolicyGroup(ctx context.Context, r *dto.PolicyGroupReque
 	return &dto.PolicyGroupNameResponse{Code: 0, Message: "success", Data: dto.OptPolicyGroupNameData{Value: dto.PolicyGroupNameData{Name: stringOr(input.Name)}, Set: true}}, nil
 }
 
+// @ID updatePolicyGroup
+// @Summary 更新策略组
+// @Description 更新策略组配置及其集群作用范围。
+// @Tags PolicyGroup
+// @Accept json
+// @Produce json
+// @Param name path dto.PolicyGroupPath true "策略组名称"
+// @Param body body dto.SwagPolicyGroupInput true "策略组"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyGroupName}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policygroups/{name} [put]
 func (h *Handler) UpdatePolicyGroup(ctx context.Context, r *dto.PolicyGroupRequest, p dto.UpdatePolicyGroupParams) (dto.UpdatePolicyGroupRes, error) {
 	input, e := policyGroupInput(r)
 	if e != nil {
@@ -97,6 +147,20 @@ func policyGroupInput(request *dto.PolicyGroupRequest) (*dto.PolicyGroupInput, e
 	return &input, nil
 }
 
+// @ID setPolicyGroupEnabled
+// @Summary 设置策略组启用状态
+// @Description 启用或关闭指定策略组，不改变其成员选择规则。
+// @Tags PolicyGroup
+// @Accept json
+// @Produce json
+// @Param name path dto.PolicyGroupPath true "策略组名称"
+// @Param body body dto.SwagPolicyGroupEnabledInput true "启用状态"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyGroupEnabled}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policygroups/{name}/enabled [put]
 func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupEnabledRequest, p dto.SetPolicyGroupEnabledParams) (dto.SetPolicyGroupEnabledRes, error) {
 	e := h.svcs.PolicyGroup.SetEnabled(ctx, p.Name, r.Enabled)
 	if e != nil {
@@ -111,6 +175,17 @@ func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupE
 	return &dto.PolicyGroupEnabledResponse{Code: 0, Message: "success", Data: dto.OptPolicyGroupEnabledData{Value: dto.PolicyGroupEnabledData{Enabled: r.Enabled}, Set: true}}, nil
 }
 
+// @ID deletePolicyGroup
+// @Summary 删除策略组
+// @Description 删除非内置策略组。
+// @Tags PolicyGroup
+// @Produce json
+// @Param name path dto.PolicyGroupPath true "策略组名称"
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 403 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 500 {object} dto.SwagErrorResponse
+// @Router /policygroups/{name} [delete]
 func (h *Handler) DeletePolicyGroup(ctx context.Context, p dto.DeletePolicyGroupParams) (dto.DeletePolicyGroupRes, error) {
 	e := h.svcs.PolicyGroup.Delete(ctx, p.Name)
 	if e != nil {
