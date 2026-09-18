@@ -124,7 +124,7 @@ func requestContext(r *http.Request) context.Context {
 }
 
 type consoleJSONBody interface {
-	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest | *dto.ExceptionRequest | *dto.AdmissionEventSettingsRequest | *dto.ClusterCreateRequest | *dto.ClusterLabelsRequest | *dto.ClusterTokenRequest
+	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest | *dto.ExceptionRequest | *dto.AdmissionEventSettingsRequest | *dto.ClusterCreateRequest | *dto.ClusterLabelsRequest | *dto.ClusterTokenRequest | *dto.DistributionRequest
 	UnmarshalJSON([]byte) error
 }
 
@@ -330,7 +330,9 @@ func responseStatus(response any) int {
 		*dto.ClusterCommandResponse, *dto.ClusterDetailResponse, *dto.ClusterNameResponse,
 		*dto.EmptyResponse, *dto.InstallParamsResponse, *dto.UninstallTaskResponse,
 		*dto.UninstallTaskListResponse, *dto.UninstallTaskIDResponse,
-		*dto.InstallRecordListResponse:
+		*dto.InstallRecordListResponse, *dto.DistributionListResponse,
+		*dto.DistributionNameResponse, *dto.DistributionDetailResponse,
+		*dto.DistributionEmptyResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
 		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,
@@ -347,9 +349,13 @@ func responseStatus(response any) int {
 		return http.StatusBadRequest
 	case *dto.CreateClusterBadRequest:
 		return http.StatusBadRequest
+	case *dto.CreateDistributionBadRequest, *dto.UpdateDistributionBadRequest:
+		return http.StatusBadRequest
 	case *dto.UpdatePolicyGroupForbidden, *dto.DeletePolicyGroupForbidden:
 		return http.StatusForbidden
 	case *dto.DeleteClusterForbidden:
+		return http.StatusForbidden
+	case *dto.DeleteDistributionForbidden:
 		return http.StatusForbidden
 	case *dto.GetPolicyNotFound, *dto.UpdatePolicyNotFound, *dto.DeletePolicyNotFound,
 		*dto.ListPolicyVersionsNotFound, *dto.RollbackPolicyNotFound,
@@ -364,6 +370,9 @@ func responseStatus(response any) int {
 		*dto.CreateUninstallTaskNotFound, *dto.ListUninstallTasksNotFound,
 		*dto.RetryUninstallTaskNotFound:
 		return http.StatusNotFound
+	case *dto.GetDistributionNotFound, *dto.UpdateDistributionNotFound,
+		*dto.DeleteDistributionNotFound:
+		return http.StatusNotFound
 	case *dto.CreatePolicyConflict, *dto.UpdatePolicyConflict, *dto.DeletePolicyConflict,
 		*dto.RollbackPolicyConflict, *dto.CreatePolicyGroupConflict,
 		*dto.UpdatePolicyGroupConflict, *dto.SetPolicyGroupEnabledConflict,
@@ -372,6 +381,9 @@ func responseStatus(response any) int {
 	case *dto.CreateClusterConflict, *dto.DeleteClusterConflict,
 		*dto.ReissueClusterTokenConflict, *dto.CreateUninstallTaskConflict,
 		*dto.RetryUninstallTaskConflict:
+		return http.StatusConflict
+	case *dto.CreateDistributionConflict, *dto.UpdateDistributionConflict,
+		*dto.DeleteDistributionConflict:
 		return http.StatusConflict
 	case *dto.RollbackPolicyGone:
 		return http.StatusGone
@@ -406,6 +418,9 @@ func responseStatus(response any) int {
 		*dto.CreateUninstallTaskInternalServerError,
 		*dto.ListUninstallTasksInternalServerError,
 		*dto.RetryUninstallTaskInternalServerError:
+		return http.StatusInternalServerError
+	case *dto.CreateDistributionInternalServerError, *dto.GetDistributionInternalServerError,
+		*dto.UpdateDistributionInternalServerError, *dto.DeleteDistributionInternalServerError:
 		return http.StatusInternalServerError
 	default:
 		return 0
