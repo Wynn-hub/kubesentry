@@ -140,25 +140,14 @@ func TestMigratedRoutesUseNetHTTPPatterns(t *testing.T) {
 	}
 }
 
-func TestNonMigratedRoutesRemainOnOgenFallback(t *testing.T) {
+func TestNoAPIRoutesRemainOnOgenFallback(t *testing.T) {
 	srv, err := NewServer(&Handlers{}, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}
-	mux := srv.mux
-
-	routes := []struct {
-		method string
-		path   string
-	}{}
-	if len(routes) != 0 {
-		t.Fatalf("fallback route count = %d, want 0", len(routes))
-	}
-	for _, route := range routes {
-		_, pattern := mux.Handler(httptest.NewRequest(route.method, route.path, nil))
-		if pattern != "/api/v1/" {
-			t.Errorf("%s %s matched %q, want Ogen fallback", route.method, route.path, pattern)
-		}
+	_, pattern := srv.mux.Handler(httptest.NewRequest(http.MethodGet, "/api/v1/not-documented", nil))
+	if pattern != "" {
+		t.Fatalf("unknown API route matched %q, want no fallback route", pattern)
 	}
 }
 

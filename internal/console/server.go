@@ -1,15 +1,12 @@
 package console
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path"
 	"strings"
 	"sync"
 
-	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/handler"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
@@ -76,45 +73,42 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		registerClusterRoutes(mux, apiHandler)
 		registerDistributionRoutes(mux, apiHandler)
 		registerPlatformRoutes(mux, apiHandler)
-		ogenServer, err := dto.NewServer(
-			apiHandler,
-			dto.WithPathPrefix("/api/v1"),
-			dto.WithMiddleware(TraceIDMiddleware()),
-			dto.WithErrorHandler(ogenErrorHandler),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("construct policy ogen server: %w", err)
-		}
-		mux.Handle("/api/v1/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			rec := httptest.NewRecorder()
-			ogenServer.ServeHTTP(rec, r)
-			if rec.Code == http.StatusNotFound {
-				writeErr(w, http.StatusNotFound, "unknown API route")
-				return
-			}
-			for key, values := range rec.Header() {
-				for _, value := range values {
-					w.Header().Add(key, value)
-				}
-			}
-			w.WriteHeader(rec.Code)
-			_, _ = w.Write(rec.Body.Bytes())
-		}))
 	}
-	// The nginx `web` container only proxies /healthz and /api/* here (see
-	// charts/kubesentry-gateway/templates/console/nginx-configmap.yaml); anything else served by
-	// this process directly (e.g. port-forward during dev) is an unmatched
-	// API route, so keep the same JSON error envelope other handlers use
-	// rather than falling back to ServeMux's plain-text 404.
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") {
+	return &Server{Handler: rejectNonCanonicalAPIPaths(apiFallback(mux)), mux: mux}, nil
+}
+
+func apiFallback(mux *http.ServeMux) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, pattern := mux.Handler(r); pattern != "" || !strings.HasPrefix(r.URL.Path, "/api/") {
+			mux.ServeHTTP(w, r)
+			return
+		}
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, r)
+		if rec.Code == http.StatusNotFound {
 			writeErr(w, http.StatusNotFound, "unknown API route")
 			return
 		}
-		http.NotFound(w, r)
+		if rec.Code == http.StatusMethodNotAllowed {
+			methods := strings.Split(rec.Header().Get("Allow"), ", ")
+			allowed := methods[:0]
+			for _, method := range methods {
+				if method != http.MethodHead {
+					allowed = append(allowed, method)
+				}
+			}
+			w.Header().Set("Allow", strings.Join(allowed, ","))
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		for key, values := range rec.Header() {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+		w.WriteHeader(rec.Code)
+		_, _ = w.Write(rec.Body.Bytes())
 	})
-
-	return &Server{Handler: rejectNonCanonicalAPIPaths(mux), mux: mux}, nil
 }
 
 func rejectNonCanonicalAPIPaths(next http.Handler) http.Handler {
@@ -133,12 +127,4 @@ func rejectNonCanonicalAPIPaths(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-// ogenErrorHandler keeps parser and validator failures in the same envelope
-// used by legacy console handlers. Generated ogen handlers otherwise emit a
-// separate {"error_message": ...} payload, which would break the console API
-// contract and frontend error handling.
-func ogenErrorHandler(_ context.Context, w http.ResponseWriter, _ *http.Request, err error) {
-	writeErr(w, http.StatusBadRequest, err.Error())
 }

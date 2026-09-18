@@ -103,6 +103,10 @@ func newOgenOracle(t *testing.T, repos repository.Repositories, schema ...func(c
 	})
 }
 
+func ogenErrorHandler(_ context.Context, w http.ResponseWriter, _ *http.Request, err error) {
+	writeErr(w, http.StatusBadRequest, err.Error())
+}
+
 func servePolicyRequest(h http.Handler, method, path, body, contentType string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	if contentType != "" {
