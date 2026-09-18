@@ -124,7 +124,7 @@ func requestContext(r *http.Request) context.Context {
 }
 
 type consoleJSONBody interface {
-	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest | *dto.ExceptionRequest
+	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest | *dto.ExceptionRequest | *dto.AdmissionEventSettingsRequest
 	UnmarshalJSON([]byte) error
 }
 
@@ -323,7 +323,10 @@ func responseStatus(response any) int {
 		*dto.RollbackResponse, *dto.PolicyGroupListResponse, *dto.PolicyGroupNameResponse,
 		*dto.PolicyGroupDetailResponse, *dto.PolicyGroupEnabledResponse,
 		*dto.ExceptionListResponse, *dto.ExceptionNameResponse, *dto.ExceptionDetailResponse,
-		*dto.FieldSchemaResponse, *dto.SummaryResponse:
+		*dto.FieldSchemaResponse, *dto.SummaryResponse, *dto.AdmissionEventListResponse,
+		*dto.AdmissionEventDetailResponse, *dto.AdmissionEventTrendResponse,
+		*dto.AdmissionEventSettingsResponse, *dto.AdmissionLinkIncidentListResponse,
+		*dto.AdmissionLinkIncidentDetailResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
 		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,
@@ -334,6 +337,10 @@ func responseStatus(response any) int {
 		return http.StatusBadRequest
 	case *dto.GetFieldSchemaBadRequest:
 		return http.StatusBadRequest
+	case *dto.ListAdmissionEventsBadRequest, *dto.GetAdmissionEventBadRequest,
+		*dto.GetAdmissionEventTrendBadRequest, *dto.UpdateAdmissionEventSettingsBadRequest,
+		*dto.ListAdmissionLinkIncidentsBadRequest, *dto.GetAdmissionLinkIncidentBadRequest:
+		return http.StatusBadRequest
 	case *dto.UpdatePolicyGroupForbidden, *dto.DeletePolicyGroupForbidden:
 		return http.StatusForbidden
 	case *dto.GetPolicyNotFound, *dto.UpdatePolicyNotFound, *dto.DeletePolicyNotFound,
@@ -341,6 +348,8 @@ func responseStatus(response any) int {
 		*dto.GetPolicyGroupNotFound, *dto.UpdatePolicyGroupNotFound,
 		*dto.DeletePolicyGroupNotFound, *dto.SetPolicyGroupEnabledNotFound,
 		*dto.GetExceptionNotFound, *dto.UpdateExceptionNotFound, *dto.DeleteExceptionNotFound:
+		return http.StatusNotFound
+	case *dto.GetAdmissionEventNotFound, *dto.GetAdmissionLinkIncidentNotFound:
 		return http.StatusNotFound
 	case *dto.CreatePolicyConflict, *dto.UpdatePolicyConflict, *dto.DeletePolicyConflict,
 		*dto.RollbackPolicyConflict, *dto.CreatePolicyGroupConflict,
@@ -351,6 +360,10 @@ func responseStatus(response any) int {
 		return http.StatusGone
 	case *dto.GetFieldSchemaBadGateway:
 		return http.StatusBadGateway
+	case *dto.ListAdmissionLinkIncidentsServiceUnavailable,
+		*dto.GetAdmissionLinkIncidentServiceUnavailable,
+		*dto.GetAdmissionEventSettingsServiceUnavailable:
+		return http.StatusServiceUnavailable
 	case *dto.ListPoliciesInternalServerError, *dto.CreatePolicyInternalServerError,
 		*dto.GetPolicyInternalServerError, *dto.UpdatePolicyInternalServerError,
 		*dto.DeletePolicyInternalServerError, *dto.ListPolicyVersionsInternalServerError,
@@ -361,6 +374,13 @@ func responseStatus(response any) int {
 		*dto.ListExceptionsInternalServerError, *dto.CreateExceptionInternalServerError,
 		*dto.GetExceptionInternalServerError, *dto.UpdateExceptionInternalServerError,
 		*dto.DeleteExceptionInternalServerError:
+		return http.StatusInternalServerError
+	case *dto.ListAdmissionEventsInternalServerError, *dto.GetAdmissionEventInternalServerError,
+		*dto.GetAdmissionEventTrendInternalServerError,
+		*dto.GetAdmissionEventSettingsInternalServerError,
+		*dto.UpdateAdmissionEventSettingsInternalServerError,
+		*dto.ListAdmissionLinkIncidentsInternalServerError,
+		*dto.GetAdmissionLinkIncidentInternalServerError:
 		return http.StatusInternalServerError
 	default:
 		return 0
