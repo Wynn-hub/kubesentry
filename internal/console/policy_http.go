@@ -124,7 +124,7 @@ func requestContext(r *http.Request) context.Context {
 }
 
 type consoleJSONBody interface {
-	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest | *dto.ExceptionRequest | *dto.AdmissionEventSettingsRequest | *dto.ClusterCreateRequest | *dto.ClusterLabelsRequest | *dto.ClusterTokenRequest | *dto.DistributionRequest
+	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest | *dto.ExceptionRequest | *dto.AdmissionEventSettingsRequest | *dto.ClusterCreateRequest | *dto.ClusterLabelsRequest | *dto.ClusterTokenRequest | *dto.DistributionRequest | *dto.PlatformSettingsRequest
 	UnmarshalJSON([]byte) error
 }
 
@@ -163,7 +163,7 @@ func decodeJSON[T consoleJSONBody](w http.ResponseWriter, r *http.Request, opera
 	}
 	if validator, ok := any(dst).(interface{ Validate() error }); ok {
 		if err := validator.Validate(); err != nil {
-			writeDecodeError(w, operation, err.Error())
+			writeErr(w, http.StatusBadRequest, fmt.Sprintf("operation %s: decode request: validate: %v", operation, err))
 			return false
 		}
 	}
@@ -332,7 +332,9 @@ func responseStatus(response any) int {
 		*dto.UninstallTaskListResponse, *dto.UninstallTaskIDResponse,
 		*dto.InstallRecordListResponse, *dto.DistributionListResponse,
 		*dto.DistributionNameResponse, *dto.DistributionDetailResponse,
-		*dto.DistributionEmptyResponse:
+		*dto.DistributionEmptyResponse, *dto.PlatformOverviewResponse,
+		*dto.PlatformTrendResponse, *dto.LeadershipEventListResponse,
+		*dto.PlatformSettingsResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
 		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,
@@ -350,6 +352,9 @@ func responseStatus(response any) int {
 	case *dto.CreateClusterBadRequest:
 		return http.StatusBadRequest
 	case *dto.CreateDistributionBadRequest, *dto.UpdateDistributionBadRequest:
+		return http.StatusBadRequest
+	case *dto.GetPlatformOverviewBadRequest, *dto.GetPlatformInstanceTrendBadRequest,
+		*dto.ListPlatformLeadershipEventsBadRequest, *dto.UpdatePlatformSettingsBadRequest:
 		return http.StatusBadRequest
 	case *dto.UpdatePolicyGroupForbidden, *dto.DeletePolicyGroupForbidden:
 		return http.StatusForbidden
@@ -372,6 +377,8 @@ func responseStatus(response any) int {
 		return http.StatusNotFound
 	case *dto.GetDistributionNotFound, *dto.UpdateDistributionNotFound,
 		*dto.DeleteDistributionNotFound:
+		return http.StatusNotFound
+	case *dto.GetPlatformInstanceTrendNotFound, *dto.ListPlatformLeadershipEventsNotFound:
 		return http.StatusNotFound
 	case *dto.CreatePolicyConflict, *dto.UpdatePolicyConflict, *dto.DeletePolicyConflict,
 		*dto.RollbackPolicyConflict, *dto.CreatePolicyGroupConflict,
@@ -421,6 +428,11 @@ func responseStatus(response any) int {
 		return http.StatusInternalServerError
 	case *dto.CreateDistributionInternalServerError, *dto.GetDistributionInternalServerError,
 		*dto.UpdateDistributionInternalServerError, *dto.DeleteDistributionInternalServerError:
+		return http.StatusInternalServerError
+	case *dto.GetPlatformOverviewInternalServerError,
+		*dto.GetPlatformInstanceTrendInternalServerError,
+		*dto.ListPlatformLeadershipEventsInternalServerError,
+		*dto.UpdatePlatformSettingsInternalServerError:
 		return http.StatusInternalServerError
 	default:
 		return 0

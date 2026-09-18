@@ -124,6 +124,11 @@ func TestMigratedRoutesUseNetHTTPPatterns(t *testing.T) {
 		{http.MethodGet, "/api/v1/distributions/example", "GET /api/v1/distributions/{name}"},
 		{http.MethodPut, "/api/v1/distributions/example", "PUT /api/v1/distributions/{name}"},
 		{http.MethodDelete, "/api/v1/distributions/example", "DELETE /api/v1/distributions/{name}"},
+		{http.MethodGet, "/api/v1/platform/overview", "GET /api/v1/platform/overview"},
+		{http.MethodGet, "/api/v1/platform/instances/console/example/trend", "GET /api/v1/platform/instances/{component}/{instance}/trend"},
+		{http.MethodGet, "/api/v1/platform/leadership-events", "GET /api/v1/platform/leadership-events"},
+		{http.MethodGet, "/api/v1/platform/settings", "GET /api/v1/platform/settings"},
+		{http.MethodPut, "/api/v1/platform/settings", "PUT /api/v1/platform/settings"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
@@ -145,15 +150,9 @@ func TestNonMigratedRoutesRemainOnOgenFallback(t *testing.T) {
 	routes := []struct {
 		method string
 		path   string
-	}{
-		{http.MethodGet, "/api/v1/platform/overview"},
-		{http.MethodGet, "/api/v1/platform/instances/console/example/trend"},
-		{http.MethodGet, "/api/v1/platform/leadership-events"},
-		{http.MethodGet, "/api/v1/platform/settings"},
-		{http.MethodPut, "/api/v1/platform/settings"},
-	}
-	if len(routes) != 5 {
-		t.Fatalf("fallback route count = %d, want 5", len(routes))
+	}{}
+	if len(routes) != 0 {
+		t.Fatalf("fallback route count = %d, want 0", len(routes))
 	}
 	for _, route := range routes {
 		_, pattern := mux.Handler(httptest.NewRequest(route.method, route.path, nil))

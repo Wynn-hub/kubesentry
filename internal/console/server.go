@@ -75,6 +75,7 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 		registerAdmissionRoutes(mux, apiHandler)
 		registerClusterRoutes(mux, apiHandler)
 		registerDistributionRoutes(mux, apiHandler)
+		registerPlatformRoutes(mux, apiHandler)
 		ogenServer, err := dto.NewServer(
 			apiHandler,
 			dto.WithPathPrefix("/api/v1"),
