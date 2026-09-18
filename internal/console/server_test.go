@@ -108,6 +108,17 @@ func TestMigratedRoutesUseNetHTTPPatterns(t *testing.T) {
 		{http.MethodPut, "/api/v1/admission-event-settings", "PUT /api/v1/admission-event-settings"},
 		{http.MethodGet, "/api/v1/admission-link-incidents", "GET /api/v1/admission-link-incidents"},
 		{http.MethodGet, "/api/v1/admission-link-incidents/example", "GET /api/v1/admission-link-incidents/{id}"},
+		{http.MethodGet, "/api/v1/clusters", "GET /api/v1/clusters"},
+		{http.MethodPost, "/api/v1/clusters", "POST /api/v1/clusters"},
+		{http.MethodGet, "/api/v1/clusters/example", "GET /api/v1/clusters/{name}"},
+		{http.MethodPut, "/api/v1/clusters/example", "PUT /api/v1/clusters/{name}"},
+		{http.MethodDelete, "/api/v1/clusters/example", "DELETE /api/v1/clusters/{name}"},
+		{http.MethodPost, "/api/v1/clusters/example/reissue-token", "POST /api/v1/clusters/{name}/reissue-token"},
+		{http.MethodGet, "/api/v1/clusters/example/latest-install-params", "GET /api/v1/clusters/{name}/latest-install-params"},
+		{http.MethodPost, "/api/v1/clusters/example/uninstall", "POST /api/v1/clusters/{name}/uninstall"},
+		{http.MethodGet, "/api/v1/clusters/example/uninstall-tasks", "GET /api/v1/clusters/{name}/uninstall-tasks"},
+		{http.MethodPost, "/api/v1/clusters/example/uninstall-tasks/1/retry", "POST /api/v1/clusters/{name}/uninstall-tasks/{taskID}/retry"},
+		{http.MethodGet, "/api/v1/install-records", "GET /api/v1/install-records"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
@@ -130,17 +141,6 @@ func TestNonMigratedRoutesRemainOnOgenFallback(t *testing.T) {
 		method string
 		path   string
 	}{
-		{http.MethodGet, "/api/v1/clusters"},
-		{http.MethodPost, "/api/v1/clusters"},
-		{http.MethodGet, "/api/v1/clusters/example"},
-		{http.MethodPut, "/api/v1/clusters/example"},
-		{http.MethodDelete, "/api/v1/clusters/example"},
-		{http.MethodPost, "/api/v1/clusters/example/reissue-token"},
-		{http.MethodGet, "/api/v1/clusters/example/latest-install-params"},
-		{http.MethodPost, "/api/v1/clusters/example/uninstall"},
-		{http.MethodGet, "/api/v1/clusters/example/uninstall-tasks"},
-		{http.MethodPost, "/api/v1/clusters/example/uninstall-tasks/task/retry"},
-		{http.MethodGet, "/api/v1/install-records"},
 		{http.MethodGet, "/api/v1/distributions"},
 		{http.MethodPost, "/api/v1/distributions"},
 		{http.MethodGet, "/api/v1/distributions/example"},
@@ -152,8 +152,8 @@ func TestNonMigratedRoutesRemainOnOgenFallback(t *testing.T) {
 		{http.MethodGet, "/api/v1/platform/settings"},
 		{http.MethodPut, "/api/v1/platform/settings"},
 	}
-	if len(routes) != 21 {
-		t.Fatalf("fallback route count = %d, want 21", len(routes))
+	if len(routes) != 10 {
+		t.Fatalf("fallback route count = %d, want 10", len(routes))
 	}
 	for _, route := range routes {
 		_, pattern := mux.Handler(httptest.NewRequest(route.method, route.path, nil))

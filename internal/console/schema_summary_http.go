@@ -1,7 +1,6 @@
 package console
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -28,13 +27,7 @@ func registerSchemaAndSummaryRoutes(mux *http.ServeMux, h *consolehandler.Handle
 			return
 		}
 		response, err := h.GetSummary(requestContext(r))
-		if failure, ok := response.(*dto.ErrorResponse); ok && err == nil {
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusInternalServerError)
-			_ = json.NewEncoder(w).Encode(failure)
-			return
-		}
-		writeResponse(w, response, err)
+		writeGenericErrorResponse(w, response, err, http.StatusInternalServerError)
 	})
 }
 
