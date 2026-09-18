@@ -2,6 +2,7 @@ package console
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -70,9 +71,12 @@ func TestPolicyNetHTTPMatchesOgenRouteMatrix(t *testing.T) {
 	}
 }
 
-func newOgenOracle(t *testing.T, repos repository.Repositories) http.Handler {
+func newOgenOracle(t *testing.T, repos repository.Repositories, schema ...func(context.Context, dto.FieldSchemaOptions) ([]dto.FieldNodeView, error)) http.Handler {
 	t.Helper()
 	svcs := service.New(repos, nil)
+	if len(schema) > 0 {
+		svcs.Schema = schema[0]
+	}
 	ogen, err := dto.NewServer(
 		handler.New(svcs),
 		dto.WithPathPrefix("/api/v1"),

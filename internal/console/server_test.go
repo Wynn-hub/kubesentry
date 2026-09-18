@@ -67,7 +67,7 @@ func TestUnknownNonAPIRouteIs404(t *testing.T) {
 	}
 }
 
-func TestPolicyPolicyGroupAndExceptionRoutesUseNetHTTPPatterns(t *testing.T) {
+func TestMigratedRoutesUseNetHTTPPatterns(t *testing.T) {
 	srv, err := NewServer(&Handlers{}, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)
@@ -99,6 +99,8 @@ func TestPolicyPolicyGroupAndExceptionRoutesUseNetHTTPPatterns(t *testing.T) {
 		{http.MethodGet, "/api/v1/exceptions/example", "GET /api/v1/exceptions/{name}"},
 		{http.MethodPut, "/api/v1/exceptions/example", "PUT /api/v1/exceptions/{name}"},
 		{http.MethodDelete, "/api/v1/exceptions/example", "DELETE /api/v1/exceptions/{name}"},
+		{http.MethodGet, "/api/v1/schema/fields", "GET /api/v1/schema/fields"},
+		{http.MethodGet, "/api/v1/summary", "GET /api/v1/summary"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
@@ -142,8 +144,6 @@ func TestNonMigratedRoutesRemainOnOgenFallback(t *testing.T) {
 		{http.MethodGet, "/api/v1/platform/leadership-events"},
 		{http.MethodGet, "/api/v1/platform/settings"},
 		{http.MethodPut, "/api/v1/platform/settings"},
-		{http.MethodGet, "/api/v1/schema/fields"},
-		{http.MethodGet, "/api/v1/summary"},
 		{http.MethodGet, "/api/v1/admission-events"},
 		{http.MethodGet, "/api/v1/admission-events/event"},
 		{http.MethodGet, "/api/v1/admission-events/trend"},
@@ -152,8 +152,8 @@ func TestNonMigratedRoutesRemainOnOgenFallback(t *testing.T) {
 		{http.MethodGet, "/api/v1/admission-link-incidents"},
 		{http.MethodGet, "/api/v1/admission-link-incidents/incident"},
 	}
-	if len(routes) != 30 {
-		t.Fatalf("fallback route count = %d, want 30", len(routes))
+	if len(routes) != 28 {
+		t.Fatalf("fallback route count = %d, want 28", len(routes))
 	}
 	for _, route := range routes {
 		_, pattern := mux.Handler(httptest.NewRequest(route.method, route.path, nil))

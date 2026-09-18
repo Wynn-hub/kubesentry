@@ -322,7 +322,8 @@ func responseStatus(response any) int {
 		*dto.ResourceSuggestionsResponse, *dto.Envelope, *dto.PolicyVersionListResponse,
 		*dto.RollbackResponse, *dto.PolicyGroupListResponse, *dto.PolicyGroupNameResponse,
 		*dto.PolicyGroupDetailResponse, *dto.PolicyGroupEnabledResponse,
-		*dto.ExceptionListResponse, *dto.ExceptionNameResponse, *dto.ExceptionDetailResponse:
+		*dto.ExceptionListResponse, *dto.ExceptionNameResponse, *dto.ExceptionDetailResponse,
+		*dto.FieldSchemaResponse, *dto.SummaryResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
 		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,
@@ -330,6 +331,8 @@ func responseStatus(response any) int {
 		*dto.UpdatePolicyGroupBadRequest, *dto.SetPolicyGroupEnabledBadRequest,
 		*dto.ListExceptionsBadRequest, *dto.CreateExceptionBadRequest,
 		*dto.UpdateExceptionBadRequest:
+		return http.StatusBadRequest
+	case *dto.GetFieldSchemaBadRequest:
 		return http.StatusBadRequest
 	case *dto.UpdatePolicyGroupForbidden, *dto.DeletePolicyGroupForbidden:
 		return http.StatusForbidden
@@ -346,6 +349,8 @@ func responseStatus(response any) int {
 		return http.StatusConflict
 	case *dto.RollbackPolicyGone:
 		return http.StatusGone
+	case *dto.GetFieldSchemaBadGateway:
+		return http.StatusBadGateway
 	case *dto.ListPoliciesInternalServerError, *dto.CreatePolicyInternalServerError,
 		*dto.GetPolicyInternalServerError, *dto.UpdatePolicyInternalServerError,
 		*dto.DeletePolicyInternalServerError, *dto.ListPolicyVersionsInternalServerError,
