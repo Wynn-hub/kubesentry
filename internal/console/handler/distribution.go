@@ -24,13 +24,9 @@ import (
 func (h *Handler) ListDistributions(ctx context.Context, p dto.ListDistributionsParams) (dto.ListDistributionsRes, error) {
 	data, err := h.svcs.Distribution.List(ctx, p.Page.Or(1), int(p.PageSize.Or(dto.ListDistributionsPageSize20)), string(p.SortBy.Or(dto.ListDistributionsSortByName)), string(p.SortOrder.Or(dto.ListDistributionsSortOrderAsc)))
 	if err != nil {
-		return objectError(500), nil
+		return &dto.DistributionInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
-	v, err := dtoData[dto.DistributionListResponseData](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.DistributionListResponse{Code: 0, Message: "success", Data: v}, nil
+	return &dto.DistributionListHTTPResponse{Code: 0, Message: "success", Data: data}, nil
 }
 
 // @ID createDistribution
@@ -52,12 +48,12 @@ func (h *Handler) CreateDistribution(ctx context.Context, req *dto.DistributionR
 		return nil, err
 	}
 	if err := json.Unmarshal(b, &input); err != nil {
-		return &dto.CreateDistributionBadRequest{Code: 40000, Message: err.Error()}, nil
+		return &dto.DistributionBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
 	}
 	if err := h.svcs.Distribution.Create(ctx, input); err != nil {
 		return distributionCreateError(err), nil
 	}
-	return &dto.DistributionNameResponse{Code: 0, Message: "success", Data: dto.DistributionNameData{Name: input.Name}}, nil
+	return &dto.DistributionNameHTTPResponse{Code: 0, Message: "success", Data: dto.DistributionNameView{Name: input.Name}}, nil
 }
 
 // @ID getDistribution
@@ -75,11 +71,7 @@ func (h *Handler) GetDistribution(ctx context.Context, p dto.GetDistributionPara
 	if err != nil {
 		return distributionGetError(err), nil
 	}
-	v, err := dtoData[dto.DistributionDetail](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.DistributionDetailResponse{Code: 0, Message: "success", Data: v}, nil
+	return &dto.DistributionDetailHTTPResponse{Code: 0, Message: "success", Data: data}, nil
 }
 
 // @ID updateDistribution
@@ -103,12 +95,12 @@ func (h *Handler) UpdateDistribution(ctx context.Context, req *dto.DistributionR
 		return nil, err
 	}
 	if err := json.Unmarshal(b, &input); err != nil {
-		return &dto.UpdateDistributionBadRequest{Code: 40000, Message: err.Error()}, nil
+		return &dto.DistributionBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
 	}
 	if err := h.svcs.Distribution.Update(ctx, p.Name, input); err != nil {
 		return distributionUpdateError(err), nil
 	}
-	return &dto.DistributionNameResponse{Code: 0, Message: "success", Data: dto.DistributionNameData{Name: p.Name}}, nil
+	return &dto.DistributionNameHTTPResponse{Code: 0, Message: "success", Data: dto.DistributionNameView{Name: p.Name}}, nil
 }
 
 // @ID deleteDistribution
@@ -127,45 +119,45 @@ func (h *Handler) DeleteDistribution(ctx context.Context, p dto.DeleteDistributi
 	if err := h.svcs.Distribution.Delete(ctx, p.Name); err != nil {
 		return distributionDeleteError(err), nil
 	}
-	return &dto.DistributionEmptyResponse{Code: 0, Message: "success"}, nil
+	return &dto.DistributionEmptyHTTPResponse{Code: 0, Message: "success"}, nil
 }
 
 func distributionCreateError(err error) dto.CreateDistributionRes {
 	if _, ok := err.(*service.ValidationError); ok {
-		return &dto.CreateDistributionBadRequest{Code: 40000, Message: err.Error()}
+		return &dto.DistributionBadRequestHTTPError{Code: 40000, Message: err.Error()}
 	}
 	if service.IsConflict(err) {
-		return &dto.CreateDistributionConflict{Code: 40900, Message: err.Error()}
+		return &dto.DistributionConflictHTTPError{Code: 40900, Message: err.Error()}
 	}
-	return &dto.CreateDistributionInternalServerError{Code: 50000, Message: "request failed"}
+	return &dto.DistributionInternalServerHTTPError{Code: 50000, Message: "request failed"}
 }
 
 func distributionGetError(err error) dto.GetDistributionRes {
 	if errors.Is(err, service.ErrNotFound) {
-		return &dto.GetDistributionNotFound{Code: 40400, Message: "distribution not found"}
+		return &dto.DistributionNotFoundHTTPError{Code: 40400, Message: "distribution not found"}
 	}
-	return &dto.GetDistributionInternalServerError{Code: 50000, Message: "request failed"}
+	return &dto.DistributionInternalServerHTTPError{Code: 50000, Message: "request failed"}
 }
 
 func distributionUpdateError(err error) dto.UpdateDistributionRes {
 	if _, ok := err.(*service.ValidationError); ok {
-		return &dto.UpdateDistributionBadRequest{Code: 40000, Message: err.Error()}
+		return &dto.DistributionBadRequestHTTPError{Code: 40000, Message: err.Error()}
 	}
 	if errors.Is(err, service.ErrNotFound) {
-		return &dto.UpdateDistributionNotFound{Code: 40400, Message: "distribution not found"}
+		return &dto.DistributionNotFoundHTTPError{Code: 40400, Message: "distribution not found"}
 	}
 	if service.IsConflict(err) {
-		return &dto.UpdateDistributionConflict{Code: 40900, Message: err.Error()}
+		return &dto.DistributionConflictHTTPError{Code: 40900, Message: err.Error()}
 	}
-	return &dto.UpdateDistributionInternalServerError{Code: 50000, Message: "request failed"}
+	return &dto.DistributionInternalServerHTTPError{Code: 50000, Message: "request failed"}
 }
 
 func distributionDeleteError(err error) dto.DeleteDistributionRes {
 	if errors.Is(err, service.ErrNotFound) {
-		return &dto.DeleteDistributionNotFound{Code: 40400, Message: "distribution not found"}
+		return &dto.DistributionNotFoundHTTPError{Code: 40400, Message: "distribution not found"}
 	}
 	if service.IsConflict(err) {
-		return &dto.DeleteDistributionForbidden{Code: 40300, Message: err.Error()}
+		return &dto.DistributionForbiddenHTTPError{Code: 40300, Message: err.Error()}
 	}
-	return &dto.DeleteDistributionInternalServerError{Code: 50000, Message: "request failed"}
+	return &dto.DistributionInternalServerHTTPError{Code: 50000, Message: "request failed"}
 }
