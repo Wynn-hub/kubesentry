@@ -115,4 +115,104 @@ type (
 		PageSize int               `json:"pageSize" binding:"required" enums:"10,20,50,100"`
 		Items    []PolicyGroupItem `json:"items" binding:"required"`
 	}
+	PolicyGroupNameView struct {
+		Name string `json:"name" binding:"required"`
+	}
+	PolicyGroupEnabledView struct {
+		Enabled bool `json:"enabled" binding:"required"`
+	}
 )
+
+type PolicyGroupListHTTPResponse struct {
+	Code    int                  `json:"code"`
+	Message string               `json:"message"`
+	Data    *PolicyGroupPageView `json:"data"`
+}
+
+func (*PolicyGroupListHTTPResponse) listPolicyGroupsRes() {}
+
+type PolicyGroupDetailHTTPResponse struct {
+	Code    int              `json:"code"`
+	Message string           `json:"message"`
+	Data    *PolicyGroupView `json:"data"`
+}
+
+func (*PolicyGroupDetailHTTPResponse) getPolicyGroupRes() {}
+
+type PolicyGroupNameHTTPResponse struct {
+	Code    int                 `json:"code"`
+	Message string              `json:"message"`
+	Data    PolicyGroupNameView `json:"data"`
+}
+
+func (*PolicyGroupNameHTTPResponse) createPolicyGroupRes() {}
+func (*PolicyGroupNameHTTPResponse) updatePolicyGroupRes() {}
+
+type PolicyGroupEnabledHTTPResponse struct {
+	Code    int                    `json:"code"`
+	Message string                 `json:"message"`
+	Data    PolicyGroupEnabledView `json:"data"`
+}
+
+func (*PolicyGroupEnabledHTTPResponse) setPolicyGroupEnabledRes() {}
+
+type PolicyGroupEmptyHTTPResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyGroupEmptyHTTPResponse) deletePolicyGroupRes() {}
+
+type PolicyGroupBadRequestHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyGroupBadRequestHTTPError) HTTPStatus() int           { return 400 }
+func (*PolicyGroupBadRequestHTTPError) listPolicyGroupsRes()      {}
+func (*PolicyGroupBadRequestHTTPError) createPolicyGroupRes()     {}
+func (*PolicyGroupBadRequestHTTPError) updatePolicyGroupRes()     {}
+func (*PolicyGroupBadRequestHTTPError) setPolicyGroupEnabledRes() {}
+
+type PolicyGroupForbiddenHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyGroupForbiddenHTTPError) HTTPStatus() int       { return 403 }
+func (*PolicyGroupForbiddenHTTPError) updatePolicyGroupRes() {}
+func (*PolicyGroupForbiddenHTTPError) deletePolicyGroupRes() {}
+
+type PolicyGroupNotFoundHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyGroupNotFoundHTTPError) HTTPStatus() int           { return 404 }
+func (*PolicyGroupNotFoundHTTPError) getPolicyGroupRes()        {}
+func (*PolicyGroupNotFoundHTTPError) updatePolicyGroupRes()     {}
+func (*PolicyGroupNotFoundHTTPError) setPolicyGroupEnabledRes() {}
+func (*PolicyGroupNotFoundHTTPError) deletePolicyGroupRes()     {}
+
+type PolicyGroupConflictHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyGroupConflictHTTPError) HTTPStatus() int           { return 409 }
+func (*PolicyGroupConflictHTTPError) createPolicyGroupRes()     {}
+func (*PolicyGroupConflictHTTPError) updatePolicyGroupRes()     {}
+func (*PolicyGroupConflictHTTPError) setPolicyGroupEnabledRes() {}
+
+type PolicyGroupInternalServerHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyGroupInternalServerHTTPError) HTTPStatus() int           { return 500 }
+func (*PolicyGroupInternalServerHTTPError) listPolicyGroupsRes()      {}
+func (*PolicyGroupInternalServerHTTPError) getPolicyGroupRes()        {}
+func (*PolicyGroupInternalServerHTTPError) createPolicyGroupRes()     {}
+func (*PolicyGroupInternalServerHTTPError) updatePolicyGroupRes()     {}
+func (*PolicyGroupInternalServerHTTPError) setPolicyGroupEnabledRes() {}
+func (*PolicyGroupInternalServerHTTPError) deletePolicyGroupRes()     {}
