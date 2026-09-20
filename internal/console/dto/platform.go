@@ -135,3 +135,68 @@ type (
 		RetentionDays int  `json:"retentionDays" binding:"required" minimum:"1"`
 	}
 )
+
+type PlatformOverviewHTTPResponse struct {
+	Code    int                  `json:"code"`
+	Message string               `json:"message"`
+	Data    PlatformOverviewView `json:"data"`
+}
+
+func (*PlatformOverviewHTTPResponse) getPlatformOverviewRes() {}
+
+type PlatformTrendHTTPResponse struct {
+	Code    int               `json:"code"`
+	Message string            `json:"message"`
+	Data    PlatformTrendView `json:"data"`
+}
+
+func (*PlatformTrendHTTPResponse) getPlatformInstanceTrendRes() {}
+
+type PlatformLeadershipHTTPResponse struct {
+	Code    int                        `json:"code"`
+	Message string                     `json:"message"`
+	Data    PlatformLeadershipPageView `json:"data"`
+}
+
+func (*PlatformLeadershipHTTPResponse) listPlatformLeadershipEventsRes() {}
+
+type PlatformSettingsHTTPResponse struct {
+	Code    int                  `json:"code"`
+	Message string               `json:"message"`
+	Data    PlatformSettingsView `json:"data"`
+}
+
+func (*PlatformSettingsHTTPResponse) getPlatformSettingsRes()    {}
+func (*PlatformSettingsHTTPResponse) updatePlatformSettingsRes() {}
+
+type PlatformBadRequestHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PlatformBadRequestHTTPError) HTTPStatus() int                  { return 400 }
+func (*PlatformBadRequestHTTPError) getPlatformOverviewRes()          {}
+func (*PlatformBadRequestHTTPError) getPlatformInstanceTrendRes()     {}
+func (*PlatformBadRequestHTTPError) listPlatformLeadershipEventsRes() {}
+func (*PlatformBadRequestHTTPError) updatePlatformSettingsRes()       {}
+
+type PlatformNotFoundHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PlatformNotFoundHTTPError) HTTPStatus() int                  { return 404 }
+func (*PlatformNotFoundHTTPError) getPlatformInstanceTrendRes()     {}
+func (*PlatformNotFoundHTTPError) listPlatformLeadershipEventsRes() {}
+
+type PlatformInternalServerHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PlatformInternalServerHTTPError) HTTPStatus() int                  { return 500 }
+func (*PlatformInternalServerHTTPError) getPlatformOverviewRes()          {}
+func (*PlatformInternalServerHTTPError) getPlatformInstanceTrendRes()     {}
+func (*PlatformInternalServerHTTPError) listPlatformLeadershipEventsRes() {}
+func (*PlatformInternalServerHTTPError) getPlatformSettingsRes()          {}
+func (*PlatformInternalServerHTTPError) updatePlatformSettingsRes()       {}

@@ -349,7 +349,9 @@ func responseStatus(response any) int {
 		*dto.PolicyGroupNameHTTPResponse, *dto.PolicyGroupEnabledHTTPResponse,
 		*dto.PolicyGroupEmptyHTTPResponse,
 		*dto.AdmissionLinkIncidentListHTTPResponse,
-		*dto.AdmissionLinkIncidentDetailHTTPResponse:
+		*dto.AdmissionLinkIncidentDetailHTTPResponse,
+		*dto.PlatformOverviewHTTPResponse, *dto.PlatformTrendHTTPResponse,
+		*dto.PlatformLeadershipHTTPResponse, *dto.PlatformSettingsHTTPResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
 		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,

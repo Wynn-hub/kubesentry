@@ -73,7 +73,7 @@ func TestPlatformHandlerReturnsTypedSettingsWithoutHTTPDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, ok := result.(*dto.PlatformSettingsResponse)
+	response, ok := result.(*dto.PlatformSettingsHTTPResponse)
 	if !ok {
 		t.Fatalf("response type = %T", result)
 	}
@@ -91,7 +91,7 @@ func TestPlatformHandlerMapsSettingsValidationError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, ok := result.(*dto.UpdatePlatformSettingsBadRequest)
+	response, ok := result.(*dto.PlatformBadRequestHTTPError)
 	if !ok {
 		t.Fatalf("response type = %T", result)
 	}

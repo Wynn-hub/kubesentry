@@ -26,39 +26,3 @@ func TestPlatformOptionsPreserveDefaultsAndFilters(t *testing.T) {
 		t.Fatalf("leadership options = %+v, want %+v", leadership, want)
 	}
 }
-
-func TestPlatformStableDTOsAdaptToOgen(t *testing.T) {
-	overview, err := dtoData[dto.PlatformOverview](dto.PlatformOverviewView{
-		PlatformHealth: "disabled",
-		GatewayPlane:   []dto.PlatformComponentView{},
-		MemberPlane: dto.PlatformMemberPlaneView{
-			Clusters: []dto.PlatformClusterView{},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := overview.Validate(); err != nil {
-		t.Fatalf("converted overview is invalid: %v", err)
-	}
-	if overview.GatewayPlane == nil || overview.MemberPlane.Clusters == nil {
-		t.Fatalf("converted overview contains nil collections: %+v", overview)
-	}
-
-	trend, err := dtoData[dto.PlatformTrend](dto.PlatformTrendView{Items: []dto.PlatformTrendPointView{}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if trend.Items == nil {
-		t.Fatal("converted trend items are nil")
-	}
-
-	changedAt := time.Date(2026, 9, 14, 4, 5, 6, 0, time.UTC)
-	leadership, err := dtoData[dto.LeadershipEventListResponseData](dto.PlatformLeadershipPageView{Items: []dto.PlatformLeadershipEventView{{ID: "42", Component: "operator", ClusterID: "7", Instance: "operator-0", ClusterName: "member-1", RoleFrom: "standby", RoleTo: "leader", ChangedAt: changedAt, DetectedBy: "operator-1", CreatedAt: changedAt}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(leadership.Items) != 1 || leadership.Items[0].ClusterId != "7" || leadership.Items[0].RoleFrom != dto.LeadershipEventRoleFromStandby || leadership.Items[0].RoleTo != dto.LeadershipEventRoleToLeader || !leadership.Items[0].ChangedAt.Equal(changedAt) {
-		t.Fatalf("converted leadership = %+v", leadership.Items)
-	}
-}
