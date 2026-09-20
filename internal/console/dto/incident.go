@@ -44,3 +44,54 @@ type AdmissionLinkIncidentPath struct {
 	// 准入链路异常记录 ID
 	ID string `uri:"id" binding:"required" pattern:"^[0-9]+$"`
 }
+
+type AdmissionLinkIncidentListHTTPResponse struct {
+	Code    int               `json:"code"`
+	Message string            `json:"message"`
+	Data    *IncidentPageView `json:"data"`
+}
+
+func (*AdmissionLinkIncidentListHTTPResponse) listAdmissionLinkIncidentsRes() {}
+
+type AdmissionLinkIncidentDetailHTTPResponse struct {
+	Code    int           `json:"code"`
+	Message string        `json:"message"`
+	Data    *IncidentView `json:"data"`
+}
+
+func (*AdmissionLinkIncidentDetailHTTPResponse) getAdmissionLinkIncidentRes() {}
+
+type AdmissionLinkIncidentBadRequestHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*AdmissionLinkIncidentBadRequestHTTPError) HTTPStatus() int                { return 400 }
+func (*AdmissionLinkIncidentBadRequestHTTPError) listAdmissionLinkIncidentsRes() {}
+func (*AdmissionLinkIncidentBadRequestHTTPError) getAdmissionLinkIncidentRes()   {}
+
+type AdmissionLinkIncidentNotFoundHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*AdmissionLinkIncidentNotFoundHTTPError) HTTPStatus() int              { return 404 }
+func (*AdmissionLinkIncidentNotFoundHTTPError) getAdmissionLinkIncidentRes() {}
+
+type AdmissionLinkIncidentInternalServerHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*AdmissionLinkIncidentInternalServerHTTPError) HTTPStatus() int                { return 500 }
+func (*AdmissionLinkIncidentInternalServerHTTPError) listAdmissionLinkIncidentsRes() {}
+func (*AdmissionLinkIncidentInternalServerHTTPError) getAdmissionLinkIncidentRes()   {}
+
+type AdmissionLinkIncidentServiceUnavailableHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*AdmissionLinkIncidentServiceUnavailableHTTPError) HTTPStatus() int                { return 503 }
+func (*AdmissionLinkIncidentServiceUnavailableHTTPError) listAdmissionLinkIncidentsRes() {}
+func (*AdmissionLinkIncidentServiceUnavailableHTTPError) getAdmissionLinkIncidentRes()   {}
