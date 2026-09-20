@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 )
 
 func TestPolicyRouteMatrix(t *testing.T) {
@@ -15,6 +17,13 @@ func TestPolicyRouteMatrix(t *testing.T) {
 		t.Fatal(err)
 	}
 	validValidate := `{"rego":` + strconvQuote(validRego) + `}`
+	wildcard := validReq()
+	wildcard.Name = "star-ops"
+	wildcard.Match.Operations = []string{"*"}
+	wildcardBody, err := json.Marshal(wildcard)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ok := routeExpectation{status: 200, code: 0, contentType: "application/json; charset=utf-8", message: "success"}
 	bad := routeExpectation{status: 400, code: 40000, contentType: "application/json"}
 	notFound := routeExpectation{status: 404, code: 40400, contentType: "application/json; charset=utf-8", message: "not found"}
@@ -34,6 +43,10 @@ func TestPolicyRouteMatrix(t *testing.T) {
 		{name: "duplicate CSV query", method: http.MethodGet, path: "/api/v1/policies?mode=enforce&mode=audit", want: withMessage(bad, `"mode"`)},
 		{name: "invalid enum query", method: http.MethodGet, path: "/api/v1/policies?mode=block", want: withMessage(bad, `"mode"`)},
 		{name: "empty scalar query", method: http.MethodGet, path: "/api/v1/policies?page=", want: withMessage(bad, `"page"`)},
+		{name: "invalid minimum query", method: http.MethodGet, path: "/api/v1/policies?page=0", want: withMessage(bad, `"page"`)},
+		{name: "invalid page size", method: http.MethodGet, path: "/api/v1/policies?pageSize=7", want: withMessage(bad, `"pageSize"`)},
+		{name: "invalid sort by", method: http.MethodGet, path: "/api/v1/policies?sortBy=droptable", want: withMessage(bad, `"sortBy"`)},
+		{name: "wildcard operation rejected", method: http.MethodPost, path: "/api/v1/policies", body: string(wildcardBody), contentType: "application/json", want: withMessage(bad, "operations")},
 		{name: "invalid force query", method: http.MethodDelete, path: "/api/v1/policies/does-not-exist?force=maybe", want: withMessage(bad, `"force"`)},
 		{name: "business not found", method: http.MethodGet, path: "/api/v1/policies/does-not-exist", want: notFound},
 		{name: "unknown route", method: http.MethodGet, path: "/api/v1/policies/example/unknown", want: unknownRoute},
@@ -90,6 +103,23 @@ func TestPolicyRouteMatrix(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPolicyListRepositoryFailure(t *testing.T) {
+	db := newTestDB(t)
+	server, err := NewServer(&Handlers{Repos: repository.New(db)}, func() bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sqlDB.Close(); err != nil {
+		t.Fatal(err)
+	}
+	got := servePolicyRequest(server.Handler, http.MethodGet, "/api/v1/policies", "", "")
+	assertRouteExpectation(t, got, routeExpectation{status: 500, code: 50000, contentType: "application/json; charset=utf-8", message: "request failed"})
 }
 
 func servePolicyRequest(h http.Handler, method, path, body, contentType string) *httptest.ResponseRecorder {
