@@ -100,3 +100,76 @@ type SwagExceptionDetail struct {
 type ExceptionNameView struct {
 	Name string `json:"name" binding:"required"`
 }
+
+type ExceptionListHTTPResponse struct {
+	Code    int                `json:"code"`
+	Message string             `json:"message"`
+	Data    *ExceptionPageView `json:"data"`
+}
+
+func (*ExceptionListHTTPResponse) listExceptionsRes() {}
+
+type ExceptionDetailHTTPResponse struct {
+	Code    int            `json:"code"`
+	Message string         `json:"message"`
+	Data    *ExceptionView `json:"data"`
+}
+
+func (*ExceptionDetailHTTPResponse) getExceptionRes() {}
+
+type ExceptionNameHTTPResponse struct {
+	Code    int               `json:"code"`
+	Message string            `json:"message"`
+	Data    ExceptionNameView `json:"data"`
+}
+
+func (*ExceptionNameHTTPResponse) createExceptionRes() {}
+func (*ExceptionNameHTTPResponse) updateExceptionRes() {}
+
+type ExceptionEmptyHTTPResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ExceptionEmptyHTTPResponse) deleteExceptionRes() {}
+
+type ExceptionBadRequestHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ExceptionBadRequestHTTPError) HTTPStatus() int     { return 400 }
+func (*ExceptionBadRequestHTTPError) listExceptionsRes()  {}
+func (*ExceptionBadRequestHTTPError) createExceptionRes() {}
+func (*ExceptionBadRequestHTTPError) updateExceptionRes() {}
+
+type ExceptionNotFoundHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ExceptionNotFoundHTTPError) HTTPStatus() int     { return 404 }
+func (*ExceptionNotFoundHTTPError) getExceptionRes()    {}
+func (*ExceptionNotFoundHTTPError) updateExceptionRes() {}
+func (*ExceptionNotFoundHTTPError) deleteExceptionRes() {}
+
+type ExceptionConflictHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ExceptionConflictHTTPError) HTTPStatus() int     { return 409 }
+func (*ExceptionConflictHTTPError) createExceptionRes() {}
+func (*ExceptionConflictHTTPError) updateExceptionRes() {}
+
+type ExceptionInternalServerHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ExceptionInternalServerHTTPError) HTTPStatus() int     { return 500 }
+func (*ExceptionInternalServerHTTPError) listExceptionsRes()  {}
+func (*ExceptionInternalServerHTTPError) createExceptionRes() {}
+func (*ExceptionInternalServerHTTPError) getExceptionRes()    {}
+func (*ExceptionInternalServerHTTPError) updateExceptionRes() {}
+func (*ExceptionInternalServerHTTPError) deleteExceptionRes() {}
