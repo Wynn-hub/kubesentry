@@ -21,17 +21,13 @@ import (
 // @Router /schema/fields [get]
 func (h *Handler) GetFieldSchema(ctx context.Context, p dto.GetFieldSchemaParams) (dto.GetFieldSchemaRes, error) {
 	if h.svcs.Schema == nil {
-		return &dto.GetFieldSchemaBadGateway{Code: 50200, Message: "schema discovery is not configured"}, nil
+		return &dto.FieldSchemaHTTPError{Code: 50200, Message: "schema discovery is not configured"}, nil
 	}
 	f, e := h.svcs.Schema(ctx, fieldSchemaOptions(p))
 	if e != nil {
-		return &dto.GetFieldSchemaBadGateway{Code: 50200, Message: e.Error()}, nil
+		return &dto.FieldSchemaHTTPError{Code: 50200, Message: e.Error()}, nil
 	}
-	data, err := dtoData[[]dto.FieldNode](f)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.FieldSchemaResponse{Code: 0, Message: "success", Data: data}, nil
+	return &dto.FieldSchemaHTTPResponse{Code: 0, Message: "success", Data: f}, nil
 }
 
 func fieldSchemaOptions(p dto.GetFieldSchemaParams) dto.FieldSchemaOptions {

@@ -334,7 +334,7 @@ func responseStatus(response any) int {
 		*dto.DistributionNameResponse, *dto.DistributionDetailResponse,
 		*dto.DistributionEmptyResponse, *dto.PlatformOverviewResponse,
 		*dto.PlatformTrendResponse, *dto.LeadershipEventListResponse,
-		*dto.PlatformSettingsResponse:
+		*dto.PlatformSettingsResponse, *dto.FieldSchemaHTTPResponse, *dto.SummaryHTTPResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
 		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,
@@ -394,7 +394,7 @@ func responseStatus(response any) int {
 		return http.StatusConflict
 	case *dto.RollbackPolicyGone:
 		return http.StatusGone
-	case *dto.GetFieldSchemaBadGateway:
+	case *dto.GetFieldSchemaBadGateway, *dto.FieldSchemaHTTPError:
 		return http.StatusBadGateway
 	case *dto.ListAdmissionLinkIncidentsServiceUnavailable,
 		*dto.GetAdmissionLinkIncidentServiceUnavailable,
@@ -432,7 +432,7 @@ func responseStatus(response any) int {
 	case *dto.GetPlatformOverviewInternalServerError,
 		*dto.GetPlatformInstanceTrendInternalServerError,
 		*dto.ListPlatformLeadershipEventsInternalServerError,
-		*dto.UpdatePlatformSettingsInternalServerError:
+		*dto.UpdatePlatformSettingsInternalServerError, *dto.SummaryHTTPError:
 		return http.StatusInternalServerError
 	default:
 		return 0

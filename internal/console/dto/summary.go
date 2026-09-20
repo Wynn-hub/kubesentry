@@ -20,3 +20,18 @@ type SummaryGroupView struct {
 	EnforceCount  int    `json:"enforceCount" binding:"required"`
 	AuditCount    int    `json:"auditCount" binding:"required"`
 }
+
+type SummaryHTTPResponse struct {
+	Code    int          `json:"code"`
+	Message string       `json:"message"`
+	Data    *SummaryView `json:"data"`
+}
+
+func (*SummaryHTTPResponse) getSummaryRes() {}
+
+type SummaryHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*SummaryHTTPError) getSummaryRes() {}
