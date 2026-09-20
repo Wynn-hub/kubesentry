@@ -317,6 +317,9 @@ func writeResponse(w http.ResponseWriter, response any, err error) {
 }
 
 func responseStatus(response any) int {
+	if response, ok := response.(interface{ HTTPStatus() int }); ok {
+		return response.HTTPStatus()
+	}
 	switch response.(type) {
 	case *dto.PolicyListResponse, *dto.PolicyNameResponse, *dto.PolicyDetailResponse,
 		*dto.ResourceSuggestionsResponse, *dto.Envelope, *dto.PolicyVersionListResponse,
@@ -334,7 +337,10 @@ func responseStatus(response any) int {
 		*dto.DistributionNameResponse, *dto.DistributionDetailResponse,
 		*dto.DistributionEmptyResponse, *dto.PlatformOverviewResponse,
 		*dto.PlatformTrendResponse, *dto.LeadershipEventListResponse,
-		*dto.PlatformSettingsResponse, *dto.FieldSchemaHTTPResponse, *dto.SummaryHTTPResponse:
+		*dto.PlatformSettingsResponse, *dto.FieldSchemaHTTPResponse, *dto.SummaryHTTPResponse,
+		*dto.PolicyListHTTPResponse, *dto.PolicyDetailHTTPResponse, *dto.PolicyNameHTTPResponse,
+		*dto.PolicyEmptyHTTPResponse, *dto.PolicyVersionListHTTPResponse,
+		*dto.PolicyRollbackHTTPResponse, *dto.ResourceSuggestionsHTTPResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
 		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,

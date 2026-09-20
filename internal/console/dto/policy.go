@@ -83,6 +83,134 @@ type ResourceSuggestionsView struct {
 	ResourcesByGroup map[string][]string `json:"resourcesByGroup"`
 }
 
+type PolicyReferencedByView struct {
+	ReferencedBy []string `json:"referencedBy"`
+}
+
+type PolicyBadRequestHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyBadRequestHTTPError) HTTPStatus() int            { return 400 }
+func (*PolicyBadRequestHTTPError) listPoliciesRes()           {}
+func (*PolicyBadRequestHTTPError) createPolicyRes()           {}
+func (*PolicyBadRequestHTTPError) updatePolicyRes()           {}
+func (*PolicyBadRequestHTTPError) rollbackPolicyRes()         {}
+func (*PolicyBadRequestHTTPError) validatePolicyRegoRes()     {}
+func (*PolicyBadRequestHTTPError) getResourceSuggestionsRes() {}
+
+type PolicyNotFoundHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyNotFoundHTTPError) HTTPStatus() int        { return 404 }
+func (*PolicyNotFoundHTTPError) getPolicyRes()          {}
+func (*PolicyNotFoundHTTPError) updatePolicyRes()       {}
+func (*PolicyNotFoundHTTPError) deletePolicyRes()       {}
+func (*PolicyNotFoundHTTPError) listPolicyVersionsRes() {}
+func (*PolicyNotFoundHTTPError) rollbackPolicyRes()     {}
+
+type PolicyConflictHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyConflictHTTPError) HTTPStatus() int    { return 409 }
+func (*PolicyConflictHTTPError) createPolicyRes()   {}
+func (*PolicyConflictHTTPError) updatePolicyRes()   {}
+func (*PolicyConflictHTTPError) rollbackPolicyRes() {}
+
+type DeletePolicyConflictHTTPError struct {
+	Code    int                    `json:"code"`
+	Message string                 `json:"message"`
+	Data    PolicyReferencedByView `json:"data"`
+}
+
+func (*DeletePolicyConflictHTTPError) HTTPStatus() int  { return 409 }
+func (*DeletePolicyConflictHTTPError) deletePolicyRes() {}
+
+type PolicyGoneHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyGoneHTTPError) HTTPStatus() int    { return 410 }
+func (*PolicyGoneHTTPError) rollbackPolicyRes() {}
+
+type PolicyInternalServerHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyInternalServerHTTPError) HTTPStatus() int            { return 500 }
+func (*PolicyInternalServerHTTPError) listPoliciesRes()           {}
+func (*PolicyInternalServerHTTPError) createPolicyRes()           {}
+func (*PolicyInternalServerHTTPError) getPolicyRes()              {}
+func (*PolicyInternalServerHTTPError) updatePolicyRes()           {}
+func (*PolicyInternalServerHTTPError) deletePolicyRes()           {}
+func (*PolicyInternalServerHTTPError) listPolicyVersionsRes()     {}
+func (*PolicyInternalServerHTTPError) rollbackPolicyRes()         {}
+func (*PolicyInternalServerHTTPError) getResourceSuggestionsRes() {}
+
+type PolicyListHTTPResponse struct {
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    *PolicyPageView `json:"data"`
+}
+
+func (*PolicyListHTTPResponse) listPoliciesRes() {}
+
+type PolicyDetailHTTPResponse struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    *PolicyView `json:"data"`
+}
+
+func (*PolicyDetailHTTPResponse) getPolicyRes() {}
+
+type PolicyNameHTTPResponse struct {
+	Code    int            `json:"code"`
+	Message string         `json:"message"`
+	Data    PolicyNameView `json:"data"`
+}
+
+func (*PolicyNameHTTPResponse) createPolicyRes() {}
+func (*PolicyNameHTTPResponse) updatePolicyRes() {}
+
+type PolicyEmptyHTTPResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyEmptyHTTPResponse) deletePolicyRes()       {}
+func (*PolicyEmptyHTTPResponse) validatePolicyRegoRes() {}
+
+type PolicyVersionListHTTPResponse struct {
+	Code    int                    `json:"code"`
+	Message string                 `json:"message"`
+	Data    *PolicyVersionListView `json:"data"`
+}
+
+func (*PolicyVersionListHTTPResponse) listPolicyVersionsRes() {}
+
+type PolicyRollbackHTTPResponse struct {
+	Code    int                 `json:"code"`
+	Message string              `json:"message"`
+	Data    *PolicyRollbackView `json:"data"`
+}
+
+func (*PolicyRollbackHTTPResponse) rollbackPolicyRes() {}
+
+type ResourceSuggestionsHTTPResponse struct {
+	Code    int                      `json:"code"`
+	Message string                   `json:"message"`
+	Data    *ResourceSuggestionsView `json:"data"`
+}
+
+func (*ResourceSuggestionsHTTPResponse) getResourceSuggestionsRes() {}
+
 // PolicyPath describes the name path parameter shared by policy detail operations.
 type PolicyPath struct {
 	// 策略名称

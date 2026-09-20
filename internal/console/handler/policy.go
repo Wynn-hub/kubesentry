@@ -30,7 +30,7 @@ func (h *Handler) ListPolicies(ctx context.Context, params dto.ListPoliciesParam
 	// Validate pagination params (protocol semantics, not business logic)
 	page := params.Page.Or(1)
 	if page < 1 {
-		return &dto.ListPoliciesBadRequest{Code: 40000, Message: "invalid page: must be greater than zero"}, nil
+		return &dto.PolicyBadRequestHTTPError{Code: 40000, Message: "invalid page: must be greater than zero"}, nil
 	}
 	pageSize := int(params.PageSize.Or(dto.PageSize20))
 
@@ -60,17 +60,12 @@ func (h *Handler) ListPolicies(ctx context.Context, params dto.ListPoliciesParam
 		Keyword:   params.Keyword.Or(""),
 	})
 	if err != nil {
-		return &dto.ListPoliciesInternalServerError{Code: 50000, Message: "request failed"}, nil
+		return &dto.PolicyInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
-
-	v, err := dtoData[dto.PolicyListData](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.PolicyListResponse{
+	return &dto.PolicyListHTTPResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.NewOptPolicyListData(v),
+		Data:    data,
 	}, nil
 }
 
@@ -90,14 +85,10 @@ func (h *Handler) GetPolicy(ctx context.Context, params dto.GetPolicyParams) (dt
 	if err != nil {
 		return mapGetPolicyError(err), nil
 	}
-	v, err := dtoData[dto.PolicyDetail](detail)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.PolicyDetailResponse{
+	return &dto.PolicyDetailHTTPResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.NewOptPolicyDetail(v),
+		Data:    detail,
 	}, nil
 }
 
@@ -123,10 +114,10 @@ func (h *Handler) CreatePolicy(ctx context.Context, req *dto.PolicyRequest) (dto
 	if err != nil {
 		return mapCreatePolicyError(err), nil
 	}
-	return &dto.PolicyNameResponse{
+	return &dto.PolicyNameHTTPResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.OptPolicyNameData{Value: dto.PolicyNameData{Name: stringOr(input.Name)}, Set: true},
+		Data:    dto.PolicyNameView{Name: stringOr(input.Name)},
 	}, nil
 }
 
@@ -154,10 +145,10 @@ func (h *Handler) UpdatePolicy(ctx context.Context, req *dto.PolicyRequest, para
 	if err != nil {
 		return mapUpdatePolicyError(err), nil
 	}
-	return &dto.PolicyNameResponse{
+	return &dto.PolicyNameHTTPResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.OptPolicyNameData{Value: dto.PolicyNameData{Name: params.Name}, Set: true},
+		Data:    dto.PolicyNameView{Name: params.Name},
 	}, nil
 }
 
@@ -179,7 +170,7 @@ func (h *Handler) DeletePolicy(ctx context.Context, params dto.DeletePolicyParam
 	if err != nil {
 		return mapDeletePolicyError(err), nil
 	}
-	return &dto.Envelope{Code: 0, Message: "success"}, nil
+	return &dto.PolicyEmptyHTTPResponse{Code: 0, Message: "success"}, nil
 }
 
 // ListPolicyVersions implements listPolicyVersions.
@@ -198,14 +189,10 @@ func (h *Handler) ListPolicyVersions(ctx context.Context, params dto.ListPolicyV
 	if err != nil {
 		return mapListPolicyVersionsError(err), nil
 	}
-	v, err := dtoData[dto.PolicyVersionList](list)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.PolicyVersionListResponse{
+	return &dto.PolicyVersionListHTTPResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.NewOptPolicyVersionList(v),
+		Data:    list,
 	}, nil
 }
 
@@ -230,14 +217,10 @@ func (h *Handler) RollbackPolicy(ctx context.Context, req *dto.RollbackRequest, 
 	if err != nil {
 		return mapRollbackPolicyError(err), nil
 	}
-	v, err := dtoData[dto.RollbackResult](result)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.RollbackResponse{
+	return &dto.PolicyRollbackHTTPResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.NewOptRollbackResult(v),
+		Data:    result,
 	}, nil
 }
 
@@ -256,9 +239,9 @@ func (h *Handler) ValidatePolicyRego(ctx context.Context, req *dto.ValidateRegoR
 	err := h.svcs.Policy.ValidateRego(ctx, req.Rego)
 	if err != nil {
 		// ValidationError maps to bare ErrorResponse, not *XxxBadRequest
-		return &dto.ErrorResponse{Code: 40000, Message: err.Error()}, nil
+		return &dto.PolicyBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
 	}
-	return &dto.Envelope{Code: 0, Message: "success"}, nil
+	return &dto.PolicyEmptyHTTPResponse{Code: 0, Message: "success"}, nil
 }
 
 // GetResourceSuggestions implements getResourceSuggestions.
@@ -274,16 +257,12 @@ func (h *Handler) ValidatePolicyRego(ctx context.Context, req *dto.ValidateRegoR
 func (h *Handler) GetResourceSuggestions(ctx context.Context) (dto.GetResourceSuggestionsRes, error) {
 	sugg, err := h.svcs.Policy.ResourceSuggestions(ctx)
 	if err != nil {
-		return &dto.GetResourceSuggestionsInternalServerError{Code: 50000, Message: "request failed"}, nil
+		return &dto.PolicyInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
-	v, err := dtoData[dto.ResourceSuggestions](sugg)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.ResourceSuggestionsResponse{
+	return &dto.ResourceSuggestionsHTTPResponse{
 		Code:    0,
 		Message: "success",
-		Data:    dto.NewOptResourceSuggestions(v),
+		Data:    sugg,
 	}, nil
 }
 
