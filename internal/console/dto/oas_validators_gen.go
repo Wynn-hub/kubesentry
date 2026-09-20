@@ -6,8 +6,11 @@ import (
 	"fmt"
 
 	"github.com/go-faster/errors"
+	"github.com/ogen-go/ogen/ogenregex"
 	"github.com/ogen-go/ogen/validate"
 )
+
+var resourceIDPattern = ogenregex.MustCompile("^[0-9]+$")
 
 func (s *AdmissionEventDetail) Validate() error {
 	if s == nil {
@@ -5414,7 +5417,7 @@ func (s ResourceID) Validate() error {
 		MaxLengthSet:  false,
 		Email:         false,
 		Hostname:      false,
-		Regex:         regexMap["^[0-9]+$"],
+		Regex:         resourceIDPattern,
 		MinNumeric:    0,
 		MinNumericSet: false,
 		MaxNumeric:    0,
