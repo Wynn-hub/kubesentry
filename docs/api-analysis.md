@@ -6,13 +6,15 @@
 
 | Family | Source of truth | Inventory | Browser HTTP |
 | --- | --- | ---: | --- |
-| Console | `api/console/console-api.yaml` | 50 operations | `/api/v1` only |
+| Console | Go handler/DTO Swag annotations | 50 operations | `/api/v1` only |
 | Gateway | `api/proto/gateway/v1/gateway.proto` | 5 RPCs: `Register`, `Sync`, `Connect`, `NotifyChange`, `Dispatch` | No |
 | Member cluster | `charts/kubesentry/crds/{policy,policygroup,exception,policyversion}.yaml` | 4 CRDs | No |
 
-Console OpenAPI alone generates Ogen and browser types. The obsolete
-`api/internal/gateway.yaml` was removed: its probes were not a browser contract
-and duplicated the protobuf streaming boundary.
+Swag generates `api/swagger/swagger.yaml`; the normalized OAS3 document is a
+reproducible derivative. The legacy `api/console/console-api.yaml` remains only
+as a reviewed compatibility baseline and temporary frontend input. The obsolete
+`api/internal/gateway.yaml` was removed because its probes were not a browser
+contract and duplicated the protobuf streaming boundary.
 
 ## Console operation inventory
 
@@ -29,9 +31,9 @@ and duplicated the protobuf streaming boundary.
 | Schema | 1 | `getFieldSchema` |
 | Summary | 1 | `getSummary` |
 
-The gate requires exactly these 50 generated operations and concrete
-`internal/console/handler` methods; an inherited `dto.UnimplementedHandler`
-method cannot satisfy coverage.
+The gates require exactly these 50 Swag `@ID` annotations, concrete
+`internal/console/handler` methods, and matching runtime HTTP method/path
+registrations.
 
 ## Console-web dependency map
 
@@ -50,5 +52,5 @@ method cannot satisfy coverage.
 - `bearerAuth` is reserved documentation only; Console has no auth middleware.
 - Gateway probes are operational, not public Console routes; gRPC/mTLS/shared-token semantics stay with protobuf and deployment docs.
 - CRDs are not copied into OpenAPI: Kubernetes API/RBAC owns their trust boundary and Gateway owns zero CRDs.
-- `make api-lint` validates contracts, 50-route coverage, bundle drift, scratch Ogen/TypeScript drift, protobuf parsing, and Helm CRD rendering without rewriting committed artifacts.
+- `make api-lint` validates the compatibility baseline, 50-route coverage, bundle and TypeScript drift, protobuf parsing, and Helm CRD rendering without rewriting committed artifacts. `make swagger-check` validates the Swag-derived chain.
 - Full verification additionally runs Go format/vet/tests/build, frontend test/build, Helm lint/template, and final Git diff review.

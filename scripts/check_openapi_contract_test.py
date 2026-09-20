@@ -139,64 +139,66 @@ class ContractCheckerTest(unittest.TestCase):
                 "operation inventory drift",
             )
 
-    def test_rejects_generated_handler_that_leaves_a_documented_operation_unimplemented(self):
+    def test_rejects_handler_without_a_documented_operation_annotation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            generated = root / "oas_server_gen.go"
-            generated.write_text("// ListWidgets implements listWidgets operation.\n")
             handlers = root / "handler"
             handlers.mkdir()
             (handlers / "widgets.go").write_text("package handler\n")
             self.assert_contract_error(
-                lambda: checker.check_generated_handler_coverage({"listWidgets"}, generated, handlers),
-                "have no concrete handler method",
+                lambda: checker.check_handler_coverage({"listWidgets"}, handlers),
+                "handler @ID values drift",
             )
 
     def test_ignores_handler_methods_declared_only_in_test_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            generated = root / "oas_server_gen.go"
-            generated.write_text("// ListWidgets implements listWidgets operation.\n")
             handlers = root / "handler"
             handlers.mkdir()
             (handlers / "widgets_test.go").write_text(
-                "package handler\nfunc (h *Handler) ListWidgets() {}\n"
+                "package handler\n// @ID listWidgets\nfunc (h *Handler) ListWidgets() {}\n"
             )
             self.assert_contract_error(
-                lambda: checker.check_generated_handler_coverage({"listWidgets"}, generated, handlers),
-                "have no concrete handler method",
+                lambda: checker.check_handler_coverage({"listWidgets"}, handlers),
+                "handler @ID values drift",
             )
 
-    def test_rejects_server_without_the_generated_api_prefix_mount(self):
+    def test_rejects_server_without_all_route_registrations(self):
         with tempfile.TemporaryDirectory() as directory:
             server = Path(directory) / "server.go"
-            server.write_text('mux.Handle("/api/v1/clusters", ogenServer)\n')
+            server.write_text("registerPolicyRoutes(mux, apiHandler)\n")
             self.assert_contract_error(
-                lambda: checker.check_runtime_mount(server),
-                "must mount the generated server at /api/v1/",
+                lambda: checker.check_runtime_routes({}, server, Path(directory)),
+                "missing route registrations",
             )
 
-    def test_accepts_generated_server_mounted_through_json_404_wrapper(self):
+    def test_accepts_all_route_registrations(self):
         with tempfile.TemporaryDirectory() as directory:
             server = Path(directory) / "server.go"
-            server.write_text(
-                'mux.Handle("/api/v1/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n'
-                "rec := httptest.NewRecorder()\n"
-                "ogenServer.ServeHTTP(rec, r)\n"
-                "}))\n"
-            )
-            checker.check_runtime_mount(server)
+            server.write_text("\n".join(f"{name}(mux, apiHandler)" for name in checker.ROUTE_REGISTRATIONS))
+            routes = Path(directory) / "widgets_http.go"
+            routes.write_text('mux.HandleFunc("GET /api/v1/widgets", nil)\n')
+            checker.check_runtime_routes({"paths": {"/widgets": {"get": {}}}}, server, Path(directory))
 
-    def test_rejects_generated_server_call_outside_api_prefix_handler(self):
+    def test_rejects_missing_runtime_method_and_path(self):
         with tempfile.TemporaryDirectory() as directory:
             server = Path(directory) / "server.go"
-            server.write_text(
-                'mux.Handle("/api/v1/", otherHandler)\n'
-                "func unused() { ogenServer.ServeHTTP(nil, nil) }\n"
-            )
+            server.write_text("\n".join(f"{name}(mux, apiHandler)" for name in checker.ROUTE_REGISTRATIONS))
+            routes = Path(directory) / "widgets_http.go"
+            routes.write_text('mux.HandleFunc("POST /api/v1/widgets", nil)\n')
             self.assert_contract_error(
-                lambda: checker.check_runtime_mount(server),
-                "must mount the generated server at /api/v1/",
+                lambda: checker.check_runtime_routes({"paths": {"/widgets": {"get": {}}}}, server, Path(directory)),
+                "runtime routes drift",
+            )
+
+    def test_rejects_retired_ogen_router(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = Path(directory) / "server.go"
+            source = "\n".join(f"{name}(mux, apiHandler)" for name in checker.ROUTE_REGISTRATIONS)
+            server.write_text(source + "\nogenServer.ServeHTTP(nil, nil)\n")
+            self.assert_contract_error(
+                lambda: checker.check_runtime_routes({}, server, Path(directory)),
+                "must not mount the retired Ogen router",
             )
 
     def test_rejects_api_index_that_treats_gateway_as_openapi(self):

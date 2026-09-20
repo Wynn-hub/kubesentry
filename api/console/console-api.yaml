@@ -3,9 +3,10 @@ info:
   title: KubeSentry Console API
   version: 1.0.0
   description: |
-    KubeSentry 控制台的 HTTP API。本文件是这些接口的唯一事实来源：
-    Go 服务端接口由 ogen 从本文件生成，前端 TypeScript 类型由
-    openapi-typescript 从本文件生成。
+    KubeSentry 控制台 HTTP API 的迁移基线。Go handler/DTO 上的 Swag
+    注释是唯一事实来源；api/swagger/swagger.yaml 是生成的 Swagger 2
+    产物，OAS3 是其可重复派生产物。本文件在前端和文档中心完成切换前
+    仅作为已审查的兼容对照与 TypeScript 临时输入。
 
     另有两类契约不在本文件内：
     - gateway 的内部 gRPC 接口，见 api/proto/gateway/v1/gateway.proto

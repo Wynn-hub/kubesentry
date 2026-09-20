@@ -3,7 +3,7 @@ export GOROOT := /opt/homebrew/opt/go/libexec
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
         test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \
         build-image-local deploy-local undeploy-local web-build test-web dev-local \
-        proto api-gen api-gen-check api-ts-check api-bundle api-lint swagger swagger-check
+        proto api-ts-check api-bundle api-lint swagger swagger-check
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -131,30 +131,6 @@ swagger-check:
 	npx --no-install redocly lint --config ../redocly.yaml "$$task_tmp/normalized-1.json"; \
 	npx --no-install openapi-typescript "$$task_tmp/normalized-1.json" -o "$$task_tmp/types.ts"
 
-# Generated files are COMMITTED; day-to-day builds never need ogen.
-# Requires: ogen on PATH (go install github.com/ogen-go/ogen/cmd/ogen@latest).
-OGEN = $(shell go env GOPATH)/bin/ogen
-
-$(OGEN):
-	go install github.com/ogen-go/ogen/cmd/ogen@latest
-
-api-gen: $(OGEN)
-	$(OGEN) --target internal/console/dto --package dto --clean \
-	  api/console/console-api.yaml
-	$(MAKE) api-gen-check
-
-# Canonicalize both generation inputs in isolated temporary directories, then
-# byte-compare them. This accommodates the known non-semantic ogen formatting
-# variation without rewriting the committed baseline. Hand-written DTO adapters
-# and compatibility methods are outside ogen's oas_* output.
-api-gen-check: $(OGEN)
-	@tmp_dir=$$(mktemp -d); trap 'rm -rf "$$tmp_dir"' EXIT; \
-	$(OGEN) --target "$$tmp_dir/dto" --package dto --clean api/console/console-api.yaml; \
-	cp -R internal/console/dto "$$tmp_dir/committed"; \
-	python3 scripts/normalize_ogen_output.py "$$tmp_dir/dto"; \
-	python3 scripts/normalize_ogen_output.py "$$tmp_dir/committed"; \
-	diff -ru --exclude=convert_policy.go --exclude=convert_policy_test.go --exclude=error_compat.go --exclude=gen.go "$$tmp_dir/committed" "$$tmp_dir/dto"
-
 # Do not let the API gate rewrite the committed browser contract. A deliberate
 # regeneration remains `cd web && npm run generate:api`.
 api-ts-check:
@@ -169,7 +145,6 @@ api-lint:
 	python3 scripts/check_openapi_contract.py
 	python3 scripts/bundle_openapi_test.py
 	python3 scripts/bundle_openapi.py --check
-	$(MAKE) api-gen-check
 	$(MAKE) api-ts-check
 	cd web && npx redocly lint --config ../redocly.yaml ../api/console/console-api.yaml ../api/openapi.yaml
 	@tmp_file=$$(mktemp); trap 'rm -f "$$tmp_file"' EXIT; \

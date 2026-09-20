@@ -2,7 +2,7 @@
 
 ## Result
 
-The Console migration is complete at 50 OpenAPI-defined `/api/v1` operations. Ogen generates `internal/console/dto`; `openapi-typescript` generates `web/src/api/generated/console-api.ts`; generated routing enters typed Console handlers and services.
+The Console exposes 50 `/api/v1` operations through explicit `net/http` routes. Go handler/DTO Swag annotations are the contract source; `api/swagger/swagger.yaml` and normalized OAS3 are generated derivatives. `openapi-typescript` temporarily still consumes the reviewed legacy OAS3 baseline until the frontend switch is complete.
 
 ## Explicit exclusions
 
@@ -16,9 +16,9 @@ The Console migration is complete at 50 OpenAPI-defined `/api/v1` operations. Og
 
 ## Coverage and drift controls
 
-- The contract checker requires 50 unique Console operation IDs, validates metadata, schemas and references, and compares them with generated Ogen operations plus concrete handler methods.
+- The contract checker requires 50 unique Console operation IDs, validates metadata, schemas and references, and compares them with concrete handler annotations and runtime HTTP method/path registrations.
 - It validates the five Gateway RPCs and four CRD names against the unified index. `protoc` parses the wire contract and Helm renders CRDs in `api-lint`.
-- `make api-lint` uses scratch paths for Go and TypeScript generation and fails on differences. It also checks the embedded OpenAPI bundle without rewriting the checkout.
+- `make api-lint` checks the temporary TypeScript input and embedded OpenAPI bundle without rewriting the checkout. `make swagger-check` checks the reproducible Swag → Swagger 2 → OAS3 chain.
 
 ## Frontend outcome and risk
 

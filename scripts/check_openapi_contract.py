@@ -19,13 +19,20 @@ CRD_NAMES = frozenset({
     "policyexceptions.kubesentry.io",
     "policyversions.kubesentry.io",
 })
-GENERATED_OPERATION = re.compile(r"// (?P<method>\w+) implements (?P<operation>\w+) operation\.")
-HANDLER_METHOD = re.compile(r"func \(h \*Handler\) (?P<method>\w+)\(")
-GENERATED_API_MOUNT = re.compile(
-    r'mux\.Handle\(\s*"/api/v1/"\s*,\s*http\.HandlerFunc\(func\([^)]*\)\s*\{(?P<body>.*?)^\s*\}\)\s*\)',
-    re.DOTALL | re.MULTILINE,
+HANDLER_OPERATION = re.compile(
+    r"(?ms)^// @ID (?P<operation>\w+).*?^func \(h \*Handler\) (?P<method>\w+)\("
 )
-GENERATED_API_CALL = re.compile(r'ogenServer\.ServeHTTP\(')
+ROUTE_REGISTRATIONS = frozenset({
+    "registerPolicyRoutes",
+    "registerPolicyGroupRoutes",
+    "registerExceptionRoutes",
+    "registerSchemaAndSummaryRoutes",
+    "registerAdmissionRoutes",
+    "registerClusterRoutes",
+    "registerDistributionRoutes",
+    "registerPlatformRoutes",
+})
+RUNTIME_ROUTE = re.compile(r'mux\.HandleFunc\("(?P<method>[A-Z]+) (?P<path>/api/v1[^" ]*)"')
 
 
 def fail(message: str) -> None:
@@ -143,35 +150,50 @@ def check_console_route_inventory(operations: set[str]) -> None:
         fail(f"expected {CONSOLE_OPERATION_COUNT} console operations, found {len(operations)}")
 
 
-def check_generated_handler_coverage(operations: set[str], generated_path: Path, handler_dir: Path) -> None:
-    try:
-        generated = generated_path.read_text()
-    except OSError as exc:
-        fail(f"cannot read generated handler contract {generated_path}: {exc}")
-    generated_operations = {match.group("operation"): match.group("method") for match in GENERATED_OPERATION.finditer(generated)}
-    if set(generated_operations) != operations:
-        missing = sorted(operations - set(generated_operations))
-        extra = sorted(set(generated_operations) - operations)
-        fail(f"generated Go operations drift from OpenAPI (missing={missing}, extra={extra})")
-    methods = {
-        match.group("method")
-        for path in handler_dir.glob("*.go")
-        if not path.name.endswith("_test.go")
-        for match in HANDLER_METHOD.finditer(path.read_text())
+def check_handler_coverage(operations: set[str], handler_dir: Path) -> None:
+    annotated: dict[str, str] = {}
+    for path in handler_dir.glob("*.go"):
+        if path.name.endswith("_test.go"):
+            continue
+        for match in HANDLER_OPERATION.finditer(path.read_text()):
+            operation = match.group("operation")
+            if operation in annotated:
+                fail(f"duplicate handler @ID {operation}")
+            annotated[operation] = match.group("method")
+    if set(annotated) != operations:
+        missing = sorted(operations - set(annotated))
+        extra = sorted(set(annotated) - operations)
+        fail(f"handler @ID values drift from OpenAPI (missing={missing}, extra={extra})")
+
+
+def operation_routes(document: dict) -> set[tuple[str, str]]:
+    return {
+        (method.upper(), "/api/v1" + path)
+        for path, item in document.get("paths", {}).items()
+        if isinstance(item, dict)
+        for method, operation in item.items()
+        if method != "parameters" and isinstance(operation, dict)
     }
-    missing = sorted(method for method in generated_operations.values() if method not in methods)
-    if missing:
-        fail(f"generated operations have no concrete handler method: {', '.join(missing)}")
 
 
-def check_runtime_mount(server_path: Path) -> None:
+def check_runtime_routes(document: dict, server_path: Path, route_dir: Path) -> None:
     try:
         source = server_path.read_text()
     except OSError as exc:
         fail(f"cannot read console server mount contract {server_path}: {exc}")
-    mount = GENERATED_API_MOUNT.search(source)
-    if mount is None or not GENERATED_API_CALL.search(mount.group("body")):
-        fail("console server must mount the generated server at /api/v1/")
+    missing = sorted(name for name in ROUTE_REGISTRATIONS if f"{name}(mux, apiHandler)" not in source)
+    if missing:
+        fail(f"console server is missing route registrations: {', '.join(missing)}")
+    if "ogenServer" in source:
+        fail("console server must not mount the retired Ogen router")
+    registered = {
+        (match.group("method"), match.group("path"))
+        for path in route_dir.glob("*_http.go")
+        for match in RUNTIME_ROUTE.finditer(path.read_text())
+    }
+    missing_routes = sorted(operation_routes(document) - registered)
+    if missing_routes:
+        fail(f"console runtime routes drift from OpenAPI (missing={missing_routes})")
 
 
 def check_api_index(document: dict) -> None:
@@ -343,8 +365,8 @@ def main() -> None:
     operations = operation_ids(console)
     check_console_route_inventory(operations)
     check_committed_inventory(console, ROOT / "api/console/operation-inventory.json")
-    check_generated_handler_coverage(operations, ROOT / "internal/console/dto/oas_server_gen.go", ROOT / "internal/console/handler")
-    check_runtime_mount(ROOT / "internal/console/server.go")
+    check_handler_coverage(operations, ROOT / "internal/console/handler")
+    check_runtime_routes(console, ROOT / "internal/console/server.go", ROOT / "internal/console")
     check_api_index(index)
     check_gateway_proto()
     check_crd_contracts()
