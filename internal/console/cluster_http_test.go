@@ -6,13 +6,12 @@ import (
 	"testing"
 )
 
-func TestClusterNetHTTPMatchesOgenRouteMatrix(t *testing.T) {
+func TestClusterRouteMatrix(t *testing.T) {
 	repos := dbRepos(t)
 	actual, err := NewServer(&Handlers{Repos: repos}, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}
-	oracle := newOgenOracle(t, repos)
 	createBytes, err := json.Marshal(map[string]any{"name": "Not_Valid", "installParams": validInstallParams()})
 	if err != nil {
 		t.Fatal(err)
@@ -21,54 +20,83 @@ func TestClusterNetHTTPMatchesOgenRouteMatrix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tests := []struct{ name, method, path, body, contentType string }{
-		{name: "clusters defaults", method: http.MethodGet, path: "/api/v1/clusters"},
-		{name: "clusters query", method: http.MethodGet, path: "/api/v1/clusters?page=1&pageSize=10&sortBy=createdAt&sortOrder=desc"},
-		{name: "clusters bad page", method: http.MethodGet, path: "/api/v1/clusters?page=0"},
-		{name: "clusters bad page size", method: http.MethodGet, path: "/api/v1/clusters?pageSize=11"},
-		{name: "clusters bad sort", method: http.MethodGet, path: "/api/v1/clusters?sortBy=unknown"},
-		{name: "clusters duplicate scalar", method: http.MethodGet, path: "/api/v1/clusters?page=1&page=2"},
-		{name: "create invalid service input", method: http.MethodPost, path: "/api/v1/clusters", body: string(createBytes), contentType: "application/json"},
-		{name: "create missing body", method: http.MethodPost, path: "/api/v1/clusters", contentType: "application/json"},
-		{name: "create trailing JSON", method: http.MethodPost, path: "/api/v1/clusters", body: string(createBytes) + `{}`, contentType: "application/json"},
-		{name: "create wrong content type", method: http.MethodPost, path: "/api/v1/clusters", body: string(createBytes), contentType: "text/plain"},
-		{name: "detail not found", method: http.MethodGet, path: "/api/v1/clusters/missing"},
-		{name: "detail escaped name", method: http.MethodGet, path: "/api/v1/clusters/miss%20ing"},
-		{name: "detail escaped slash", method: http.MethodGet, path: "/api/v1/clusters/miss%2Fing"},
-		{name: "update not found", method: http.MethodPut, path: "/api/v1/clusters/missing", body: `{"labels":{}}`, contentType: "application/json"},
-		{name: "delete not found", method: http.MethodDelete, path: "/api/v1/clusters/missing"},
-		{name: "reissue not found", method: http.MethodPost, path: "/api/v1/clusters/missing/reissue-token", body: string(tokenBytes), contentType: "application/json"},
-		{name: "latest params missing", method: http.MethodGet, path: "/api/v1/clusters/missing/latest-install-params"},
-		{name: "uninstall missing", method: http.MethodPost, path: "/api/v1/clusters/missing/uninstall"},
-		{name: "uninstall list missing", method: http.MethodGet, path: "/api/v1/clusters/missing/uninstall-tasks"},
-		{name: "retry invalid id", method: http.MethodPost, path: "/api/v1/clusters/missing/uninstall-tasks/nope/retry"},
-		{name: "retry not found", method: http.MethodPost, path: "/api/v1/clusters/missing/uninstall-tasks/999/retry"},
-		{name: "install records defaults", method: http.MethodGet, path: "/api/v1/install-records"},
-		{name: "install records query", method: http.MethodGet, path: "/api/v1/install-records?page=1&pageSize=10&sortBy=namespace&sortOrder=asc"},
-		{name: "install records bad sort", method: http.MethodGet, path: "/api/v1/install-records?sortOrder=sideways"},
-		{name: "HEAD clusters", method: http.MethodHead, path: "/api/v1/clusters"},
-		{name: "HEAD detail", method: http.MethodHead, path: "/api/v1/clusters/missing"},
-		{name: "HEAD latest params", method: http.MethodHead, path: "/api/v1/clusters/missing/latest-install-params"},
-		{name: "HEAD uninstall list", method: http.MethodHead, path: "/api/v1/clusters/missing/uninstall-tasks"},
-		{name: "HEAD install records", method: http.MethodHead, path: "/api/v1/install-records"},
-		{name: "method mismatch", method: http.MethodPatch, path: "/api/v1/clusters/missing"},
-		{name: "static method mismatch", method: http.MethodGet, path: "/api/v1/clusters/missing/reissue-token"},
-		{name: "trailing path", method: http.MethodGet, path: "/api/v1/clusters/missing/"},
-		{name: "noncanonical path", method: http.MethodGet, path: "/api/v1/clusters/../clusters/missing"},
+	ok := routeExpectation{status: 200, code: 0, contentType: "application/json; charset=utf-8", message: "success"}
+	bad := routeExpectation{status: 400, code: 40000, contentType: "application/json"}
+	notFound := routeExpectation{status: 404, code: 40400, contentType: "application/json; charset=utf-8"}
+	unknownRoute := routeExpectation{status: 404, code: 40400, contentType: "application/json", message: "unknown API route"}
+	tests := []struct {
+		name, method, path, body, contentType string
+		want                                  routeExpectation
+	}{
+		{name: "clusters defaults", method: http.MethodGet, path: "/api/v1/clusters", want: ok},
+		{name: "clusters query", method: http.MethodGet, path: "/api/v1/clusters?page=1&pageSize=10&sortBy=createdAt&sortOrder=desc", want: ok},
+		{name: "clusters bad page", method: http.MethodGet, path: "/api/v1/clusters?page=0", want: withMessage(bad, `"page"`)},
+		{name: "clusters bad page size", method: http.MethodGet, path: "/api/v1/clusters?pageSize=11", want: withMessage(bad, `"pageSize"`)},
+		{name: "clusters bad sort", method: http.MethodGet, path: "/api/v1/clusters?sortBy=unknown", want: withMessage(bad, `"sortBy"`)},
+		{name: "clusters duplicate scalar", method: http.MethodGet, path: "/api/v1/clusters?page=1&page=2", want: withMessage(bad, "multiple values")},
+		{name: "create invalid service input", method: http.MethodPost, path: "/api/v1/clusters", body: string(createBytes), contentType: "application/json", want: routeExpectation{status: 400, code: 40000, contentType: "application/json; charset=utf-8", message: "invalid name"}},
+		{name: "create missing body", method: http.MethodPost, path: "/api/v1/clusters", contentType: "application/json", want: withMessage(bad, "body required")},
+		{name: "create trailing JSON", method: http.MethodPost, path: "/api/v1/clusters", body: string(createBytes) + `{}`, contentType: "application/json", want: withMessage(bad, "unexpected trailing data")},
+		{name: "create wrong content type", method: http.MethodPost, path: "/api/v1/clusters", body: string(createBytes), contentType: "text/plain", want: withMessage(bad, "unexpected Content-Type")},
+		{name: "detail not found", method: http.MethodGet, path: "/api/v1/clusters/missing", want: withMessage(notFound, "cluster not found")},
+		{name: "detail escaped name", method: http.MethodGet, path: "/api/v1/clusters/miss%20ing", want: withMessage(notFound, "cluster not found")},
+		{name: "detail escaped slash", method: http.MethodGet, path: "/api/v1/clusters/miss%2Fing", want: withMessage(notFound, "cluster not found")},
+		{name: "update not found", method: http.MethodPut, path: "/api/v1/clusters/missing", body: `{"labels":{}}`, contentType: "application/json", want: withMessage(notFound, "cluster not found")},
+		{name: "delete not found", method: http.MethodDelete, path: "/api/v1/clusters/missing", want: withMessage(notFound, "cluster not found")},
+		{name: "reissue not found", method: http.MethodPost, path: "/api/v1/clusters/missing/reissue-token", body: string(tokenBytes), contentType: "application/json", want: withMessage(notFound, "cluster not found")},
+		{name: "latest params missing", method: http.MethodGet, path: "/api/v1/clusters/missing/latest-install-params", want: ok},
+		{name: "uninstall missing", method: http.MethodPost, path: "/api/v1/clusters/missing/uninstall", want: withMessage(notFound, "cluster not found")},
+		{name: "uninstall list missing", method: http.MethodGet, path: "/api/v1/clusters/missing/uninstall-tasks", want: withMessage(notFound, "cluster not found")},
+		{name: "retry invalid id", method: http.MethodPost, path: "/api/v1/clusters/missing/uninstall-tasks/nope/retry", want: withMessage(bad, `"taskID"`)},
+		{name: "retry not found", method: http.MethodPost, path: "/api/v1/clusters/missing/uninstall-tasks/999/retry", want: withMessage(notFound, "task not found")},
+		{name: "install records defaults", method: http.MethodGet, path: "/api/v1/install-records", want: ok},
+		{name: "install records query", method: http.MethodGet, path: "/api/v1/install-records?page=1&pageSize=10&sortBy=namespace&sortOrder=asc", want: ok},
+		{name: "install records bad sort", method: http.MethodGet, path: "/api/v1/install-records?sortOrder=sideways", want: withMessage(bad, `"sortOrder"`)},
+		{name: "HEAD clusters", method: http.MethodHead, path: "/api/v1/clusters", want: methodNotAllowed("GET,POST")},
+		{name: "HEAD detail", method: http.MethodHead, path: "/api/v1/clusters/missing", want: methodNotAllowed("DELETE,GET,PUT")},
+		{name: "HEAD latest params", method: http.MethodHead, path: "/api/v1/clusters/missing/latest-install-params", want: methodNotAllowed("GET")},
+		{name: "HEAD uninstall list", method: http.MethodHead, path: "/api/v1/clusters/missing/uninstall-tasks", want: methodNotAllowed("GET")},
+		{name: "HEAD install records", method: http.MethodHead, path: "/api/v1/install-records", want: methodNotAllowed("GET")},
+		{name: "method mismatch", method: http.MethodPatch, path: "/api/v1/clusters/missing", want: methodNotAllowed("DELETE,GET,PUT")},
+		{name: "static method mismatch", method: http.MethodGet, path: "/api/v1/clusters/missing/reissue-token", want: methodNotAllowed("POST")},
+		{name: "trailing path", method: http.MethodGet, path: "/api/v1/clusters/missing/", want: unknownRoute},
+		{name: "noncanonical path", method: http.MethodGet, path: "/api/v1/clusters/../clusters/missing", want: unknownRoute},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			want := servePolicyRequest(oracle, tt.method, tt.path, tt.body, tt.contentType)
 			got := servePolicyRequest(actual.Handler, tt.method, tt.path, tt.body, tt.contentType)
-			if got.Code != want.Code {
-				t.Fatalf("status = %d, want %d; body=%s; want=%s", got.Code, want.Code, got.Body.String(), want.Body.String())
-			}
-			for _, header := range []string{"Content-Type", "Allow"} {
-				if got.Header().Get(header) != want.Header().Get(header) {
-					t.Fatalf("%s = %q, want %q", header, got.Header().Get(header), want.Header().Get(header))
+			if tt.name == "latest params missing" {
+				if got.Code != http.StatusOK || got.Header().Get("Content-Type") != ok.contentType || got.Header().Get("Allow") != "" {
+					t.Fatalf("status/Content-Type/Allow = %d/%q/%q", got.Code, got.Header().Get("Content-Type"), got.Header().Get("Allow"))
 				}
+				var envelope map[string]any
+				if err := json.Unmarshal(got.Body.Bytes(), &envelope); err != nil {
+					t.Fatal(err)
+				}
+				if envelope["code"] != float64(0) || envelope["message"] != "success" {
+					t.Fatalf("response = %v, want success", envelope)
+				}
+				if _, exists := envelope["data"]; exists {
+					t.Fatalf("missing params response unexpectedly contains data: %v", envelope)
+				}
+				return
 			}
-			assertSameJSON(t, got.Body.Bytes(), want.Body.Bytes())
+			data := assertRouteExpectation(t, got, tt.want)
+			if tt.want.status != http.StatusOK {
+				return
+			}
+			page, ok := data.(map[string]any)
+			items, itemsOK := page["items"].([]any)
+			if !ok || !itemsOK || len(items) != 0 || page["total"] != float64(0) || page["page"] != float64(1) {
+				t.Fatalf("page data = %v, want empty first page", data)
+			}
+			wantSize := float64(20)
+			if tt.name == "clusters query" || tt.name == "install records query" {
+				wantSize = 10
+			}
+			if page["pageSize"] != wantSize {
+				t.Fatalf("pageSize = %v, want %v", page["pageSize"], wantSize)
+			}
 		})
 	}
 }
