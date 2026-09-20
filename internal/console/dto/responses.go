@@ -1,0 +1,54 @@
+package dto
+
+type (
+	CreateClusterRes                interface{ createClusterRes() }
+	CreateDistributionRes           interface{ createDistributionRes() }
+	CreateExceptionRes              interface{ createExceptionRes() }
+	CreatePolicyGroupRes            interface{ createPolicyGroupRes() }
+	CreatePolicyRes                 interface{ createPolicyRes() }
+	CreateUninstallTaskRes          interface{ createUninstallTaskRes() }
+	DeleteClusterRes                interface{ deleteClusterRes() }
+	DeleteDistributionRes           interface{ deleteDistributionRes() }
+	DeleteExceptionRes              interface{ deleteExceptionRes() }
+	DeletePolicyGroupRes            interface{ deletePolicyGroupRes() }
+	DeletePolicyRes                 interface{ deletePolicyRes() }
+	GetAdmissionEventRes            interface{ getAdmissionEventRes() }
+	GetAdmissionEventSettingsRes    interface{ getAdmissionEventSettingsRes() }
+	GetAdmissionEventTrendRes       interface{ getAdmissionEventTrendRes() }
+	GetAdmissionLinkIncidentRes     interface{ getAdmissionLinkIncidentRes() }
+	GetClusterRes                   interface{ getClusterRes() }
+	GetDistributionRes              interface{ getDistributionRes() }
+	GetExceptionRes                 interface{ getExceptionRes() }
+	GetFieldSchemaRes               interface{ getFieldSchemaRes() }
+	GetLatestInstallParamsRes       interface{ getLatestInstallParamsRes() }
+	GetPlatformInstanceTrendRes     interface{ getPlatformInstanceTrendRes() }
+	GetPlatformOverviewRes          interface{ getPlatformOverviewRes() }
+	GetPlatformSettingsRes          interface{ getPlatformSettingsRes() }
+	GetPolicyGroupRes               interface{ getPolicyGroupRes() }
+	GetPolicyRes                    interface{ getPolicyRes() }
+	GetResourceSuggestionsRes       interface{ getResourceSuggestionsRes() }
+	GetSummaryRes                   interface{ getSummaryRes() }
+	ListAdmissionEventsRes          interface{ listAdmissionEventsRes() }
+	ListAdmissionLinkIncidentsRes   interface{ listAdmissionLinkIncidentsRes() }
+	ListClustersRes                 interface{ listClustersRes() }
+	ListDistributionsRes            interface{ listDistributionsRes() }
+	ListExceptionsRes               interface{ listExceptionsRes() }
+	ListInstallRecordsRes           interface{ listInstallRecordsRes() }
+	ListPlatformLeadershipEventsRes interface{ listPlatformLeadershipEventsRes() }
+	ListPoliciesRes                 interface{ listPoliciesRes() }
+	ListPolicyGroupsRes             interface{ listPolicyGroupsRes() }
+	ListPolicyVersionsRes           interface{ listPolicyVersionsRes() }
+	ListUninstallTasksRes           interface{ listUninstallTasksRes() }
+	ReissueClusterTokenRes          interface{ reissueClusterTokenRes() }
+	RetryUninstallTaskRes           interface{ retryUninstallTaskRes() }
+	RollbackPolicyRes               interface{ rollbackPolicyRes() }
+	SetPolicyGroupEnabledRes        interface{ setPolicyGroupEnabledRes() }
+	UpdateAdmissionEventSettingsRes interface{ updateAdmissionEventSettingsRes() }
+	UpdateClusterRes                interface{ updateClusterRes() }
+	UpdateDistributionRes           interface{ updateDistributionRes() }
+	UpdateExceptionRes              interface{ updateExceptionRes() }
+	UpdatePlatformSettingsRes       interface{ updatePlatformSettingsRes() }
+	UpdatePolicyGroupRes            interface{ updatePolicyGroupRes() }
+	UpdatePolicyRes                 interface{ updatePolicyRes() }
+	ValidatePolicyRegoRes           interface{ validatePolicyRegoRes() }
+)
