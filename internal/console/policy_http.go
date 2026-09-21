@@ -353,7 +353,10 @@ func responseStatus(response any) int {
 		*dto.PlatformOverviewHTTPResponse, *dto.PlatformTrendHTTPResponse,
 		*dto.PlatformLeadershipHTTPResponse, *dto.PlatformSettingsHTTPResponse,
 		*dto.AdmissionEventListHTTPResponse, *dto.AdmissionEventDetailHTTPResponse,
-		*dto.AdmissionEventTrendHTTPResponse, *dto.AdmissionEventSettingsHTTPResponse:
+		*dto.AdmissionEventTrendHTTPResponse, *dto.AdmissionEventSettingsHTTPResponse,
+		*dto.ClusterListHTTPResponse, *dto.ClusterDetailHTTPResponse,
+		*dto.ClusterCommandHTTPResponse, *dto.ClusterNameHTTPResponse,
+		*dto.ClusterEmptyHTTPResponse:
 		return http.StatusOK
 	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
 		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,

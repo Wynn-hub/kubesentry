@@ -117,3 +117,93 @@ type InstallRecordPageView struct {
 	Page     int                     `json:"page" binding:"required"`
 	PageSize int                     `json:"pageSize" binding:"required" enums:"10,20,50,100"`
 }
+
+type ClusterListHTTPResponse struct {
+	Code    int              `json:"code"`
+	Message string           `json:"message"`
+	Data    *ClusterPageView `json:"data"`
+}
+
+func (*ClusterListHTTPResponse) listClustersRes() {}
+
+type ClusterDetailHTTPResponse struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    ClusterView `json:"data"`
+}
+
+func (*ClusterDetailHTTPResponse) getClusterRes() {}
+
+type ClusterCommandHTTPResponse struct {
+	Code    int                `json:"code"`
+	Message string             `json:"message"`
+	Data    ClusterCommandView `json:"data"`
+}
+
+func (*ClusterCommandHTTPResponse) createClusterRes()       {}
+func (*ClusterCommandHTTPResponse) reissueClusterTokenRes() {}
+
+type ClusterNameHTTPResponse struct {
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    ClusterNameView `json:"data"`
+}
+
+func (*ClusterNameHTTPResponse) updateClusterRes() {}
+
+type ClusterEmptyHTTPResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ClusterEmptyHTTPResponse) deleteClusterRes() {}
+
+type ClusterBadRequestHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ClusterBadRequestHTTPError) HTTPStatus() int   { return 400 }
+func (*ClusterBadRequestHTTPError) createClusterRes() {}
+
+type ClusterForbiddenHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ClusterForbiddenHTTPError) HTTPStatus() int   { return 403 }
+func (*ClusterForbiddenHTTPError) deleteClusterRes() {}
+
+type ClusterNotFoundHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ClusterNotFoundHTTPError) HTTPStatus() int         { return 404 }
+func (*ClusterNotFoundHTTPError) getClusterRes()          {}
+func (*ClusterNotFoundHTTPError) updateClusterRes()       {}
+func (*ClusterNotFoundHTTPError) deleteClusterRes()       {}
+func (*ClusterNotFoundHTTPError) reissueClusterTokenRes() {}
+
+type ClusterConflictHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ClusterConflictHTTPError) HTTPStatus() int         { return 409 }
+func (*ClusterConflictHTTPError) createClusterRes()       {}
+func (*ClusterConflictHTTPError) deleteClusterRes()       {}
+func (*ClusterConflictHTTPError) reissueClusterTokenRes() {}
+
+type ClusterInternalServerHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ClusterInternalServerHTTPError) HTTPStatus() int         { return 500 }
+func (*ClusterInternalServerHTTPError) listClustersRes()        {}
+func (*ClusterInternalServerHTTPError) createClusterRes()       {}
+func (*ClusterInternalServerHTTPError) getClusterRes()          {}
+func (*ClusterInternalServerHTTPError) updateClusterRes()       {}
+func (*ClusterInternalServerHTTPError) deleteClusterRes()       {}
+func (*ClusterInternalServerHTTPError) reissueClusterTokenRes() {}
