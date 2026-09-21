@@ -51,7 +51,7 @@ func registerPolicyRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/policies/validate", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.ValidateRegoRequest
+		var body dto.PolicyValidateRegoInput
 		if !decodeJSON(w, r, "ValidatePolicyRego", &body) {
 			return
 		}
@@ -94,7 +94,7 @@ func registerPolicyRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/policies/{name}/rollback", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.RollbackRequest
+		var body dto.PolicyRollbackInput
 		if !decodeJSON(w, r, "RollbackPolicy", &body) {
 			return
 		}

@@ -212,8 +212,8 @@ func (h *Handler) ListPolicyVersions(ctx context.Context, params dto.ListPolicyV
 // @Failure 410 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /policies/{name}/rollback [post]
-func (h *Handler) RollbackPolicy(ctx context.Context, req *dto.RollbackRequest, params dto.RollbackPolicyParams) (dto.RollbackPolicyRes, error) {
-	result, err := h.svcs.Policy.Rollback(ctx, params.Name, string(req.Direction))
+func (h *Handler) RollbackPolicy(ctx context.Context, req *dto.PolicyRollbackInput, params dto.RollbackPolicyParams) (dto.RollbackPolicyRes, error) {
+	result, err := h.svcs.Policy.Rollback(ctx, params.Name, req.Direction)
 	if err != nil {
 		return mapRollbackPolicyError(err), nil
 	}
@@ -235,7 +235,7 @@ func (h *Handler) RollbackPolicy(ctx context.Context, req *dto.RollbackRequest, 
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 400 {object} dto.SwagErrorResponse
 // @Router /policies/validate [post]
-func (h *Handler) ValidatePolicyRego(ctx context.Context, req *dto.ValidateRegoRequest) (dto.ValidatePolicyRegoRes, error) {
+func (h *Handler) ValidatePolicyRego(ctx context.Context, req *dto.PolicyValidateRegoInput) (dto.ValidatePolicyRegoRes, error) {
 	err := h.svcs.Policy.ValidateRego(ctx, req.Rego)
 	if err != nil {
 		// ValidationError maps to bare ErrorResponse, not *XxxBadRequest

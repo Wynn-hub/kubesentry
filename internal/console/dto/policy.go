@@ -1,6 +1,9 @@
 package dto
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
@@ -15,6 +18,58 @@ type PolicyInput struct {
 	Labels          *map[string]string   `json:"labels,omitempty"`
 	Annotations     *map[string]string   `json:"annotations,omitempty"`
 	ResourceVersion *string              `json:"resourceVersion,omitempty"`
+}
+
+type PolicyRollbackInput struct {
+	Direction string `json:"direction"`
+}
+
+func (r *PolicyRollbackInput) UnmarshalJSON(data []byte) error {
+	direction, err := decodeRequiredString(data, "direction")
+	if err != nil {
+		return err
+	}
+	r.Direction = direction
+	return nil
+}
+
+func (r *PolicyRollbackInput) Validate() error {
+	if r.Direction != "prev" && r.Direction != "next" {
+		return fmt.Errorf("direction: invalid value %q", r.Direction)
+	}
+	return nil
+}
+
+type PolicyValidateRegoInput struct {
+	Rego string `json:"rego"`
+}
+
+func (r *PolicyValidateRegoInput) UnmarshalJSON(data []byte) error {
+	rego, err := decodeRequiredString(data, "rego")
+	if err != nil {
+		return err
+	}
+	r.Rego = rego
+	return nil
+}
+
+func decodeRequiredString(data []byte, field string) (string, error) {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(data, &object); err != nil {
+		return "", err
+	}
+	raw, ok := object[field]
+	if !ok {
+		return "", fmt.Errorf("%s: field is required", field)
+	}
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return "", fmt.Errorf("%s: must be a string", field)
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return "", fmt.Errorf("%s: %w", field, err)
+	}
+	return value, nil
 }
 
 type PolicyItem struct {
