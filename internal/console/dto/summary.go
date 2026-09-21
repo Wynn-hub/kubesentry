@@ -34,4 +34,5 @@ type SummaryHTTPError struct {
 	Message string `json:"message"`
 }
 
-func (*SummaryHTTPError) getSummaryRes() {}
+func (*SummaryHTTPError) HTTPStatus() int { return 500 }
+func (*SummaryHTTPError) getSummaryRes()  {}

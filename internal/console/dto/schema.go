@@ -29,4 +29,5 @@ type FieldSchemaHTTPError struct {
 	Message string `json:"message"`
 }
 
+func (*FieldSchemaHTTPError) HTTPStatus() int    { return 502 }
 func (*FieldSchemaHTTPError) getFieldSchemaRes() {}

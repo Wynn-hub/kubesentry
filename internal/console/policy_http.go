@@ -321,23 +321,7 @@ func responseStatus(response any) int {
 		return response.HTTPStatus()
 	}
 	switch response.(type) {
-	case *dto.PolicyListResponse, *dto.PolicyNameResponse, *dto.PolicyDetailResponse,
-		*dto.ResourceSuggestionsResponse, *dto.Envelope, *dto.PolicyVersionListResponse,
-		*dto.RollbackResponse, *dto.PolicyGroupListResponse, *dto.PolicyGroupNameResponse,
-		*dto.PolicyGroupDetailResponse, *dto.PolicyGroupEnabledResponse,
-		*dto.ExceptionListResponse, *dto.ExceptionNameResponse, *dto.ExceptionDetailResponse,
-		*dto.FieldSchemaResponse, *dto.SummaryResponse, *dto.AdmissionEventListResponse,
-		*dto.AdmissionEventDetailResponse, *dto.AdmissionEventTrendResponse,
-		*dto.AdmissionEventSettingsResponse, *dto.AdmissionLinkIncidentListResponse,
-		*dto.AdmissionLinkIncidentDetailResponse, *dto.ClusterListResponse,
-		*dto.ClusterCommandResponse, *dto.ClusterDetailResponse, *dto.ClusterNameResponse,
-		*dto.EmptyResponse, *dto.InstallParamsResponse, *dto.UninstallTaskResponse,
-		*dto.UninstallTaskListResponse, *dto.UninstallTaskIDResponse,
-		*dto.InstallRecordListResponse, *dto.DistributionListResponse,
-		*dto.DistributionNameResponse, *dto.DistributionDetailResponse,
-		*dto.DistributionEmptyResponse, *dto.PlatformOverviewResponse,
-		*dto.PlatformTrendResponse, *dto.LeadershipEventListResponse,
-		*dto.PlatformSettingsResponse, *dto.FieldSchemaHTTPResponse, *dto.SummaryHTTPResponse,
+	case *dto.FieldSchemaHTTPResponse, *dto.SummaryHTTPResponse,
 		*dto.PolicyListHTTPResponse, *dto.PolicyDetailHTTPResponse, *dto.PolicyNameHTTPResponse,
 		*dto.PolicyEmptyHTTPResponse, *dto.PolicyVersionListHTTPResponse,
 		*dto.PolicyRollbackHTTPResponse, *dto.ResourceSuggestionsHTTPResponse,
@@ -360,104 +344,6 @@ func responseStatus(response any) int {
 		*dto.UninstallTaskHTTPResponse, *dto.UninstallTaskListHTTPResponse,
 		*dto.UninstallTaskIDHTTPResponse, *dto.InstallRecordListHTTPResponse:
 		return http.StatusOK
-	case *dto.ListPoliciesBadRequest, *dto.CreatePolicyBadRequest, *dto.UpdatePolicyBadRequest,
-		*dto.RollbackPolicyBadRequest, *dto.ErrorResponse, *dto.GetResourceSuggestionsBadRequest,
-		*dto.ListPolicyGroupsBadRequest, *dto.CreatePolicyGroupBadRequest,
-		*dto.UpdatePolicyGroupBadRequest, *dto.SetPolicyGroupEnabledBadRequest,
-		*dto.ListExceptionsBadRequest, *dto.CreateExceptionBadRequest,
-		*dto.UpdateExceptionBadRequest:
-		return http.StatusBadRequest
-	case *dto.GetFieldSchemaBadRequest:
-		return http.StatusBadRequest
-	case *dto.ListAdmissionEventsBadRequest, *dto.GetAdmissionEventBadRequest,
-		*dto.GetAdmissionEventTrendBadRequest, *dto.UpdateAdmissionEventSettingsBadRequest,
-		*dto.ListAdmissionLinkIncidentsBadRequest, *dto.GetAdmissionLinkIncidentBadRequest:
-		return http.StatusBadRequest
-	case *dto.CreateClusterBadRequest:
-		return http.StatusBadRequest
-	case *dto.CreateDistributionBadRequest, *dto.UpdateDistributionBadRequest:
-		return http.StatusBadRequest
-	case *dto.GetPlatformOverviewBadRequest, *dto.GetPlatformInstanceTrendBadRequest,
-		*dto.ListPlatformLeadershipEventsBadRequest, *dto.UpdatePlatformSettingsBadRequest:
-		return http.StatusBadRequest
-	case *dto.UpdatePolicyGroupForbidden, *dto.DeletePolicyGroupForbidden:
-		return http.StatusForbidden
-	case *dto.DeleteClusterForbidden:
-		return http.StatusForbidden
-	case *dto.DeleteDistributionForbidden:
-		return http.StatusForbidden
-	case *dto.GetPolicyNotFound, *dto.UpdatePolicyNotFound, *dto.DeletePolicyNotFound,
-		*dto.ListPolicyVersionsNotFound, *dto.RollbackPolicyNotFound,
-		*dto.GetPolicyGroupNotFound, *dto.UpdatePolicyGroupNotFound,
-		*dto.DeletePolicyGroupNotFound, *dto.SetPolicyGroupEnabledNotFound,
-		*dto.GetExceptionNotFound, *dto.UpdateExceptionNotFound, *dto.DeleteExceptionNotFound:
-		return http.StatusNotFound
-	case *dto.GetAdmissionEventNotFound, *dto.GetAdmissionLinkIncidentNotFound:
-		return http.StatusNotFound
-	case *dto.GetClusterNotFound, *dto.UpdateClusterNotFound, *dto.DeleteClusterNotFound,
-		*dto.ReissueClusterTokenNotFound, *dto.GetLatestInstallParamsNotFound,
-		*dto.CreateUninstallTaskNotFound, *dto.ListUninstallTasksNotFound,
-		*dto.RetryUninstallTaskNotFound:
-		return http.StatusNotFound
-	case *dto.GetDistributionNotFound, *dto.UpdateDistributionNotFound,
-		*dto.DeleteDistributionNotFound:
-		return http.StatusNotFound
-	case *dto.GetPlatformInstanceTrendNotFound, *dto.ListPlatformLeadershipEventsNotFound:
-		return http.StatusNotFound
-	case *dto.CreatePolicyConflict, *dto.UpdatePolicyConflict, *dto.DeletePolicyConflict,
-		*dto.RollbackPolicyConflict, *dto.CreatePolicyGroupConflict,
-		*dto.UpdatePolicyGroupConflict, *dto.SetPolicyGroupEnabledConflict,
-		*dto.CreateExceptionConflict, *dto.UpdateExceptionConflict:
-		return http.StatusConflict
-	case *dto.CreateClusterConflict, *dto.DeleteClusterConflict,
-		*dto.ReissueClusterTokenConflict, *dto.CreateUninstallTaskConflict,
-		*dto.RetryUninstallTaskConflict:
-		return http.StatusConflict
-	case *dto.CreateDistributionConflict, *dto.UpdateDistributionConflict,
-		*dto.DeleteDistributionConflict:
-		return http.StatusConflict
-	case *dto.RollbackPolicyGone:
-		return http.StatusGone
-	case *dto.GetFieldSchemaBadGateway, *dto.FieldSchemaHTTPError:
-		return http.StatusBadGateway
-	case *dto.ListAdmissionLinkIncidentsServiceUnavailable,
-		*dto.GetAdmissionLinkIncidentServiceUnavailable,
-		*dto.GetAdmissionEventSettingsServiceUnavailable:
-		return http.StatusServiceUnavailable
-	case *dto.ListPoliciesInternalServerError, *dto.CreatePolicyInternalServerError,
-		*dto.GetPolicyInternalServerError, *dto.UpdatePolicyInternalServerError,
-		*dto.DeletePolicyInternalServerError, *dto.ListPolicyVersionsInternalServerError,
-		*dto.RollbackPolicyInternalServerError, *dto.GetResourceSuggestionsInternalServerError,
-		*dto.ListPolicyGroupsInternalServerError, *dto.CreatePolicyGroupInternalServerError,
-		*dto.GetPolicyGroupInternalServerError, *dto.UpdatePolicyGroupInternalServerError,
-		*dto.DeletePolicyGroupInternalServerError, *dto.SetPolicyGroupEnabledInternalServerError,
-		*dto.ListExceptionsInternalServerError, *dto.CreateExceptionInternalServerError,
-		*dto.GetExceptionInternalServerError, *dto.UpdateExceptionInternalServerError,
-		*dto.DeleteExceptionInternalServerError:
-		return http.StatusInternalServerError
-	case *dto.ListAdmissionEventsInternalServerError, *dto.GetAdmissionEventInternalServerError,
-		*dto.GetAdmissionEventTrendInternalServerError,
-		*dto.GetAdmissionEventSettingsInternalServerError,
-		*dto.UpdateAdmissionEventSettingsInternalServerError,
-		*dto.ListAdmissionLinkIncidentsInternalServerError,
-		*dto.GetAdmissionLinkIncidentInternalServerError:
-		return http.StatusInternalServerError
-	case *dto.CreateClusterInternalServerError, *dto.GetClusterInternalServerError,
-		*dto.UpdateClusterInternalServerError, *dto.DeleteClusterInternalServerError,
-		*dto.ReissueClusterTokenInternalServerError,
-		*dto.GetLatestInstallParamsInternalServerError,
-		*dto.CreateUninstallTaskInternalServerError,
-		*dto.ListUninstallTasksInternalServerError,
-		*dto.RetryUninstallTaskInternalServerError:
-		return http.StatusInternalServerError
-	case *dto.CreateDistributionInternalServerError, *dto.GetDistributionInternalServerError,
-		*dto.UpdateDistributionInternalServerError, *dto.DeleteDistributionInternalServerError:
-		return http.StatusInternalServerError
-	case *dto.GetPlatformOverviewInternalServerError,
-		*dto.GetPlatformInstanceTrendInternalServerError,
-		*dto.ListPlatformLeadershipEventsInternalServerError,
-		*dto.UpdatePlatformSettingsInternalServerError, *dto.SummaryHTTPError:
-		return http.StatusInternalServerError
 	default:
 		return 0
 	}

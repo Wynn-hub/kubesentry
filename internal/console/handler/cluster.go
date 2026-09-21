@@ -10,18 +10,6 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
 )
 
-func dtoData[T any](data any) (T, error) {
-	var value T
-	b, err := json.Marshal(data)
-	if err != nil {
-		return value, err
-	}
-	if err := json.Unmarshal(b, &value); err != nil {
-		return value, err
-	}
-	return value, nil
-}
-
 // @ID listClusters
 // @Summary 分页查询集群
 // @Description 查询平台已登记的集群及其在线状态和节点摘要。
