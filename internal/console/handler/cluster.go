@@ -179,16 +179,12 @@ func (h *Handler) ReissueClusterToken(ctx context.Context, req *dto.ClusterToken
 func (h *Handler) GetLatestInstallParams(ctx context.Context, p dto.GetLatestInstallParamsParams) (dto.GetLatestInstallParamsRes, error) {
 	data, err := h.svcs.Cluster.LatestInstallParams(ctx, p.Name)
 	if err != nil {
-		return &dto.GetLatestInstallParamsInternalServerError{Code: 50000, Message: "request failed"}, nil
+		return &dto.ClusterTaskInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
 	if data == nil {
-		return &dto.InstallParamsResponse{Code: 0, Message: "success"}, nil
+		return &dto.InstallParamsHTTPResponse{Code: 0, Message: "success"}, nil
 	}
-	v, err := dtoData[dto.InstallParams](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.InstallParamsResponse{Code: 0, Message: "success", Data: dto.NewOptInstallParams(v)}, nil
+	return &dto.InstallParamsHTTPResponse{Code: 0, Message: "success", Data: data}, nil
 }
 
 // @ID createUninstallTask
@@ -207,7 +203,7 @@ func (h *Handler) CreateUninstallTask(ctx context.Context, p dto.CreateUninstall
 	if err != nil {
 		return createUninstallServiceError(err), nil
 	}
-	return &dto.UninstallTaskResponse{Code: 0, Message: "success", Data: uninstallTask(data)}, nil
+	return &dto.UninstallTaskHTTPResponse{Code: 0, Message: "success", Data: uninstallTask(data)}, nil
 }
 
 // @ID listUninstallTasks
@@ -225,11 +221,11 @@ func (h *Handler) ListUninstallTasks(ctx context.Context, p dto.ListUninstallTas
 	if err != nil {
 		return listUninstallServiceError(err), nil
 	}
-	items := make([]dto.UninstallTask, 0, len(data))
+	items := make([]dto.UninstallTaskHTTPView, 0, len(data))
 	for i := range data {
 		items = append(items, uninstallTask(&data[i]))
 	}
-	return &dto.UninstallTaskListResponse{Code: 0, Message: "success", Data: items}, nil
+	return &dto.UninstallTaskListHTTPResponse{Code: 0, Message: "success", Data: items}, nil
 }
 
 // @ID retryUninstallTask
@@ -247,12 +243,12 @@ func (h *Handler) ListUninstallTasks(ctx context.Context, p dto.ListUninstallTas
 func (h *Handler) RetryUninstallTask(ctx context.Context, p dto.RetryUninstallTaskParams) (dto.RetryUninstallTaskRes, error) {
 	taskID, err := strconv.ParseInt(string(p.TaskID), 10, 64)
 	if err != nil || taskID <= 0 {
-		return &dto.RetryUninstallTaskNotFound{Code: 40400, Message: "task not found"}, nil
+		return &dto.ClusterTaskNotFoundHTTPError{Code: 40400, Message: "task not found"}, nil
 	}
 	if err := h.svcs.Cluster.RetryUninstall(ctx, p.Name, taskID); err != nil {
 		return retryUninstallServiceError(err), nil
 	}
-	return &dto.UninstallTaskIDResponse{Code: 0, Message: "success", Data: dto.UninstallTaskIDData{ID: p.TaskID}}, nil
+	return &dto.UninstallTaskIDHTTPResponse{Code: 0, Message: "success", Data: dto.UninstallTaskIDView{ID: string(p.TaskID)}}, nil
 }
 
 // @ID listInstallRecords
@@ -270,26 +266,22 @@ func (h *Handler) RetryUninstallTask(ctx context.Context, p dto.RetryUninstallTa
 func (h *Handler) ListInstallRecords(ctx context.Context, p dto.ListInstallRecordsParams) (dto.ListInstallRecordsRes, error) {
 	data, err := h.svcs.Cluster.ListInstallRecords(ctx, p.Page.Or(1), int(p.PageSize.Or(dto.PageSize20)), string(p.SortBy.Or(dto.ListInstallRecordsSortByCreatedAt)), string(p.SortOrder.Or(dto.ListInstallRecordsSortOrderDesc)))
 	if err != nil {
-		return objectError(500), nil
+		return &dto.ClusterTaskInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
-	v, err := dtoData[dto.InstallRecordListResponseData](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.InstallRecordListResponse{Code: 0, Message: "success", Data: v}, nil
+	return &dto.InstallRecordListHTTPResponse{Code: 0, Message: "success", Data: data}, nil
 }
 
-func uninstallTask(item *dto.UninstallTaskView) dto.UninstallTask {
-	result := dto.UninstallTask{
-		ID:          dto.ResourceID(strconv.FormatInt(item.ID, 10)),
-		Status:      dto.UninstallTaskStatus(item.Status),
+func uninstallTask(item *dto.UninstallTaskView) dto.UninstallTaskHTTPView {
+	result := dto.UninstallTaskHTTPView{
+		ID:          strconv.FormatInt(item.ID, 10),
+		Status:      item.Status,
 		RequestedAt: item.RequestedAt,
 	}
 	if item.Error != "" {
-		result.Error = dto.NewOptString(item.Error)
+		result.Error = item.Error
 	}
 	if item.CompletedAt != nil {
-		result.CompletedAt = dto.NewOptDateTime(*item.CompletedAt)
+		result.CompletedAt = item.CompletedAt
 	}
 	return result
 }
@@ -340,27 +332,27 @@ func reissueClusterServiceError(err error) dto.ReissueClusterTokenRes {
 
 func createUninstallServiceError(err error) dto.CreateUninstallTaskRes {
 	if errors.Is(err, service.ErrNotFound) {
-		return &dto.CreateUninstallTaskNotFound{Code: 40400, Message: "cluster not found"}
+		return &dto.ClusterTaskNotFoundHTTPError{Code: 40400, Message: "cluster not found"}
 	}
 	if service.IsConflict(err) {
-		return &dto.CreateUninstallTaskConflict{Code: 40900, Message: err.Error()}
+		return &dto.ClusterTaskConflictHTTPError{Code: 40900, Message: err.Error()}
 	}
-	return &dto.CreateUninstallTaskInternalServerError{Code: 50000, Message: "request failed"}
+	return &dto.ClusterTaskInternalServerHTTPError{Code: 50000, Message: "request failed"}
 }
 
 func listUninstallServiceError(err error) dto.ListUninstallTasksRes {
 	if errors.Is(err, service.ErrNotFound) {
-		return &dto.ListUninstallTasksNotFound{Code: 40400, Message: "cluster not found"}
+		return &dto.ClusterTaskNotFoundHTTPError{Code: 40400, Message: "cluster not found"}
 	}
-	return &dto.ListUninstallTasksInternalServerError{Code: 50000, Message: "request failed"}
+	return &dto.ClusterTaskInternalServerHTTPError{Code: 50000, Message: "request failed"}
 }
 
 func retryUninstallServiceError(err error) dto.RetryUninstallTaskRes {
 	if errors.Is(err, service.ErrNotFound) {
-		return &dto.RetryUninstallTaskNotFound{Code: 40400, Message: "task not found"}
+		return &dto.ClusterTaskNotFoundHTTPError{Code: 40400, Message: "task not found"}
 	}
 	if service.IsConflict(err) {
-		return &dto.RetryUninstallTaskConflict{Code: 40900, Message: err.Error()}
+		return &dto.ClusterTaskConflictHTTPError{Code: 40900, Message: err.Error()}
 	}
-	return &dto.RetryUninstallTaskInternalServerError{Code: 50000, Message: "request failed"}
+	return &dto.ClusterTaskInternalServerHTTPError{Code: 50000, Message: "request failed"}
 }

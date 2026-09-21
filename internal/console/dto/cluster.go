@@ -207,3 +207,75 @@ func (*ClusterInternalServerHTTPError) getClusterRes()          {}
 func (*ClusterInternalServerHTTPError) updateClusterRes()       {}
 func (*ClusterInternalServerHTTPError) deleteClusterRes()       {}
 func (*ClusterInternalServerHTTPError) reissueClusterTokenRes() {}
+
+type InstallParamsHTTPResponse struct {
+	Code    int                  `json:"code"`
+	Message string               `json:"message"`
+	Data    *ClusterInstallInput `json:"data,omitempty"`
+}
+
+func (*InstallParamsHTTPResponse) getLatestInstallParamsRes() {}
+
+type UninstallTaskHTTPResponse struct {
+	Code    int                   `json:"code"`
+	Message string                `json:"message"`
+	Data    UninstallTaskHTTPView `json:"data"`
+}
+
+func (*UninstallTaskHTTPResponse) createUninstallTaskRes() {}
+
+type UninstallTaskListHTTPResponse struct {
+	Code    int                     `json:"code"`
+	Message string                  `json:"message"`
+	Data    []UninstallTaskHTTPView `json:"data"`
+}
+
+func (*UninstallTaskListHTTPResponse) listUninstallTasksRes() {}
+
+type UninstallTaskIDHTTPResponse struct {
+	Code    int                 `json:"code"`
+	Message string              `json:"message"`
+	Data    UninstallTaskIDView `json:"data"`
+}
+
+func (*UninstallTaskIDHTTPResponse) retryUninstallTaskRes() {}
+
+type InstallRecordListHTTPResponse struct {
+	Code    int                    `json:"code"`
+	Message string                 `json:"message"`
+	Data    *InstallRecordPageView `json:"data"`
+}
+
+func (*InstallRecordListHTTPResponse) listInstallRecordsRes() {}
+
+type ClusterTaskNotFoundHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ClusterTaskNotFoundHTTPError) HTTPStatus() int            { return 404 }
+func (*ClusterTaskNotFoundHTTPError) getLatestInstallParamsRes() {}
+func (*ClusterTaskNotFoundHTTPError) createUninstallTaskRes()    {}
+func (*ClusterTaskNotFoundHTTPError) listUninstallTasksRes()     {}
+func (*ClusterTaskNotFoundHTTPError) retryUninstallTaskRes()     {}
+
+type ClusterTaskConflictHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ClusterTaskConflictHTTPError) HTTPStatus() int         { return 409 }
+func (*ClusterTaskConflictHTTPError) createUninstallTaskRes() {}
+func (*ClusterTaskConflictHTTPError) retryUninstallTaskRes()  {}
+
+type ClusterTaskInternalServerHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ClusterTaskInternalServerHTTPError) HTTPStatus() int            { return 500 }
+func (*ClusterTaskInternalServerHTTPError) getLatestInstallParamsRes() {}
+func (*ClusterTaskInternalServerHTTPError) createUninstallTaskRes()    {}
+func (*ClusterTaskInternalServerHTTPError) listUninstallTasksRes()     {}
+func (*ClusterTaskInternalServerHTTPError) retryUninstallTaskRes()     {}
+func (*ClusterTaskInternalServerHTTPError) listInstallRecordsRes()     {}
