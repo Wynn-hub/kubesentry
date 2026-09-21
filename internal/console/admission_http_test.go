@@ -113,9 +113,9 @@ func TestAdmissionRouteMatrix(t *testing.T) {
 
 func TestAdmissionServiceUnavailableStatuses(t *testing.T) {
 	for name, response := range map[string]any{
-		"settings":  &dto.GetAdmissionEventSettingsServiceUnavailable{},
-		"incidents": &dto.ListAdmissionLinkIncidentsServiceUnavailable{},
-		"incident":  &dto.GetAdmissionLinkIncidentServiceUnavailable{},
+		"settings":  &dto.AdmissionEventServiceUnavailableHTTPError{},
+		"incidents": &dto.AdmissionLinkIncidentServiceUnavailableHTTPError{},
+		"incident":  &dto.AdmissionLinkIncidentServiceUnavailableHTTPError{},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if got := responseStatus(response); got != http.StatusServiceUnavailable {

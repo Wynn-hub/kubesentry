@@ -87,3 +87,75 @@ type AdmissionTrendItemView struct {
 	Verdict string    `json:"verdict" binding:"required" enums:"audit,deny"`
 	Count   int64     `json:"count" binding:"required" format:"int64"`
 }
+
+type AdmissionEventListHTTPResponse struct {
+	Code    int                     `json:"code"`
+	Message string                  `json:"message"`
+	Data    *AdmissionEventPageView `json:"data"`
+}
+
+func (*AdmissionEventListHTTPResponse) listAdmissionEventsRes() {}
+
+type AdmissionEventDetailHTTPResponse struct {
+	Code    int                       `json:"code"`
+	Message string                    `json:"message"`
+	Data    *AdmissionEventDetailView `json:"data"`
+}
+
+func (*AdmissionEventDetailHTTPResponse) getAdmissionEventRes() {}
+
+type AdmissionEventTrendHTTPResponse struct {
+	Code    int                      `json:"code"`
+	Message string                   `json:"message"`
+	Data    []AdmissionTrendItemView `json:"data"`
+}
+
+func (*AdmissionEventTrendHTTPResponse) getAdmissionEventTrendRes() {}
+
+type AdmissionEventSettingsHTTPResponse struct {
+	Code    int                    `json:"code"`
+	Message string                 `json:"message"`
+	Data    *AdmissionSettingsView `json:"data"`
+}
+
+func (*AdmissionEventSettingsHTTPResponse) getAdmissionEventSettingsRes()    {}
+func (*AdmissionEventSettingsHTTPResponse) updateAdmissionEventSettingsRes() {}
+
+type AdmissionEventBadRequestHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*AdmissionEventBadRequestHTTPError) HTTPStatus() int                  { return 400 }
+func (*AdmissionEventBadRequestHTTPError) listAdmissionEventsRes()          {}
+func (*AdmissionEventBadRequestHTTPError) getAdmissionEventRes()            {}
+func (*AdmissionEventBadRequestHTTPError) getAdmissionEventTrendRes()       {}
+func (*AdmissionEventBadRequestHTTPError) updateAdmissionEventSettingsRes() {}
+
+type AdmissionEventNotFoundHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*AdmissionEventNotFoundHTTPError) HTTPStatus() int       { return 404 }
+func (*AdmissionEventNotFoundHTTPError) getAdmissionEventRes() {}
+
+type AdmissionEventInternalServerHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*AdmissionEventInternalServerHTTPError) HTTPStatus() int                  { return 500 }
+func (*AdmissionEventInternalServerHTTPError) listAdmissionEventsRes()          {}
+func (*AdmissionEventInternalServerHTTPError) getAdmissionEventRes()            {}
+func (*AdmissionEventInternalServerHTTPError) getAdmissionEventTrendRes()       {}
+func (*AdmissionEventInternalServerHTTPError) getAdmissionEventSettingsRes()    {}
+func (*AdmissionEventInternalServerHTTPError) updateAdmissionEventSettingsRes() {}
+
+type AdmissionEventServiceUnavailableHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*AdmissionEventServiceUnavailableHTTPError) HTTPStatus() int               { return 503 }
+func (*AdmissionEventServiceUnavailableHTTPError) getAdmissionEventSettingsRes() {}

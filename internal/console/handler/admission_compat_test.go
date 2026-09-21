@@ -20,17 +20,33 @@ func TestAdmissionListOptionsPreserveDefaultsAndFilters(t *testing.T) {
 	}
 }
 
-func TestAdmissionStableDTOsAdaptToOgen(t *testing.T) {
-	raw := json.RawMessage(`{"nested":true}`)
-	detail := dto.AdmissionEventDetailView{AdmissionEventItemView: dto.AdmissionEventItemView{ID: "42", PolicyNames: []string{}, Violations: []string{}}, UserGroups: []string{}, PolicyGroupNames: []string{}, MetadataSnapshot: map[string]json.RawMessage{"labels": raw}, SpecSnapshot: map[string]json.RawMessage{}}
-	converted, err := dtoData[dto.AdmissionEventDetail](detail)
+func TestAdmissionDetailResponsePreservesJSONShape(t *testing.T) {
+	occurredAt := time.Date(2026, 9, 10, 1, 2, 3, 0, time.UTC)
+	response := dto.AdmissionEventDetailHTTPResponse{Data: &dto.AdmissionEventDetailView{
+		AdmissionEventItemView: dto.AdmissionEventItemView{OccurredAt: occurredAt, PolicyNames: []string{}, Violations: []string{}},
+		UserGroups:             []string{}, PolicyGroupNames: []string{},
+		MetadataSnapshot: map[string]json.RawMessage{"labels": json.RawMessage(`{"nested":true}`)},
+		SpecSnapshot:     map[string]json.RawMessage{},
+	}}
+	encoded, err := json.Marshal(response)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if converted.ID != "42" || len(converted.PolicyNames) != 0 || len(converted.UserGroups) != 0 || string(converted.MetadataSnapshot["labels"]) != string(raw) {
-		t.Fatalf("converted detail = %+v", converted)
+	var envelope struct {
+		Data map[string]json.RawMessage `json:"data"`
 	}
-	if _, err := dtoData[[]dto.AdmissionEventTrendItem]([]dto.AdmissionTrendItemView{}); err != nil {
+	if err := json.Unmarshal(encoded, &envelope); err != nil {
 		t.Fatal(err)
+	}
+	for _, field := range []string{"policyNames", "violations", "userGroups", "policyGroupNames"} {
+		if string(envelope.Data[field]) != "[]" {
+			t.Fatalf("%s = %s, want []", field, envelope.Data[field])
+		}
+	}
+	if got := string(envelope.Data["occurredAt"]); got != `"2026-09-10T01:02:03Z"` {
+		t.Fatalf("occurredAt = %s", got)
+	}
+	if got := string(envelope.Data["metadataSnapshot"]); got != `{"labels":{"nested":true}}` {
+		t.Fatalf("metadataSnapshot = %s", got)
 	}
 }

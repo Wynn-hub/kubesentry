@@ -37,15 +37,11 @@ func (h *Handler) ListAdmissionEvents(ctx context.Context, params dto.ListAdmiss
 	if err != nil {
 		var validationErr *service.ValidationError
 		if errors.As(err, &validationErr) {
-			return &dto.ListAdmissionEventsBadRequest{Code: 40000, Message: err.Error()}, nil
+			return &dto.AdmissionEventBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
 		}
-		return &dto.ListAdmissionEventsInternalServerError{Code: 50000, Message: "request failed"}, nil
+		return &dto.AdmissionEventInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
-	v, err := dtoData[dto.AdmissionEventListData](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.AdmissionEventListResponse{Code: 0, Message: "success", Data: dto.NewOptAdmissionEventListData(v)}, nil
+	return &dto.AdmissionEventListHTTPResponse{Code: 0, Message: "success", Data: data}, nil
 }
 
 func admissionListOptions(params dto.ListAdmissionEventsParams) dto.AdmissionEventListOptions {
@@ -83,18 +79,14 @@ func (h *Handler) GetAdmissionEvent(ctx context.Context, params dto.GetAdmission
 		var validationErr *service.ValidationError
 		switch {
 		case errors.As(err, &validationErr):
-			return &dto.GetAdmissionEventBadRequest{Code: 40000, Message: err.Error()}, nil
+			return &dto.AdmissionEventBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
 		case errors.Is(err, service.ErrNotFound):
-			return &dto.GetAdmissionEventNotFound{Code: 40400, Message: "admission event not found"}, nil
+			return &dto.AdmissionEventNotFoundHTTPError{Code: 40400, Message: "admission event not found"}, nil
 		default:
-			return &dto.GetAdmissionEventInternalServerError{Code: 50000, Message: "request failed"}, nil
+			return &dto.AdmissionEventInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 		}
 	}
-	v, err := dtoData[dto.AdmissionEventDetail](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.AdmissionEventDetailResponse{Code: 0, Message: "success", Data: dto.NewOptAdmissionEventDetail(v)}, nil
+	return &dto.AdmissionEventDetailHTTPResponse{Code: 0, Message: "success", Data: data}, nil
 }
 
 // @ID getAdmissionEventTrend
@@ -113,15 +105,11 @@ func (h *Handler) GetAdmissionEventTrend(ctx context.Context, params dto.GetAdmi
 	if err != nil {
 		var validationErr *service.ValidationError
 		if errors.As(err, &validationErr) {
-			return &dto.GetAdmissionEventTrendBadRequest{Code: 40000, Message: err.Error()}, nil
+			return &dto.AdmissionEventBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
 		}
-		return &dto.GetAdmissionEventTrendInternalServerError{Code: 50000, Message: "request failed"}, nil
+		return &dto.AdmissionEventInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
-	v, err := dtoData[[]dto.AdmissionEventTrendItem](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.AdmissionEventTrendResponse{Code: 0, Message: "success", Data: v}, nil
+	return &dto.AdmissionEventTrendHTTPResponse{Code: 0, Message: "success", Data: data}, nil
 }
 
 // @ID getAdmissionEventSettings
@@ -136,13 +124,9 @@ func (h *Handler) GetAdmissionEventTrend(ctx context.Context, params dto.GetAdmi
 func (h *Handler) GetAdmissionEventSettings(ctx context.Context) (dto.GetAdmissionEventSettingsRes, error) {
 	data, err := h.svcs.Admission.Settings(ctx)
 	if err != nil {
-		return &dto.GetAdmissionEventSettingsInternalServerError{Code: 50000, Message: "request failed"}, nil
+		return &dto.AdmissionEventInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
-	v, err := dtoData[dto.AdmissionEventSettings](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.AdmissionEventSettingsResponse{Code: 0, Message: "success", Data: dto.NewOptAdmissionEventSettings(v)}, nil
+	return &dto.AdmissionEventSettingsHTTPResponse{Code: 0, Message: "success", Data: data}, nil
 }
 
 // @ID updateAdmissionEventSettings
@@ -163,19 +147,15 @@ func (h *Handler) UpdateAdmissionEventSettings(ctx context.Context, req *dto.Adm
 	}
 	var input dto.AdmissionSettingsInput
 	if err := json.Unmarshal(encoded, &input); err != nil {
-		return &dto.UpdateAdmissionEventSettingsBadRequest{Code: 40000, Message: err.Error()}, nil
+		return &dto.AdmissionEventBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
 	}
 	data, err := h.svcs.Admission.UpdateSettings(ctx, &input)
 	if err != nil {
 		var validationErr *service.ValidationError
 		if errors.As(err, &validationErr) {
-			return &dto.UpdateAdmissionEventSettingsBadRequest{Code: 40000, Message: err.Error()}, nil
+			return &dto.AdmissionEventBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
 		}
-		return &dto.UpdateAdmissionEventSettingsInternalServerError{Code: 50000, Message: "request failed"}, nil
+		return &dto.AdmissionEventInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
-	v, err := dtoData[dto.AdmissionEventSettings](data)
-	if err != nil {
-		return nil, err
-	}
-	return &dto.AdmissionEventSettingsResponse{Code: 0, Message: "success", Data: dto.NewOptAdmissionEventSettings(v)}, nil
+	return &dto.AdmissionEventSettingsHTTPResponse{Code: 0, Message: "success", Data: data}, nil
 }
