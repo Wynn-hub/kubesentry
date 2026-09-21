@@ -51,7 +51,7 @@ func registerPolicyGroupRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("PUT /api/v1/policygroups/{name}/enabled", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.PolicyGroupEnabledRequest
+		var body dto.PolicyGroupEnabledInput
 		if !decodeJSON(w, r, "SetPolicyGroupEnabled", &body) {
 			return
 		}

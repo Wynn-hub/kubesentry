@@ -1,6 +1,10 @@
 package dto
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -16,6 +20,28 @@ type PolicyGroupInput struct {
 	ResourceVersion         *string                      `json:"resourceVersion,omitempty"`
 	AllClusters             *bool                        `json:"allClusters,omitempty"`
 	ClusterNames            []string                     `json:"clusterNames"`
+}
+
+type PolicyGroupEnabledInput struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (r *PolicyGroupEnabledInput) UnmarshalJSON(data []byte) error {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(data, &object); err != nil {
+		return err
+	}
+	raw, ok := object["enabled"]
+	if !ok {
+		return fmt.Errorf("enabled: field is required")
+	}
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return fmt.Errorf("enabled: must be a boolean")
+	}
+	if err := json.Unmarshal(raw, &r.Enabled); err != nil {
+		return fmt.Errorf("enabled: %w", err)
+	}
+	return nil
 }
 
 // PolicyGroupPath describes the name path parameter shared by policy group detail operations.

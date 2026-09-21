@@ -50,6 +50,7 @@ func TestPolicyGroupRouteMatrix(t *testing.T) {
 		{name: "invalid content type", method: http.MethodPost, path: "/api/v1/policygroups", body: validBody, contentType: `application/json; charset="`, want: withMessage(bad, "parse media type")},
 		{name: "unsupported content type", method: http.MethodPost, path: "/api/v1/policygroups", body: validBody, contentType: "text/plain", want: withMessage(bad, "unexpected Content-Type")},
 		{name: "enabled missing required field", method: http.MethodPut, path: "/api/v1/policygroups/does-not-exist/enabled", body: `{}`, contentType: "application/json", want: withMessage(bad, "enabled")},
+		{name: "enabled null field", method: http.MethodPut, path: "/api/v1/policygroups/does-not-exist/enabled", body: `{"enabled":null}`, contentType: "application/json", want: withMessage(bad, "must be a boolean")},
 		{name: "unknown field accepted", method: http.MethodPut, path: "/api/v1/policygroups/does-not-exist/enabled", body: `{"enabled":true,"unknown":true}`, contentType: "application/json", want: notFound},
 		{name: "large unknown field accepted", method: http.MethodPut, path: "/api/v1/policygroups/does-not-exist/enabled", body: `{"enabled":true,"padding":"` + strings.Repeat("x", 1<<20) + `"}`, contentType: "application/json", want: notFound},
 		{name: "enabled trailing JSON", method: http.MethodPut, path: "/api/v1/policygroups/does-not-exist/enabled", body: validEnabled + `{}`, contentType: "application/json", want: withMessage(bad, "unexpected trailing data")},

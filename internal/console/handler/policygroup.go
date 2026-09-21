@@ -153,7 +153,7 @@ func policyGroupInput(request *dto.PolicyGroupRequest) (*dto.PolicyGroupInput, e
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /policygroups/{name}/enabled [put]
-func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupEnabledRequest, p dto.SetPolicyGroupEnabledParams) (dto.SetPolicyGroupEnabledRes, error) {
+func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupEnabledInput, p dto.SetPolicyGroupEnabledParams) (dto.SetPolicyGroupEnabledRes, error) {
 	e := h.svcs.PolicyGroup.SetEnabled(ctx, p.Name, r.Enabled)
 	if e != nil {
 		if errors.Is(e, service.ErrNotFound) {
