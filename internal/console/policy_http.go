@@ -123,12 +123,7 @@ func requestContext(r *http.Request) context.Context {
 	return context.WithValue(r.Context(), traceIDKey{}, TraceIDFromRequest(r))
 }
 
-type consoleJSONBody interface {
-	*dto.PolicyRequest | *dto.RollbackRequest | *dto.ValidateRegoRequest | *dto.PolicyGroupRequest | *dto.PolicyGroupEnabledRequest | *dto.ExceptionRequest | *dto.AdmissionEventSettingsRequest | *dto.ClusterCreateRequest | *dto.ClusterLabelsRequest | *dto.ClusterTokenRequest | *dto.DistributionRequest | *dto.PlatformSettingsRequest
-	UnmarshalJSON([]byte) error
-}
-
-func decodeJSON[T consoleJSONBody](w http.ResponseWriter, r *http.Request, operation string, dst T) bool {
+func decodeJSON[T any](w http.ResponseWriter, r *http.Request, operation string, dst *T) bool {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, fmt.Sprintf("operation %s: decode request: parse media type: %v", operation, err))
@@ -147,10 +142,6 @@ func decodeJSON[T consoleJSONBody](w http.ResponseWriter, r *http.Request, opera
 		writeErr(w, http.StatusBadRequest, fmt.Sprintf("operation %s: decode request: body required", operation))
 		return false
 	}
-	if err := dst.UnmarshalJSON(raw); err != nil {
-		writeDecodeError(w, operation, err.Error())
-		return false
-	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	var value json.RawMessage
 	if err := decoder.Decode(&value); err != nil {
@@ -159,6 +150,10 @@ func decodeJSON[T consoleJSONBody](w http.ResponseWriter, r *http.Request, opera
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		writeDecodeError(w, operation, "unexpected trailing data")
+		return false
+	}
+	if err := json.Unmarshal(value, dst); err != nil {
+		writeDecodeError(w, operation, err.Error())
 		return false
 	}
 	if validator, ok := any(dst).(interface{ Validate() error }); ok {
