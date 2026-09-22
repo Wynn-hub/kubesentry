@@ -1,7 +1,9 @@
 package dto
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -61,6 +63,65 @@ type AdmissionStoragePolicyView struct {
 	MatchMode  string   `json:"matchMode" binding:"required" enums:"include,exclude"`
 }
 
+func (p *AdmissionStoragePolicyView) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode admission storage policy: expected object")
+	}
+	required := map[string]bool{"verdicts": false, "clusters": false, "gvks": false, "namespaces": false, "matchMode": false}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "verdicts":
+			required["verdicts"] = true
+			p.Verdicts = nil
+			err = decodeNonNullJSON(raw, "verdicts", &p.Verdicts)
+		case "clusters":
+			required["clusters"] = true
+			p.Clusters = nil
+			err = decodeNonNullJSON(raw, "clusters", &p.Clusters)
+		case "gvks":
+			required["gvks"] = true
+			p.GVRs = nil
+			err = decodeNonNullJSON(raw, "gvks", &p.GVRs)
+		case "namespaces":
+			required["namespaces"] = true
+			p.Namespaces = nil
+			err = decodeNonNullJSON(raw, "namespaces", &p.Namespaces)
+		case "matchMode":
+			required["matchMode"] = true
+			err = decodeNonNullJSON(raw, "matchMode", &p.MatchMode)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	for _, field := range []string{"verdicts", "clusters", "gvks", "namespaces", "matchMode"} {
+		if !required[field] {
+			return fmt.Errorf("%s: field is required", field)
+		}
+	}
+	for _, verdict := range p.Verdicts {
+		if verdict != "audit" && verdict != "deny" {
+			return fmt.Errorf("verdicts: invalid value %q", verdict)
+		}
+	}
+	if p.MatchMode != "include" && p.MatchMode != "exclude" {
+		return fmt.Errorf("matchMode: invalid value %q", p.MatchMode)
+	}
+	return nil
+}
+
 type AdmissionSettingsView struct {
 	DefaultRetentionDays  int                          `json:"defaultRetentionDays" binding:"required" minimum:"1" maximum:"365"`
 	RetryEnabled          bool                         `json:"retryEnabled" binding:"required"`
@@ -80,6 +141,68 @@ type AdmissionSettingsInput struct {
 	IncidentRetentionDays *int                         `json:"incidentRetentionDays,omitempty" minimum:"1" maximum:"365"`
 	ObservationEnabled    *bool                        `json:"observationEnabled,omitempty"`
 	StoragePolicies       []AdmissionStoragePolicyView `json:"storagePolicies"`
+}
+
+func (s *AdmissionSettingsInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode admission settings: expected object")
+	}
+	var retentionSet bool
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "defaultRetentionDays":
+			retentionSet = true
+			err = decodeNonNullJSON(raw, "defaultRetentionDays", &s.DefaultRetentionDays)
+		case "retryEnabled":
+			err = decodeOptionalNonNullJSON(raw, "retryEnabled", &s.RetryEnabled)
+		case "maxRetryAttempts":
+			err = decodeOptionalNonNullJSON(raw, "maxRetryAttempts", &s.MaxRetryAttempts)
+		case "queueCapacity":
+			err = decodeOptionalNonNullJSON(raw, "queueCapacity", &s.QueueCapacity)
+		case "incidentRetentionDays":
+			err = decodeOptionalNonNullJSON(raw, "incidentRetentionDays", &s.IncidentRetentionDays)
+		case "observationEnabled":
+			err = decodeOptionalNonNullJSON(raw, "observationEnabled", &s.ObservationEnabled)
+		case "storagePolicies":
+			s.StoragePolicies = nil
+			err = decodeNonNullJSON(raw, "storagePolicies", &s.StoragePolicies)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	if !retentionSet {
+		return fmt.Errorf("defaultRetentionDays: field is required")
+	}
+	return nil
+}
+
+func (s *AdmissionSettingsInput) Validate() error {
+	if s.DefaultRetentionDays < 1 || s.DefaultRetentionDays > 365 {
+		return fmt.Errorf("defaultRetentionDays must be between 1 and 365")
+	}
+	if s.MaxRetryAttempts != nil && (*s.MaxRetryAttempts < 1 || *s.MaxRetryAttempts > 100) {
+		return fmt.Errorf("maxRetryAttempts must be between 1 and 100")
+	}
+	if s.QueueCapacity != nil && (*s.QueueCapacity < 1 || *s.QueueCapacity > 10000) {
+		return fmt.Errorf("queueCapacity must be between 1 and 10000")
+	}
+	if s.IncidentRetentionDays != nil && (*s.IncidentRetentionDays < 1 || *s.IncidentRetentionDays > 365) {
+		return fmt.Errorf("incidentRetentionDays must be between 1 and 365")
+	}
+	return nil
 }
 
 type AdmissionTrendItemView struct {

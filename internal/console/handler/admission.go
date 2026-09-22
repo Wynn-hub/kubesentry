@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -140,16 +139,8 @@ func (h *Handler) GetAdmissionEventSettings(ctx context.Context) (dto.GetAdmissi
 // @Failure 400 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /admission-event-settings [put]
-func (h *Handler) UpdateAdmissionEventSettings(ctx context.Context, req *dto.AdmissionEventSettingsRequest) (dto.UpdateAdmissionEventSettingsRes, error) {
-	encoded, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	var input dto.AdmissionSettingsInput
-	if err := json.Unmarshal(encoded, &input); err != nil {
-		return &dto.AdmissionEventBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
-	}
-	data, err := h.svcs.Admission.UpdateSettings(ctx, &input)
+func (h *Handler) UpdateAdmissionEventSettings(ctx context.Context, input *dto.AdmissionSettingsInput) (dto.UpdateAdmissionEventSettingsRes, error) {
+	data, err := h.svcs.Admission.UpdateSettings(ctx, input)
 	if err != nil {
 		var validationErr *service.ValidationError
 		if errors.As(err, &validationErr) {

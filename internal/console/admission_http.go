@@ -62,7 +62,7 @@ func registerAdmissionRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("PUT /api/v1/admission-event-settings", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.AdmissionEventSettingsRequest
+		var body dto.AdmissionSettingsInput
 		if !decodeJSON(w, r, "UpdateAdmissionEventSettings", &body) {
 			return
 		}
