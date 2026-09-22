@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for the checked-in Console OpenAPI bundle."""
+"""Regression tests for the derived Console OpenAPI document."""
 
 import json
 from pathlib import Path
@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class BundleOpenAPITest(unittest.TestCase):
-    def test_generator_writes_self_contained_document(self) -> None:
+    def test_generator_writes_normalized_self_contained_document(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "openapi.json"
             result = subprocess.run(
@@ -25,19 +25,23 @@ class BundleOpenAPITest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             document = json.loads(output.read_text())
-            self.assertEqual(document["openapi"], "3.1.0")
-            self.assertEqual(
-                {tag["name"] for tag in document["tags"]},
-                {"Policy", "PolicyGroup", "Exception", "Cluster", "Distribution", "Platform", "Summary", "AdmissionEvent", "LinkIncident", "Schema"},
-            )
+            self.assertEqual(document["openapi"], "3.0.0")
+            self.assertEqual(operation_count(document), 50)
+            self.assertIn("BearerAuth", document["components"]["securitySchemes"])
             assert_internal_refs_resolve(self, document, document)
-            cluster_empty = document["paths"]["/clusters/{name}"]["delete"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
-            policy_empty = document["paths"]["/policies/{name}"]["delete"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
-            self.assertNotEqual(cluster_empty, policy_empty, "same-named external components must not overwrite each other")
-            by_selector = document["components"]["schemas"]["PolicyGroupPolicies"]["properties"]["bySelector"]
-            self.assertEqual(by_selector["$ref"], "#/components/schemas/KubernetesLabelSelector")
-            self.assertEqual(by_selector["description"], "按 Kubernetes 标签选择器引用策略")
-            self.assertEqual(by_selector["example"], {"matchLabels": {"team": "platform"}})
+            self.assertEqual(
+                output.read_text(),
+                json.dumps(document, indent=4, sort_keys=True, ensure_ascii=False) + "\n",
+            )
+
+
+def operation_count(document: dict) -> int:
+    return sum(
+        1
+        for item in document["paths"].values()
+        for method in item
+        if method != "parameters"
+    )
 
 
 def assert_internal_refs_resolve(test: unittest.TestCase, root: object, value: object) -> None:

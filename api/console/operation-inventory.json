@@ -8,13 +8,14 @@
       "path": "/admission-event-settings",
       "responses": {
         "200": [
-          "../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsResponse"
+          "#/components/schemas/dto.AdmissionSettingsView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "503": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -23,30 +24,50 @@
       "operationId": "updateAdmissionEventSettings",
       "parameters": [],
       "path": "/admission-event-settings",
-      "requestBody": [
-        "../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/admission.yaml#/components/schemas/AdmissionEventSettingsResponse"
+          "#/components/schemas/dto.AdmissionSettingsView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/schemas/dto.AdmissionSettingsInput"
+      ]
     },
     {
       "method": "GET",
       "operationId": "listAdmissionEvents",
       "parameters": [
         {
-          "$ref": "#/components/parameters/Page"
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         {
-          "$ref": "#/components/parameters/PageSize"
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "type": "integer"
+          }
         },
         {
           "in": "query",
@@ -169,13 +190,14 @@
       "path": "/admission-events",
       "responses": {
         "200": [
-          "../schemas/admission.yaml#/components/schemas/AdmissionEventListResponse"
+          "#/components/schemas/dto.AdmissionEventPageView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -205,13 +227,14 @@
       "path": "/admission-events/trend",
       "responses": {
         "200": [
-          "../schemas/admission.yaml#/components/schemas/AdmissionEventTrendResponse"
+          "#/components/schemas/dto.AdmissionTrendItemView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -220,22 +243,29 @@
       "operationId": "getAdmissionEvent",
       "parameters": [
         {
-          "$ref": "#/components/parameters/AdmissionEventID"
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "pattern": "^[0-9]+$",
+            "type": "string"
+          }
         }
       ],
       "path": "/admission-events/{id}",
       "responses": {
         "200": [
-          "../schemas/admission.yaml#/components/schemas/AdmissionEventDetailResponse"
+          "#/components/schemas/dto.AdmissionEventDetailView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -244,10 +274,29 @@
       "operationId": "listAdmissionLinkIncidents",
       "parameters": [
         {
-          "$ref": "#/components/parameters/Page"
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         {
-          "$ref": "#/components/parameters/PageSize"
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "type": "integer"
+          }
         },
         {
           "in": "query",
@@ -325,16 +374,17 @@
       "path": "/admission-link-incidents",
       "responses": {
         "200": [
-          "../schemas/admission_link_incident.yaml#/components/schemas/AdmissionLinkIncidentListResponse"
+          "#/components/schemas/dto.IncidentPageView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "503": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -347,26 +397,28 @@
           "name": "id",
           "required": true,
           "schema": {
-            "$ref": "../schemas/common.yaml#/components/schemas/ResourceID"
+            "pattern": "^[0-9]+$",
+            "type": "string"
           }
         }
       ],
       "path": "/admission-link-incidents/{id}",
       "responses": {
         "200": [
-          "../schemas/admission_link_incident.yaml#/components/schemas/AdmissionLinkIncidentDetailResponse"
+          "#/components/schemas/dto.IncidentView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "503": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -375,17 +427,35 @@
       "operationId": "listClusters",
       "parameters": [
         {
-          "$ref": "#/components/parameters/Page"
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         {
-          "$ref": "#/components/parameters/PageSize"
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "type": "integer"
+          }
         },
         {
           "in": "query",
           "name": "sortBy",
           "required": false,
           "schema": {
-            "description": "集群列表排序字段",
             "enum": [
               "name",
               "phase",
@@ -393,7 +463,6 @@
               "lastHeartbeatAt",
               "createdAt"
             ],
-            "example": "name",
             "type": "string"
           }
         },
@@ -403,12 +472,10 @@
           "required": false,
           "schema": {
             "default": "asc",
-            "description": "升序或降序",
             "enum": [
               "asc",
               "desc"
             ],
-            "example": "asc",
             "type": "string"
           }
         }
@@ -416,10 +483,11 @@
       "path": "/clusters",
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/ClusterListResponse"
+          "#/components/schemas/dto.ClusterPageView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -428,102 +496,138 @@
       "operationId": "createCluster",
       "parameters": [],
       "path": "/clusters",
-      "requestBody": [
-        "../schemas/cluster.yaml#/components/schemas/ClusterCreateRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/ClusterCommandResponse"
+          "#/components/schemas/dto.ClusterCommandView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/schemas/dto.ClusterCreateInput"
+      ]
     },
     {
       "method": "DELETE",
       "operationId": "deleteCluster",
-      "parameters": [],
+      "parameters": [
+        {
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "path": "/clusters/{name}",
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/EmptyResponse"
+          "#/components/schemas/dto.SwagEmptyResponse"
         ],
         "403": [
-          "#/components/responses/Forbidden"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
     {
       "method": "GET",
       "operationId": "getCluster",
-      "parameters": [],
+      "parameters": [
+        {
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "path": "/clusters/{name}",
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/ClusterDetailResponse"
+          "#/components/schemas/dto.ClusterView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
     {
       "method": "PUT",
       "operationId": "updateCluster",
-      "parameters": [],
-      "path": "/clusters/{name}",
-      "requestBody": [
-        "../schemas/cluster.yaml#/components/schemas/ClusterLabelsRequest"
+      "parameters": [
+        {
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
       ],
+      "path": "/clusters/{name}",
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/ClusterNameResponse"
+          "#/components/schemas/dto.ClusterNameView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/schemas/dto.ClusterLabelsInput"
+      ]
     },
     {
       "method": "GET",
       "operationId": "getLatestInstallParams",
       "parameters": [
         {
-          "$ref": "#/components/parameters/ClusterName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/clusters/{name}/latest-install-params",
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/InstallParamsResponse"
+          "#/components/schemas/dto.ClusterInstallInput",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -532,49 +636,61 @@
       "operationId": "reissueClusterToken",
       "parameters": [
         {
-          "$ref": "#/components/parameters/ClusterName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/clusters/{name}/reissue-token",
-      "requestBody": [
-        "../schemas/cluster.yaml#/components/schemas/ClusterTokenRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/ClusterCommandResponse"
+          "#/components/schemas/dto.ClusterCommandView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/schemas/dto.ClusterTokenInput"
+      ]
     },
     {
       "method": "POST",
       "operationId": "createUninstallTask",
       "parameters": [
         {
-          "$ref": "#/components/parameters/ClusterName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/clusters/{name}/uninstall",
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/UninstallTaskResponse"
+          "#/components/schemas/dto.SwagSuccessResponse",
+          "#/components/schemas/dto.UninstallTaskHTTPView"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -583,19 +699,25 @@
       "operationId": "listUninstallTasks",
       "parameters": [
         {
-          "$ref": "#/components/parameters/ClusterName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/clusters/{name}/uninstall-tasks",
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/UninstallTaskListResponse"
+          "#/components/schemas/dto.SwagSuccessResponse",
+          "#/components/schemas/dto.UninstallTaskHTTPView"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -604,30 +726,37 @@
       "operationId": "retryUninstallTask",
       "parameters": [
         {
-          "$ref": "#/components/parameters/ClusterName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         },
         {
           "in": "path",
           "name": "taskID",
           "required": true,
           "schema": {
-            "$ref": "../schemas/common.yaml#/components/schemas/ResourceID"
+            "pattern": "^[0-9]+$",
+            "type": "string"
           }
         }
       ],
       "path": "/clusters/{name}/uninstall-tasks/{taskID}/retry",
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/UninstallTaskIDResponse"
+          "#/components/schemas/dto.SwagSuccessResponse",
+          "#/components/schemas/dto.UninstallTaskIDView"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -641,8 +770,6 @@
           "required": false,
           "schema": {
             "default": 1,
-            "description": "当前页码",
-            "example": 1,
             "minimum": 1,
             "type": "integer"
           }
@@ -653,14 +780,12 @@
           "required": false,
           "schema": {
             "default": 20,
-            "description": "每页记录数",
             "enum": [
               10,
               20,
               50,
               100
             ],
-            "example": 20,
             "type": "integer"
           }
         },
@@ -669,11 +794,9 @@
           "name": "sortBy",
           "required": false,
           "schema": {
-            "description": "策略分发列表排序字段",
             "enum": [
               "name"
             ],
-            "example": "name",
             "type": "string"
           }
         },
@@ -683,12 +806,10 @@
           "required": false,
           "schema": {
             "default": "asc",
-            "description": "升序或降序",
             "enum": [
               "asc",
               "desc"
             ],
-            "example": "asc",
             "type": "string"
           }
         }
@@ -696,10 +817,11 @@
       "path": "/distributions",
       "responses": {
         "200": [
-          "../schemas/distribution.yaml#/components/schemas/DistributionListResponse"
+          "#/components/schemas/dto.DistributionPageView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -708,99 +830,148 @@
       "operationId": "createDistribution",
       "parameters": [],
       "path": "/distributions",
-      "requestBody": [
-        "../schemas/distribution.yaml#/components/schemas/DistributionRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/distribution.yaml#/components/schemas/DistributionNameResponse"
+          "#/components/schemas/dto.DistributionNameView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/requestBodies/dto.DistributionInput"
+      ]
     },
     {
       "method": "DELETE",
       "operationId": "deleteDistribution",
-      "parameters": [],
+      "parameters": [
+        {
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "path": "/distributions/{name}",
       "responses": {
         "200": [
-          "../schemas/distribution.yaml#/components/schemas/DistributionEmptyResponse"
+          "#/components/schemas/dto.SwagEmptyResponse"
         ],
         "403": [
-          "#/components/responses/Forbidden"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
     {
       "method": "GET",
       "operationId": "getDistribution",
-      "parameters": [],
+      "parameters": [
+        {
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "path": "/distributions/{name}",
       "responses": {
         "200": [
-          "../schemas/distribution.yaml#/components/schemas/DistributionDetailResponse"
+          "#/components/schemas/dto.DistributionView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
     {
       "method": "PUT",
       "operationId": "updateDistribution",
-      "parameters": [],
-      "path": "/distributions/{name}",
-      "requestBody": [
-        "../schemas/distribution.yaml#/components/schemas/DistributionRequest"
+      "parameters": [
+        {
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
       ],
+      "path": "/distributions/{name}",
       "responses": {
         "200": [
-          "../schemas/distribution.yaml#/components/schemas/DistributionNameResponse"
+          "#/components/schemas/dto.DistributionNameView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/requestBodies/dto.DistributionInput"
+      ]
     },
     {
       "method": "GET",
       "operationId": "listExceptions",
       "parameters": [
         {
-          "$ref": "#/components/parameters/Page"
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         {
-          "$ref": "#/components/parameters/PageSize"
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "type": "integer"
+          }
         },
         {
           "in": "query",
@@ -808,7 +979,6 @@
           "required": false,
           "schema": {
             "default": "name",
-            "description": "排序字段",
             "enum": [
               "name",
               "phase",
@@ -816,7 +986,6 @@
               "duration",
               "expiresAt"
             ],
-            "example": "name",
             "type": "string"
           }
         },
@@ -826,12 +995,10 @@
           "required": false,
           "schema": {
             "default": "asc",
-            "description": "排序方向",
             "enum": [
               "asc",
               "desc"
             ],
-            "example": "asc",
             "type": "string"
           }
         }
@@ -839,13 +1006,14 @@
       "path": "/exceptions",
       "responses": {
         "200": [
-          "../schemas/exception.yaml#/components/schemas/ExceptionListResponse"
+          "#/components/schemas/dto.ExceptionPageView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -854,42 +1022,48 @@
       "operationId": "createException",
       "parameters": [],
       "path": "/exceptions",
-      "requestBody": [
-        "../schemas/exception.yaml#/components/schemas/ExceptionRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/exception.yaml#/components/schemas/ExceptionNameResponse"
+          "#/components/schemas/dto.ExceptionNameView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/requestBodies/dto.SwagExceptionInput"
+      ]
     },
     {
       "method": "DELETE",
       "operationId": "deleteException",
       "parameters": [
         {
-          "$ref": "#/components/parameters/ExceptionName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/exceptions/{name}",
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/EmptyResponse"
+          "#/components/schemas/dto.SwagEmptyResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -898,19 +1072,25 @@
       "operationId": "getException",
       "parameters": [
         {
-          "$ref": "#/components/parameters/ExceptionName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/exceptions/{name}",
       "responses": {
         "200": [
-          "../schemas/exception.yaml#/components/schemas/ExceptionDetailResponse"
+          "#/components/schemas/dto.SwagExceptionDetail",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -919,53 +1099,76 @@
       "operationId": "updateException",
       "parameters": [
         {
-          "$ref": "#/components/parameters/ExceptionName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/exceptions/{name}",
-      "requestBody": [
-        "../schemas/exception.yaml#/components/schemas/ExceptionRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/exception.yaml#/components/schemas/ExceptionNameResponse"
+          "#/components/schemas/dto.ExceptionNameView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/requestBodies/dto.SwagExceptionInput"
+      ]
     },
     {
       "method": "GET",
       "operationId": "listInstallRecords",
       "parameters": [
         {
-          "$ref": "#/components/parameters/Page"
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         {
-          "$ref": "#/components/parameters/PageSize"
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "type": "integer"
+          }
         },
         {
           "in": "query",
           "name": "sortBy",
           "required": false,
           "schema": {
-            "description": "安装记录排序字段",
             "enum": [
               "clusterName",
               "namespace",
               "createdAt"
             ],
-            "example": "createdAt",
             "type": "string"
           }
         },
@@ -975,12 +1178,10 @@
           "required": false,
           "schema": {
             "default": "desc",
-            "description": "升序或降序",
             "enum": [
               "asc",
               "desc"
             ],
-            "example": "desc",
             "type": "string"
           }
         }
@@ -988,10 +1189,11 @@
       "path": "/install-records",
       "responses": {
         "200": [
-          "../schemas/cluster.yaml#/components/schemas/InstallRecordListResponse"
+          "#/components/schemas/dto.InstallRecordPageView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1004,7 +1206,6 @@
           "name": "component",
           "required": true,
           "schema": {
-            "description": "平台组件名称",
             "enum": [
               "webhook",
               "operator",
@@ -1013,7 +1214,6 @@
               "console-web",
               "postgres"
             ],
-            "example": "gateway",
             "type": "string"
           }
         },
@@ -1022,8 +1222,6 @@
           "name": "instance",
           "required": true,
           "schema": {
-            "description": "平台组件实例名称",
-            "example": "gateway-0",
             "type": "string"
           }
         },
@@ -1032,8 +1230,6 @@
           "name": "cluster",
           "required": false,
           "schema": {
-            "description": "成员集群名称",
-            "example": "production-east",
             "type": "string"
           }
         },
@@ -1042,8 +1238,6 @@
           "name": "from",
           "required": false,
           "schema": {
-            "description": "查询起始时间",
-            "example": "2026-08-24T07:00:00Z",
             "format": "date-time",
             "type": "string"
           }
@@ -1053,8 +1247,6 @@
           "name": "to",
           "required": false,
           "schema": {
-            "description": "查询结束时间",
-            "example": "2026-08-24T08:00:00Z",
             "format": "date-time",
             "type": "string"
           }
@@ -1063,16 +1255,17 @@
       "path": "/platform/instances/{component}/{instance}/trend",
       "responses": {
         "200": [
-          "../schemas/platform.yaml#/components/schemas/PlatformTrendResponse"
+          "#/components/schemas/dto.PlatformTrendView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1081,17 +1274,35 @@
       "operationId": "listPlatformLeadershipEvents",
       "parameters": [
         {
-          "$ref": "#/components/parameters/Page"
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         {
-          "$ref": "#/components/parameters/PageSize"
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "type": "integer"
+          }
         },
         {
           "in": "query",
           "name": "component",
           "required": false,
           "schema": {
-            "description": "平台组件名称",
             "enum": [
               "webhook",
               "operator",
@@ -1100,7 +1311,6 @@
               "console-web",
               "postgres"
             ],
-            "example": "gateway",
             "type": "string"
           }
         },
@@ -1109,8 +1319,6 @@
           "name": "cluster",
           "required": false,
           "schema": {
-            "description": "成员集群名称",
-            "example": "production-east",
             "type": "string"
           }
         },
@@ -1119,8 +1327,6 @@
           "name": "from",
           "required": false,
           "schema": {
-            "description": "查询起始时间",
-            "example": "2026-08-24T07:00:00Z",
             "format": "date-time",
             "type": "string"
           }
@@ -1130,8 +1336,6 @@
           "name": "to",
           "required": false,
           "schema": {
-            "description": "查询结束时间",
-            "example": "2026-08-24T08:00:00Z",
             "format": "date-time",
             "type": "string"
           }
@@ -1140,16 +1344,17 @@
       "path": "/platform/leadership-events",
       "responses": {
         "200": [
-          "../schemas/platform.yaml#/components/schemas/LeadershipEventListResponse"
+          "#/components/schemas/dto.PlatformLeadershipPageView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1158,23 +1363,40 @@
       "operationId": "getPlatformOverview",
       "parameters": [
         {
-          "$ref": "#/components/parameters/Page"
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         {
-          "$ref": "#/components/parameters/PageSize"
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "type": "integer"
+          }
         },
         {
           "in": "query",
           "name": "health",
           "required": false,
           "schema": {
-            "description": "成员集群聚合健康状态",
             "enum": [
               "ok",
               "degraded",
               "unavailable"
             ],
-            "example": "degraded",
             "type": "string"
           }
         }
@@ -1182,13 +1404,14 @@
       "path": "/platform/overview",
       "responses": {
         "200": [
-          "../schemas/platform.yaml#/components/schemas/PlatformOverviewResponse"
+          "#/components/schemas/dto.PlatformOverviewView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1199,10 +1422,11 @@
       "path": "/platform/settings",
       "responses": {
         "200": [
-          "../schemas/platform.yaml#/components/schemas/PlatformSettingsResponse"
+          "#/components/schemas/dto.PlatformSettingsView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1211,30 +1435,50 @@
       "operationId": "updatePlatformSettings",
       "parameters": [],
       "path": "/platform/settings",
-      "requestBody": [
-        "../schemas/platform.yaml#/components/schemas/PlatformSettingsRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/platform.yaml#/components/schemas/PlatformSettingsResponse"
+          "#/components/schemas/dto.PlatformSettingsView",
+          "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/schemas/dto.PlatformSettingsInput"
+      ]
     },
     {
       "method": "GET",
       "operationId": "listPolicies",
       "parameters": [
         {
-          "$ref": "#/components/parameters/Page"
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         {
-          "$ref": "#/components/parameters/PageSize"
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "type": "integer"
+          }
         },
         {
           "in": "query",
@@ -1242,7 +1486,6 @@
           "required": false,
           "schema": {
             "default": "name",
-            "description": "排序字段",
             "enum": [
               "name",
               "source",
@@ -1251,7 +1494,6 @@
               "createdAt",
               "updatedAt"
             ],
-            "example": "name",
             "type": "string"
           }
         },
@@ -1261,12 +1503,10 @@
           "required": false,
           "schema": {
             "default": "asc",
-            "description": "排序方向",
             "enum": [
               "asc",
               "desc"
             ],
-            "example": "asc",
             "type": "string"
           }
         },
@@ -1275,14 +1515,11 @@
           "name": "phase",
           "required": false,
           "schema": {
-            "description": "编译状态列表",
             "items": {
-              "description": "单个编译状态",
               "enum": [
                 "Ready",
                 "Invalid"
               ],
-              "example": "Ready",
               "type": "string"
             },
             "type": "array"
@@ -1293,14 +1530,11 @@
           "name": "mode",
           "required": false,
           "schema": {
-            "description": "执行模式列表",
             "items": {
-              "description": "单个执行模式",
               "enum": [
                 "enforce",
                 "audit"
               ],
-              "example": "enforce",
               "type": "string"
             },
             "type": "array"
@@ -1311,14 +1545,11 @@
           "name": "source",
           "required": false,
           "schema": {
-            "description": "来源列表",
             "items": {
-              "description": "单个来源",
               "enum": [
                 "builtin",
                 "custom"
               ],
-              "example": "builtin",
               "type": "string"
             },
             "type": "array"
@@ -1329,8 +1560,6 @@
           "name": "keyword",
           "required": false,
           "schema": {
-            "description": "搜索关键词",
-            "example": "privileged",
             "type": "string"
           }
         }
@@ -1338,13 +1567,13 @@
       "path": "/policies",
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/PolicyListResponse"
+          "#/components/schemas/dto.SwagPolicyListResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1353,23 +1582,24 @@
       "operationId": "createPolicy",
       "parameters": [],
       "path": "/policies",
-      "requestBody": [
-        "../schemas/policy.yaml#/components/schemas/PolicyRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/PolicyNameResponse"
+          "#/components/schemas/dto.PolicyNameView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/requestBodies/dto.SwagPolicyInput"
+      ]
     },
     {
       "method": "GET",
@@ -1378,13 +1608,14 @@
       "path": "/policies/resource-suggestions",
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/ResourceSuggestionsResponse"
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.SwagResourceSuggestions"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1393,24 +1624,29 @@
       "operationId": "validatePolicyRego",
       "parameters": [],
       "path": "/policies/validate",
-      "requestBody": [
-        "../schemas/policy.yaml#/components/schemas/ValidateRegoRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/EmptyResponse"
+          "#/components/schemas/dto.SwagEmptyResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/schemas/dto.SwagValidateRegoInput"
+      ]
     },
     {
       "method": "DELETE",
       "operationId": "deletePolicy",
       "parameters": [
         {
-          "$ref": "#/components/parameters/PolicyName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         },
         {
           "in": "query",
@@ -1418,8 +1654,6 @@
           "required": false,
           "schema": {
             "default": false,
-            "description": "是否强制删除",
-            "example": false,
             "type": "boolean"
           }
         }
@@ -1427,16 +1661,16 @@
       "path": "/policies/{name}",
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/EmptyResponse"
+          "#/components/schemas/dto.SwagEmptyResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1445,19 +1679,25 @@
       "operationId": "getPolicy",
       "parameters": [
         {
-          "$ref": "#/components/parameters/PolicyName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/policies/{name}",
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/PolicyDetailResponse"
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.SwagPolicyDetail"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1466,82 +1706,100 @@
       "operationId": "updatePolicy",
       "parameters": [
         {
-          "$ref": "#/components/parameters/PolicyName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/policies/{name}",
-      "requestBody": [
-        "../schemas/policy.yaml#/components/schemas/PolicyRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/PolicyNameResponse"
+          "#/components/schemas/dto.PolicyNameView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/requestBodies/dto.SwagPolicyInput"
+      ]
     },
     {
       "method": "POST",
       "operationId": "rollbackPolicy",
       "parameters": [
         {
-          "$ref": "#/components/parameters/PolicyName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/policies/{name}/rollback",
-      "requestBody": [
-        "../schemas/policy.yaml#/components/schemas/RollbackRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/RollbackResponse"
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.SwagRollbackResult"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "410": [
-          "#/components/responses/Gone"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/schemas/dto.SwagRollbackInput"
+      ]
     },
     {
       "method": "GET",
       "operationId": "listPolicyVersions",
       "parameters": [
         {
-          "$ref": "#/components/parameters/PolicyName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/policies/{name}/versions",
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/PolicyVersionListResponse"
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.SwagPolicyVersionList"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1550,10 +1808,29 @@
       "operationId": "listPolicyGroups",
       "parameters": [
         {
-          "$ref": "#/components/parameters/Page"
+          "in": "query",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "default": 1,
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         {
-          "$ref": "#/components/parameters/PageSize"
+          "in": "query",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              50,
+              100
+            ],
+            "type": "integer"
+          }
         },
         {
           "in": "query",
@@ -1588,13 +1865,14 @@
       "path": "/policygroups",
       "responses": {
         "200": [
-          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupListResponse"
+          "#/components/schemas/dto.PolicyGroupPageView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1603,45 +1881,51 @@
       "operationId": "createPolicyGroup",
       "parameters": [],
       "path": "/policygroups",
-      "requestBody": [
-        "../schemas/policygroup.yaml#/components/schemas/PolicyGroupRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupNameResponse"
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.SwagPolicyGroupName"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/requestBodies/dto.SwagPolicyGroupInput"
+      ]
     },
     {
       "method": "DELETE",
       "operationId": "deletePolicyGroup",
       "parameters": [
         {
-          "$ref": "#/components/parameters/PolicyGroupName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/policygroups/{name}",
       "responses": {
         "200": [
-          "../schemas/policy.yaml#/components/schemas/EmptyResponse"
+          "#/components/schemas/dto.SwagEmptyResponse"
         ],
         "403": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1650,19 +1934,25 @@
       "operationId": "getPolicyGroup",
       "parameters": [
         {
-          "$ref": "#/components/parameters/PolicyGroupName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/policygroups/{name}",
       "responses": {
         "200": [
-          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupDetailResponse"
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.SwagPolicyGroupDetail"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1671,63 +1961,75 @@
       "operationId": "updatePolicyGroup",
       "parameters": [
         {
-          "$ref": "#/components/parameters/PolicyGroupName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/policygroups/{name}",
-      "requestBody": [
-        "../schemas/policygroup.yaml#/components/schemas/PolicyGroupRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupNameResponse"
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.SwagPolicyGroupName"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "403": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/requestBodies/dto.SwagPolicyGroupInput"
+      ]
     },
     {
       "method": "PUT",
       "operationId": "setPolicyGroupEnabled",
       "parameters": [
         {
-          "$ref": "#/components/parameters/PolicyGroupName"
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "path": "/policygroups/{name}/enabled",
-      "requestBody": [
-        "../schemas/policygroup.yaml#/components/schemas/PolicyGroupEnabledRequest"
-      ],
       "responses": {
         "200": [
-          "../schemas/policygroup.yaml#/components/schemas/PolicyGroupEnabledResponse"
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.SwagPolicyGroupEnabled"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
-          "#/components/responses/NotFound"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
-          "#/components/responses/Conflict"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
-      }
+      },
+      "requestBody": [
+        "#/components/schemas/dto.SwagPolicyGroupEnabledInput"
+      ]
     },
     {
       "method": "GET",
@@ -1738,8 +2040,6 @@
           "name": "group",
           "required": false,
           "schema": {
-            "description": "API 组",
-            "example": "apps",
             "type": "string"
           }
         },
@@ -1748,8 +2048,6 @@
           "name": "version",
           "required": true,
           "schema": {
-            "description": "API 版本",
-            "example": "v1",
             "type": "string"
           }
         },
@@ -1758,8 +2056,6 @@
           "name": "resource",
           "required": true,
           "schema": {
-            "description": "资源名称",
-            "example": "deployments",
             "type": "string"
           }
         },
@@ -1769,8 +2065,6 @@
           "required": false,
           "schema": {
             "default": false,
-            "description": "刷新缓存",
-            "example": false,
             "type": "boolean"
           }
         }
@@ -1778,13 +2072,14 @@
       "path": "/schema/fields",
       "responses": {
         "200": [
-          "../schemas/schema.yaml#/components/schemas/FieldSchemaResponse"
+          "#/components/schemas/dto.FieldNodeView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
-          "#/components/responses/BadRequest"
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "502": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     },
@@ -1795,13 +2090,14 @@
       "path": "/summary",
       "responses": {
         "200": [
-          "../schemas/summary.yaml#/components/schemas/SummaryResponse"
+          "#/components/schemas/dto.SummaryView",
+          "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "500": [
-          "#/components/responses/InternalError"
+          "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
     }
   ],
-  "sha256": "b07ccb565d34e8b5a69bea3bc6518884143672c74d0f7394de8343628174b116"
+  "sha256": "eef706cc463207cd386245118f3de8244b25a025f13eb0d0c6efb7aac09ae045"
 }

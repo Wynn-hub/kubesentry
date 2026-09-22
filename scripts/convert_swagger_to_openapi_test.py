@@ -19,11 +19,6 @@ NORMALIZER_SPEC = importlib.util.spec_from_file_location("normalize_openapi_json
 assert NORMALIZER_SPEC and NORMALIZER_SPEC.loader
 normalizer = importlib.util.module_from_spec(NORMALIZER_SPEC)
 NORMALIZER_SPEC.loader.exec_module(normalizer)
-SPIKE_CHECK_SCRIPT = Path(__file__).with_name("check_swag_spike.py")
-SPIKE_CHECK_SPEC = importlib.util.spec_from_file_location("check_swag_spike", SPIKE_CHECK_SCRIPT)
-assert SPIKE_CHECK_SPEC and SPIKE_CHECK_SPEC.loader
-spike_check = importlib.util.module_from_spec(SPIKE_CHECK_SPEC)
-SPIKE_CHECK_SPEC.loader.exec_module(spike_check)
 
 
 class ConvertSwaggerToOpenAPITest(unittest.TestCase):
@@ -76,77 +71,6 @@ class ConvertSwaggerToOpenAPITest(unittest.TestCase):
                 output.read_text(),
                 '{\n    "a": "first",\n    "z": [\n        {\n            "a": 1,\n            "b": 2\n        },\n        0\n    ]\n}\n',
             )
-
-    def test_spike_comparison_accepts_all_of_equivalent_to_flat_object(self):
-        old = {
-            "components": {"schemas": {
-                "Envelope": {"type": "object", "required": ["code"], "properties": {"code": {"type": "integer"}}},
-                "Response": {"allOf": [
-                    {"$ref": "#/components/schemas/Envelope"},
-                    {"type": "object", "properties": {"createdAt": {"type": "string", "format": "date-time"}}},
-                ]},
-            }},
-        }
-        new = {"type": "object", "required": ["code"], "properties": {
-            "code": {"type": "integer"},
-            "createdAt": {"type": "string", "format": "date-time"},
-        }}
-
-        self.assertEqual(
-            spike_check.schema_contract(old, {"$ref": "#/components/schemas/Response"}),
-            spike_check.schema_contract({}, new),
-        )
-
-    def test_spike_comparison_detects_lost_date_time_format(self):
-        formatted = {"type": "string", "format": "date-time"}
-        plain = {"type": "string"}
-        self.assertNotEqual(
-            spike_check.schema_contract({}, formatted),
-            spike_check.schema_contract({}, plain),
-        )
-
-    def test_schema_comparison_normalizes_recursive_refs(self):
-        old = {"components": {"schemas": {"Node": {
-            "type": "object",
-            "properties": {"children": {"type": "array", "items": {"$ref": "#/components/schemas/Node"}}},
-        }}}}
-        new = {"components": {"schemas": {"RenamedNode": {
-            "type": "object",
-            "properties": {"children": {"type": "array", "items": {"$ref": "#/components/schemas/RenamedNode"}}},
-        }}}}
-
-        self.assertEqual(
-            spike_check.schema_contract(old, {"$ref": "#/components/schemas/Node"}),
-            spike_check.schema_contract(new, {"$ref": "#/components/schemas/RenamedNode"}),
-        )
-
-    def test_schema_comparison_distinguishes_recursive_targets(self):
-        root_cycle = {"components": {"schemas": {
-            "A": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/B"}}},
-            "B": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/A"}}},
-        }}}
-        self_cycle = {"components": {"schemas": {
-            "X": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/Y"}}},
-            "Y": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/Y"}}},
-        }}}
-
-        self.assertNotEqual(
-            spike_check.schema_contract(root_cycle, {"$ref": "#/components/schemas/A"}),
-            spike_check.schema_contract(self_cycle, {"$ref": "#/components/schemas/X"}),
-        )
-
-    def test_operation_set_rejects_removed_operation(self):
-        document = {"paths": {"/kept": {"get": {"operationId": "kept"}}}}
-
-        with self.assertRaisesRegex(ValueError, "missing=\\['removed'\\]"):
-            spike_check.check_operation_set(document, {"kept", "removed"})
-
-    def test_counts_nullable_and_union_keywords(self):
-        document = {"nullable": True, "nested": [{"oneOf": []}, {"anyOf": []}]}
-        self.assertEqual(
-            spike_check.keyword_counts(document),
-            {"anyOf": 1, "nullable": 1, "oneOf": 1},
-        )
 
     def test_strict_converter_preserves_nullable_and_union_extensions(self):
         with tempfile.TemporaryDirectory() as directory:

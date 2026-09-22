@@ -4,9 +4,9 @@ rules:
   # 本仓库不做外部发布，无需 contact/license
   info-contact: off
   info-license: off
-  # tag description 由 console-api.yaml 的 tags 段统一提供
+  # Tag descriptions are emitted from the Console Swag annotations.
   tag-description: warn
-  # bearerAuth 仅为将来预留（见 console-api.yaml securitySchemes 注释），
+  # BearerAuth is reserved for future use; Console currently has no auth middleware,
   # 当前所有接口匿名访问，故不要求每 operation 声明 security
   security-defined: off
   # The unified index documents non-HTTP contracts and intentionally has no servers.

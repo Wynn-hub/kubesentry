@@ -5,8 +5,8 @@ import (
 	"net/http"
 )
 
-// bundledOpenAPISpec is generated from api/console/console-api.yaml and its
-// schema fragments. Keeping the resolved document alongside this package makes
+// bundledOpenAPISpec is derived from the generated Swagger 2 document. Keeping
+// the normalized OpenAPI 3 document alongside this package makes
 // the API documentation endpoint independent of the repository layout and any
 // runtime volume mounts in the console-api container.
 //

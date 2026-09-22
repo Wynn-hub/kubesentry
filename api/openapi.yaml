@@ -7,13 +7,15 @@ info:
   version: 1.0.0
   description: KubeSentry control-plane API contract index; see x-contract-boundaries for non-HTTP families.
 paths:
-  $ref: './console/console-api.yaml#/paths'
+  $ref: '../internal/console/openapi_bundle.json#/paths'
 components:
-  $ref: './console/console-api.yaml#/components'
+  $ref: '../internal/console/openapi_bundle.json#/components'
 x-contract-boundaries:
   console:
     kind: openapi
-    source: ./console/console-api.yaml
+    source: ../internal/console/openapi_bundle.json
+    sourceOfTruth: Go handler and DTO Swag annotations
+    generatedSwagger: ./swagger/swagger.yaml
     routeCount: 50
   gateway:
     kind: protobuf

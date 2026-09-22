@@ -113,6 +113,7 @@ swagger:
 	go run github.com/swaggo/swag/v2/cmd/swag@$(SWAG_VERSION) init -g swagger.go \
 	  -d cmd/console,internal/console/handler,internal/console/dto --parseInternal \
 	  --output api/swagger --outputTypes yaml
+	python3 scripts/bundle_openapi.py
 
 swagger-check:
 	@set -eu; task_tmp=$$(mktemp -d); trap 'rm -rf "$$task_tmp"' EXIT; \
@@ -125,7 +126,7 @@ swagger-check:
 	python3 scripts/normalize_openapi_json.py "$$task_tmp/openapi-1.json" "$$task_tmp/normalized-1.json"; \
 	python3 scripts/normalize_openapi_json.py "$$task_tmp/openapi-2.json" "$$task_tmp/normalized-2.json"; \
 	cmp -s "$$task_tmp/normalized-1.json" "$$task_tmp/normalized-2.json"; \
-	python3 scripts/check_swag_spike.py internal/console/openapi_bundle.json "$$task_tmp/normalized-1.json"; \
+	cmp -s "$$task_tmp/normalized-1.json" internal/console/openapi_bundle.json; \
 	python3 scripts/convert_swagger_to_openapi_test.py; \
 	cd web && node scripts/check-scalar-openapi.mjs "$$task_tmp/normalized-1.json"; \
 	npx --no-install redocly lint --config ../redocly.yaml "$$task_tmp/normalized-1.json"; \
@@ -135,7 +136,7 @@ swagger-check:
 # regeneration remains `cd web && npm run generate:api`.
 api-ts-check:
 	@tmp_file=$$(mktemp); trap 'rm -f "$$tmp_file"' EXIT; \
-	cd web && npx openapi-typescript ../api/console/console-api.yaml -o "$$tmp_file"; \
+	cd web && npx openapi-typescript ../internal/console/openapi_bundle.json -o "$$tmp_file"; \
 	cmp -s "$$tmp_file" src/api/generated/console-api.ts || { echo "TypeScript OpenAPI client drift: run cd web && npm run generate:api" >&2; exit 1; }
 
 api-bundle:
@@ -146,7 +147,7 @@ api-lint:
 	python3 scripts/bundle_openapi_test.py
 	python3 scripts/bundle_openapi.py --check
 	$(MAKE) api-ts-check
-	cd web && npx redocly lint --config ../redocly.yaml ../api/console/console-api.yaml ../api/openapi.yaml
+	cd web && npx redocly lint --config ../redocly.yaml ../internal/console/openapi_bundle.json ../api/openapi.yaml
 	@tmp_file=$$(mktemp); trap 'rm -f "$$tmp_file"' EXIT; \
 	protoc --descriptor_set_out="$$tmp_file" --include_imports api/proto/gateway/v1/gateway.proto
 	helm lint charts/kubesentry charts/kubesentry-gateway

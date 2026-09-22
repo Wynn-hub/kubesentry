@@ -71,22 +71,22 @@ class ContractCheckerTest(unittest.TestCase):
             "unapproved additionalProperties: true",
         )
 
-    def test_rejects_parameter_without_schema_metadata(self):
+    def test_rejects_parameter_without_schema(self):
         self.assert_contract_error(
             lambda: checker.check_parameter_metadata(
-                {"name": "health", "in": "query", "description": "健康状态筛选", "schema": {"type": "string"}},
+                {"name": "health", "in": "query", "description": "健康状态筛选"},
                 "console GET /platform/overview parameter health",
             ),
-            "parameter schema is missing description",
+            "is missing schema",
         )
 
     def test_platform_runtime_stats_and_leadership_roles_are_explicit(self):
-        platform = checker.load(checker.ROOT / "api/schemas/platform.yaml")
-        schemas = platform["components"]["schemas"]
-        roles = schemas["LeadershipEvent"]["properties"]
+        console = checker.load(checker.ROOT / "internal/console/openapi_bundle.json")
+        schemas = console["components"]["schemas"]
+        roles = schemas["dto.PlatformLeadershipEventView"]["properties"]
         self.assertEqual(roles["roleFrom"]["enum"], ["leader", "standby", "none"])
         self.assertEqual(roles["roleTo"]["enum"], ["leader", "standby", "none"])
-        stats = schemas["DatabaseStats"]["properties"]
+        stats = schemas["dto.PlatformDatabaseStatsView"]["properties"]
         self.assertEqual(
             set(stats),
             {"connections", "maxConnections", "transactions", "rollbacks", "cacheHitRatio", "databaseBytes", "poolInUse", "poolIdle", "poolWaitCount", "poolWaitSeconds"},

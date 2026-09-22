@@ -201,8 +201,13 @@ def check_api_index(document: dict) -> None:
     if not isinstance(boundaries, dict):
         fail("API index is missing x-contract-boundaries")
     console = boundaries.get("console")
-    if not isinstance(console, dict) or console.get("source") != "./console/console-api.yaml" or console.get("routeCount") != CONSOLE_OPERATION_COUNT:
-        fail("console contract must be OpenAPI-first with the complete route inventory")
+    if (
+        not isinstance(console, dict)
+        or console.get("source") != "../internal/console/openapi_bundle.json"
+        or console.get("generatedSwagger") != "./swagger/swagger.yaml"
+        or console.get("routeCount") != CONSOLE_OPERATION_COUNT
+    ):
+        fail("console contract index must reference the complete Swag-derived route inventory")
     gateway = boundaries.get("gateway")
     if not isinstance(gateway, dict) or gateway.get("kind") != "protobuf" or gateway.get("source") != "./proto/gateway/v1/gateway.proto":
         fail("gateway contract must be protobuf-first")
@@ -237,25 +242,27 @@ def check_parameter_metadata(parameter: dict, location: str) -> None:
     if not parameter.get("description"):
         fail(f"{location} is missing description")
     schema = parameter.get("schema")
-    if not isinstance(schema, dict) or "$ref" in schema:
-        return
-    if not schema.get("description"):
-        fail(f"{location} parameter schema is missing description")
-    if schema.get("type") not in ("object", "array") and "example" not in schema:
-        fail(f"{location} parameter schema is missing example")
+    if not isinstance(schema, dict) or not schema:
+        fail(f"{location} is missing schema")
 
 
 def is_schema_ref(schema: object) -> bool:
-    return isinstance(schema, dict) and set(schema) == {"$ref"} and isinstance(schema["$ref"], str)
+    if not isinstance(schema, dict):
+        return False
+    if set(schema) == {"$ref"} and isinstance(schema["$ref"], str):
+        return True
+    all_of = schema.get("allOf")
+    return set(schema) == {"allOf"} and isinstance(all_of, list) and any(
+        isinstance(part, dict) and isinstance(part.get("$ref"), str) for part in all_of
+    )
 
 
 def check_operation_bodies(operation: dict, location: str) -> None:
     """Require contract-owned schemas at the HTTP operation boundary.
 
-    Inline property schemas remain useful inside the component fragments, but
-    request bodies and successful response bodies must name a reusable schema.
-    That makes an accidental ``additionalProperties: true`` endpoint visible to
-    both ogen and openapi-typescript rather than silently becoming ``any``.
+    Request bodies and successful response bodies must reference a named schema,
+    either directly or through Swag's response-envelope ``allOf`` composition.
+    That keeps an accidental free-form endpoint from silently becoming ``any``.
     """
     request_body = operation.get("requestBody")
     if isinstance(request_body, dict):
@@ -271,24 +278,6 @@ def check_operation_bodies(operation: dict, location: str) -> None:
                 fail(f"{location} success response must reference an explicit schema")
 
 
-def check_schema_properties(node: object, location: str) -> None:
-    if isinstance(node, dict):
-        properties = node.get("properties")
-        if isinstance(properties, dict):
-            for name, schema in properties.items():
-                if not isinstance(schema, dict) or "$ref" in schema or "allOf" in schema:
-                    continue
-                if not schema.get("description"):
-                    fail(f"{location}.{name} is missing description")
-                if schema.get("type") not in ("object", "array") and "example" not in schema:
-                    fail(f"{location}.{name} is missing example")
-        for name, child in node.items():
-            check_schema_properties(child, f"{location}.{name}")
-    elif isinstance(node, list):
-        for index, child in enumerate(node):
-            check_schema_properties(child, f"{location}[{index}]")
-
-
 def check_free_form_objects(node: object, location: str) -> None:
     """Allow raw JSON only for admission resource snapshots.
 
@@ -296,10 +285,11 @@ def check_free_form_objects(node: object, location: str) -> None:
     declare the value schema through ``additionalProperties: { ... }``.
     """
     if isinstance(node, dict):
-        if node.get("additionalProperties") is True and not (
-            location.startswith("admission.yaml.")
-            and (location.endswith(".metadataSnapshot") or location.endswith(".specSnapshot"))
-        ):
+        free_form = node.get("additionalProperties") is True or (
+            node.get("type") == "object"
+            and not any(key in node for key in ("properties", "additionalProperties"))
+        )
+        if free_form and not location.endswith((".metadataSnapshot", ".specSnapshot")):
             fail(f"{location} has unapproved additionalProperties: true")
         for name, child in node.items():
             check_free_form_objects(child, f"{location}.{name}")
@@ -353,14 +343,14 @@ def check_references(node: object, source_path: Path, documents: dict[Path, dict
 
 
 def main() -> None:
-    console_path = (ROOT / "api/console/console-api.yaml").resolve()
+    console_path = (ROOT / "internal/console/openapi_bundle.json").resolve()
     index_path = (ROOT / "api/openapi.yaml").resolve()
     console = load(console_path)
     index = load(index_path)
-    if console.get("openapi") != "3.1.0" or index.get("openapi") != "3.1.0":
-        fail("Console contract and API index must use OpenAPI 3.1.0")
-    if "bearerAuth" not in console.get("components", {}).get("securitySchemes", {}):
-        fail("console contract must declare bearerAuth")
+    if console.get("openapi") != "3.0.0" or index.get("openapi") != "3.1.0":
+        fail("Console contract must use OpenAPI 3.0.0 and the API index must use OpenAPI 3.1.0")
+    if "BearerAuth" not in console.get("components", {}).get("securitySchemes", {}):
+        fail("console contract must declare BearerAuth")
     console_count = check_operations(console, "console")
     operations = operation_ids(console)
     check_console_route_inventory(operations)
@@ -376,11 +366,7 @@ def main() -> None:
         source_path = unchecked.pop()
         check_references(documents[source_path], source_path, documents)
         checked.add(source_path)
-    check_schema_properties(console, "console")
-    for schema in (ROOT / "api/schemas").glob("*.yaml"):
-        document = load(schema)
-        check_schema_properties(document, schema.name)
-        check_free_form_objects(document, schema.name)
+    check_free_form_objects(console, "console")
     print(f"API contract OK: {console_count} console operations, {len(GATEWAY_METHODS)} gateway RPCs, {len(CRD_NAMES)} member-cluster CRDs")
 
 

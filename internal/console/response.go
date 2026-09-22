@@ -6,8 +6,8 @@ import (
 	"net/http"
 )
 
-// Envelope is the uniform response wrapper for every /api/v1 route. Its shape
-// is defined in api/schemas/common.yaml — the two must stay in lockstep.
+// Envelope is the uniform response wrapper for every /api/v1 route. Its public
+// shape is documented by the handler and DTO Swag annotations.
 //
 // code is HTTP status × 100 (0 for success) rather than a hand-maintained
 // registry of business codes: the status already carries the semantics, so a
