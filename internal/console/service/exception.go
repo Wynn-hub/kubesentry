@@ -3,7 +3,6 @@ package service
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -151,11 +150,7 @@ func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionInput) er
 		return err
 	}
 	name := stringOr(r.Name, "")
-	var spec v1alpha1.PolicyExceptionSpec
-	b, _ := json.Marshal(r)
-	if e := json.Unmarshal(b, &spec); e != nil {
-		return e
-	}
+	spec := exceptionSpec(r)
 	exp := time.Now().Add(mustDuration(r.Duration))
 	e := &dbrepo.PolicyException{Name: name, Spec: datatypes.NewJSONType(spec), ExpiresAt: &exp}
 	if s.repos.ExceptionUOW == nil {
@@ -183,11 +178,7 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 	if err := validateExceptionScopeTargets(ctx, s.repos.Clusters, boolOr(r.AllClusters, false), r.ClusterNames); err != nil {
 		return err
 	}
-	var spec v1alpha1.PolicyExceptionSpec
-	b, _ := json.Marshal(r)
-	if err := json.Unmarshal(b, &spec); err != nil {
-		return err
-	}
+	spec := exceptionSpec(r)
 	exp := time.Now().Add(mustDuration(r.Duration))
 	if s.repos.ExceptionUOW == nil {
 		return errors.New("exception unit of work is unavailable")
@@ -215,6 +206,22 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 	}
 	s.notify(ctx)
 	return nil
+}
+
+func exceptionSpec(r *dto.ExceptionInput) v1alpha1.PolicyExceptionSpec {
+	return v1alpha1.PolicyExceptionSpec{
+		PolicyRefs:      r.PolicyRefs,
+		PolicyGroupRefs: r.PolicyGroupRefs,
+		AllPolicies:     boolOr(r.AllPolicies, false),
+		Match: v1alpha1.PolicyExceptionMatch{
+			Namespaces:        r.Match.Namespaces,
+			NamespaceSelector: labelSelectorModel(r.Match.NamespaceSelector),
+			ResourceSelector:  labelSelectorModel(r.Match.ResourceSelector),
+		},
+		Duration:          r.Duration,
+		RetainAfterExpiry: stringOr(r.RetainAfterExpiry, ""),
+		Reason:            r.Reason,
+	}
 }
 
 func (s *ExceptionService) Delete(ctx context.Context, name string) error {

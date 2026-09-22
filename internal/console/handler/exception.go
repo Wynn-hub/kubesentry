@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
@@ -65,12 +64,8 @@ func (h *Handler) GetException(ctx context.Context, p dto.GetExceptionParams) (d
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /exceptions [post]
-func (h *Handler) CreateException(ctx context.Context, r *dto.ExceptionRequest) (dto.CreateExceptionRes, error) {
-	input, e := exceptionInput(r)
-	if e != nil {
-		return nil, e
-	}
-	e = h.svcs.Exception.Create(ctx, input)
+func (h *Handler) CreateException(ctx context.Context, input *dto.ExceptionInput) (dto.CreateExceptionRes, error) {
+	e := h.svcs.Exception.Create(ctx, input)
 	if e != nil {
 		var v *service.ValidationError
 		if errors.As(e, &v) {
@@ -98,12 +93,8 @@ func (h *Handler) CreateException(ctx context.Context, r *dto.ExceptionRequest) 
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /exceptions/{name} [put]
-func (h *Handler) UpdateException(ctx context.Context, r *dto.ExceptionRequest, p dto.UpdateExceptionParams) (dto.UpdateExceptionRes, error) {
-	input, e := exceptionInput(r)
-	if e != nil {
-		return nil, e
-	}
-	e = h.svcs.Exception.Update(ctx, p.Name, input)
+func (h *Handler) UpdateException(ctx context.Context, input *dto.ExceptionInput, p dto.UpdateExceptionParams) (dto.UpdateExceptionRes, error) {
+	e := h.svcs.Exception.Update(ctx, p.Name, input)
 	if e != nil {
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.ExceptionNotFoundHTTPError{Code: 40400, Message: e.Error()}, nil
@@ -118,18 +109,6 @@ func (h *Handler) UpdateException(ctx context.Context, r *dto.ExceptionRequest, 
 		return &dto.ExceptionInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.ExceptionNameHTTPResponse{Code: 0, Message: "success", Data: dto.ExceptionNameView{Name: p.Name}}, nil
-}
-
-func exceptionInput(request *dto.ExceptionRequest) (*dto.ExceptionInput, error) {
-	data, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-	var input dto.ExceptionInput
-	if err := json.Unmarshal(data, &input); err != nil {
-		return nil, err
-	}
-	return &input, nil
 }
 
 func stringOr(value *string) string {

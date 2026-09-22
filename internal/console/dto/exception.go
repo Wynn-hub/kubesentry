@@ -1,6 +1,9 @@
 package dto
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
@@ -42,17 +45,86 @@ type ExceptionPageView struct {
 }
 
 type ExceptionInput struct {
-	PolicyRefs        []string                      `json:"policyRefs"`
-	PolicyGroupRefs   []string                      `json:"policyGroupRefs"`
-	AllPolicies       *bool                         `json:"allPolicies,omitempty"`
-	Match             v1alpha1.PolicyExceptionMatch `json:"match"`
-	Duration          string                        `json:"duration"`
-	RetainAfterExpiry *string                       `json:"retainAfterExpiry,omitempty"`
-	Reason            string                        `json:"reason"`
-	Name              *string                       `json:"name,omitempty"`
-	ResourceVersion   *string                       `json:"resourceVersion,omitempty"`
-	AllClusters       *bool                         `json:"allClusters,omitempty"`
-	ClusterNames      []string                      `json:"clusterNames"`
+	PolicyRefs        []string            `json:"policyRefs"`
+	PolicyGroupRefs   []string            `json:"policyGroupRefs"`
+	AllPolicies       *bool               `json:"allPolicies,omitempty"`
+	Match             ExceptionMatchInput `json:"match"`
+	Duration          string              `json:"duration"`
+	RetainAfterExpiry *string             `json:"retainAfterExpiry,omitempty"`
+	Reason            string              `json:"reason"`
+	Name              *string             `json:"name,omitempty"`
+	ResourceVersion   *string             `json:"resourceVersion,omitempty"`
+	AllClusters       *bool               `json:"allClusters,omitempty"`
+	ClusterNames      []string            `json:"clusterNames"`
+}
+
+func (r *ExceptionInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode exception request: expected object")
+	}
+	required := map[string]bool{"match": false, "duration": false, "reason": false}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "policyRefs":
+			r.PolicyRefs = nil
+			err = decodeNonNullJSON(raw, "policyRefs", &r.PolicyRefs)
+		case "policyGroupRefs":
+			r.PolicyGroupRefs = nil
+			err = decodeNonNullJSON(raw, "policyGroupRefs", &r.PolicyGroupRefs)
+		case "allPolicies":
+			err = decodeOptionalNonNullJSON(raw, "allPolicies", &r.AllPolicies)
+		case "match":
+			required["match"] = true
+			err = decodeNonNullJSON(raw, "match", &r.Match)
+		case "duration":
+			required["duration"] = true
+			err = decodeNonNullJSON(raw, "duration", &r.Duration)
+		case "retainAfterExpiry":
+			err = decodeOptionalNonNullJSON(raw, "retainAfterExpiry", &r.RetainAfterExpiry)
+		case "reason":
+			required["reason"] = true
+			err = decodeNonNullJSON(raw, "reason", &r.Reason)
+		case "name":
+			err = decodeOptionalNonNullJSON(raw, "name", &r.Name)
+		case "resourceVersion":
+			err = decodeOptionalNonNullJSON(raw, "resourceVersion", &r.ResourceVersion)
+		case "allClusters":
+			err = decodeOptionalNonNullJSON(raw, "allClusters", &r.AllClusters)
+		case "clusterNames":
+			r.ClusterNames = nil
+			err = decodeNonNullJSON(raw, "clusterNames", &r.ClusterNames)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	for _, field := range []string{"match", "duration", "reason"} {
+		if !required[field] {
+			return fmt.Errorf("%s: field is required", field)
+		}
+	}
+	return nil
+}
+
+func decodeOptionalNonNullJSON[T any](data json.RawMessage, field string, dst **T) error {
+	var value T
+	if err := decodeNonNullJSON(data, field, &value); err != nil {
+		return err
+	}
+	*dst = &value
+	return nil
 }
 
 // ExceptionPath describes the name path parameter shared by exception detail operations.
@@ -61,22 +133,52 @@ type ExceptionPath struct {
 	Name string `uri:"name" binding:"required"`
 }
 
-// SwagExceptionMatch is the Swagger-only representation of the stable exception match JSON shape.
-type SwagExceptionMatch struct {
+type ExceptionMatchInput struct {
 	Namespaces        []string           `json:"namespaces,omitempty"`
 	NamespaceSelector *LabelSelectorView `json:"namespaceSelector,omitempty"`
 	ResourceSelector  *LabelSelectorView `json:"resourceSelector,omitempty"`
 }
 
+func (m *ExceptionMatchInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode exception match: expected object")
+	}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "namespaces":
+			m.Namespaces = nil
+			err = decodeNonNullJSON(raw, "namespaces", &m.Namespaces)
+		case "namespaceSelector":
+			err = decodeOptionalNonNullJSON(raw, "namespaceSelector", &m.NamespaceSelector)
+		case "resourceSelector":
+			err = decodeOptionalNonNullJSON(raw, "resourceSelector", &m.ResourceSelector)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	_, err := decoder.Token()
+	return err
+}
+
 // SwagExceptionSpec is the Swagger-only representation of the stable exception request JSON shape.
 type SwagExceptionSpec struct {
-	PolicyRefs        []string           `json:"policyRefs,omitempty"`
-	PolicyGroupRefs   []string           `json:"policyGroupRefs,omitempty"`
-	AllPolicies       *bool              `json:"allPolicies,omitempty"`
-	Match             SwagExceptionMatch `json:"match" binding:"required"`
-	Duration          string             `json:"duration" binding:"required"`
-	RetainAfterExpiry *string            `json:"retainAfterExpiry,omitempty"`
-	Reason            string             `json:"reason" binding:"required"`
+	PolicyRefs        []string            `json:"policyRefs,omitempty"`
+	PolicyGroupRefs   []string            `json:"policyGroupRefs,omitempty"`
+	AllPolicies       *bool               `json:"allPolicies,omitempty"`
+	Match             ExceptionMatchInput `json:"match" binding:"required"`
+	Duration          string              `json:"duration" binding:"required"`
+	RetainAfterExpiry *string             `json:"retainAfterExpiry,omitempty"`
+	Reason            string              `json:"reason" binding:"required"`
 }
 
 // SwagExceptionInput extends the exception spec with Console-only request fields.
