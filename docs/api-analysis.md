@@ -10,11 +10,12 @@
 | Gateway | `api/proto/gateway/v1/gateway.proto` | 5 RPCs: `Register`, `Sync`, `Connect`, `NotifyChange`, `Dispatch` | No |
 | Member cluster | `charts/kubesentry/crds/{policy,policygroup,exception,policyversion}.yaml` | 4 CRDs | No |
 
-Swag generates `api/swagger/swagger.yaml`; the normalized OAS3 document is a
-reproducible derivative. The legacy `api/console/console-api.yaml` remains only
-as a reviewed compatibility baseline and temporary frontend input. The obsolete
-`api/internal/gateway.yaml` was removed because its probes were not a browser
-contract and duplicated the protobuf streaming boundary.
+Swag generates `api/swagger/swagger.yaml`; the normalized
+`internal/console/openapi_bundle.json` OAS3 document is a reproducible
+derivative and the frontend type-generation input. The retired OpenAPI-first
+fragments are no longer contract inputs. The obsolete `api/internal/gateway.yaml`
+was removed because its probes were not a browser contract and duplicated the
+protobuf streaming boundary.
 
 ## Console operation inventory
 
@@ -52,5 +53,5 @@ registrations.
 - `bearerAuth` is reserved documentation only; Console has no auth middleware.
 - Gateway probes are operational, not public Console routes; gRPC/mTLS/shared-token semantics stay with protobuf and deployment docs.
 - CRDs are not copied into OpenAPI: Kubernetes API/RBAC owns their trust boundary and Gateway owns zero CRDs.
-- `make api-lint` validates the compatibility baseline, 50-route coverage, bundle and TypeScript drift, protobuf parsing, and Helm CRD rendering without rewriting committed artifacts. `make swagger-check` validates the Swag-derived chain.
+- `make api-lint` validates 50-route coverage, bundle and TypeScript drift, protobuf parsing, and Helm CRD rendering without rewriting committed artifacts. `make swagger-check` validates the Swag-derived chain.
 - Full verification additionally runs Go format/vet/tests/build, frontend test/build, Helm lint/template, and final Git diff review.
