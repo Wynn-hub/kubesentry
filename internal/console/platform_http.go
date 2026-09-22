@@ -67,7 +67,7 @@ func registerPlatformRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeGenericErrorResponse(w, response, err, http.StatusInternalServerError)
 	})
 	mux.HandleFunc("PUT /api/v1/platform/settings", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.PlatformSettingsRequest
+		var body dto.PlatformSettingsInput
 		if !decodeJSON(w, r, "UpdatePlatformSettings", &body) {
 			return
 		}

@@ -87,7 +87,7 @@ func TestPlatformHandlerMapsSettingsValidationError(t *testing.T) {
 	platform := service.NewPlatformService(repo, platformClusterRepository{}, nil)
 	h := handler.New(service.Services{Platform: platform})
 
-	result, err := h.UpdatePlatformSettings(context.Background(), &dto.PlatformSettingsRequest{Enabled: true, RetentionDays: 30})
+	result, err := h.UpdatePlatformSettings(context.Background(), &dto.PlatformSettingsInput{Enabled: true, RetentionDays: 30})
 	if err != nil {
 		t.Fatal(err)
 	}

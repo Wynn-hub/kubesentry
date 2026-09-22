@@ -1,6 +1,11 @@
 package dto
 
-import "time"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"time"
+)
 
 type (
 	PlatformOverviewOptions struct {
@@ -135,6 +140,41 @@ type (
 		RetentionDays int  `json:"retentionDays" binding:"required" minimum:"1"`
 	}
 )
+
+func (r *PlatformSettingsInput) UnmarshalJSON(data []byte) error {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(data, &object); err != nil {
+		return err
+	}
+	enabled, ok := object["enabled"]
+	if !ok {
+		return fmt.Errorf("enabled: field is required")
+	}
+	if bytes.Equal(bytes.TrimSpace(enabled), []byte("null")) {
+		return fmt.Errorf("enabled: must be a boolean")
+	}
+	if err := json.Unmarshal(enabled, &r.Enabled); err != nil {
+		return fmt.Errorf("enabled: %w", err)
+	}
+	retentionDays, ok := object["retentionDays"]
+	if !ok {
+		return fmt.Errorf("retentionDays: field is required")
+	}
+	if bytes.Equal(bytes.TrimSpace(retentionDays), []byte("null")) {
+		return fmt.Errorf("retentionDays: must be an integer")
+	}
+	if err := json.Unmarshal(retentionDays, &r.RetentionDays); err != nil {
+		return fmt.Errorf("retentionDays: %w", err)
+	}
+	return nil
+}
+
+func (r *PlatformSettingsInput) Validate() error {
+	if r.RetentionDays < 1 {
+		return fmt.Errorf("retentionDays: must be at least 1")
+	}
+	return nil
+}
 
 type PlatformOverviewHTTPResponse struct {
 	Code    int                  `json:"code"`

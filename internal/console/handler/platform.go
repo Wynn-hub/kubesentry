@@ -143,8 +143,8 @@ func (h *Handler) GetPlatformSettings(ctx context.Context) (dto.GetPlatformSetti
 // @Failure 400 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /platform/settings [put]
-func (h *Handler) UpdatePlatformSettings(ctx context.Context, req *dto.PlatformSettingsRequest) (dto.UpdatePlatformSettingsRes, error) {
-	data, err := h.svcs.Platform.UpdateSettings(ctx, dto.PlatformSettingsInput{Enabled: req.Enabled, RetentionDays: req.RetentionDays})
+func (h *Handler) UpdatePlatformSettings(ctx context.Context, req *dto.PlatformSettingsInput) (dto.UpdatePlatformSettingsRes, error) {
+	data, err := h.svcs.Platform.UpdateSettings(ctx, *req)
 	if err != nil {
 		var validation *service.ValidationError
 		if errors.As(err, &validation) {
