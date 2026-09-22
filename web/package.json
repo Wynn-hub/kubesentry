@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "test": "vitest run",
-    "generate:api": "openapi-typescript ../api/console/console-api.yaml -o src/api/generated/console-api.ts"
+    "generate:api": "openapi-typescript ../internal/console/openapi_bundle.json -o src/api/generated/console-api.ts"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

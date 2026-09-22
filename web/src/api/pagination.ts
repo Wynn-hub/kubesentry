@@ -5,9 +5,7 @@ export interface PageResult<T> {
   pageSize: number
 }
 
-import type { components } from './generated/console-api'
-
-type PageQuery = Pick<components['schemas']['PageMeta'], 'page' | 'pageSize'>
+type PageQuery = { page: number; pageSize: 10 | 20 | 50 | 100 }
 export type PageFetcher<T> = (params: PageQuery) => Promise<PageResult<T>>
 
 const collectionPageSize = 100

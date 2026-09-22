@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { apiClient } from '../generated/client'
-import type { components } from '../generated/console-api'
 import { ApiError, extract, unwrap } from '../http'
 
 // An arbitrary API path must never cross the browser transport boundary.
@@ -18,10 +17,10 @@ function assertOperationResultMatchesExtractOperation() {
 
 describe('unwrap', () => {
   it('extracts generated operation data when code is 0', () => {
-    const response: components['schemas']['ClusterListResponse'] = {
+    const response = {
       code: 0,
       message: 'success',
-      data: { items: [], total: 0, page: 1, pageSize: 20 },
+      data: { items: [], total: 0, page: 1, pageSize: 20 as const },
     }
     expect(unwrap<'listClusters'>(200, response, 'x')).toEqual(response.data)
   })

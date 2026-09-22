@@ -1,6 +1,6 @@
 import type { components } from '../api/generated/console-api'
 
-export type PolicyRefOut = components['schemas']['PolicyRef']
+export type PolicyRefOut = components['schemas']['dto.PolicyRefInput']
 
 export interface ComputeMembershipInput {
   initialResolvedNames: string[]

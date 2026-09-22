@@ -1,6 +1,5 @@
 import { computed, watch, type ComputedRef } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
-import type { components } from '../api/generated/console-api'
 
 export type SortOrder = 'asc' | 'desc'
 
@@ -83,7 +82,7 @@ export function buildListStateQuery(
 
 type GeneratedListQuery = {
   page?: number
-  pageSize?: components['schemas']['PageMeta']['pageSize']
+  pageSize?: 10 | 20 | 50 | 100
   sortBy?: string
   sortOrder?: SortOrder
 }
@@ -91,7 +90,7 @@ type GeneratedListQuery = {
 export function listStateParams<Query extends GeneratedListQuery>(state: ListState): Query {
   return {
     page: state.page,
-    pageSize: state.pageSize as components['schemas']['PageMeta']['pageSize'],
+    pageSize: state.pageSize as 10 | 20 | 50 | 100,
     sortBy: state.sortBy,
     sortOrder: state.sortOrder,
   } as Query

@@ -1,7 +1,7 @@
 import type { PathSegment } from './ruleGroupCodegen'
 import type { components } from '../api/generated/console-api'
 
-export type FieldNode = components['schemas']['FieldNode']
+export type FieldNode = components['schemas']['dto.FieldNodeView']
 const fieldTypes = ['string', 'integer', 'number', 'boolean', 'array', 'object'] as const
 
 function isFieldType(value: string): value is FieldNode['type'] {

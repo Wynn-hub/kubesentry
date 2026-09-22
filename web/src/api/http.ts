@@ -11,7 +11,7 @@ export type OperationData<Operation extends keyof operations> =
 type GeneratedClientResult<Operation extends keyof operations> = {
   response: Response
   data?: OperationResponse<Operation>
-  error?: components['schemas']['ErrorResponse']
+  error?: components['schemas']['dto.SwagErrorResponse']
 }
 
 export class ApiError extends Error {
@@ -19,8 +19,8 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: number,
-    public data?: components['schemas']['ErrorResponse']['data'],
-    public details?: components['schemas']['ErrorResponse']['details'],
+    public data?: components['schemas']['dto.SwagErrorResponse']['data'],
+    public details?: components['schemas']['dto.SwagErrorResponse']['details'],
   ) {
     super(message)
     this.name = 'ApiError'
@@ -31,14 +31,14 @@ export class ApiError extends Error {
 // code 50000 is still an error, so the code is checked rather than the status.
 export function unwrap<Operation extends keyof operations>(
   status: number,
-  env: OperationResponse<Operation> | components['schemas']['ErrorResponse'] | undefined,
+  env: OperationResponse<Operation> | components['schemas']['dto.SwagErrorResponse'] | undefined,
   fallbackMsg: string,
 ): OperationData<Operation> {
   const envelope = env as { code?: number; message?: string } | undefined
   if (envelope?.code === 0) {
     return (env as OperationResponse<Operation> & { data?: OperationData<Operation> }).data as OperationData<Operation>
   }
-  const error = env as components['schemas']['ErrorResponse'] | undefined
+  const error = env as components['schemas']['dto.SwagErrorResponse'] | undefined
   throw new ApiError(status, envelope?.message ?? fallbackMsg, envelope?.code, error?.data, error?.details)
 }
 

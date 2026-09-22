@@ -2,12 +2,12 @@ import { apiClient } from './generated/client'
 import type { components, operations } from './generated/console-api'
 import { extract } from './http'
 
-export type DistributionClusters = NonNullable<components['schemas']['DistributionSpec']['clusters']>
-export type DistributionOverride = NonNullable<components['schemas']['DistributionSpec']['overrides']>[number]
-export type PolicyDistributionSpec = components['schemas']['DistributionSpec']
-export type DistributionListItem = components['schemas']['DistributionListItem']
-export type DistributionDetail = components['schemas']['DistributionDetail']
-export type DistributionRequest = components['schemas']['DistributionRequest']
+export type DistributionClusters = NonNullable<components['schemas']['dto.DistributionSpecView']['clusters']>
+export type DistributionOverride = NonNullable<components['schemas']['dto.DistributionSpecView']['overrides']>[number]
+export type PolicyDistributionSpec = components['schemas']['dto.DistributionSpecView']
+export type DistributionListItem = components['schemas']['dto.DistributionItem']
+export type DistributionDetail = components['schemas']['dto.DistributionView']
+export type DistributionRequest = components['schemas']['dto.DistributionInput']
 export type ListDistributionsQuery = NonNullable<operations['listDistributions']['parameters']['query']>
 
 export const listDistributions = (params: ListDistributionsQuery = {}) =>

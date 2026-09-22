@@ -4,6 +4,130 @@
  */
 
 export interface paths {
+    "/admission-event-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 获取准入事件设置
+         * @description 查询准入事件留存、重试、队列和存储策略配置。
+         */
+        get: operations["getAdmissionEventSettings"];
+        /**
+         * 更新准入事件设置
+         * @description 更新准入事件留存、重试、队列和存储策略配置。
+         */
+        put: operations["updateAdmissionEventSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admission-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 分页查询准入事件
+         * @description 按集群、判决、策略、命名空间和资源条件分页检索准入事件。
+         */
+        get: operations["listAdmissionEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admission-events/trend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 查询准入事件趋势
+         * @description 按时间范围返回准入事件的 audit/deny 趋势数据。
+         */
+        get: operations["getAdmissionEventTrend"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admission-events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 查询准入事件详情
+         * @description 查询准入事件及其原始 metadata/spec 快照。
+         */
+        get: operations["getAdmissionEvent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admission-link-incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 分页查询准入链路异常
+         * @description 按集群、组件、原因和状态检索准入事件链路异常。
+         */
+        get: operations["listAdmissionLinkIncidents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admission-link-incidents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 查询准入链路异常详情
+         * @description 查询单条准入事件链路异常及其样本事件。
+         */
+        get: operations["getAdmissionLinkIncident"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/clusters": {
         parameters: {
             query?: never;
@@ -32,10 +156,7 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @description 集群名称 */
-                name: components["parameters"]["ClusterName"];
-            };
+            path?: never;
             cookie?: never;
         };
         /**
@@ -59,26 +180,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/clusters/{name}/reissue-token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 重新签发集群令牌
-         * @description 为尚未完成注册的集群重新签发一次性安装令牌。
-         */
-        post: operations["reissueClusterToken"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/clusters/{name}/latest-install-params": {
         parameters: {
             query?: never;
@@ -93,6 +194,26 @@ export interface paths {
         get: operations["getLatestInstallParams"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clusters/{name}/reissue-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 重新签发集群令牌
+         * @description 为尚未完成注册的集群重新签发一次性安装令牌。
+         */
+        post: operations["reissueClusterToken"];
         delete?: never;
         options?: never;
         head?: never;
@@ -159,26 +280,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/install-records": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查询安装记录
-         * @description 分页查询平台生成的集群安装参数记录。
-         */
-        get: operations["listInstallRecords"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/distributions": {
         parameters: {
             query?: never;
@@ -207,10 +308,7 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @description 策略分发名称 */
-                name: components["parameters"]["DistributionName"];
-            };
+            path?: never;
             cookie?: never;
         };
         /**
@@ -234,7 +332,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/platform/overview": {
+    "/exceptions": {
         parameters: {
             query?: never;
             header?: never;
@@ -242,10 +340,62 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 获取平台运行概览
-         * @description 查询控制面和成员集群的组件健康、实例和资源摘要。
+         * 分页查询策略例外
+         * @description 分页查询策略例外及其生效状态。
          */
-        get: operations["getPlatformOverview"];
+        get: operations["listExceptions"];
+        put?: never;
+        /**
+         * 创建策略例外
+         * @description 创建针对资源、命名空间或集群范围的策略例外。
+         */
+        post: operations["createException"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exceptions/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 查询策略例外详情
+         * @description 查询策略例外的匹配条件、作用范围和过期时间。
+         */
+        get: operations["getException"];
+        /**
+         * 更新策略例外
+         * @description 更新策略例外的匹配条件和作用范围。
+         */
+        put: operations["updateException"];
+        post?: never;
+        /**
+         * 删除策略例外
+         * @description 删除指定策略例外。
+         */
+        delete: operations["deleteException"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/install-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 查询安装记录
+         * @description 分页查询平台生成的集群安装参数记录。
+         */
+        get: operations["listInstallRecords"];
         put?: never;
         post?: never;
         delete?: never;
@@ -294,6 +444,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/platform/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 获取平台运行概览
+         * @description 查询控制面和成员集群的组件健康、实例和资源摘要。
+         */
+        get: operations["getPlatformOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/platform/settings": {
         parameters: {
             query?: never;
@@ -318,170 +488,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/schema/fields": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 获取 Kubernetes 资源字段树
-         * @description 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。
-         */
-        get: operations["getFieldSchema"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 获取平台资源摘要
-         * @description 查询策略、策略组、例外和集群的汇总数量。
-         */
-        get: operations["getSummary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admission-events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 分页查询准入事件
-         * @description 按集群、判决、策略、命名空间和资源条件分页检索准入事件。
-         */
-        get: operations["listAdmissionEvents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admission-events/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查询准入事件详情
-         * @description 查询准入事件及其原始 metadata/spec 快照。
-         */
-        get: operations["getAdmissionEvent"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admission-events/trend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查询准入事件趋势
-         * @description 按时间范围返回准入事件的 audit/deny 趋势数据。
-         */
-        get: operations["getAdmissionEventTrend"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admission-event-settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 获取准入事件设置
-         * @description 查询准入事件留存、重试、队列和存储策略配置。
-         */
-        get: operations["getAdmissionEventSettings"];
-        /**
-         * 更新准入事件设置
-         * @description 更新准入事件留存、重试、队列和存储策略配置。
-         */
-        put: operations["updateAdmissionEventSettings"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admission-link-incidents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 分页查询准入链路异常
-         * @description 按集群、组件、原因和状态检索准入事件链路异常。
-         */
-        get: operations["listAdmissionLinkIncidents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admission-link-incidents/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查询准入链路异常详情
-         * @description 查询单条准入事件链路异常及其样本事件。
-         */
-        get: operations["getAdmissionLinkIncident"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/policies": {
         parameters: {
             query?: never;
@@ -490,18 +496,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 分页查询策略列表
-         * @description 按名称、来源、执行模式、编译状态筛选并分页返回策略。
-         *     phase、mode、source 三个参数支持逗号分隔的多值，同字段内取 OR。
-         *
+         * List policies
+         * @description List policies with pagination, sorting, and filters.
          */
         get: operations["listPolicies"];
         put?: never;
         /**
          * 创建策略
-         * @description 创建策略并同时写入 v1 版本快照，两者在同一事务内提交。
-         *     Rego 在写库前同步编译校验，编译失败返回 40000 且不落库。
-         *
+         * @description 创建策略并同时写入 v1 版本快照，两者在同一事务内提交。Rego 在写库前同步编译校验，编译失败返回 40000 且不落库。
          */
         post: operations["createPolicy"];
         delete?: never;
@@ -519,9 +521,7 @@ export interface paths {
         };
         /**
          * 查询资源建议
-         * @description 聚合所有策略 match 中用过的 apiGroups / apiVersions / resources 并去重排序，
-         *     供前端可视化编辑器的下拉建议使用。不读取 rego 字段以避免传输大字段。
-         *
+         * @description 聚合所有策略 match 中用过的 apiGroups / apiVersions / resources 并去重排序，供前端可视化编辑器的下拉建议使用。不读取 rego 字段以避免传输大字段。
          */
         get: operations["getResourceSuggestions"];
         put?: never;
@@ -543,9 +543,7 @@ export interface paths {
         put?: never;
         /**
          * 校验 Rego 源码
-         * @description 只做 Rego 编译校验，不落库、不校验其他字段。
-         *     编译通过返回 code 0 且无 data，失败返回 40000 并在 message 中给出编译器原文。
-         *
+         * @description 只做 Rego 编译校验，不落库、不校验其他字段。编译通过返回 code 0 且无 data，失败返回 40000 并在 message 中给出编译器原文。
          */
         post: operations["validatePolicyRego"];
         delete?: never;
@@ -568,20 +566,35 @@ export interface paths {
         get: operations["getPolicy"];
         /**
          * 更新策略
-         * @description 更新策略并追加新版本快照，两者在同一事务内提交。
-         *     labels 与现有值合并；annotations 中值为空字符串的键表示删除。
-         *     提供 resourceVersion 时做比较并交换，不匹配返回 40900。
-         *
+         * @description 更新策略并追加新版本快照，两者在同一事务内提交。labels 与现有值合并；annotations 中值为空字符串的键表示删除。提供 resourceVersion 时做比较并交换，不匹配返回 40900。
          */
         put: operations["updatePolicy"];
         post?: never;
         /**
          * 删除策略
-         * @description 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy 列出引用方。
-         *     force=true 跳过该检查强制删除。
-         *
+         * @description 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy 列出引用方。force=true 跳过该检查强制删除。
          */
         delete: operations["deletePolicy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/policies/{name}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 回滚策略到上一版本
+         * @description 以追加新版本的方式回滚（roll-forward），类似 git revert，不修改历史。direction 为 next 恒返回 40000。已在最早版本时返回 40000。目标版本快照已被保留策略清理时返回 41000。
+         */
+        post: operations["rollbackPolicy"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -601,29 +614,6 @@ export interface paths {
         get: operations["listPolicyVersions"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/policies/{name}/rollback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 回滚策略到上一版本
-         * @description 以追加新版本的方式回滚（roll-forward），类似 git revert，不修改历史。
-         *     direction 为 next 恒返回 40000。已在最早版本时返回 40000。
-         *     目标版本快照已被保留策略清理时返回 41000。
-         *
-         */
-        post: operations["rollbackPolicy"];
         delete?: never;
         options?: never;
         head?: never;
@@ -702,7 +692,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/exceptions": {
+    "/schema/fields": {
         parameters: {
             query?: never;
             header?: never;
@@ -710,23 +700,19 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 分页查询策略例外
-         * @description 分页查询策略例外及其生效状态。
+         * 获取 Kubernetes 资源字段树
+         * @description 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。
          */
-        get: operations["listExceptions"];
+        get: operations["getFieldSchema"];
         put?: never;
-        /**
-         * 创建策略例外
-         * @description 创建针对资源、命名空间或集群范围的策略例外。
-         */
-        post: operations["createException"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/exceptions/{name}": {
+    "/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -734,21 +720,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 查询策略例外详情
-         * @description 查询策略例外的匹配条件、作用范围和过期时间。
+         * 获取平台资源摘要
+         * @description 查询策略、策略组、例外和集群的汇总数量。
          */
-        get: operations["getException"];
-        /**
-         * 更新策略例外
-         * @description 更新策略例外的匹配条件和作用范围。
-         */
-        put: operations["updateException"];
+        get: operations["getSummary"];
+        put?: never;
         post?: never;
-        /**
-         * 删除策略例外
-         * @description 删除指定策略例外。
-         */
-        delete: operations["deleteException"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -758,2378 +736,1181 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        Envelope: {
-            /**
-             * @description 业务码。0 表示成功，非 0 为 HTTP status code 乘以 100
-             * @example 0
-             */
+        "dto.AdmissionEventDetailView": {
+            apiGroup: string;
+            apiVersion: string;
+            clusterName: string;
+            eventId: string;
+            id: string;
+            metadataSnapshot: Record<string, never>;
+            namespace: string;
+            /** Format: date-time */
+            occurredAt: string;
+            operation: string;
+            policyGroupNames: string[];
+            policyNames: string[];
+            requestUid: string;
+            resource: string;
+            resourceName: string;
+            specSnapshot: Record<string, never>;
+            storagePolicyVersion: string;
+            userGroups: string[];
+            username: string;
+            /** @enum {string} */
+            verdict: "audit" | "deny";
+            violations: string[];
+        };
+        "dto.AdmissionEventItemView": {
+            apiGroup: string;
+            apiVersion: string;
+            clusterName: string;
+            eventId: string;
+            id: string;
+            namespace: string;
+            /** Format: date-time */
+            occurredAt: string;
+            operation: string;
+            policyNames: string[];
+            resource: string;
+            resourceName: string;
+            username: string;
+            /** @enum {string} */
+            verdict: "audit" | "deny";
+            violations: string[];
+        };
+        "dto.AdmissionEventPageView": {
+            items: components["schemas"]["dto.AdmissionEventItemView"][];
+            page: number;
+            /** @enum {integer} */
+            pageSize: 10 | 20 | 50 | 100;
+            total: number;
+        };
+        "dto.AdmissionSettingsInput": {
+            defaultRetentionDays: number;
+            incidentRetentionDays?: number;
+            maxRetryAttempts?: number;
+            observationEnabled?: boolean;
+            queueCapacity?: number;
+            retryEnabled?: boolean;
+            storagePolicies?: components["schemas"]["dto.AdmissionStoragePolicyView"][];
+        };
+        "dto.AdmissionSettingsView": {
+            defaultRetentionDays: number;
+            incidentRetentionDays: number;
+            maxRetryAttempts: number;
+            observationEnabled: boolean;
+            queueCapacity: number;
+            retryEnabled: boolean;
+            storagePolicies: components["schemas"]["dto.AdmissionStoragePolicyView"][];
+            /** Format: int64 */
+            storagePolicyVersion: number;
+        };
+        "dto.AdmissionStoragePolicyView": {
+            clusters: string[];
+            gvks: string[];
+            /** @enum {string} */
+            matchMode: "include" | "exclude";
+            namespaces: string[];
+            verdicts: ("audit" | "deny")[];
+        };
+        "dto.AdmissionTrendItemView": {
+            /** Format: date-time */
+            bucket: string;
+            /** Format: int64 */
+            count: number;
+            /** @enum {string} */
+            verdict: "audit" | "deny";
+        };
+        "dto.ClusterCommandView": {
+            command: string;
+            name: string;
+        };
+        "dto.ClusterCreateInput": {
+            installParams: components["schemas"]["dto.ClusterInstallInput"];
+            labels?: {
+                [key: string]: string;
+            };
+            name: string;
+        };
+        "dto.ClusterImageInput": {
+            /** @enum {string} */
+            pullPolicy: "Always" | "IfNotPresent" | "Never";
+            repository: string;
+            tag: string;
+        };
+        "dto.ClusterInstallInput": {
+            gatewayAddress: string;
+            gatewayCaBundle?: string;
+            gatewayTlsServerName?: string;
+            highAvailability: boolean;
+            namespace: string;
+            operatorImage: components["schemas"]["dto.ClusterImageInput"];
+            webhookImage: components["schemas"]["dto.ClusterImageInput"];
+        };
+        "dto.ClusterItem": {
+            /** Format: date-time */
+            createdAt: string;
+            kubernetesVersion: string;
+            /** Format: date-time */
+            lastHeartbeatAt?: string;
+            name: string;
+            nodeCount: number;
+            operatorVersion: string;
+            /** @enum {string} */
+            phase: "Registering" | "Online" | "Offline" | "Uninstalling" | "Uninstalled";
+            readyNodeCount: number;
+        };
+        "dto.ClusterLabelsInput": {
+            labels: {
+                [key: string]: string;
+            };
+        };
+        "dto.ClusterNameView": {
+            name: string;
+        };
+        "dto.ClusterPageView": {
+            items: components["schemas"]["dto.ClusterItem"][];
+            page: number;
+            /** @enum {integer} */
+            pageSize: 10 | 20 | 50 | 100;
+            total: number;
+        };
+        "dto.ClusterTokenInput": {
+            installParams: components["schemas"]["dto.ClusterInstallInput"];
+        };
+        "dto.ClusterView": {
+            apiServerAddress: string;
+            clusterUid: string;
+            /** Format: date-time */
+            createdAt: string;
+            kubernetesVersion: string;
+            labels: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            lastHeartbeatAt?: string;
+            name: string;
+            nodeCount: number;
+            operatorVersion: string;
+            /** @enum {string} */
+            phase: "Registering" | "Online" | "Offline" | "Uninstalling" | "Uninstalled";
+            readyNodeCount: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        "dto.DistributionClusters": {
+            byName?: string[];
+            clusterSelector?: components["schemas"]["dto.LabelSelectorView"];
+        };
+        "dto.DistributionInput": {
+            name?: string;
+            resourceVersion?: string;
+            spec: components["schemas"]["dto.DistributionSpecView"];
+        };
+        "dto.DistributionItem": {
+            name: string;
+            policyGroups: string[];
+        };
+        "dto.DistributionNameView": {
+            name: string;
+        };
+        "dto.DistributionOverride": {
+            cluster: string;
+            /** @enum {string} */
+            enforcementMode: "audit" | "enforce";
+        };
+        "dto.DistributionPageView": {
+            items: components["schemas"]["dto.DistributionItem"][];
+            page: number;
+            /** @enum {integer} */
+            pageSize: 10 | 20 | 50 | 100;
+            total: number;
+        };
+        "dto.DistributionSpecView": {
+            clusters?: components["schemas"]["dto.DistributionClusters"];
+            overrides?: components["schemas"]["dto.DistributionOverride"][];
+            policyExceptions?: string[];
+            policyGroups: string[];
+        };
+        "dto.DistributionView": {
+            name: string;
+            resourceVersion: string;
+            spec: components["schemas"]["dto.DistributionSpecView"];
+        };
+        "dto.EffectiveMemberView": {
+            /** @enum {string} */
+            enforcementMode: "enforce" | "audit";
+            name: string;
+            /** @enum {string} */
+            source: "builtin" | "custom";
+        };
+        "dto.ExceptionItem": {
+            duration: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            name: string;
+            /** @enum {string} */
+            phase: "Active" | "Expired";
+            reason: string;
+            targetSummary: string;
+        };
+        "dto.ExceptionMatchInput": {
+            namespaceSelector?: components["schemas"]["dto.LabelSelectorView"];
+            namespaces?: string[];
+            resourceSelector?: components["schemas"]["dto.LabelSelectorView"];
+        };
+        "dto.ExceptionNameView": {
+            name: string;
+        };
+        "dto.ExceptionPageView": {
+            items: components["schemas"]["dto.ExceptionItem"][];
+            page: number;
+            /** @enum {integer} */
+            pageSize: 10 | 20 | 50 | 100;
+            total: number;
+        };
+        "dto.ExceptionScopeView": {
+            allClusters: boolean;
+            clusterNames?: string[];
+        };
+        "dto.ExceptionStatusView": {
+            /** Format: date-time */
+            effectiveAt: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** @enum {string} */
+            phase: "Active" | "Expired";
+        };
+        "dto.FieldNodeView": {
+            children: components["schemas"]["dto.FieldNodeView"][];
+            isArray: boolean;
+            isMap: boolean;
+            mapValueType?: string;
+            name: string;
+            /** @enum {string} */
+            type: "string" | "integer" | "number" | "boolean" | "array" | "object";
+        };
+        "dto.IncidentItem": {
+            /** Format: int64 */
+            affectedCount: number;
+            clusterName: string;
+            /** @enum {string} */
+            component: "webhook" | "operator" | "gateway";
+            id: string;
+            /** Format: date-time */
+            lastSeenAt: string;
+            reason: string;
+            reporterInstanceId: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** @enum {string} */
+            status: "active" | "interrupted" | "closed";
+        };
+        "dto.IncidentPageView": {
+            items: components["schemas"]["dto.IncidentItem"][];
+            page: number;
+            /** @enum {integer} */
+            pageSize: 10 | 20 | 50 | 100;
+            total: number;
+        };
+        "dto.IncidentSampleView": {
+            eventDatabaseId?: string;
+            eventId: string;
+            expired: boolean;
+        };
+        "dto.IncidentView": {
+            /** Format: int64 */
+            affectedCount: number;
+            clusterName: string;
+            /** @enum {string} */
+            component: "webhook" | "operator" | "gateway";
+            detail: string;
+            id: string;
+            /** Format: date-time */
+            lastSeenAt: string;
+            reason: string;
+            reporterInstanceId: string;
+            samples: components["schemas"]["dto.IncidentSampleView"][];
+            /** Format: date-time */
+            startedAt: string;
+            /** @enum {string} */
+            status: "active" | "interrupted" | "closed";
+        };
+        "dto.InstallRecordItemView": {
+            clusterName: string;
+            /** Format: date-time */
+            createdAt: string;
+            gatewayAddress: string;
+            highAvailability: boolean;
+            namespace: string;
+            operatorRepository: string;
+            operatorTag: string;
+            webhookRepository: string;
+            webhookTag: string;
+        };
+        "dto.InstallRecordPageView": {
+            items: components["schemas"]["dto.InstallRecordItemView"][];
+            page: number;
+            /** @enum {integer} */
+            pageSize: 10 | 20 | 50 | 100;
+            total: number;
+        };
+        "dto.LabelSelectorRequirementView": {
+            key: string;
+            /** @enum {string} */
+            operator: "In" | "NotIn" | "Exists" | "DoesNotExist";
+            values?: string[];
+        };
+        "dto.LabelSelectorView": {
+            matchExpressions?: components["schemas"]["dto.LabelSelectorRequirementView"][];
+            matchLabels?: {
+                [key: string]: string;
+            };
+        };
+        "dto.MatchResourceInput": {
+            apiGroups: string[];
+            apiVersions: string[];
+            resources: string[];
+        };
+        "dto.PlatformClusterView": {
+            components: components["schemas"]["dto.PlatformComponentView"][];
+            /** @enum {string} */
+            health: "ok" | "degraded" | "unavailable";
+            name: string;
+            /** @enum {string} */
+            phase: "Registering" | "Online" | "Offline" | "Uninstalling";
+        };
+        "dto.PlatformComponentView": {
+            /** @enum {string} */
+            component: "gateway" | "postgres" | "console-api" | "console-web" | "operator" | "webhook";
+            hasLeadership: boolean;
+            /** @enum {string} */
+            health: "ok" | "degraded" | "unavailable" | "pending";
+            healthReason: string;
+            instances: components["schemas"]["dto.PlatformInstanceView"][];
+            /** Format: date-time */
+            lastLeadershipChange?: string;
+            noLeader: boolean;
+            singleReplica: boolean;
+        };
+        "dto.PlatformDatabaseStatsView": {
+            /** Format: double */
+            cacheHitRatio: number;
+            connections: number;
+            databaseBytes: number;
+            maxConnections: number;
+            poolIdle: number;
+            poolInUse: number;
+            poolWaitCount: number;
+            /** Format: double */
+            poolWaitSeconds: number;
+            rollbacks: number;
+            transactions: number;
+        };
+        "dto.PlatformInstanceView": {
+            cpuMillis: number;
+            dbStats?: components["schemas"]["dto.PlatformDatabaseStatsView"];
+            goroutines: number;
+            /** @enum {string} */
+            health: "ok" | "degraded" | "no_data";
+            healthReason: string;
+            heapAllocBytes: number;
+            heapSysBytes: number;
+            instance: string;
+            /** Format: date-time */
+            lastObservedAt: string;
+            memoryBytes: number;
+            memoryLimitBytes: number;
+            restartCount: number;
+            /** @enum {string} */
+            role: "leader" | "standby" | "none";
+            uptimeSeconds: number;
+        };
+        "dto.PlatformLeadershipEventView": {
+            /** Format: date-time */
+            changedAt: string;
+            clusterId: string;
+            clusterName: string;
+            component: string;
+            /** Format: date-time */
+            createdAt: string;
+            detectedBy: string;
+            id: string;
+            instance: string;
+            /** @enum {string} */
+            roleFrom: "leader" | "standby" | "none";
+            /** @enum {string} */
+            roleTo: "leader" | "standby" | "none";
+        };
+        "dto.PlatformLeadershipPageView": {
+            items: components["schemas"]["dto.PlatformLeadershipEventView"][];
+            page: number;
+            /** @enum {integer} */
+            pageSize: 10 | 20 | 50 | 100;
+            total: number;
+        };
+        "dto.PlatformMemberPlaneView": {
+            clusters: components["schemas"]["dto.PlatformClusterView"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        "dto.PlatformOverviewView": {
+            enabled: boolean;
+            gatewayPlane: components["schemas"]["dto.PlatformComponentView"][];
+            memberPlane: components["schemas"]["dto.PlatformMemberPlaneView"];
+            /** @enum {string} */
+            platformHealth: "ok" | "degraded" | "unavailable" | "disabled";
+        };
+        "dto.PlatformSettingsInput": {
+            enabled: boolean;
+            retentionDays: number;
+        };
+        "dto.PlatformSettingsView": {
+            enabled: boolean;
+            maxRetentionDays: number;
+            retentionDays: number;
+        };
+        "dto.PlatformTrendPointView": {
+            /** Format: date-time */
+            bucketStartedAt: string;
+            cpuUsageMicros: number;
+            gcPauseMicros: number;
+            goroutines: number;
+            memoryBytes: number;
+        };
+        "dto.PlatformTrendView": {
+            /** Format: date-time */
+            from: string;
+            items: components["schemas"]["dto.PlatformTrendPointView"][];
+            stepSeconds: number;
+            /** Format: date-time */
+            to: string;
+        };
+        "dto.PolicyGroupItem": {
+            displayName: string;
+            enabled: boolean;
+            name: string;
+            /** @enum {string} */
+            phase: "Ready" | "Invalid";
+            resolvedCount: number;
+            /** @enum {string} */
+            source: "builtin" | "custom";
+        };
+        "dto.PolicyGroupPageView": {
+            items: components["schemas"]["dto.PolicyGroupItem"][];
+            page: number;
+            /** @enum {integer} */
+            pageSize: 10 | 20 | 50 | 100;
+            total: number;
+        };
+        "dto.PolicyGroupPoliciesInput": {
+            byName?: components["schemas"]["dto.PolicyRefInput"][];
+            bySelector?: components["schemas"]["dto.LabelSelectorView"];
+            exclude?: string[];
+        };
+        "dto.PolicyGroupScopeView": {
+            allClusters: boolean;
+            clusterNames?: string[];
+        };
+        "dto.PolicyGroupStatusView": {
+            /** @enum {string} */
+            phase: "Ready" | "Invalid";
+            resolvedCount: number;
+            resolvedPolicies: components["schemas"]["dto.EffectiveMemberView"][];
+        };
+        "dto.PolicyMatchInput": {
+            operations: ("CREATE" | "UPDATE" | "DELETE" | "CONNECT")[];
+            resources: components["schemas"]["dto.MatchResourceInput"][];
+        };
+        "dto.PolicyNameView": {
+            name: string;
+        };
+        "dto.PolicyRefInput": {
+            /** @enum {string} */
+            enforcementMode?: "enforce" | "audit";
+            name: string;
+        };
+        "dto.SummaryGroupView": {
+            auditCount: number;
+            displayName: string;
+            enabled: boolean;
+            enforceCount: number;
+            name: string;
+            resolvedCount: number;
+        };
+        "dto.SummaryPhasesView": {
+            offline: number;
+            online: number;
+            registering: number;
+        };
+        "dto.SummaryView": {
+            clusterPhases: components["schemas"]["dto.SummaryPhasesView"];
+            groups: components["schemas"]["dto.SummaryGroupView"][];
+            totals: {
+                [key: string]: number;
+            };
+        };
+        "dto.SwagEmptyResponse": {
+            /** @example 0 */
             code: number;
-            /**
-             * @description 结果描述。成功时固定为 success
-             * @example success
-             */
+            /** @example success */
             message: string;
         };
-        PageMeta: {
-            /**
-             * @description 符合筛选条件的记录总数，不受分页限制
-             * @example 137
-             */
-            total: number;
-            /**
-             * @description 当前页码，从 1 开始
-             * @example 1
-             */
+        "dto.SwagErrorResponse": {
+            /** @example 40000 */
+            code: number;
+            data?: components["schemas"]["dto.SwagReferencedByData"];
+            details?: string[];
+            /** @example invalid request */
+            message: string;
+        };
+        "dto.SwagExceptionDetail": {
+            name: string;
+            resourceVersion: string;
+            scope: components["schemas"]["dto.ExceptionScopeView"];
+            spec: components["schemas"]["dto.SwagExceptionSpec"];
+            status: components["schemas"]["dto.ExceptionStatusView"];
+        };
+        "dto.SwagExceptionInput": {
+            allClusters?: boolean;
+            allPolicies?: boolean;
+            clusterNames?: string[];
+            duration: string;
+            match: components["schemas"]["dto.ExceptionMatchInput"];
+            name?: string;
+            policyGroupRefs?: string[];
+            policyRefs?: string[];
+            reason: string;
+            resourceVersion?: string;
+            retainAfterExpiry?: string;
+        };
+        "dto.SwagExceptionSpec": {
+            allPolicies?: boolean;
+            duration: string;
+            match: components["schemas"]["dto.ExceptionMatchInput"];
+            policyGroupRefs?: string[];
+            policyRefs?: string[];
+            reason: string;
+            retainAfterExpiry?: string;
+        };
+        "dto.SwagOptionalResponse": {
+            /** @example 0 */
+            code: number;
+            data?: unknown;
+            /** @example success */
+            message: string;
+        };
+        "dto.SwagPolicyDetail": {
+            annotations: {
+                [key: string]: string;
+            };
+            compileError?: string;
+            /** Format: date-time */
+            createdAt: string;
+            description: string;
+            /** @enum {string} */
+            enforcementMode: "enforce" | "audit";
+            labels: {
+                [key: string]: string;
+            };
+            match: components["schemas"]["dto.PolicyMatchInput"];
+            name: string;
+            /** @enum {string} */
+            phase: "Ready" | "Invalid";
+            referencedBy: string[];
+            rego: string;
+            resourceVersion: string;
+            /** @enum {string} */
+            source: "builtin" | "custom";
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        "dto.SwagPolicyGroupDetail": {
+            name: string;
+            resourceVersion: string;
+            scope: components["schemas"]["dto.PolicyGroupScopeView"];
+            /** @enum {string} */
+            source: "builtin" | "custom";
+            spec: components["schemas"]["dto.SwagPolicyGroupSpec"];
+            status: components["schemas"]["dto.PolicyGroupStatusView"];
+        };
+        "dto.SwagPolicyGroupEnabled": {
+            enabled: boolean;
+        };
+        "dto.SwagPolicyGroupEnabledInput": {
+            enabled: boolean;
+        };
+        "dto.SwagPolicyGroupInput": {
+            allClusters?: boolean;
+            clusterNames?: string[];
+            description?: string;
+            displayName?: string;
+            enabled: boolean;
+            name?: string;
+            namespaceSelector?: components["schemas"]["dto.LabelSelectorView"];
+            policies: components["schemas"]["dto.PolicyGroupPoliciesInput"];
+            resourceVersion?: string;
+            /** @enum {string} */
+            selectorEnforcementMode?: "enforce" | "audit";
+        };
+        "dto.SwagPolicyGroupName": {
+            name: string;
+        };
+        "dto.SwagPolicyGroupSpec": {
+            description?: string;
+            displayName?: string;
+            enabled: boolean;
+            namespaceSelector?: components["schemas"]["dto.LabelSelectorView"];
+            policies: components["schemas"]["dto.PolicyGroupPoliciesInput"];
+            /** @enum {string} */
+            selectorEnforcementMode?: "enforce" | "audit";
+        };
+        "dto.SwagPolicyInput": {
+            annotations?: {
+                [key: string]: string;
+            };
+            description?: string;
+            /** @enum {string} */
+            enforcementMode: "enforce" | "audit";
+            labels?: {
+                [key: string]: string;
+            };
+            match: components["schemas"]["dto.PolicyMatchInput"];
+            name?: string;
+            rego: string;
+            resourceVersion?: string;
+        };
+        "dto.SwagPolicyListData": {
+            items: components["schemas"]["dto.SwagPolicyListItem"][];
+            /** @example 1 */
             page: number;
             /**
-             * @description 每页记录数。仅接受 10、20、50、100
              * @example 20
              * @enum {integer}
              */
             pageSize: 10 | 20 | 50 | 100;
+            /** @example 137 */
+            total: number;
         };
-        /**
-         * @description 集群连接与卸载阶段
-         * @example Online
-         * @enum {string}
-         */
-        ClusterPhase: "Registering" | "Online" | "Offline" | "Uninstalling" | "Uninstalled";
-        ClusterListItem: {
-            /**
-             * @description 集群名称
-             * @example production-east
-             */
-            name: string;
-            phase: components["schemas"]["ClusterPhase"];
-            /**
-             * @description 成员 operator 版本
-             * @example v1.0.0
-             */
-            operatorVersion: string;
-            /**
-             * @description 成员 Kubernetes 版本
-             * @example v1.31.0
-             */
-            kubernetesVersion: string;
-            /**
-             * @description 上报的节点总数
-             * @example 12
-             */
-            nodeCount: number;
-            /**
-             * @description Ready 节点数量
-             * @example 11
-             */
-            readyNodeCount: number;
+        "dto.SwagPolicyListItem": {
             /**
              * Format: date-time
-             * @description 最近一次心跳时间
-             * @example 2026-08-24T08:00:00Z
-             */
-            lastHeartbeatAt?: string;
-            /**
-             * Format: date-time
-             * @description 登记创建时间
-             * @example 2026-08-24T07:00:00Z
+             * @example 2026-08-03T10:15:30Z
              */
             createdAt: string;
-        };
-        ClusterListResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["PageMeta"] & {
-                /**
-                 * @description 集群列表
-                 * @example [
-                 *       {
-                 *         "name": "production-east",
-                 *         "phase": "Online",
-                 *         "operatorVersion": "v1.0.0",
-                 *         "kubernetesVersion": "v1.31.0",
-                 *         "nodeCount": 12,
-                 *         "readyNodeCount": 11,
-                 *         "createdAt": "2026-08-24T07:00:00Z"
-                 *       }
-                 *     ]
-                 */
-                items: components["schemas"]["ClusterListItem"][];
-            };
-        };
-        /** @description 删除被引用资源时附带的引用方列表 */
-        ReferencedByData: {
+            /** @example Deny privileged containers */
+            description: string;
             /**
-             * @description 仍引用目标资源的对象名称
-             * @example [
-             *       "baseline-group"
-             *     ]
-             */
-            referencedBy: string[];
-        };
-        ErrorResponse: components["schemas"]["Envelope"] & {
-            /** @description 错误明细列表。参数校验失败时逐条列出问题字段 */
-            details?: string[];
-            data?: components["schemas"]["ReferencedByData"];
-        };
-        ImageParams: {
-            /**
-             * @description 容器镜像仓库
-             * @example ghcr.io/wynn-hub/kubesentry-webhook
-             */
-            repository: string;
-            /**
-             * @description 容器镜像标签
-             * @example v1.0.0
-             */
-            tag: string;
-            /**
-             * @description Kubernetes 镜像拉取策略
-             * @example IfNotPresent
-             * @enum {string}
-             */
-            pullPolicy: "Always" | "IfNotPresent" | "Never";
-        };
-        InstallParams: {
-            /**
-             * @description 安装的 Kubernetes 命名空间
-             * @example kubesentry-system
-             */
-            namespace: string;
-            webhookImage: components["schemas"]["ImageParams"];
-            operatorImage: components["schemas"]["ImageParams"];
-            /**
-             * @description 是否启用 webhook 和 operator 高可用
-             * @example true
-             */
-            highAvailability: boolean;
-            /**
-             * @description Gateway gRPC 服务地址
-             * @example kubesentry-gateway.default.svc:8443
-             */
-            gatewayAddress: string;
-            /**
-             * @description Gateway TLS 服务名称
-             * @example kubesentry-gateway
-             */
-            gatewayTlsServerName?: string;
-            /**
-             * @description Gateway CA PEM 内容
-             * @example -----BEGIN CERTIFICATE-----
-             */
-            gatewayCaBundle?: string;
-        };
-        ClusterCreateRequest: {
-            /**
-             * @description DNS 子域格式的集群名称
-             * @example production-east
-             */
-            name: string;
-            /**
-             * @description 控制台管理的集群标签映射
-             * @example {
-             *       "environment": "production"
-             *     }
-             */
-            labels?: {
-                [key: string]: string;
-            };
-            installParams: components["schemas"]["InstallParams"];
-        };
-        ClusterCommand: {
-            /**
-             * @description 已创建或重新签发令牌的集群名称
-             * @example production-east
-             */
-            name: string;
-            /**
-             * @description 含一次性登记令牌的 Helm 安装命令
-             * @example helm upgrade --install kubesentry charts/kubesentry
-             */
-            command: string;
-        };
-        ClusterCommandResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["ClusterCommand"];
-        };
-        ClusterDetail: {
-            /**
-             * @description 集群名称
-             * @example production-east
-             */
-            name: string;
-            /**
-             * @description Kubernetes 集群 UID
-             * @example 0f1e2d3c-4b5a-6978-9abc-def012345678
-             */
-            clusterUid: string;
-            phase: components["schemas"]["ClusterPhase"];
-            /**
-             * @description 成员 operator 版本
-             * @example v1.0.0
-             */
-            operatorVersion: string;
-            /**
-             * Format: date-time
-             * @description 最近一次心跳时间
-             * @example 2026-08-24T08:00:00Z
-             */
-            lastHeartbeatAt?: string;
-            /**
-             * @description 成员 Kubernetes 版本
-             * @example v1.31.0
-             */
-            kubernetesVersion: string;
-            /**
-             * @description 成员 API Server 地址
-             * @example https://10.0.0.1:6443
-             */
-            apiServerAddress: string;
-            /**
-             * @description 上报的节点总数
-             * @example 12
-             */
-            nodeCount: number;
-            /**
-             * @description Ready 节点数量
-             * @example 11
-             */
-            readyNodeCount: number;
-            /**
-             * @description 控制台管理的集群标签映射
-             * @example {
-             *       "environment": "production"
-             *     }
-             */
-            labels: {
-                [key: string]: string;
-            };
-            /**
-             * Format: date-time
-             * @description 登记创建时间
-             * @example 2026-08-24T07:00:00Z
-             */
-            createdAt: string;
-            /**
-             * Format: date-time
-             * @description 最近更新时间
-             * @example 2026-08-24T08:00:00Z
-             */
-            updatedAt: string;
-        };
-        ClusterDetailResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["ClusterDetail"];
-        };
-        ClusterLabelsRequest: {
-            /**
-             * @description 替换后的集群标签映射
-             * @example {
-             *       "environment": "production"
-             *     }
-             */
-            labels: {
-                [key: string]: string;
-            };
-        };
-        ClusterNameData: {
-            /**
-             * @description 操作目标集群名称
-             * @example production-east
-             */
-            name: string;
-        };
-        ClusterNameResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["ClusterNameData"];
-        };
-        EmptyResponse: components["schemas"]["Envelope"] & Record<string, never>;
-        ClusterTokenRequest: {
-            installParams: components["schemas"]["InstallParams"];
-        };
-        InstallParamsResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["InstallParams"];
-        };
-        /**
-         * @description Snowflake 生成的 64 位整数 ID，以字符串传输避免 JavaScript 数字精度丢失
-         * @example 7234567890123456789
-         */
-        ResourceID: string;
-        UninstallTask: {
-            id: components["schemas"]["ResourceID"];
-            /**
-             * @description 卸载任务状态
-             * @example Pending
-             * @enum {string}
-             */
-            status: "Pending" | "Received" | "Running" | "Succeeded" | "Failed";
-            /**
-             * @description 失败时的错误信息
-             * @example connection timed out
-             */
-            error?: string;
-            /**
-             * Format: date-time
-             * @description 任务请求时间
-             * @example 2026-08-24T08:00:00Z
-             */
-            requestedAt: string;
-            /**
-             * Format: date-time
-             * @description 任务完成时间
-             * @example 2026-08-24T08:05:00Z
-             */
-            completedAt?: string;
-        };
-        UninstallTaskResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["UninstallTask"];
-        };
-        UninstallTaskListResponse: components["schemas"]["Envelope"] & {
-            /**
-             * @description 集群的卸载任务列表
-             * @example []
-             */
-            data: components["schemas"]["UninstallTask"][];
-        };
-        UninstallTaskIDData: {
-            id: components["schemas"]["ResourceID"];
-        };
-        UninstallTaskIDResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["UninstallTaskIDData"];
-        };
-        InstallRecord: {
-            /**
-             * @description 关联的集群名称
-             * @example production-east
-             */
-            clusterName: string;
-            /**
-             * @description 安装命名空间
-             * @example kubesentry-system
-             */
-            namespace: string;
-            /**
-             * @description webhook 镜像仓库
-             * @example ghcr.io/wynn-hub/kubesentry-webhook
-             */
-            webhookRepository: string;
-            /**
-             * @description webhook 镜像标签
-             * @example v1.0.0
-             */
-            webhookTag: string;
-            /**
-             * @description operator 镜像仓库
-             * @example ghcr.io/wynn-hub/kubesentry-operator
-             */
-            operatorRepository: string;
-            /**
-             * @description operator 镜像标签
-             * @example v1.0.0
-             */
-            operatorTag: string;
-            /**
-             * @description 是否启用高可用
-             * @example true
-             */
-            highAvailability: boolean;
-            /**
-             * @description Gateway 地址
-             * @example kubesentry-gateway.default.svc:8443
-             */
-            gatewayAddress: string;
-            /**
-             * Format: date-time
-             * @description 安装记录创建时间
-             * @example 2026-08-24T07:00:00Z
-             */
-            createdAt: string;
-        };
-        InstallRecordListResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["PageMeta"] & {
-                /**
-                 * @description 安装记录列表
-                 * @example [
-                 *       {
-                 *         "clusterName": "production-east",
-                 *         "namespace": "kubesentry-system",
-                 *         "webhookRepository": "ghcr.io/wynn-hub/kubesentry-webhook",
-                 *         "webhookTag": "v1.0.0",
-                 *         "operatorRepository": "ghcr.io/wynn-hub/kubesentry-operator",
-                 *         "operatorTag": "v1.0.0",
-                 *         "highAvailability": true,
-                 *         "gatewayAddress": "kubesentry-gateway.default.svc:8443",
-                 *         "createdAt": "2026-08-24T07:00:00Z"
-                 *       }
-                 *     ]
-                 */
-                items: components["schemas"]["InstallRecord"][];
-            };
-        };
-        DistributionListItem: {
-            /**
-             * @description 策略分发名称
-             * @example production-baseline
-             */
-            name: string;
-            /**
-             * @description 分发的策略组名称
-             * @example [
-             *       "baseline"
-             *     ]
-             */
-            policyGroups: string[];
-        };
-        DistributionListResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["PageMeta"] & {
-                /**
-                 * @description 策略分发列表
-                 * @example [
-                 *       {
-                 *         "name": "production-baseline",
-                 *         "policyGroups": [
-                 *           "baseline"
-                 *         ]
-                 *       }
-                 *     ]
-                 */
-                items: components["schemas"]["DistributionListItem"][];
-            };
-        };
-        KubernetesLabelSelectorRequirement: {
-            /**
-             * @description Kubernetes 标签键
-             * @example environment
-             */
-            key: string;
-            /**
-             * @description 标签选择运算符
-             * @example In
-             * @enum {string}
-             */
-            operator: "In" | "NotIn" | "Exists" | "DoesNotExist";
-            /**
-             * @description In 或 NotIn 运算符使用的标签值
-             * @example [
-             *       "production"
-             *     ]
-             */
-            values?: string[];
-        };
-        /**
-         * @description Kubernetes LabelSelector，按标签精确值或表达式筛选资源
-         * @example {
-         *       "matchLabels": {
-         *         "environment": "production"
-         *       }
-         *     }
-         */
-        KubernetesLabelSelector: {
-            /**
-             * @description 精确匹配的标签映射
-             * @example {
-             *       "environment": "production"
-             *     }
-             */
-            matchLabels?: {
-                [key: string]: string;
-            };
-            /**
-             * @description 表达式形式的标签选择条件
-             * @example []
-             */
-            matchExpressions?: components["schemas"]["KubernetesLabelSelectorRequirement"][];
-        };
-        DistributionSpec: {
-            /**
-             * @description 要分发的策略组名称
-             * @example [
-             *       "baseline"
-             *     ]
-             */
-            policyGroups: string[];
-            /**
-             * @description 要分发的策略例外名称
-             * @example [
-             *       "emergency-maintenance"
-             *     ]
-             */
-            policyExceptions?: string[];
-            /**
-             * @description 集群范围，可按名称和标签选择器并集匹配
-             * @example {
-             *       "byName": [
-             *         "production-east"
-             *       ],
-             *       "clusterSelector": {
-             *         "matchLabels": {
-             *           "environment": "production"
-             *         }
-             *       }
-             *     }
-             */
-            clusters?: {
-                /**
-                 * @description 显式目标集群名称
-                 * @example [
-                 *       "production-east"
-                 *     ]
-                 */
-                byName?: string[];
-                clusterSelector?: components["schemas"]["KubernetesLabelSelector"];
-            };
-            /**
-             * @description 对单个集群覆盖策略组执行模式的规则
-             * @example []
-             */
-            overrides?: {
-                /**
-                 * @description 目标集群名称
-                 * @example production-east
-                 */
-                cluster: string;
-                /**
-                 * @description 覆盖的执行模式
-                 * @example enforce
-                 * @enum {string}
-                 */
-                enforcementMode: "audit" | "enforce";
-            }[];
-        };
-        DistributionRequest: {
-            /**
-             * @description 创建时使用的策略分发名称
-             * @example production-baseline
-             */
-            name?: string;
-            spec: components["schemas"]["DistributionSpec"];
-            /**
-             * @description 更新时使用的乐观并发版本
-             * @example 1785920264123456789
-             */
-            resourceVersion?: string;
-        };
-        DistributionNameData: {
-            /**
-             * @description 操作目标策略分发名称
-             * @example production-baseline
-             */
-            name: string;
-        };
-        DistributionNameResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["DistributionNameData"];
-        };
-        DistributionDetail: {
-            /**
-             * @description 策略分发名称
-             * @example production-baseline
-             */
-            name: string;
-            /**
-             * @description 乐观并发版本
-             * @example 1785920264123456789
-             */
-            resourceVersion: string;
-            spec: components["schemas"]["DistributionSpec"];
-        };
-        DistributionDetailResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["DistributionDetail"];
-        };
-        DistributionEmptyResponse: components["schemas"]["Envelope"] & Record<string, never>;
-        /**
-         * @description 平台总览健康状态
-         * @example ok
-         * @enum {string}
-         */
-        PlatformOverviewHealth: "ok" | "degraded" | "unavailable" | "disabled";
-        /**
-         * @description 平台组件聚合健康状态
-         * @example ok
-         * @enum {string}
-         */
-        PlatformComponentHealth: "ok" | "degraded" | "unavailable" | "pending";
-        /**
-         * @description 单个组件实例健康状态
-         * @example ok
-         * @enum {string}
-         */
-        PlatformInstanceHealth: "ok" | "degraded" | "no_data";
-        /**
-         * @description PostgreSQL 实例采集的数据库与 Go SQL 连接池统计
-         * @example {
-         *       "connections": 4,
-         *       "maxConnections": 100,
-         *       "transactions": 1234,
-         *       "rollbacks": 2,
-         *       "cacheHitRatio": 0.998,
-         *       "databaseBytes": 268435456,
-         *       "poolInUse": 1,
-         *       "poolIdle": 3,
-         *       "poolWaitCount": 0,
-         *       "poolWaitSeconds": 0
-         *     }
-         */
-        DatabaseStats: {
-            /**
-             * @description PostgreSQL 当前后端连接数
-             * @example 4
-             */
-            connections: number;
-            /**
-             * @description PostgreSQL 配置允许的最大连接数
-             * @example 100
-             */
-            maxConnections: number;
-            /**
-             * @description 当前数据库累计已提交事务数
-             * @example 1234
-             */
-            transactions: number;
-            /**
-             * @description 当前数据库累计回滚事务数
-             * @example 2
-             */
-            rollbacks: number;
-            /**
-             * Format: double
-             * @description PostgreSQL 缓冲区缓存命中率
-             * @example 0.998
-             */
-            cacheHitRatio: number;
-            /**
-             * @description 当前 PostgreSQL 数据库大小（字节）
-             * @example 268435456
-             */
-            databaseBytes: number;
-            /**
-             * @description Go SQL 连接池正在使用的连接数
-             * @example 1
-             */
-            poolInUse: number;
-            /**
-             * @description Go SQL 连接池空闲连接数
-             * @example 3
-             */
-            poolIdle: number;
-            /**
-             * @description Go SQL 连接池累计等待连接次数
-             * @example 0
-             */
-            poolWaitCount: number;
-            /**
-             * Format: double
-             * @description Go SQL 连接池累计等待时间（秒）
-             * @example 0
-             */
-            poolWaitSeconds: number;
-        };
-        PlatformInstance: {
-            /**
-             * @description 组件实例名称
-             * @example gateway-0
-             */
-            instance: string;
-            /**
-             * @description 实例在领导选举中的角色
-             * @example leader
-             * @enum {string}
-             */
-            role: "leader" | "standby" | "none";
-            health: components["schemas"]["PlatformInstanceHealth"];
-            /**
-             * @description 健康状态原因
-             * @example heartbeat is current
-             */
-            healthReason: string;
-            /**
-             * @description 进程运行时长（秒）
-             * @example 3600
-             */
-            uptimeSeconds: number;
-            /**
-             * @description 观察窗口内的重启次数
-             * @example 0
-             */
-            restartCount: number;
-            /**
-             * @description 当前内存用量（字节）
-             * @example 104857600
-             */
-            memoryBytes: number;
-            /**
-             * @description 容器内存限制（字节）
-             * @example 536870912
-             */
-            memoryLimitBytes: number;
-            /**
-             * @description 当前 CPU 用量（毫核）
-             * @example 50
-             */
-            cpuMillis: number;
-            /**
-             * @description 当前 goroutine 数
-             * @example 82
-             */
-            goroutines: number;
-            /**
-             * @description Go 已分配堆内存（字节）
-             * @example 31457280
-             */
-            heapAllocBytes: number;
-            /**
-             * @description Go 堆系统内存（字节）
-             * @example 67108864
-             */
-            heapSysBytes: number;
-            /**
-             * Format: date-time
-             * @description 最后采样时间
-             * @example 2026-08-24T08:00:00Z
-             */
-            lastObservedAt: string;
-            dbStats?: components["schemas"]["DatabaseStats"];
-        };
-        PlatformComponent: {
-            /**
-             * @description 平台组件名称
-             * @example gateway
-             * @enum {string}
-             */
-            component: "gateway" | "postgres" | "console-api" | "console-web" | "operator" | "webhook";
-            health: components["schemas"]["PlatformComponentHealth"];
-            /**
-             * @description 组件健康状态原因
-             * @example all instances are healthy
-             */
-            healthReason: string;
-            /**
-             * @description 组件是否使用领导选举
-             * @example true
-             */
-            hasLeadership: boolean;
-            /**
-             * @description 是否检测到没有 leader
-             * @example false
-             */
-            noLeader: boolean;
-            /**
-             * @description 是否只有一个副本
-             * @example false
-             */
-            singleReplica: boolean;
-            /**
-             * @description 组件实例列表
-             * @example []
-             */
-            instances: components["schemas"]["PlatformInstance"][];
-            /**
-             * Format: date-time
-             * @description 最近一次领导权变更时间
-             * @example 2026-08-24T07:00:00Z
-             */
-            lastLeadershipChange?: string;
-        };
-        /**
-         * @description 成员集群组件聚合健康状态
-         * @example ok
-         * @enum {string}
-         */
-        PlatformClusterHealth: "ok" | "degraded" | "unavailable";
-        PlatformCluster: {
-            /**
-             * @description 成员集群名称
-             * @example production-east
-             */
-            name: string;
-            /**
-             * @description 集群登记阶段
-             * @example Online
-             * @enum {string}
-             */
-            phase: "Registering" | "Online" | "Offline" | "Uninstalling";
-            health: components["schemas"]["PlatformClusterHealth"];
-            /**
-             * @description 成员面组件状态
-             * @example []
-             */
-            components: components["schemas"]["PlatformComponent"][];
-        };
-        PlatformOverview: {
-            /**
-             * @description 是否启用了平台观测采样
-             * @example true
-             */
-            enabled: boolean;
-            platformHealth: components["schemas"]["PlatformOverviewHealth"];
-            /**
-             * @description Gateway 平面组件状态
-             * @example []
-             */
-            gatewayPlane: components["schemas"]["PlatformComponent"][];
-            /**
-             * @description 成员集群面按页汇总的组件状态
-             * @example {
-             *       "clusters": [],
-             *       "total": 3,
-             *       "page": 1,
-             *       "pageSize": 20
-             *     }
-             */
-            memberPlane: {
-                /**
-                 * @description 当前页成员集群状态
-                 * @example []
-                 */
-                clusters: components["schemas"]["PlatformCluster"][];
-                /**
-                 * @description 符合筛选条件的成员集群总数
-                 * @example 3
-                 */
-                total: number;
-                /**
-                 * @description 当前页码
-                 * @example 1
-                 */
-                page: number;
-                /**
-                 * @description 每页集群数
-                 * @example 20
-                 */
-                pageSize: number;
-            };
-        };
-        PlatformOverviewResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["PlatformOverview"];
-        };
-        PlatformTrendPoint: {
-            /**
-             * Format: date-time
-             * @description 聚合桶开始时间
-             * @example 2026-08-24T08:00:00Z
-             */
-            bucketStartedAt: string;
-            /**
-             * @description CPU 累积使用时间（微秒）
-             * @example 5000000
-             */
-            cpuUsageMicros: number;
-            /**
-             * @description 内存用量（字节）
-             * @example 104857600
-             */
-            memoryBytes: number;
-            /**
-             * @description 当前 goroutine 数
-             * @example 82
-             */
-            goroutines: number;
-            /**
-             * @description GC 暂停累计时间（微秒）
-             * @example 2300
-             */
-            gcPauseMicros: number;
-        };
-        PlatformTrend: {
-            /**
-             * @description 时间序列采样点
-             * @example []
-             */
-            items: components["schemas"]["PlatformTrendPoint"][];
-            /**
-             * @description 相邻聚合桶时间间隔（秒）
-             * @example 300
-             */
-            stepSeconds: number;
-            /**
-             * Format: date-time
-             * @description 实际查询起始时间
-             * @example 2026-08-24T07:00:00Z
-             */
-            from: string;
-            /**
-             * Format: date-time
-             * @description 实际查询结束时间
-             * @example 2026-08-24T08:00:00Z
-             */
-            to: string;
-        };
-        PlatformTrendResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["PlatformTrend"];
-        };
-        LeadershipEvent: {
-            id: components["schemas"]["ResourceID"];
-            /**
-             * @description 发生领导权变更的组件
-             * @example gateway
-             */
-            component: string;
-            clusterId: components["schemas"]["ResourceID"];
-            /**
-             * @description 组件实例名称
-             * @example gateway-0
-             */
-            instance: string;
-            /**
-             * @description 关联成员集群名称，平台平面为空字符串
-             * @example production-east
-             */
-            clusterName: string;
-            /**
-             * @description 变更前领导角色
-             * @example standby
-             * @enum {string}
-             */
-            roleFrom: "leader" | "standby" | "none";
-            /**
-             * @description 变更后领导角色
-             * @example leader
-             * @enum {string}
-             */
-            roleTo: "leader" | "standby" | "none";
-            /**
-             * Format: date-time
-             * @description 领导权变更时间
-             * @example 2026-08-24T08:00:00Z
-             */
-            changedAt: string;
-            /**
-             * @description 检测到事件的实例名称
-             * @example gateway-0
-             */
-            detectedBy: string;
-            /**
-             * Format: date-time
-             * @description 事件记录创建时间
-             * @example 2026-08-24T08:00:00Z
-             */
-            createdAt: string;
-        };
-        LeadershipEventListResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["PageMeta"] & {
-                /**
-                 * @description 领导权事件列表
-                 * @example []
-                 */
-                items: components["schemas"]["LeadershipEvent"][];
-            };
-        };
-        PlatformSettings: {
-            /**
-             * @description 是否启用平台观测
-             * @example true
-             */
-            enabled: boolean;
-            /**
-             * @description 历史数据保存天数
-             * @example 30
-             */
-            retentionDays: number;
-            /**
-             * @description 系统允许的最长历史保存天数
-             * @example 30
-             */
-            maxRetentionDays: number;
-        };
-        PlatformSettingsResponse: components["schemas"]["Envelope"] & {
-            data: components["schemas"]["PlatformSettings"];
-        };
-        PlatformSettingsRequest: {
-            /**
-             * @description 是否启用平台观测
-             * @example true
-             */
-            enabled: boolean;
-            /**
-             * @description 历史数据保存天数
-             * @example 30
-             */
-            retentionDays: number;
-        };
-        FieldNode: {
-            /**
-             * @description 字段名称
-             * @example spec
-             */
-            name: string;
-            /**
-             * @description 字段类型
-             * @example object
-             * @enum {string}
-             */
-            type: "string" | "integer" | "number" | "boolean" | "array" | "object";
-            /**
-             * @description 是否为数组
-             * @example false
-             */
-            isArray: boolean;
-            /**
-             * @description 是否为映射
-             * @example false
-             */
-            isMap: boolean;
-            /**
-             * @description 映射值类型
-             * @example string
-             */
-            mapValueType?: string;
-            /** @description 子字段 */
-            children: components["schemas"]["FieldNode"][];
-        };
-        FieldSchemaResponse: components["schemas"]["Envelope"] & {
-            /** @description 字段树 */
-            data?: components["schemas"]["FieldNode"][];
-        };
-        SummaryGroup: {
-            /**
-             * @description 策略组名称
-             * @example default
-             */
-            name: string;
-            /**
-             * @description 显示名称
-             * @example Default policies
-             */
-            displayName: string;
-            /**
-             * @description 是否启用
-             * @example true
-             */
-            enabled: boolean;
-            /**
-             * @description 生效策略数量
-             * @example 12
-             */
-            resolvedCount: number;
-            /**
-             * @description 强制策略数量
-             * @example 8
-             */
-            enforceCount: number;
-            /**
-             * @description 审计策略数量
-             * @example 4
-             */
-            auditCount: number;
-        };
-        SummaryData: {
-            /**
-             * @description 平台资源总数
-             * @example {
-             *       "clusters": 3,
-             *       "policies": 12,
-             *       "policygroups": 2,
-             *       "exceptions": 1
-             *     }
-             */
-            totals: {
-                [key: string]: number;
-            };
-            /** @description 集群生命周期状态统计 */
-            clusterPhases: {
-                /**
-                 * @description 在线集群数
-                 * @example 2
-                 */
-                online: number;
-                /**
-                 * @description 离线集群数
-                 * @example 1
-                 */
-                offline: number;
-                /**
-                 * @description 注册中集群数
-                 * @example 0
-                 */
-                registering: number;
-            };
-            /** @description 策略组摘要 */
-            groups: components["schemas"]["SummaryGroup"][];
-        };
-        SummaryResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["SummaryData"];
-        };
-        AdmissionEventItem: {
-            id: components["schemas"]["ResourceID"];
-            /**
-             * @description 成员侧事件 ID
-             * @example admission-01HXYZ
-             */
-            eventId: string;
-            /**
-             * @description 集群名称
-             * @example production-east
-             */
-            clusterName: string;
-            /**
-             * Format: date-time
-             * @description 事件发生时间
-             * @example 2026-08-24T10:00:00Z
-             */
-            occurredAt: string;
-            /**
-             * @description 判决类型
-             * @example deny
-             * @enum {string}
-             */
-            verdict: "audit" | "deny";
-            /**
-             * @description API 组
-             * @example apps
-             */
-            apiGroup: string;
-            /**
-             * @description API 版本
-             * @example v1
-             */
-            apiVersion: string;
-            /**
-             * @description 资源复数名
-             * @example deployments
-             */
-            resource: string;
-            /**
-             * @description 准入操作
-             * @example CREATE
-             */
-            operation: string;
-            /**
-             * @description 命名空间
-             * @example default
-             */
-            namespace: string;
-            /**
-             * @description 资源名称
-             * @example web
-             */
-            resourceName: string;
-            /**
-             * @description 请求用户
-             * @example admin
-             */
-            username: string;
-            /**
-             * @description 命中的策略名称
-             * @example [
-             *       "not-privileged"
-             *     ]
-             */
-            policyNames: string[];
-            /**
-             * @description 违规信息
-             * @example [
-             *       "hostNetwork is not allowed"
-             *     ]
-             */
-            violations: string[];
-        };
-        AdmissionEventListData: components["schemas"]["PageMeta"] & {
-            /**
-             * @description 准入事件列表
-             * @example []
-             */
-            items: components["schemas"]["AdmissionEventItem"][];
-        };
-        AdmissionEventListResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["AdmissionEventListData"];
-        };
-        AdmissionEventDetail: components["schemas"]["AdmissionEventItem"] & {
-            /**
-             * @description Kubernetes 请求 UID
-             * @example 0f1e2d3c
-             */
-            requestUid: string;
-            /**
-             * @description 请求用户所属组
-             * @example [
-             *       "system:masters"
-             *     ]
-             */
-            userGroups: string[];
-            /**
-             * @description 命中的策略组名称
-             * @example [
-             *       "default"
-             *     ]
-             */
-            policyGroupNames: string[];
-            /**
-             * @description 原始资源 metadata 快照
-             * @example {
-             *       "labels": {
-             *         "app": "web"
-             *       }
-             *     }
-             */
-            metadataSnapshot: {
-                [key: string]: unknown;
-            };
-            /**
-             * @description 原始资源 spec 快照
-             * @example {
-             *       "replicas": 2
-             *     }
-             */
-            specSnapshot: {
-                [key: string]: unknown;
-            };
-            /**
-             * @description 事件判定时使用的存储策略版本
-             * @example 4
-             */
-            storagePolicyVersion: string;
-        };
-        AdmissionEventDetailResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["AdmissionEventDetail"];
-        };
-        AdmissionEventTrendItem: {
-            /**
-             * Format: date-time
-             * @description 趋势时间桶起点
-             * @example 2026-08-24T10:00:00Z
-             */
-            bucket: string;
-            /**
-             * @description 判决类型
-             * @example deny
-             * @enum {string}
-             */
-            verdict: "audit" | "deny";
-            /**
-             * Format: int64
-             * @description 事件数量
-             * @example 12
-             */
-            count: number;
-        };
-        AdmissionEventTrendResponse: components["schemas"]["Envelope"] & {
-            /**
-             * @description 准入事件趋势数据
-             * @example []
-             */
-            data?: components["schemas"]["AdmissionEventTrendItem"][];
-        };
-        AdmissionStoragePolicy: {
-            /**
-             * @description 事件判决条件
-             * @example [
-             *       "deny"
-             *     ]
-             */
-            verdicts: ("audit" | "deny")[];
-            /**
-             * @description 集群名称条件
-             * @example [
-             *       "production-east"
-             *     ]
-             */
-            clusters: string[];
-            /**
-             * @description 资源 GVK 条件
-             * @example [
-             *       "apps/deployments"
-             *     ]
-             */
-            gvks: string[];
-            /**
-             * @description 命名空间条件
-             * @example [
-             *       "default"
-             *     ]
-             */
-            namespaces: string[];
-            /**
-             * @description 规则匹配模式
-             * @example include
-             * @enum {string}
-             */
-            matchMode: "include" | "exclude";
-        };
-        AdmissionEventSettings: {
-            /**
-             * @description 默认事件保存天数
-             * @example 30
-             */
-            defaultRetentionDays: number;
-            /**
-             * @description 是否重试上报失败事件
-             * @example true
-             */
-            retryEnabled: boolean;
-            /**
-             * @description 最大重试次数
-             * @example 3
-             */
-            maxRetryAttempts: number;
-            /**
-             * @description Operator 内存队列容量
-             * @example 1000
-             */
-            queueCapacity: number;
-            /**
-             * @description 链路异常保存天数
-             * @example 30
-             */
-            incidentRetentionDays: number;
-            /**
-             * @description 是否启用准入事件观测
-             * @example true
-             */
-            observationEnabled: boolean;
-            /**
-             * Format: int64
-             * @description 存储策略版本
-             * @example 4
-             */
-            storagePolicyVersion: number;
-            /**
-             * @description 事件存储匹配规则
-             * @example []
-             */
-            storagePolicies: components["schemas"]["AdmissionStoragePolicy"][];
-        };
-        AdmissionEventSettingsResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["AdmissionEventSettings"];
-        };
-        AdmissionEventSettingsRequest: {
-            /**
-             * @description 默认事件保存天数
-             * @example 30
-             */
-            defaultRetentionDays: number;
-            /**
-             * @description 是否重试上报失败事件
-             * @example true
-             */
-            retryEnabled?: boolean;
-            /**
-             * @description 最大重试次数
-             * @example 3
-             */
-            maxRetryAttempts?: number;
-            /**
-             * @description Operator 内存队列容量
-             * @example 1000
-             */
-            queueCapacity?: number;
-            /**
-             * @description 链路异常保存天数
-             * @example 30
-             */
-            incidentRetentionDays?: number;
-            /**
-             * @description 是否启用准入事件观测
-             * @example true
-             */
-            observationEnabled?: boolean;
-            /**
-             * @description 事件存储匹配规则
-             * @example []
-             */
-            storagePolicies?: components["schemas"]["AdmissionStoragePolicy"][];
-        };
-        AdmissionLinkIncidentItem: {
-            id: components["schemas"]["ResourceID"];
-            /**
-             * @description 集群名称
-             * @example production
-             */
-            clusterName: string;
-            /**
-             * @description 上报组件实例标识
-             * @example webhook-a
-             */
-            reporterInstanceId: string;
-            /**
-             * @description 产生链路事件的组件
-             * @example webhook
-             * @enum {string}
-             */
-            component: "webhook" | "operator" | "gateway";
-            /**
-             * @description 链路中断原因
-             * @example queue_full
-             */
-            reason: string;
-            /**
-             * Format: date-time
-             * @description 首次发生时间
-             * @example 2026-08-24T10:00:00Z
-             */
-            startedAt: string;
-            /**
-             * Format: date-time
-             * @description 最近发生时间
-             * @example 2026-08-24T10:05:00Z
-             */
-            lastSeenAt: string;
-            /**
-             * Format: int64
-             * @description 受影响事件数量
-             * @example 4
-             */
-            affectedCount: number;
-            /**
-             * @description 当前状态
-             * @example active
-             * @enum {string}
-             */
-            status: "active" | "interrupted" | "closed";
-        };
-        AdmissionLinkIncidentListData: components["schemas"]["PageMeta"] & {
-            /**
-             * @description 链路异常列表
-             * @example []
-             */
-            items: components["schemas"]["AdmissionLinkIncidentItem"][];
-        };
-        AdmissionLinkIncidentListResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["AdmissionLinkIncidentListData"];
-        };
-        AdmissionLinkIncidentSample: {
-            /**
-             * @description 事件标识
-             * @example event-abc
-             */
-            eventId: string;
-            eventDatabaseId?: components["schemas"]["ResourceID"];
-            /**
-             * @description 关联准入事件是否已过期清理
-             * @example false
-             */
-            expired: boolean;
-        };
-        AdmissionLinkIncidentDetail: components["schemas"]["AdmissionLinkIncidentItem"] & {
-            /**
-             * @description 事件详情
-             * @example queue reached capacity
-             */
-            detail: string;
-            /** @description 关联准入事件样本 */
-            samples: components["schemas"]["AdmissionLinkIncidentSample"][];
-        };
-        AdmissionLinkIncidentDetailResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["AdmissionLinkIncidentDetail"];
-        };
-        PolicyListItem: {
-            /**
-             * @description 策略名称，集群内唯一
-             * @example deny-privileged-pod
-             */
-            name: string;
-            /**
-             * @description 策略来源。builtin 为平台内置，custom 为用户创建
-             * @example builtin
-             * @enum {string}
-             */
-            source: "builtin" | "custom";
-            /**
-             * @description 策略执行模式。enforce 拦截违规请求，audit 放行但记录告警
              * @example enforce
              * @enum {string}
              */
             enforcementMode: "enforce" | "audit";
+            /** @example deny-privileged-pod */
+            name: string;
             /**
-             * @description 策略编译状态。Ready 表示 Rego 编译通过，Invalid 表示编译失败
              * @example Ready
              * @enum {string}
              */
             phase: "Ready" | "Invalid";
             /**
-             * @description 策略用途说明
-             * @example 禁止创建特权容器
+             * @example builtin
+             * @enum {string}
              */
-            description: string;
+            source: "builtin" | "custom";
             /**
              * Format: date-time
-             * @description 创建时间
-             * @example 2026-08-03T10:15:30Z
-             */
-            createdAt: string;
-            /**
-             * Format: date-time
-             * @description 最后更新时间
              * @example 2026-08-03T11:20:45Z
              */
             updatedAt: string;
         };
-        PolicyListData: components["schemas"]["PageMeta"] & {
-            /** @description 当前页的策略列表 */
-            items: components["schemas"]["PolicyListItem"][];
+        "dto.SwagPolicyListResponse": {
+            /** @example 0 */
+            code: number;
+            data?: components["schemas"]["dto.SwagPolicyListData"];
+            /** @example success */
+            message: string;
         };
-        PolicyListResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["PolicyListData"];
-        };
-        MatchResource: {
-            /**
-             * @description 匹配的 API 组。核心组用空字符串表示，星号 * 匹配全部组
-             *     （见 internal/webhook/cache.go:190）
-             *
-             * @example [
-             *       "apps"
-             *     ]
-             */
-            apiGroups: string[];
-            /**
-             * @description 匹配的 API 版本
-             * @example [
-             *       "v1"
-             *     ]
-             */
-            apiVersions: string[];
-            /**
-             * @description 匹配的资源类型，使用复数形式。星号 * 匹配全部资源
-             *     （见 internal/webhook/cache.go:189）
-             *
-             * @example [
-             *       "deployments"
-             *     ]
-             */
-            resources: string[];
-        };
-        PolicyMatch: {
-            /**
-             * @description 匹配的准入操作类型
-             * @example [
-             *       "CREATE",
-             *       "UPDATE"
-             *     ]
-             */
-            operations: ("CREATE" | "UPDATE" | "DELETE" | "CONNECT")[];
-            /** @description 匹配的资源规则列表，任一规则命中即匹配 */
-            resources: components["schemas"]["MatchResource"][];
-        };
-        PolicyRequest: {
-            /**
-             * @description 策略名称，必须是合法的 DNS1123 子域名。仅创建时必需且生效；
-             *     更新时忽略此字段，名称取自路径参数
-             *
-             * @example deny-privileged-pod
-             */
-            name?: string;
-            /**
-             * @description 策略用途说明
-             * @example 禁止创建特权容器
-             */
-            description?: string;
-            /**
-             * @description 策略执行模式
-             * @example enforce
-             * @enum {string}
-             */
+        "dto.SwagPolicyVersionEntry": {
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
             enforcementMode: "enforce" | "audit";
-            match: components["schemas"]["PolicyMatch"];
-            /**
-             * @description OPA Rego 策略源码。服务端同步编译校验，编译失败返回 40000
-             * @example package kubesentry
-             *
-             *     deny[msg] {
-             *     	input.request.object.spec.hostNetwork == true
-             *     	msg := "hostNetwork not allowed"
-             *     }
-             */
+            isCurrent: boolean;
+            match: components["schemas"]["dto.PolicyMatchInput"];
+            /** @enum {string} */
+            phase: "Ready" | "Invalid";
             rego: string;
-            /**
-             * @description 用户标签。更新时与现有标签合并而非替换
-             * @example {
-             *       "team": "platform"
-             *     }
-             */
-            labels?: {
-                [key: string]: string;
-            };
-            /**
-             * @description 用户注解。值为空字符串表示删除该键
-             * @example {
-             *       "kubesentry.io/visual-builder-spec": "{}"
-             *     }
-             */
-            annotations?: {
-                [key: string]: string;
-            };
-            /**
-             * @description 乐观并发令牌。更新时若提供且与服务端当前值不符，返回 40900。
-             *     省略则跳过并发检查
-             *
-             * @example 1785920264123456789
-             */
-            resourceVersion?: string;
+            version: number;
         };
-        PolicyNameData: {
-            /**
-             * @description 受影响策略的名称
-             * @example deny-privileged-pod
-             */
-            name: string;
+        "dto.SwagPolicyVersionList": {
+            currentVersion: number;
+            cursor: number;
+            head: number;
+            inFlight: boolean;
+            nextEnabled: boolean;
+            prevEnabled: boolean;
+            versions: components["schemas"]["dto.SwagPolicyVersionEntry"][];
         };
-        PolicyNameResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["PolicyNameData"];
+        "dto.SwagReferencedByData": {
+            referencedBy: string[];
         };
-        ResourceSuggestions: {
-            /**
-             * @description 所有策略用过的 API 组去重排序结果
-             * @example [
-             *       "",
-             *       "apps"
-             *     ]
-             */
+        "dto.SwagResourceSuggestions": {
             apiGroups: string[];
-            /**
-             * @description 所有策略用过的 API 版本去重排序结果
-             * @example [
-             *       "v1"
-             *     ]
-             */
             apiVersions: string[];
-            /**
-             * @description 所有策略用过的资源类型去重排序结果
-             * @example [
-             *       "deployments",
-             *       "pods"
-             *     ]
-             */
             resources: string[];
-            /**
-             * @description 按 API 组归类的资源类型，供前端级联下拉使用
-             * @example {
-             *       "": [
-             *         "pods"
-             *       ],
-             *       "apps": [
-             *         "deployments"
-             *       ]
-             *     }
-             */
             resourcesByGroup: {
                 [key: string]: string[];
             };
         };
-        ResourceSuggestionsResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["ResourceSuggestions"];
-        };
-        ValidateRegoRequest: {
-            /**
-             * @description 待校验的 Rego 源码
-             * @example package kubesentry
-             *
-             *     deny[msg] { false }
-             */
-            rego: string;
-        };
-        /** @description 无数据体的成功响应。data 字段被省略 */
-        "schemas-EmptyResponse": components["schemas"]["Envelope"];
-        PolicyDetail: {
-            /**
-             * @description 策略名称，集群内唯一
-             * @example deny-privileged-pod
-             */
-            name: string;
-            /**
-             * @description 策略来源。builtin 为平台内置，custom 为用户创建
-             * @example builtin
-             * @enum {string}
-             */
-            source: "builtin" | "custom";
-            /**
-             * @description 策略用途说明
-             * @example 禁止创建特权容器
-             */
-            description: string;
-            /**
-             * @description 用户标签。策略组的 bySelector 成员匹配依据
-             * @example {
-             *       "kubesentry.io/builtin": "true"
-             *     }
-             */
-            labels: {
-                [key: string]: string;
-            };
-            /**
-             * @description 用户注解。可视化编辑器状态存于 kubesentry.io/visual-builder-spec
-             * @example {
-             *       "kubesentry.io/visual-builder-spec": "{}"
-             *     }
-             */
-            annotations: {
-                [key: string]: string;
-            };
-            /**
-             * @description 策略执行模式。enforce 拦截违规请求，audit 放行但记录告警
-             * @example enforce
-             * @enum {string}
-             */
-            enforcementMode: "enforce" | "audit";
-            match: components["schemas"]["PolicyMatch"];
-            /**
-             * @description OPA Rego 策略源码。必须使用 package kubesentry 并暴露 deny 集合
-             * @example package kubesentry
-             *
-             *     deny[msg] {
-             *     	input.request.object.spec.hostNetwork == true
-             *     	msg := "hostNetwork not allowed"
-             *     }
-             */
-            rego: string;
-            /**
-             * @description 策略编译状态。Ready 表示 Rego 编译通过，Invalid 表示编译失败
-             * @example Ready
-             * @enum {string}
-             */
-            phase: "Ready" | "Invalid";
-            /**
-             * @description Rego 编译错误原文。仅 phase 为 Invalid 时出现
-             * @example rego_parse_error: unexpected eof token
-             */
-            compileError?: string;
-            /**
-             * @description 将本策略解析为有效成员的策略组名称列表，已排序
-             * @example [
-             *       "baseline-group"
-             *     ]
-             */
-            referencedBy: string[];
-            /**
-             * @description 乐观并发令牌，由行的 updated_at 纳秒值派生。更新时回传以检测并发修改
-             * @example 1785920264123456789
-             */
-            resourceVersion: string;
-            /**
-             * Format: date-time
-             * @description 创建时间
-             * @example 2026-08-03T10:15:30Z
-             */
-            createdAt: string;
-            /**
-             * Format: date-time
-             * @description 最后更新时间
-             * @example 2026-08-03T11:20:45Z
-             */
-            updatedAt: string;
-        };
-        PolicyDetailResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["PolicyDetail"];
-        };
-        PolicyVersionEntry: {
-            /**
-             * @description 版本号，从 1 递增
-             * @example 3
-             */
-            version: number;
-            /**
-             * Format: date-time
-             * @description 该版本快照的创建时间
-             * @example 2026-08-03T10:15:30Z
-             */
-            createdAt: string;
-            /**
-             * @description 该版本快照的 Rego 编译状态
-             * @example Ready
-             * @enum {string}
-             */
-            phase: "Ready" | "Invalid";
-            /**
-             * @description 该版本的 Rego 源码
-             * @example package kubesentry
-             *
-             *     deny[msg] { false }
-             */
-            rego: string;
-            match: components["schemas"]["PolicyMatch"];
-            /**
-             * @description 该版本的执行模式
-             * @example enforce
-             * @enum {string}
-             */
-            enforcementMode: "enforce" | "audit";
-            /**
-             * @description 是否为当前生效版本
-             * @example true
-             */
-            isCurrent: boolean;
-        };
-        PolicyVersionList: {
-            /**
-             * @description 当前生效的版本号。无版本记录时为 0
-             * @example 3
-             */
-            currentVersion: number;
-            /**
-             * @description 逻辑时间线中的当前位置；同步回滚时等于 currentVersion
-             * @example 3
-             */
-            cursor: number;
-            /**
-             * @description 逻辑时间线中的最新版本；同步回滚时等于 currentVersion
-             * @example 3
-             */
-            head: number;
-            /**
-             * @description 是否存在尚未完成的异步回滚
-             * @example false
-             */
-            inFlight: boolean;
-            /**
-             * @description 是否可以回滚到上一个版本
-             * @example true
-             */
-            prevEnabled: boolean;
-            /**
-             * @description 是否可以前进到下一个逻辑版本
-             * @example false
-             */
-            nextEnabled: boolean;
-            /** @description 版本快照列表，按版本号倒序 */
-            versions: components["schemas"]["PolicyVersionEntry"][];
-        };
-        PolicyVersionListResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["PolicyVersionList"];
-        };
-        RollbackRequest: {
-            /**
-             * @description 回滚方向。prev 回退到上一版本（以追加新版本的方式，类似 git revert）。
-             *     next 恒被拒绝并返回 40000——当前版本始终是最新版本，没有可前进的目标
-             *
-             * @example prev
-             * @enum {string}
-             */
+        "dto.SwagRollbackInput": {
+            /** @enum {string} */
             direction: "prev" | "next";
         };
-        RollbackResult: {
-            /**
-             * @description 内容来源的版本号
-             * @example 2
-             */
-            restoredFromVersion: number;
-            /**
-             * @description 本次回滚追加的新版本号
-             * @example 4
-             */
+        "dto.SwagRollbackResult": {
             newVersion: number;
+            restoredFromVersion: number;
         };
-        RollbackResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["RollbackResult"];
+        "dto.SwagSuccessResponse": {
+            /** @example 0 */
+            code: number;
+            data: unknown;
+            /** @example success */
+            message: string;
         };
-        PolicyGroupListItem: {
-            /**
-             * @description 策略组名称
-             * @example default
-             */
-            name: string;
-            /**
-             * @description 策略组来源
-             * @example builtin
-             * @enum {string}
-             */
-            source: "builtin" | "custom";
-            /**
-             * @description 显示名称
-             * @example Default policies
-             */
-            displayName: string;
-            /**
-             * @description 是否启用
-             * @example true
-             */
-            enabled: boolean;
-            /**
-             * @description 解析状态
-             * @example Ready
-             * @enum {string}
-             */
-            phase: "Ready" | "Invalid";
-            /**
-             * @description 解析策略数量
-             * @example 37
-             */
-            resolvedCount: number;
+        "dto.SwagValidateRegoInput": {
+            rego: string;
         };
-        PolicyGroupListData: components["schemas"]["PageMeta"] & {
-            /** @description 策略组列表 */
-            items: components["schemas"]["PolicyGroupListItem"][];
+        "dto.UninstallTaskHTTPView": {
+            /** Format: date-time */
+            completedAt?: string;
+            error?: string;
+            id: string;
+            /** Format: date-time */
+            requestedAt: string;
+            /** @enum {string} */
+            status: "Pending" | "Received" | "Running" | "Succeeded" | "Failed";
         };
-        PolicyGroupListResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["PolicyGroupListData"];
-        };
-        PolicyRef: {
-            /**
-             * @description 被引用的策略名称
-             * @example deny-privileged-pod
-             */
-            name: string;
-            /**
-             * @description 覆盖该策略在策略组中的执行模式
-             * @example enforce
-             * @enum {string}
-             */
-            enforcementMode?: "enforce" | "audit";
-        };
-        PolicyGroupPolicies: {
-            /**
-             * @description 按名称引用的策略
-             * @example [
-             *       {
-             *         "name": "deny-privileged-pod"
-             *       }
-             *     ]
-             */
-            byName?: components["schemas"]["PolicyRef"][];
-            /**
-             * @description 按 Kubernetes 标签选择器引用策略
-             * @example {
-             *       "matchLabels": {
-             *         "team": "platform"
-             *       }
-             *     }
-             */
-            bySelector?: components["schemas"]["KubernetesLabelSelector"];
-            /**
-             * @description 排除的策略名称
-             * @example [
-             *       "host-network"
-             *     ]
-             */
-            exclude?: string[];
-        };
-        PolicyGroupSpec: {
-            /**
-             * @description 策略组显示名称
-             * @example Production baseline
-             */
-            displayName?: string;
-            /**
-             * @description 策略组说明
-             * @example Baseline policies for production workloads
-             */
-            description?: string;
-            /**
-             * @description 是否启用策略组
-             * @example true
-             */
-            enabled: boolean;
-            namespaceSelector?: components["schemas"]["KubernetesLabelSelector"];
-            policies: components["schemas"]["PolicyGroupPolicies"];
-            /**
-             * @description 标签选择器匹配策略的默认执行模式
-             * @example audit
-             * @enum {string}
-             */
-            selectorEnforcementMode?: "enforce" | "audit";
-        };
-        PolicyGroupRequest: components["schemas"]["PolicyGroupSpec"] & {
-            /**
-             * @description 创建时的策略组名称，更新时忽略
-             * @example baseline
-             */
-            name?: string;
-            /**
-             * @description 更新时使用的乐观并发版本
-             * @example 1785920264123456789
-             */
-            resourceVersion?: string;
-            /**
-             * @description 是否作用于全部在线集群
-             * @example true
-             */
-            allClusters?: boolean;
-            /**
-             * @description 指定作用集群
-             * @example [
-             *       "production"
-             *     ]
-             */
-            clusterNames?: string[];
-        };
-        PolicyGroupNameData: {
-            /**
-             * @description 策略组名称
-             * @example baseline
-             */
-            name: string;
-        };
-        PolicyGroupNameResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["PolicyGroupNameData"];
-        };
-        EffectiveMember: {
-            /**
-             * @description 生效策略名称
-             * @example deny-privileged-pod
-             */
-            name: string;
-            /**
-             * @description 生效执行模式
-             * @example enforce
-             * @enum {string}
-             */
-            enforcementMode: "enforce" | "audit";
-            /**
-             * @description 策略来源
-             * @example builtin
-             * @enum {string}
-             */
-            source: "builtin" | "custom";
-        };
-        PolicyGroupStatus: {
-            /**
-             * @description 策略组解析状态
-             * @example Ready
-             * @enum {string}
-             */
-            phase: "Ready" | "Invalid";
-            /**
-             * @description 解析出的策略数量
-             * @example 12
-             */
-            resolvedCount: number;
-            /** @description 解析后的策略成员 */
-            resolvedPolicies: components["schemas"]["EffectiveMember"][];
-        };
-        PolicyGroupScope: {
-            /**
-             * @description 是否作用于全部在线集群
-             * @example true
-             */
-            allClusters: boolean;
-            /**
-             * @description 指定作用集群名称
-             * @example [
-             *       "production"
-             *     ]
-             */
-            clusterNames?: string[];
-        };
-        PolicyGroupDetail: {
-            /**
-             * @description 策略组名称
-             * @example baseline
-             */
-            name: string;
-            /**
-             * @description 策略组来源
-             * @example custom
-             * @enum {string}
-             */
-            source: "builtin" | "custom";
-            /**
-             * @description 乐观并发版本
-             * @example 1785920264123456789
-             */
-            resourceVersion: string;
-            spec: components["schemas"]["PolicyGroupSpec"];
-            status: components["schemas"]["PolicyGroupStatus"];
-            scope: components["schemas"]["PolicyGroupScope"];
-        };
-        PolicyGroupDetailResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["PolicyGroupDetail"];
-        };
-        PolicyGroupEnabledRequest: {
-            /**
-             * @description 是否启用策略组
-             * @example false
-             */
-            enabled: boolean;
-        };
-        PolicyGroupEnabledData: {
-            /**
-             * @description 更新后的启用状态
-             * @example true
-             */
-            enabled: boolean;
-        };
-        PolicyGroupEnabledResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["PolicyGroupEnabledData"];
-        };
-        ExceptionListItem: {
-            /**
-             * @description 例外名称
-             * @example emergency-maintenance
-             */
-            name: string;
-            /**
-             * @description 当前状态
-             * @example Active
-             * @enum {string}
-             */
-            phase: "Active" | "Expired";
-            /**
-             * @description 例外原因
-             * @example Emergency maintenance
-             */
-            reason: string;
-            /**
-             * @description 有效时长
-             * @example 24h
-             */
-            duration: string;
-            /**
-             * @description 目标摘要
-             * @example all policies
-             */
-            targetSummary: string;
-            /**
-             * Format: date-time
-             * @description 过期时间
-             * @example 2026-08-25T10:00:00Z
-             */
-            expiresAt?: string;
-        };
-        ExceptionListData: components["schemas"]["PageMeta"] & {
-            /** @description 例外列表 */
-            items: components["schemas"]["ExceptionListItem"][];
-        };
-        ExceptionListResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["ExceptionListData"];
-        };
-        LabelSelector: {
-            /**
-             * @description 标签键值匹配
-             * @example {
-             *       "environment": "production"
-             *     }
-             */
-            matchLabels?: {
-                [key: string]: string;
-            };
-            /**
-             * @description 标签表达式
-             * @example []
-             */
-            matchExpressions?: {
-                /**
-                 * @description 标签键
-                 * @example environment
-                 */
-                key: string;
-                /**
-                 * @description 匹配操作符
-                 * @example In
-                 * @enum {string}
-                 */
-                operator: "In" | "NotIn" | "Exists" | "DoesNotExist";
-                /**
-                 * @description 候选值
-                 * @example [
-                 *       "production"
-                 *     ]
-                 */
-                values?: string[];
-            }[];
-        };
-        ExceptionMatch: {
-            /**
-             * @description 精确匹配的命名空间
-             * @example [
-             *       "production"
-             *     ]
-             */
-            namespaces?: string[];
-            namespaceSelector?: components["schemas"]["LabelSelector"];
-            resourceSelector?: components["schemas"]["LabelSelector"];
-        };
-        ExceptionSpec: {
-            /**
-             * @description 目标策略
-             * @example [
-             *       "deny-privileged-pod"
-             *     ]
-             */
-            policyRefs?: string[];
-            /**
-             * @description 目标策略组
-             * @example [
-             *       "baseline"
-             *     ]
-             */
-            policyGroupRefs?: string[];
-            /**
-             * @description 是否匹配全部策略
-             * @example false
-             */
-            allPolicies?: boolean;
-            match: components["schemas"]["ExceptionMatch"];
-            /**
-             * @description 例外有效时长
-             * @example 24h
-             */
-            duration: string;
-            /**
-             * @description 过期后保留时长
-             * @example 0s
-             */
-            retainAfterExpiry?: string;
-            /**
-             * @description 例外原因
-             * @example Emergency maintenance
-             */
-            reason: string;
-        };
-        ExceptionRequest: components["schemas"]["ExceptionSpec"] & {
-            /**
-             * @description 创建时的例外名称
-             * @example emergency-maintenance
-             */
-            name?: string;
-            /**
-             * @description 乐观并发版本
-             * @example 1785920264123456789
-             */
-            resourceVersion?: string;
-            /**
-             * @description 是否作用于全部在线集群
-             * @example true
-             */
-            allClusters?: boolean;
-            /**
-             * @description 指定集群
-             * @example [
-             *       "production"
-             *     ]
-             */
-            clusterNames?: string[];
-        };
-        ExceptionNameResponse: components["schemas"]["Envelope"] & {
-            /** @description 新建或更新后的例外名称 */
-            data?: {
-                /**
-                 * @description 例外名称
-                 * @example emergency-maintenance
-                 */
-                name: string;
-            };
-        };
-        ExceptionStatus: {
-            /**
-             * @description 当前状态
-             * @example Active
-             * @enum {string}
-             */
-            phase: "Active" | "Expired";
-            /**
-             * Format: date-time
-             * @description 生效时间
-             * @example 2026-08-24T10:00:00Z
-             */
-            effectiveAt: string;
-            /**
-             * Format: date-time
-             * @description 过期时间
-             * @example 2026-08-25T10:00:00Z
-             */
-            expiresAt?: string;
-        };
-        ExceptionScope: {
-            /**
-             * @description 是否作用于全部在线集群
-             * @example true
-             */
-            allClusters: boolean;
-            /**
-             * @description 指定集群
-             * @example [
-             *       "production"
-             *     ]
-             */
-            clusterNames?: string[];
-        };
-        ExceptionDetail: {
-            /**
-             * @description 例外名称
-             * @example emergency-maintenance
-             */
-            name: string;
-            /**
-             * @description 乐观并发版本
-             * @example 1785920264123456789
-             */
-            resourceVersion: string;
-            spec: components["schemas"]["ExceptionSpec"];
-            status: components["schemas"]["ExceptionStatus"];
-            scope: components["schemas"]["ExceptionScope"];
-        };
-        ExceptionDetailResponse: components["schemas"]["Envelope"] & {
-            data?: components["schemas"]["ExceptionDetail"];
+        "dto.UninstallTaskIDView": {
+            id: string;
         };
     };
-    responses: {
-        /** @description 请求参数非法。code 为 40000 */
-        BadRequest: {
-            headers: {
-                [name: string]: unknown;
-            };
+    responses: never;
+    parameters: never;
+    requestBodies: {
+        /** @description 策略分发 */
+        "dto.DistributionInput": {
             content: {
-                "application/json": components["schemas"]["ErrorResponse"];
+                "application/json": components["schemas"]["dto.DistributionInput"];
             };
         };
-        /** @description 服务端错误。code 为 50000 */
-        InternalError: {
-            headers: {
-                [name: string]: unknown;
-            };
+        /** @description 策略例外 */
+        "dto.SwagExceptionInput": {
             content: {
-                "application/json": components["schemas"]["ErrorResponse"];
+                "application/json": components["schemas"]["dto.SwagExceptionInput"];
             };
         };
-        /** @description 资源不存在。code 为 40400 */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
+        /** @description 策略组 */
+        "dto.SwagPolicyGroupInput": {
             content: {
-                "application/json": components["schemas"]["ErrorResponse"];
+                "application/json": components["schemas"]["dto.SwagPolicyGroupInput"];
             };
         };
-        /** @description 冲突。code 为 40900。三种情形：名称已存在、resourceVersion 过期（并发修改）、
-         *     资源被其他对象引用（此时 data.referencedBy 列出引用方）
-         *      */
-        Conflict: {
-            headers: {
-                [name: string]: unknown;
-            };
+        /** @description 策略 */
+        "dto.SwagPolicyInput": {
             content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description 操作被禁止。code 为 40300 */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description 目标版本快照已被保留策略清理。code 为 41000 */
-        Gone: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
+                "application/json": components["schemas"]["dto.SwagPolicyInput"];
             };
         };
     };
-    parameters: {
-        /** @description 页码，从 1 开始。省略时为 1 */
-        Page: number;
-        /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-        PageSize: 10 | 20 | 50 | 100;
-        /** @description 策略名称 */
-        PolicyName: string;
-        /** @description 集群名称 */
-        ClusterName: string;
-        /** @description 策略分发名称 */
-        DistributionName: string;
-        /** @description 策略组名称 */
-        PolicyGroupName: string;
-        /** @description 例外名称 */
-        ExceptionName: string;
-        /** @description 准入事件数据库 ID */
-        AdmissionEventID: components["schemas"]["ResourceID"];
-    };
-    requestBodies: never;
     headers: never;
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    listClusters: {
+    getAdmissionEventSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.AdmissionSettingsView"];
+                    };
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    updateAdmissionEventSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 准入事件设置 */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["dto.AdmissionSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.AdmissionSettingsView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    listAdmissionEvents: {
         parameters: {
             query?: {
                 /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
+                page?: number;
                 /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
+                pageSize?: 10 | 20 | 50 | 100;
+                /** @description 排序字段 */
+                sortBy?: "occurredAt" | "createdAt" | "verdict";
+                /** @description 排序方向 */
+                sortOrder?: "asc" | "desc";
+                /** @description 集群名称，逗号分隔 */
+                cluster?: string[];
+                /** @description 准入结论，逗号分隔多值，取 OR */
+                verdict?: ("audit" | "deny")[];
+                /** @description 策略名称 */
+                policy?: string;
+                /** @description 命名空间，逗号分隔多值 */
+                namespace?: string[];
+                /** @description 资源名称或 group/resource，逗号分隔 */
+                gvk?: string[];
+                /** @description 资源名称 */
+                resourceName?: string;
+                /** @description 请求用户 */
+                username?: string;
+                /** @description 查询起始时间 */
+                from?: string;
+                /** @description 查询结束时间 */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.AdmissionEventPageView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    getAdmissionEventTrend: {
+        parameters: {
+            query: {
+                /** @description 查询起始时间 */
+                from: string;
+                /** @description 查询结束时间 */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.AdmissionTrendItemView"][];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    getAdmissionEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 准入事件数据库 ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.AdmissionEventDetailView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    listAdmissionLinkIncidents: {
+        parameters: {
+            query?: {
+                /** @description 页码，从 1 开始。省略时为 1 */
+                page?: number;
+                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
+                pageSize?: 10 | 20 | 50 | 100;
+                /** @description 按集群名称筛选，逗号分隔 */
+                cluster?: string[];
+                /** @description 按组件筛选，逗号分隔 */
+                component?: ("webhook" | "operator" | "gateway")[];
+                /** @description 按原因筛选，逗号分隔 */
+                reason?: string[];
+                /** @description 按状态筛选，逗号分隔 */
+                status?: ("active" | "interrupted" | "closed")[];
+                /** @description 起始时间（RFC3339） */
+                from?: string;
+                /** @description 结束时间（RFC3339） */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.IncidentPageView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    getAdmissionLinkIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 准入链路异常记录 ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.IncidentView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    listClusters: {
+        parameters: {
+            query?: {
+                /** @description 页码 */
+                page?: number;
+                /** @description 每页记录数 */
+                pageSize?: 10 | 20 | 50 | 100;
                 /** @description 排序字段 */
                 sortBy?: "name" | "phase" | "operatorVersion" | "lastHeartbeatAt" | "createdAt";
                 /** @description 排序方向 */
@@ -3141,16 +1922,26 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClusterListResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.ClusterPageView"];
+                    };
                 };
             };
-            500: components["responses"]["InternalError"];
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     createCluster: {
@@ -3160,24 +1951,51 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description 集群登记 */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ClusterCreateRequest"];
+                "application/json": components["schemas"]["dto.ClusterCreateInput"];
             };
         };
         responses: {
-            /** @description 创建成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClusterCommandResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.ClusterCommandView"];
+                    };
                 };
             };
-            400: components["responses"]["BadRequest"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     getCluster: {
@@ -3186,23 +2004,41 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 集群名称 */
-                name: components["parameters"]["ClusterName"];
+                name: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClusterDetailResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.ClusterView"];
+                    };
                 };
             };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     updateCluster: {
@@ -3211,27 +2047,46 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 集群名称 */
-                name: components["parameters"]["ClusterName"];
+                name: string;
             };
             cookie?: never;
         };
+        /** @description 集群标签 */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ClusterLabelsRequest"];
+                "application/json": components["schemas"]["dto.ClusterLabelsInput"];
             };
         };
         responses: {
-            /** @description 更新成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClusterNameResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.ClusterNameView"];
+                    };
                 };
             };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     deleteCluster: {
@@ -3240,55 +2095,57 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 集群名称 */
-                name: components["parameters"]["ClusterName"];
+                name: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 删除成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmptyResponse"];
+                    "application/json": components["schemas"]["dto.SwagEmptyResponse"];
                 };
             };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    reissueClusterToken: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 集群名称 */
-                name: components["parameters"]["ClusterName"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClusterTokenRequest"];
-            };
-        };
-        responses: {
-            /** @description 操作成功 */
-            200: {
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClusterCommandResponse"];
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     getLatestInstallParams: {
@@ -3297,23 +2154,98 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 集群名称 */
-                name: components["parameters"]["ClusterName"];
+                name: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InstallParamsResponse"];
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.ClusterInstallInput"];
+                    };
                 };
             };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    reissueClusterToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 集群名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** @description 安装参数 */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["dto.ClusterTokenInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.ClusterCommandView"];
+                    };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     createUninstallTask: {
@@ -3322,24 +2254,50 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 集群名称 */
-                name: components["parameters"]["ClusterName"];
+                name: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 操作成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UninstallTaskResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.UninstallTaskHTTPView"];
+                    };
                 };
             };
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     listUninstallTasks: {
@@ -3348,23 +2306,41 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 集群名称 */
-                name: components["parameters"]["ClusterName"];
+                name: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UninstallTaskListResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.UninstallTaskHTTPView"][];
+                    };
                 };
             };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     retryUninstallTask: {
@@ -3373,56 +2349,52 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 集群名称 */
-                name: components["parameters"]["ClusterName"];
+                name: string;
                 /** @description 卸载任务 ID */
-                taskID: components["schemas"]["ResourceID"];
+                taskID: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 操作成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UninstallTaskIDResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.UninstallTaskIDView"];
+                    };
                 };
             };
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    listInstallRecords: {
-        parameters: {
-            query?: {
-                /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
-                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
-                /** @description 排序字段 */
-                sortBy?: "clusterName" | "namespace" | "createdAt";
-                /** @description 排序方向 */
-                sortOrder?: "asc" | "desc";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InstallRecordListResponse"];
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
                 };
             };
-            500: components["responses"]["InternalError"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     listDistributions: {
@@ -3443,16 +2415,26 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DistributionListResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.DistributionPageView"];
+                    };
                 };
             };
-            500: components["responses"]["InternalError"];
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     createDistribution: {
@@ -3462,24 +2444,46 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DistributionRequest"];
-            };
-        };
+        requestBody: components["requestBodies"]["dto.DistributionInput"];
         responses: {
-            /** @description 创建成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DistributionNameResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.DistributionNameView"];
+                    };
                 };
             };
-            400: components["responses"]["BadRequest"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     getDistribution: {
@@ -3488,23 +2492,41 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 策略分发名称 */
-                name: components["parameters"]["DistributionName"];
+                name: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DistributionDetailResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.DistributionView"];
+                    };
                 };
             };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     updateDistribution: {
@@ -3513,29 +2535,59 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 策略分发名称 */
-                name: components["parameters"]["DistributionName"];
+                name: string;
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DistributionRequest"];
-            };
-        };
+        requestBody: components["requestBodies"]["dto.DistributionInput"];
         responses: {
-            /** @description 更新成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DistributionNameResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.DistributionNameView"];
+                    };
                 };
             };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     deleteDistribution: {
@@ -3544,36 +2596,70 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 策略分发名称 */
-                name: components["parameters"]["DistributionName"];
+                name: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 删除成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DistributionEmptyResponse"];
+                    "application/json": components["schemas"]["dto.SwagEmptyResponse"];
                 };
             };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
-    getPlatformOverview: {
+    listExceptions: {
         parameters: {
             query?: {
                 /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
+                page?: number;
                 /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
-                /** @description 按成员集群聚合健康状态筛选 */
-                health?: "ok" | "degraded" | "unavailable";
+                pageSize?: 10 | 20 | 50 | 100;
+                /** @description 排序字段 */
+                sortBy?: "name" | "phase" | "targetSummary" | "duration" | "expiresAt";
+                /** @description 排序方向 */
+                sortOrder?: "asc" | "desc";
             };
             header?: never;
             path?: never;
@@ -3581,17 +2667,269 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlatformOverviewResponse"];
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.ExceptionPageView"];
+                    };
                 };
             };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    createException: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["dto.SwagExceptionInput"];
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.ExceptionNameView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    getException: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略例外名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SwagExceptionDetail"];
+                    };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    updateException: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略例外名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["dto.SwagExceptionInput"];
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.ExceptionNameView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteException: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略例外名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagEmptyResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    listInstallRecords: {
+        parameters: {
+            query?: {
+                /** @description 页码 */
+                page?: number;
+                /** @description 每页记录数 */
+                pageSize?: 10 | 20 | 50 | 100;
+                /** @description 排序字段 */
+                sortBy?: "clusterName" | "namespace" | "createdAt";
+                /** @description 排序方向 */
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.InstallRecordPageView"];
+                    };
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     getPlatformInstanceTrend: {
@@ -3615,27 +2953,53 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlatformTrendResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.PlatformTrendView"];
+                    };
                 };
             };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     listPlatformLeadershipEvents: {
         parameters: {
             query?: {
-                /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
-                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
+                /** @description 页码 */
+                page?: number;
+                /** @description 每页记录数 */
+                pageSize?: 10 | 20 | 50 | 100;
                 /** @description 按发生领导权变更的组件筛选 */
                 component?: "webhook" | "operator" | "gateway" | "console-api" | "console-web" | "postgres";
                 /** @description 按关联成员集群筛选；Gateway 平面事件省略 */
@@ -3651,18 +3015,91 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeadershipEventListResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.PlatformLeadershipPageView"];
+                    };
                 };
             };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    getPlatformOverview: {
+        parameters: {
+            query?: {
+                /** @description 页码 */
+                page?: number;
+                /** @description 每页记录数 */
+                pageSize?: 10 | 20 | 50 | 100;
+                /** @description 按成员集群聚合健康状态筛选 */
+                health?: "ok" | "degraded" | "unavailable";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.PlatformOverviewView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     getPlatformSettings: {
@@ -3674,16 +3111,26 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlatformSettingsResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.PlatformSettingsView"];
+                    };
                 };
             };
-            500: components["responses"]["InternalError"];
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     updatePlatformSettings: {
@@ -3693,23 +3140,822 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description 平台可观测性设置 */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PlatformSettingsRequest"];
+                "application/json": components["schemas"]["dto.PlatformSettingsInput"];
             };
         };
         responses: {
-            /** @description 更新成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlatformSettingsResponse"];
+                    "application/json": components["schemas"]["dto.SwagSuccessResponse"] & {
+                        data?: components["schemas"]["dto.PlatformSettingsView"];
+                    };
                 };
             };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    listPolicies: {
+        parameters: {
+            query?: {
+                /** @description Page number */
+                page?: number;
+                /** @description Page size */
+                pageSize?: 10 | 20 | 50 | 100;
+                /** @description Sort field */
+                sortBy?: "name" | "source" | "enforcementMode" | "phase" | "createdAt" | "updatedAt";
+                /** @description Sort direction */
+                sortOrder?: "asc" | "desc";
+                /** @description Compile phases */
+                phase?: ("Ready" | "Invalid")[];
+                /** @description Enforcement modes */
+                mode?: ("enforce" | "audit")[];
+                /** @description Policy sources */
+                source?: ("builtin" | "custom")[];
+                /** @description Search keyword */
+                keyword?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagPolicyListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    createPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["dto.SwagPolicyInput"];
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.PolicyNameView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    getResourceSuggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SwagResourceSuggestions"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    validatePolicyRego: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Rego 源码 */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["dto.SwagValidateRegoInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagEmptyResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    getPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SwagPolicyDetail"];
+                    };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    updatePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["dto.SwagPolicyInput"];
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.PolicyNameView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    deletePolicy: {
+        parameters: {
+            query?: {
+                /** @description 为 true 时跳过引用检查强制删除 */
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description 策略名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagEmptyResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    rollbackPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** @description 回滚方向 */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["dto.SwagRollbackInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SwagRollbackResult"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    listPolicyVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SwagPolicyVersionList"];
+                    };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    listPolicyGroups: {
+        parameters: {
+            query?: {
+                /** @description 页码，从 1 开始。省略时为 1 */
+                page?: number;
+                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
+                pageSize?: 10 | 20 | 50 | 100;
+                /** @description 排序字段 */
+                sortBy?: "name" | "displayName" | "enabled" | "phase" | "resolvedCount";
+                /** @description 排序方向 */
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.PolicyGroupPageView"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    createPolicyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["dto.SwagPolicyGroupInput"];
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SwagPolicyGroupName"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    getPolicyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略组名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SwagPolicyGroupDetail"];
+                    };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    updatePolicyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略组名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["dto.SwagPolicyGroupInput"];
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SwagPolicyGroupName"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    deletePolicyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略组名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagEmptyResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+        };
+    };
+    setPolicyGroupEnabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 策略组名称 */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** @description 启用状态 */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["dto.SwagPolicyGroupEnabledInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SwagPolicyGroupEnabled"];
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     getFieldSchema: {
@@ -3730,17 +3976,35 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FieldSchemaResponse"];
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.FieldNodeView"][];
+                    };
                 };
             };
-            400: components["responses"]["BadRequest"];
-            502: components["responses"]["InternalError"];
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
+                };
+            };
         };
     };
     getSummary: {
@@ -3752,790 +4016,26 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 查询成功 */
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SummaryResponse"];
+                    "application/json": components["schemas"]["dto.SwagOptionalResponse"] & {
+                        data?: components["schemas"]["dto.SummaryView"];
+                    };
                 };
             };
-            500: components["responses"]["InternalError"];
-        };
-    };
-    listAdmissionEvents: {
-        parameters: {
-            query?: {
-                /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
-                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
-                sortBy?: "occurredAt" | "createdAt" | "verdict";
-                sortOrder?: "asc" | "desc";
-                /** @description 集群名称，逗号分隔 */
-                cluster?: string[];
-                /** @description 准入结论，逗号分隔多值，取 OR */
-                verdict?: ("audit" | "deny")[];
-                policy?: string;
-                /** @description 命名空间，逗号分隔多值 */
-                namespace?: string[];
-                /** @description 资源名称或 group/resource，逗号分隔 */
-                gvk?: string[];
-                resourceName?: string;
-                username?: string;
-                from?: string;
-                to?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
+            /** @description Internal Server Error */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdmissionEventListResponse"];
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
                 };
             };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    getAdmissionEvent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 准入事件数据库 ID */
-                id: components["parameters"]["AdmissionEventID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdmissionEventDetailResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    getAdmissionEventTrend: {
-        parameters: {
-            query: {
-                from: string;
-                to: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdmissionEventTrendResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    getAdmissionEventSettings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdmissionEventSettingsResponse"];
-                };
-            };
-            500: components["responses"]["InternalError"];
-            503: components["responses"]["InternalError"];
-        };
-    };
-    updateAdmissionEventSettings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdmissionEventSettingsRequest"];
-            };
-        };
-        responses: {
-            /** @description 更新成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdmissionEventSettingsResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    listAdmissionLinkIncidents: {
-        parameters: {
-            query?: {
-                /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
-                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
-                /** @description 按集群名称筛选，逗号分隔 */
-                cluster?: string[];
-                /** @description 按组件筛选，逗号分隔 */
-                component?: ("webhook" | "operator" | "gateway")[];
-                /** @description 按原因筛选，逗号分隔 */
-                reason?: string[];
-                /** @description 按状态筛选，逗号分隔 */
-                status?: ("active" | "interrupted" | "closed")[];
-                /** @description 起始时间（RFC3339） */
-                from?: string;
-                /** @description 结束时间（RFC3339） */
-                to?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdmissionLinkIncidentListResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
-            503: components["responses"]["InternalError"];
-        };
-    };
-    getAdmissionLinkIncident: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 异常记录 ID */
-                id: components["schemas"]["ResourceID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdmissionLinkIncidentDetailResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-            503: components["responses"]["InternalError"];
-        };
-    };
-    listPolicies: {
-        parameters: {
-            query?: {
-                /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
-                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
-                /** @description 排序字段。省略时按 name 升序 */
-                sortBy?: "name" | "source" | "enforcementMode" | "phase" | "createdAt" | "updatedAt";
-                /** @description 排序方向 */
-                sortOrder?: "asc" | "desc";
-                /** @description 按编译状态筛选。逗号分隔多值，取 OR */
-                phase?: ("Ready" | "Invalid")[];
-                /** @description 按执行模式筛选。逗号分隔多值，取 OR */
-                mode?: ("enforce" | "audit")[];
-                /** @description 按来源筛选。逗号分隔多值，取 OR */
-                source?: ("builtin" | "custom")[];
-                /** @description 按名称或描述模糊匹配 */
-                keyword?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyListResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    createPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PolicyRequest"];
-            };
-        };
-        responses: {
-            /** @description 创建成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyNameResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    getResourceSuggestions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResourceSuggestionsResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    validatePolicyRego: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ValidateRegoRequest"];
-            };
-        };
-        responses: {
-            /** @description 编译通过 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["schemas-EmptyResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-        };
-    };
-    getPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 策略名称 */
-                name: components["parameters"]["PolicyName"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyDetailResponse"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    updatePolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 策略名称 */
-                name: components["parameters"]["PolicyName"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PolicyRequest"];
-            };
-        };
-        responses: {
-            /** @description 更新成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyNameResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    deletePolicy: {
-        parameters: {
-            query?: {
-                /** @description 为 true 时跳过引用检查强制删除 */
-                force?: boolean;
-            };
-            header?: never;
-            path: {
-                /** @description 策略名称 */
-                name: components["parameters"]["PolicyName"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 删除成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["schemas-EmptyResponse"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    listPolicyVersions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 策略名称 */
-                name: components["parameters"]["PolicyName"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyVersionListResponse"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    rollbackPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 策略名称 */
-                name: components["parameters"]["PolicyName"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RollbackRequest"];
-            };
-        };
-        responses: {
-            /** @description 回滚成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RollbackResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            410: components["responses"]["Gone"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    listPolicyGroups: {
-        parameters: {
-            query?: {
-                /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
-                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
-                /** @description 排序字段 */
-                sortBy?: "name" | "displayName" | "enabled" | "phase" | "resolvedCount";
-                /** @description 排序方向 */
-                sortOrder?: "asc" | "desc";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyGroupListResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    createPolicyGroup: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PolicyGroupRequest"];
-            };
-        };
-        responses: {
-            /** @description 创建成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyGroupNameResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    getPolicyGroup: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 策略组名称 */
-                name: components["parameters"]["PolicyGroupName"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyGroupDetailResponse"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    updatePolicyGroup: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 策略组名称 */
-                name: components["parameters"]["PolicyGroupName"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PolicyGroupRequest"];
-            };
-        };
-        responses: {
-            /** @description 更新成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyGroupNameResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            403: components["responses"]["Conflict"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    deletePolicyGroup: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 策略组名称 */
-                name: components["parameters"]["PolicyGroupName"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 删除成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["schemas-EmptyResponse"];
-                };
-            };
-            403: components["responses"]["Conflict"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    setPolicyGroupEnabled: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 策略组名称 */
-                name: components["parameters"]["PolicyGroupName"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PolicyGroupEnabledRequest"];
-            };
-        };
-        responses: {
-            /** @description 更新成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PolicyGroupEnabledResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    listExceptions: {
-        parameters: {
-            query?: {
-                /** @description 页码，从 1 开始。省略时为 1 */
-                page?: components["parameters"]["Page"];
-                /** @description 每页记录数。仅接受 10、20、50、100。省略时为 20 */
-                pageSize?: components["parameters"]["PageSize"];
-                /** @description 排序字段 */
-                sortBy?: "name" | "phase" | "targetSummary" | "duration" | "expiresAt";
-                /** @description 排序方向 */
-                sortOrder?: "asc" | "desc";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExceptionListResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    createException: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExceptionRequest"];
-            };
-        };
-        responses: {
-            /** @description 创建成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExceptionNameResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    getException: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 例外名称 */
-                name: components["parameters"]["ExceptionName"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 查询成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExceptionDetailResponse"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    updateException: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 例外名称 */
-                name: components["parameters"]["ExceptionName"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExceptionRequest"];
-            };
-        };
-        responses: {
-            /** @description 更新成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExceptionNameResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            500: components["responses"]["InternalError"];
-        };
-    };
-    deleteException: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 例外名称 */
-                name: components["parameters"]["ExceptionName"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 删除成功 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["schemas-EmptyResponse"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["InternalError"];
         };
     };
 }

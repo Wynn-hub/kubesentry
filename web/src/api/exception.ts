@@ -2,12 +2,12 @@ import { apiClient } from './generated/client'
 import type { components, operations } from './generated/console-api'
 import { extract } from './http'
 
-export type ExceptionMatch = components['schemas']['ExceptionMatch']
-export type ExceptionListItem = components['schemas']['ExceptionListItem']
-export type ExceptionSpec = components['schemas']['ExceptionSpec']
-export type ExceptionStatus = components['schemas']['ExceptionStatus']
-export type ExceptionDetail = components['schemas']['ExceptionDetail']
-export type ExceptionRequest = components['schemas']['ExceptionRequest']
+export type ExceptionMatch = components['schemas']['dto.ExceptionMatchInput']
+export type ExceptionListItem = components['schemas']['dto.ExceptionItem']
+export type ExceptionSpec = components['schemas']['dto.SwagExceptionSpec']
+export type ExceptionStatus = components['schemas']['dto.ExceptionStatusView']
+export type ExceptionDetail = components['schemas']['dto.SwagExceptionDetail']
+export type ExceptionRequest = components['schemas']['dto.SwagExceptionInput']
 export type ListExceptionsQuery = NonNullable<operations['listExceptions']['parameters']['query']>
 
 export const listExceptions = (params: ListExceptionsQuery = {}) =>

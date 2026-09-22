@@ -2,8 +2,8 @@ import { apiClient } from './generated/client'
 import type { components } from './generated/console-api'
 import { extract } from './http'
 
-export type GroupSummary = components['schemas']['SummaryGroup']
-export type SummaryData = components['schemas']['SummaryData']
+export type GroupSummary = components['schemas']['dto.SummaryGroupView']
+export type SummaryData = components['schemas']['dto.SummaryView']
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

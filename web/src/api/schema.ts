@@ -2,7 +2,7 @@ import { apiClient } from './generated/client'
 import type { components } from './generated/console-api'
 import { extract } from './http'
 
-export type FieldNode = components['schemas']['FieldNode']
+export type FieldNode = components['schemas']['dto.FieldNodeView']
 
 export const getFieldSchema = (group: string, version: string, resource: string, refresh = false) =>
   extract<'getFieldSchema'>(apiClient.GET('/schema/fields', {

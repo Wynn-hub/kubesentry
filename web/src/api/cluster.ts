@@ -2,14 +2,14 @@ import { apiClient } from './generated/client'
 import type { components, operations } from './generated/console-api'
 import { extract } from './http'
 
-export type ClusterListItem = components['schemas']['ClusterListItem']
-export type ClusterDetail = components['schemas']['ClusterDetail']
-export type ImageParams = components['schemas']['ImageParams']
-export type InstallParams = components['schemas']['InstallParams']
-export type InstallRecordItem = components['schemas']['InstallRecord']
-export type CreateClusterRequest = components['schemas']['ClusterCreateRequest']
-export type CreateClusterResponse = components['schemas']['ClusterCommand']
-export type UninstallTask = components['schemas']['UninstallTask']
+export type ClusterListItem = components['schemas']['dto.ClusterItem']
+export type ClusterDetail = components['schemas']['dto.ClusterView']
+export type ImageParams = components['schemas']['dto.ClusterImageInput']
+export type InstallParams = components['schemas']['dto.ClusterInstallInput']
+export type InstallRecordItem = components['schemas']['dto.InstallRecordItemView']
+export type CreateClusterRequest = components['schemas']['dto.ClusterCreateInput']
+export type CreateClusterResponse = components['schemas']['dto.ClusterCommandView']
+export type UninstallTask = components['schemas']['dto.UninstallTaskHTTPView']
 export type ListClustersQuery = NonNullable<operations['listClusters']['parameters']['query']>
 export type ListInstallRecordsQuery = NonNullable<operations['listInstallRecords']['parameters']['query']>
 
@@ -27,7 +27,7 @@ export const getCluster = (name: string) =>
   extract<'getCluster'>(apiClient.GET('/clusters/{name}', { params: { path: { name } } }))
 export const createCluster = (body: CreateClusterRequest) =>
   extract<'createCluster'>(apiClient.POST('/clusters', { body }))
-export const updateClusterLabels = (name: string, labels: components['schemas']['ClusterLabelsRequest']['labels']) =>
+export const updateClusterLabels = (name: string, labels: components['schemas']['dto.ClusterLabelsInput']['labels']) =>
   extract<'updateCluster'>(apiClient.PUT('/clusters/{name}', { params: { path: { name } }, body: { labels } }))
 export const deleteCluster = (name: string) =>
   extract<'deleteCluster'>(apiClient.DELETE('/clusters/{name}', { params: { path: { name } } }))

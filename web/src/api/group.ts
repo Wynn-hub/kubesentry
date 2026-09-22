@@ -2,17 +2,17 @@ import { apiClient } from './generated/client'
 import type { components, operations } from './generated/console-api'
 import { extract } from './http'
 
-export type LabelSelectorRequirement = components['schemas']['KubernetesLabelSelectorRequirement']
-export type LabelSelector = components['schemas']['KubernetesLabelSelector']
-export type PolicyRef = NonNullable<NonNullable<components['schemas']['PolicyGroupSpec']['policies']>['byName']>[number]
-export type GroupPolicies = NonNullable<components['schemas']['PolicyGroupSpec']['policies']>
-export type GroupListItem = components['schemas']['PolicyGroupListItem']
-export type EffectiveMember = components['schemas']['EffectiveMember']
-export type GroupSpec = components['schemas']['PolicyGroupSpec']
-export type GroupStatus = components['schemas']['PolicyGroupStatus']
-export type GroupDetail = components['schemas']['PolicyGroupDetail']
-export type ClusterScope = components['schemas']['PolicyGroupScope']
-export type GroupRequest = components['schemas']['PolicyGroupRequest']
+export type LabelSelectorRequirement = components['schemas']['dto.LabelSelectorRequirementView']
+export type LabelSelector = components['schemas']['dto.LabelSelectorView']
+export type PolicyRef = components['schemas']['dto.PolicyRefInput']
+export type GroupPolicies = components['schemas']['dto.PolicyGroupPoliciesInput']
+export type GroupListItem = components['schemas']['dto.PolicyGroupItem']
+export type EffectiveMember = components['schemas']['dto.EffectiveMemberView']
+export type GroupSpec = components['schemas']['dto.SwagPolicyGroupSpec']
+export type GroupStatus = components['schemas']['dto.PolicyGroupStatusView']
+export type GroupDetail = components['schemas']['dto.SwagPolicyGroupDetail']
+export type ClusterScope = components['schemas']['dto.PolicyGroupScopeView']
+export type GroupRequest = components['schemas']['dto.SwagPolicyGroupInput']
 export type ListGroupsQuery = NonNullable<operations['listPolicyGroups']['parameters']['query']>
 
 export const listGroups = (params: ListGroupsQuery = {}) =>
