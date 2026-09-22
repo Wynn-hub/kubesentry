@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
@@ -41,16 +40,8 @@ func (h *Handler) ListDistributions(ctx context.Context, p dto.ListDistributions
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /distributions [post]
-func (h *Handler) CreateDistribution(ctx context.Context, req *dto.DistributionRequest) (dto.CreateDistributionRes, error) {
-	var input dto.DistributionInput
-	b, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(b, &input); err != nil {
-		return &dto.DistributionBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
-	}
-	if err := h.svcs.Distribution.Create(ctx, input); err != nil {
+func (h *Handler) CreateDistribution(ctx context.Context, input *dto.DistributionInput) (dto.CreateDistributionRes, error) {
+	if err := h.svcs.Distribution.Create(ctx, *input); err != nil {
 		return distributionCreateError(err), nil
 	}
 	return &dto.DistributionNameHTTPResponse{Code: 0, Message: "success", Data: dto.DistributionNameView{Name: input.Name}}, nil
@@ -88,16 +79,8 @@ func (h *Handler) GetDistribution(ctx context.Context, p dto.GetDistributionPara
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /distributions/{name} [put]
-func (h *Handler) UpdateDistribution(ctx context.Context, req *dto.DistributionRequest, p dto.UpdateDistributionParams) (dto.UpdateDistributionRes, error) {
-	var input dto.DistributionInput
-	b, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(b, &input); err != nil {
-		return &dto.DistributionBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
-	}
-	if err := h.svcs.Distribution.Update(ctx, p.Name, input); err != nil {
+func (h *Handler) UpdateDistribution(ctx context.Context, input *dto.DistributionInput, p dto.UpdateDistributionParams) (dto.UpdateDistributionRes, error) {
+	if err := h.svcs.Distribution.Update(ctx, p.Name, *input); err != nil {
 		return distributionUpdateError(err), nil
 	}
 	return &dto.DistributionNameHTTPResponse{Code: 0, Message: "success", Data: dto.DistributionNameView{Name: p.Name}}, nil

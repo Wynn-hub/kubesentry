@@ -24,7 +24,7 @@ func registerDistributionRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeGenericErrorResponse(w, response, err, http.StatusInternalServerError)
 	})
 	mux.HandleFunc("POST /api/v1/distributions", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.DistributionRequest
+		var body dto.DistributionInput
 		if !decodeJSON(w, r, "CreateDistribution", &body) {
 			return
 		}
@@ -39,7 +39,7 @@ func registerDistributionRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("PUT /api/v1/distributions/{name}", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.DistributionRequest
+		var body dto.DistributionInput
 		if !decodeJSON(w, r, "UpdateDistribution", &body) {
 			return
 		}
