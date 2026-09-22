@@ -45,7 +45,11 @@ func policyList(in []dbrepo.Policy) []v1alpha1.Policy {
 }
 
 func groupSpec(req *dto.PolicyGroupInput) v1alpha1.PolicyGroupSpec {
-	return v1alpha1.PolicyGroupSpec{DisplayName: stringOr(req.DisplayName, ""), Description: stringOr(req.Description, ""), Enabled: req.Enabled, NamespaceSelector: req.NamespaceSelector, Policies: req.Policies, SelectorEnforcementMode: stringOr(req.SelectorEnforcementMode, "")}
+	byName := make([]v1alpha1.PolicyRef, len(req.Policies.ByName))
+	for i, ref := range req.Policies.ByName {
+		byName[i] = v1alpha1.PolicyRef{Name: ref.Name, EnforcementMode: stringOr(ref.EnforcementMode, "")}
+	}
+	return v1alpha1.PolicyGroupSpec{DisplayName: stringOr(req.DisplayName, ""), Description: stringOr(req.Description, ""), Enabled: req.Enabled, NamespaceSelector: labelSelectorModel(req.NamespaceSelector), Policies: v1alpha1.PolicyGroupPolicies{ByName: byName, BySelector: labelSelectorModel(req.Policies.BySelector), Exclude: req.Policies.Exclude}, SelectorEnforcementMode: stringOr(req.SelectorEnforcementMode, "")}
 }
 
 func scopeFor(ctx context.Context, r repository.Repositories, owner string) (dto.PolicyGroupScopeView, error) {

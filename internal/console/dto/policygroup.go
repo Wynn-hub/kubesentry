@@ -6,20 +6,159 @@ import (
 	"fmt"
 
 	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type PolicyGroupInput struct {
-	DisplayName             *string                      `json:"displayName,omitempty"`
-	Description             *string                      `json:"description,omitempty"`
-	Enabled                 bool                         `json:"enabled"`
-	NamespaceSelector       *metav1.LabelSelector        `json:"namespaceSelector,omitempty"`
-	Policies                v1alpha1.PolicyGroupPolicies `json:"policies"`
-	SelectorEnforcementMode *string                      `json:"selectorEnforcementMode,omitempty"`
-	Name                    *string                      `json:"name,omitempty"`
-	ResourceVersion         *string                      `json:"resourceVersion,omitempty"`
-	AllClusters             *bool                        `json:"allClusters,omitempty"`
-	ClusterNames            []string                     `json:"clusterNames"`
+	DisplayName             *string                  `json:"displayName,omitempty"`
+	Description             *string                  `json:"description,omitempty"`
+	Enabled                 bool                     `json:"enabled"`
+	NamespaceSelector       *LabelSelectorView       `json:"namespaceSelector,omitempty"`
+	Policies                PolicyGroupPoliciesInput `json:"policies"`
+	SelectorEnforcementMode *string                  `json:"selectorEnforcementMode,omitempty"`
+	Name                    *string                  `json:"name,omitempty"`
+	ResourceVersion         *string                  `json:"resourceVersion,omitempty"`
+	AllClusters             *bool                    `json:"allClusters,omitempty"`
+	ClusterNames            []string                 `json:"clusterNames"`
+}
+
+func (r *PolicyGroupInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode policy group request: expected object")
+	}
+	var enabledSet, policiesSet bool
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "displayName":
+			err = decodeOptionalNonNullJSON(raw, "displayName", &r.DisplayName)
+		case "description":
+			err = decodeOptionalNonNullJSON(raw, "description", &r.Description)
+		case "enabled":
+			enabledSet = true
+			err = decodeNonNullJSON(raw, "enabled", &r.Enabled)
+		case "namespaceSelector":
+			err = decodeOptionalNonNullJSON(raw, "namespaceSelector", &r.NamespaceSelector)
+		case "policies":
+			policiesSet = true
+			err = decodeNonNullJSON(raw, "policies", &r.Policies)
+		case "selectorEnforcementMode":
+			err = decodeOptionalNonNullJSON(raw, "selectorEnforcementMode", &r.SelectorEnforcementMode)
+		case "name":
+			err = decodeOptionalNonNullJSON(raw, "name", &r.Name)
+		case "resourceVersion":
+			err = decodeOptionalNonNullJSON(raw, "resourceVersion", &r.ResourceVersion)
+		case "allClusters":
+			err = decodeOptionalNonNullJSON(raw, "allClusters", &r.AllClusters)
+		case "clusterNames":
+			r.ClusterNames = nil
+			err = decodeNonNullJSON(raw, "clusterNames", &r.ClusterNames)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	if !enabledSet {
+		return fmt.Errorf("enabled: field is required")
+	}
+	if !policiesSet {
+		return fmt.Errorf("policies: field is required")
+	}
+	if r.SelectorEnforcementMode != nil && *r.SelectorEnforcementMode != "enforce" && *r.SelectorEnforcementMode != "audit" {
+		return fmt.Errorf("selectorEnforcementMode: invalid value %q", *r.SelectorEnforcementMode)
+	}
+	return nil
+}
+
+type PolicyRefInput struct {
+	Name            string  `json:"name"`
+	EnforcementMode *string `json:"enforcementMode,omitempty"`
+}
+
+func (r *PolicyRefInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode policy ref: expected object")
+	}
+	var nameSet bool
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "name":
+			nameSet = true
+			err = decodeNonNullJSON(raw, "name", &r.Name)
+		case "enforcementMode":
+			err = decodeOptionalNonNullJSON(raw, "enforcementMode", &r.EnforcementMode)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	if !nameSet {
+		return fmt.Errorf("name: field is required")
+	}
+	if r.EnforcementMode != nil && *r.EnforcementMode != "enforce" && *r.EnforcementMode != "audit" {
+		return fmt.Errorf("enforcementMode: invalid value %q", *r.EnforcementMode)
+	}
+	return nil
+}
+
+type PolicyGroupPoliciesInput struct {
+	ByName     []PolicyRefInput   `json:"byName,omitempty"`
+	BySelector *LabelSelectorView `json:"bySelector,omitempty"`
+	Exclude    []string           `json:"exclude,omitempty"`
+}
+
+func (p *PolicyGroupPoliciesInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode policy group policies: expected object")
+	}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "byName":
+			p.ByName = nil
+			err = decodeNonNullJSON(raw, "byName", &p.ByName)
+		case "bySelector":
+			err = decodeOptionalNonNullJSON(raw, "bySelector", &p.BySelector)
+		case "exclude":
+			p.Exclude = nil
+			err = decodeNonNullJSON(raw, "exclude", &p.Exclude)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	_, err := decoder.Token()
+	return err
 }
 
 type PolicyGroupEnabledInput struct {
@@ -50,27 +189,14 @@ type PolicyGroupPath struct {
 	Name string `uri:"name" binding:"required"`
 }
 
-// SwagPolicyRef describes a policy reference with an optional enforcement override.
-type SwagPolicyRef struct {
-	Name            string `json:"name" binding:"required"`
-	EnforcementMode string `json:"enforcementMode,omitempty" enums:"enforce,audit"`
-}
-
-// SwagPolicyGroupPolicies describes the policy selection rules for a policy group.
-type SwagPolicyGroupPolicies struct {
-	ByName     []SwagPolicyRef    `json:"byName,omitempty"`
-	BySelector *LabelSelectorView `json:"bySelector,omitempty"`
-	Exclude    []string           `json:"exclude,omitempty"`
-}
-
 // SwagPolicyGroupSpec is the Swagger-only representation of a policy group specification.
 type SwagPolicyGroupSpec struct {
-	DisplayName             *string                 `json:"displayName,omitempty"`
-	Description             *string                 `json:"description,omitempty"`
-	Enabled                 bool                    `json:"enabled" binding:"required"`
-	NamespaceSelector       *LabelSelectorView      `json:"namespaceSelector,omitempty"`
-	Policies                SwagPolicyGroupPolicies `json:"policies" binding:"required"`
-	SelectorEnforcementMode *string                 `json:"selectorEnforcementMode,omitempty" enums:"enforce,audit"`
+	DisplayName             *string                  `json:"displayName,omitempty"`
+	Description             *string                  `json:"description,omitempty"`
+	Enabled                 bool                     `json:"enabled" binding:"required"`
+	NamespaceSelector       *LabelSelectorView       `json:"namespaceSelector,omitempty"`
+	Policies                PolicyGroupPoliciesInput `json:"policies" binding:"required"`
+	SelectorEnforcementMode *string                  `json:"selectorEnforcementMode,omitempty" enums:"enforce,audit"`
 }
 
 // SwagPolicyGroupInput extends the policy group spec with Console-only request fields.

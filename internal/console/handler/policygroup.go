@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
@@ -68,12 +67,8 @@ func (h *Handler) GetPolicyGroup(ctx context.Context, p dto.GetPolicyGroupParams
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /policygroups [post]
-func (h *Handler) CreatePolicyGroup(ctx context.Context, r *dto.PolicyGroupRequest) (dto.CreatePolicyGroupRes, error) {
-	input, e := policyGroupInput(r)
-	if e != nil {
-		return nil, e
-	}
-	e = h.svcs.PolicyGroup.Create(ctx, input)
+func (h *Handler) CreatePolicyGroup(ctx context.Context, input *dto.PolicyGroupInput) (dto.CreatePolicyGroupRes, error) {
+	e := h.svcs.PolicyGroup.Create(ctx, input)
 	if e != nil {
 		var v *service.ValidationError
 		if errors.As(e, &v) {
@@ -102,12 +97,8 @@ func (h *Handler) CreatePolicyGroup(ctx context.Context, r *dto.PolicyGroupReque
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /policygroups/{name} [put]
-func (h *Handler) UpdatePolicyGroup(ctx context.Context, r *dto.PolicyGroupRequest, p dto.UpdatePolicyGroupParams) (dto.UpdatePolicyGroupRes, error) {
-	input, e := policyGroupInput(r)
-	if e != nil {
-		return nil, e
-	}
-	e = h.svcs.PolicyGroup.Update(ctx, p.Name, input)
+func (h *Handler) UpdatePolicyGroup(ctx context.Context, input *dto.PolicyGroupInput, p dto.UpdatePolicyGroupParams) (dto.UpdatePolicyGroupRes, error) {
+	e := h.svcs.PolicyGroup.Update(ctx, p.Name, input)
 	if e != nil {
 		if p.Name == "default" {
 			return &dto.PolicyGroupForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
@@ -125,18 +116,6 @@ func (h *Handler) UpdatePolicyGroup(ctx context.Context, r *dto.PolicyGroupReque
 		return &dto.PolicyGroupInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
 	}
 	return &dto.PolicyGroupNameHTTPResponse{Code: 0, Message: "success", Data: dto.PolicyGroupNameView{Name: p.Name}}, nil
-}
-
-func policyGroupInput(request *dto.PolicyGroupRequest) (*dto.PolicyGroupInput, error) {
-	data, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-	var input dto.PolicyGroupInput
-	if err := json.Unmarshal(data, &input); err != nil {
-		return nil, err
-	}
-	return &input, nil
 }
 
 // @ID setPolicyGroupEnabled

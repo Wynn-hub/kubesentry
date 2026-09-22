@@ -24,7 +24,7 @@ func registerPolicyGroupRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/policygroups", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.PolicyGroupRequest
+		var body dto.PolicyGroupInput
 		if !decodeJSON(w, r, "CreatePolicyGroup", &body) {
 			return
 		}
@@ -39,7 +39,7 @@ func registerPolicyGroupRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("PUT /api/v1/policygroups/{name}", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.PolicyGroupRequest
+		var body dto.PolicyGroupInput
 		if !decodeJSON(w, r, "UpdatePolicyGroup", &body) {
 			return
 		}
