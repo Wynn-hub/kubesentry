@@ -10,14 +10,169 @@ import (
 )
 
 type PolicyInput struct {
-	Name            *string              `json:"name,omitempty"`
-	Description     *string              `json:"description,omitempty"`
-	EnforcementMode string               `json:"enforcementMode"`
-	Match           v1alpha1.PolicyMatch `json:"match"`
-	Rego            string               `json:"rego"`
-	Labels          *map[string]string   `json:"labels,omitempty"`
-	Annotations     *map[string]string   `json:"annotations,omitempty"`
-	ResourceVersion *string              `json:"resourceVersion,omitempty"`
+	Name            *string            `json:"name,omitempty"`
+	Description     *string            `json:"description,omitempty"`
+	EnforcementMode string             `json:"enforcementMode"`
+	Match           PolicyMatchInput   `json:"match"`
+	Rego            string             `json:"rego"`
+	Labels          *map[string]string `json:"labels,omitempty"`
+	Annotations     *map[string]string `json:"annotations,omitempty"`
+	ResourceVersion *string            `json:"resourceVersion,omitempty"`
+}
+
+func (r *PolicyInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode policy request: expected object")
+	}
+	required := map[string]bool{"enforcementMode": false, "match": false, "rego": false}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "name":
+			err = decodeOptionalNonNullJSON(raw, "name", &r.Name)
+		case "description":
+			err = decodeOptionalNonNullJSON(raw, "description", &r.Description)
+		case "enforcementMode":
+			required["enforcementMode"] = true
+			err = decodeNonNullJSON(raw, "enforcementMode", &r.EnforcementMode)
+		case "match":
+			required["match"] = true
+			err = decodeNonNullJSON(raw, "match", &r.Match)
+		case "rego":
+			required["rego"] = true
+			err = decodeNonNullJSON(raw, "rego", &r.Rego)
+		case "labels":
+			err = decodeOptionalNonNullJSON(raw, "labels", &r.Labels)
+		case "annotations":
+			err = decodeOptionalNonNullJSON(raw, "annotations", &r.Annotations)
+		case "resourceVersion":
+			err = decodeOptionalNonNullJSON(raw, "resourceVersion", &r.ResourceVersion)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	for _, field := range []string{"enforcementMode", "match", "rego"} {
+		if !required[field] {
+			return fmt.Errorf("%s: field is required", field)
+		}
+	}
+	if r.EnforcementMode != "enforce" && r.EnforcementMode != "audit" {
+		return fmt.Errorf("enforcementMode: invalid value %q", r.EnforcementMode)
+	}
+	return nil
+}
+
+type PolicyMatchInput struct {
+	Operations []string             `json:"operations" binding:"required" enums:"CREATE,UPDATE,DELETE,CONNECT"`
+	Resources  []MatchResourceInput `json:"resources" binding:"required"`
+}
+
+func (m *PolicyMatchInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode policy match: expected object")
+	}
+	var operationsSet, resourcesSet bool
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "operations":
+			operationsSet = true
+			m.Operations = nil
+			err = decodeNonNullJSON(raw, "operations", &m.Operations)
+		case "resources":
+			resourcesSet = true
+			m.Resources = nil
+			err = decodeNonNullJSON(raw, "resources", &m.Resources)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	if !operationsSet {
+		return fmt.Errorf("operations: field is required")
+	}
+	if !resourcesSet {
+		return fmt.Errorf("resources: field is required")
+	}
+	for _, operation := range m.Operations {
+		if operation != "CREATE" && operation != "UPDATE" && operation != "DELETE" && operation != "CONNECT" {
+			return fmt.Errorf("operations: invalid value %q", operation)
+		}
+	}
+	return nil
+}
+
+type MatchResourceInput struct {
+	APIGroups   []string `json:"apiGroups" binding:"required"`
+	APIVersions []string `json:"apiVersions" binding:"required"`
+	Resources   []string `json:"resources" binding:"required"`
+}
+
+func (m *MatchResourceInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode match resource: expected object")
+	}
+	required := map[string]bool{"apiGroups": false, "apiVersions": false, "resources": false}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "apiGroups":
+			required["apiGroups"] = true
+			m.APIGroups = nil
+			err = decodeNonNullJSON(raw, "apiGroups", &m.APIGroups)
+		case "apiVersions":
+			required["apiVersions"] = true
+			m.APIVersions = nil
+			err = decodeNonNullJSON(raw, "apiVersions", &m.APIVersions)
+		case "resources":
+			required["resources"] = true
+			m.Resources = nil
+			err = decodeNonNullJSON(raw, "resources", &m.Resources)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	for _, field := range []string{"apiGroups", "apiVersions", "resources"} {
+		if !required[field] {
+			return fmt.Errorf("%s: field is required", field)
+		}
+	}
+	return nil
 }
 
 type PolicyRollbackInput struct {
@@ -272,25 +427,12 @@ type PolicyPath struct {
 	Name string `uri:"name" binding:"required"`
 }
 
-// SwagPolicyMatch is the Swagger-only representation of a policy match.
-type SwagPolicyMatch struct {
-	Operations []string            `json:"operations" binding:"required" enums:"CREATE,UPDATE,DELETE,CONNECT"`
-	Resources  []SwagMatchResource `json:"resources" binding:"required"`
-}
-
-// SwagMatchResource is the Swagger-only representation of one matched resource rule.
-type SwagMatchResource struct {
-	APIGroups   []string `json:"apiGroups" binding:"required"`
-	APIVersions []string `json:"apiVersions" binding:"required"`
-	Resources   []string `json:"resources" binding:"required"`
-}
-
 // SwagPolicyInput describes the stable policy create and update JSON shape.
 type SwagPolicyInput struct {
 	Name            *string           `json:"name,omitempty"`
 	Description     *string           `json:"description,omitempty"`
 	EnforcementMode string            `json:"enforcementMode" binding:"required" enums:"enforce,audit"`
-	Match           SwagPolicyMatch   `json:"match" binding:"required"`
+	Match           PolicyMatchInput  `json:"match" binding:"required"`
 	Rego            string            `json:"rego" binding:"required"`
 	Labels          map[string]string `json:"labels,omitempty"`
 	Annotations     map[string]string `json:"annotations,omitempty"`
@@ -305,7 +447,7 @@ type SwagPolicyDetail struct {
 	Labels          map[string]string `json:"labels" binding:"required"`
 	Annotations     map[string]string `json:"annotations" binding:"required"`
 	EnforcementMode string            `json:"enforcementMode" binding:"required" enums:"enforce,audit"`
-	Match           SwagPolicyMatch   `json:"match" binding:"required"`
+	Match           PolicyMatchInput  `json:"match" binding:"required"`
 	Rego            string            `json:"rego" binding:"required"`
 	Phase           string            `json:"phase" binding:"required" enums:"Ready,Invalid"`
 	CompileError    *string           `json:"compileError,omitempty"`
@@ -320,13 +462,13 @@ type PolicyNameView struct {
 }
 
 type SwagPolicyVersionEntry struct {
-	Version         int             `json:"version" binding:"required"`
-	CreatedAt       time.Time       `json:"createdAt" binding:"required" format:"date-time"`
-	Phase           string          `json:"phase" binding:"required" enums:"Ready,Invalid"`
-	Rego            string          `json:"rego" binding:"required"`
-	Match           SwagPolicyMatch `json:"match" binding:"required"`
-	EnforcementMode string          `json:"enforcementMode" binding:"required" enums:"enforce,audit"`
-	IsCurrent       bool            `json:"isCurrent" binding:"required"`
+	Version         int              `json:"version" binding:"required"`
+	CreatedAt       time.Time        `json:"createdAt" binding:"required" format:"date-time"`
+	Phase           string           `json:"phase" binding:"required" enums:"Ready,Invalid"`
+	Rego            string           `json:"rego" binding:"required"`
+	Match           PolicyMatchInput `json:"match" binding:"required"`
+	EnforcementMode string           `json:"enforcementMode" binding:"required" enums:"enforce,audit"`
+	IsCurrent       bool             `json:"isCurrent" binding:"required"`
 }
 
 type SwagPolicyVersionList struct {

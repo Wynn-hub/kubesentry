@@ -34,6 +34,9 @@ func TestPolicyRouteMatrix(t *testing.T) {
 	}{
 		{name: "normal defaults", method: http.MethodGet, path: "/api/v1/policies", want: ok},
 		{name: "missing required body fields", method: http.MethodPost, path: "/api/v1/policies", body: `{}`, contentType: "application/json", want: withMessage(bad, "required")},
+		{name: "null required match", method: http.MethodPost, path: "/api/v1/policies", body: `{"enforcementMode":"audit","match":null,"rego":"package test"}`, contentType: "application/json", want: withMessage(bad, "match")},
+		{name: "missing match resources", method: http.MethodPost, path: "/api/v1/policies", body: `{"enforcementMode":"audit","match":{"operations":["CREATE"]},"rego":"package test"}`, contentType: "application/json", want: withMessage(bad, "resources")},
+		{name: "missing resource field", method: http.MethodPost, path: "/api/v1/policies", body: `{"enforcementMode":"audit","match":{"operations":["CREATE"],"resources":[{"apiGroups":[],"apiVersions":[]}]},"rego":"package test"}`, contentType: "application/json", want: withMessage(bad, "resources")},
 		{name: "missing body", method: http.MethodPost, path: "/api/v1/policies", contentType: "application/json", want: withMessage(bad, "body required")},
 		{name: "invalid JSON", method: http.MethodPost, path: "/api/v1/policies/validate", body: `{"rego":`, contentType: "application/json", want: withMessage(bad, "unexpected EOF")},
 		{name: "trailing JSON", method: http.MethodPost, path: "/api/v1/policies/validate", body: validValidate + `{}`, contentType: "application/json", want: withMessage(bad, "unexpected trailing data")},

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
@@ -105,12 +104,8 @@ func (h *Handler) GetPolicy(ctx context.Context, params dto.GetPolicyParams) (dt
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /policies [post]
-func (h *Handler) CreatePolicy(ctx context.Context, req *dto.PolicyRequest) (dto.CreatePolicyRes, error) {
-	input, err := policyInput(req)
-	if err != nil {
-		return nil, err
-	}
-	err = h.svcs.Policy.Create(ctx, input)
+func (h *Handler) CreatePolicy(ctx context.Context, input *dto.PolicyInput) (dto.CreatePolicyRes, error) {
+	err := h.svcs.Policy.Create(ctx, input)
 	if err != nil {
 		return mapCreatePolicyError(err), nil
 	}
@@ -136,12 +131,8 @@ func (h *Handler) CreatePolicy(ctx context.Context, req *dto.PolicyRequest) (dto
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /policies/{name} [put]
-func (h *Handler) UpdatePolicy(ctx context.Context, req *dto.PolicyRequest, params dto.UpdatePolicyParams) (dto.UpdatePolicyRes, error) {
-	input, err := policyInput(req)
-	if err != nil {
-		return nil, err
-	}
-	err = h.svcs.Policy.Update(ctx, params.Name, input)
+func (h *Handler) UpdatePolicy(ctx context.Context, input *dto.PolicyInput, params dto.UpdatePolicyParams) (dto.UpdatePolicyRes, error) {
+	err := h.svcs.Policy.Update(ctx, params.Name, input)
 	if err != nil {
 		return mapUpdatePolicyError(err), nil
 	}
@@ -264,16 +255,4 @@ func (h *Handler) GetResourceSuggestions(ctx context.Context) (dto.GetResourceSu
 		Message: "success",
 		Data:    sugg,
 	}, nil
-}
-
-func policyInput(request *dto.PolicyRequest) (*dto.PolicyInput, error) {
-	data, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-	var input dto.PolicyInput
-	if err := json.Unmarshal(data, &input); err != nil {
-		return nil, err
-	}
-	return &input, nil
 }

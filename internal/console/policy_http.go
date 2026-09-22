@@ -36,7 +36,7 @@ func registerPolicyRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/policies", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.PolicyRequest
+		var body dto.PolicyInput
 		if !decodeJSON(w, r, "CreatePolicy", &body) {
 			return
 		}
@@ -66,7 +66,7 @@ func registerPolicyRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("PUT /api/v1/policies/{name}", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.PolicyRequest
+		var body dto.PolicyInput
 		if !decodeJSON(w, r, "UpdatePolicy", &body) {
 			return
 		}

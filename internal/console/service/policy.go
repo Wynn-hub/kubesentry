@@ -109,7 +109,7 @@ func (s *PolicyService) Create(ctx context.Context, req *dto.PolicyInput) error 
 		Description:     stringOr(req.Description, ""),
 		Rego:            req.Rego,
 		EnforcementMode: string(req.EnforcementMode),
-		Match:           datatypes.NewJSONType(req.Match),
+		Match:           datatypes.NewJSONType(policyMatch(req.Match)),
 		CompileOK:       true,
 		// Or(nil) preserves the legacy handler's behavior exactly: an absent
 		// labels field persisted a nil map, not an empty object.
@@ -134,6 +134,14 @@ func (s *PolicyService) Create(ctx context.Context, req *dto.PolicyInput) error 
 		s.notifier.NotifyChange(ctx, "policy")
 	}
 	return nil
+}
+
+func policyMatch(input dto.PolicyMatchInput) v1alpha1.PolicyMatch {
+	resources := make([]v1alpha1.MatchResource, len(input.Resources))
+	for i, resource := range input.Resources {
+		resources[i] = v1alpha1.MatchResource{APIGroups: resource.APIGroups, APIVersions: resource.APIVersions, Resources: resource.Resources}
+	}
+	return v1alpha1.PolicyMatch{Operations: input.Operations, Resources: resources}
 }
 
 func (s *PolicyService) Update(ctx context.Context, name string, req *dto.PolicyInput) error {
@@ -180,7 +188,7 @@ func (s *PolicyService) Update(ctx context.Context, name string, req *dto.Policy
 		current = versions[0].Version
 	}
 
-	p.Match = datatypes.NewJSONType(req.Match)
+	p.Match = datatypes.NewJSONType(policyMatch(req.Match))
 	p.EnforcementMode = string(req.EnforcementMode)
 	p.Rego = req.Rego
 	p.Description = stringOr(req.Description, "")

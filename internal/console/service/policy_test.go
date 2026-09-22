@@ -159,9 +159,9 @@ func policyRequestFixture() *dto.PolicyInput {
 		Name:            &name,
 		Description:     &desc,
 		EnforcementMode: "audit",
-		Match: v1alpha1.PolicyMatch{
+		Match: dto.PolicyMatchInput{
 			Operations: []string{"CREATE"},
-			Resources: []v1alpha1.MatchResource{
+			Resources: []dto.MatchResourceInput{
 				{APIGroups: []string{""}, APIVersions: []string{"v1"}, Resources: []string{"pods"}},
 			},
 		},
