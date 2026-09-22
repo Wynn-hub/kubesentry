@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strconv"
 
@@ -42,16 +41,8 @@ func (h *Handler) ListClusters(ctx context.Context, p dto.ListClustersParams) (d
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /clusters [post]
-func (h *Handler) CreateCluster(ctx context.Context, req *dto.ClusterCreateRequest) (dto.CreateClusterRes, error) {
-	var input dto.ClusterCreateInput
-	b, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(b, &input); err != nil {
-		return &dto.ClusterBadRequestHTTPError{Code: 40000, Message: err.Error()}, nil
-	}
-	name, command, err := h.svcs.Cluster.Create(ctx, input)
+func (h *Handler) CreateCluster(ctx context.Context, input *dto.ClusterCreateInput) (dto.CreateClusterRes, error) {
+	name, command, err := h.svcs.Cluster.Create(ctx, *input)
 	if err != nil {
 		return createClusterServiceError(err), nil
 	}
@@ -130,16 +121,8 @@ func (h *Handler) DeleteCluster(ctx context.Context, p dto.DeleteClusterParams) 
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /clusters/{name}/reissue-token [post]
-func (h *Handler) ReissueClusterToken(ctx context.Context, req *dto.ClusterTokenRequest, p dto.ReissueClusterTokenParams) (dto.ReissueClusterTokenRes, error) {
-	var input dto.ClusterTokenInput
-	b, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(b, &input); err != nil {
-		return &dto.ClusterInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
-	}
-	name, command, err := h.svcs.Cluster.ReissueToken(ctx, p.Name, input)
+func (h *Handler) ReissueClusterToken(ctx context.Context, input *dto.ClusterTokenInput, p dto.ReissueClusterTokenParams) (dto.ReissueClusterTokenRes, error) {
+	name, command, err := h.svcs.Cluster.ReissueToken(ctx, p.Name, *input)
 	if err != nil {
 		return reissueClusterServiceError(err), nil
 	}

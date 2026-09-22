@@ -13,6 +13,47 @@ type ClusterImageInput struct {
 	PullPolicy string `json:"pullPolicy" binding:"required" enums:"Always,IfNotPresent,Never"`
 }
 
+func (i *ClusterImageInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode cluster image: expected object")
+	}
+	required := map[string]bool{"repository": false, "tag": false, "pullPolicy": false}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "repository":
+			required["repository"] = true
+			err = decodeNonNullJSON(raw, "repository", &i.Repository)
+		case "tag":
+			required["tag"] = true
+			err = decodeNonNullJSON(raw, "tag", &i.Tag)
+		case "pullPolicy":
+			required["pullPolicy"] = true
+			err = decodeNonNullJSON(raw, "pullPolicy", &i.PullPolicy)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	for _, field := range []string{"repository", "tag", "pullPolicy"} {
+		if !required[field] {
+			return fmt.Errorf("%s: field is required", field)
+		}
+	}
+	return nil
+}
+
 type ClusterInstallInput struct {
 	Namespace            string            `json:"namespace" binding:"required"`
 	WebhookImage         ClusterImageInput `json:"webhookImage" binding:"required"`
@@ -23,14 +64,160 @@ type ClusterInstallInput struct {
 	GatewayCABundle      string            `json:"gatewayCaBundle,omitempty"`
 }
 
+func (i *ClusterInstallInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode cluster install params: expected object")
+	}
+	required := map[string]bool{"namespace": false, "webhookImage": false, "operatorImage": false, "highAvailability": false, "gatewayAddress": false}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "namespace":
+			required["namespace"] = true
+			err = decodeNonNullJSON(raw, "namespace", &i.Namespace)
+		case "webhookImage":
+			required["webhookImage"] = true
+			err = decodeNonNullJSON(raw, "webhookImage", &i.WebhookImage)
+		case "operatorImage":
+			required["operatorImage"] = true
+			err = decodeNonNullJSON(raw, "operatorImage", &i.OperatorImage)
+		case "highAvailability":
+			required["highAvailability"] = true
+			err = decodeNonNullJSON(raw, "highAvailability", &i.HighAvailability)
+		case "gatewayAddress":
+			required["gatewayAddress"] = true
+			err = decodeNonNullJSON(raw, "gatewayAddress", &i.GatewayAddress)
+		case "gatewayTlsServerName":
+			err = decodeNonNullJSON(raw, "gatewayTlsServerName", &i.GatewayTLSServerName)
+		case "gatewayCaBundle":
+			err = decodeNonNullJSON(raw, "gatewayCaBundle", &i.GatewayCABundle)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	for _, field := range []string{"namespace", "webhookImage", "operatorImage", "highAvailability", "gatewayAddress"} {
+		if !required[field] {
+			return fmt.Errorf("%s: field is required", field)
+		}
+	}
+	return nil
+}
+
 type ClusterCreateInput struct {
 	Name          string              `json:"name" binding:"required"`
 	Labels        map[string]string   `json:"labels,omitempty"`
 	InstallParams ClusterInstallInput `json:"installParams" binding:"required"`
 }
 
+func (i *ClusterCreateInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode cluster create request: expected object")
+	}
+	var nameSet, installParamsSet bool
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		switch key {
+		case "name":
+			nameSet = true
+			err = decodeNonNullJSON(raw, "name", &i.Name)
+		case "labels":
+			i.Labels = nil
+			err = decodeNonNullJSON(raw, "labels", &i.Labels)
+		case "installParams":
+			installParamsSet = true
+			err = decodeNonNullJSON(raw, "installParams", &i.InstallParams)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	if !nameSet {
+		return fmt.Errorf("name: field is required")
+	}
+	if !installParamsSet {
+		return fmt.Errorf("installParams: field is required")
+	}
+	return nil
+}
+
 type ClusterTokenInput struct {
 	InstallParams ClusterInstallInput `json:"installParams" binding:"required"`
+}
+
+func (i *ClusterTokenInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return fmt.Errorf("decode cluster token request: expected object")
+	}
+	var installParamsSet bool
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		if key == "installParams" {
+			installParamsSet = true
+			if err := decodeNonNullJSON(raw, "installParams", &i.InstallParams); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	if !installParamsSet {
+		return fmt.Errorf("installParams: field is required")
+	}
+	return nil
+}
+
+func (i *ClusterCreateInput) Validate() error {
+	return validateClusterInstallInput(i.InstallParams)
+}
+
+func (i *ClusterTokenInput) Validate() error {
+	return validateClusterInstallInput(i.InstallParams)
+}
+
+func validateClusterInstallInput(input ClusterInstallInput) error {
+	if !validPullPolicy(input.WebhookImage.PullPolicy) {
+		return fmt.Errorf("webhookImage.pullPolicy: invalid value %q", input.WebhookImage.PullPolicy)
+	}
+	if !validPullPolicy(input.OperatorImage.PullPolicy) {
+		return fmt.Errorf("operatorImage.pullPolicy: invalid value %q", input.OperatorImage.PullPolicy)
+	}
+	return nil
+}
+
+func validPullPolicy(value string) bool {
+	return value == "Always" || value == "IfNotPresent" || value == "Never"
 }
 
 type ClusterLabelsInput struct {

@@ -24,7 +24,7 @@ func registerClusterRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeGenericErrorResponse(w, response, err, http.StatusInternalServerError)
 	})
 	mux.HandleFunc("POST /api/v1/clusters", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.ClusterCreateRequest
+		var body dto.ClusterCreateInput
 		if !decodeJSON(w, r, "CreateCluster", &body) {
 			return
 		}
@@ -51,7 +51,7 @@ func registerClusterRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/clusters/{name}/reissue-token", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.ClusterTokenRequest
+		var body dto.ClusterTokenInput
 		if !decodeJSON(w, r, "ReissueClusterToken", &body) {
 			return
 		}
