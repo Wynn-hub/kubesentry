@@ -1,6 +1,11 @@
 package dto
 
-import "time"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"time"
+)
 
 type ClusterImageInput struct {
 	Repository string `json:"repository" binding:"required"`
@@ -30,6 +35,52 @@ type ClusterTokenInput struct {
 
 type ClusterLabelsInput struct {
 	Labels map[string]string `json:"labels" binding:"required"`
+}
+
+func (r *ClusterLabelsInput) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	if token != json.Delim('{') {
+		return fmt.Errorf("expected object")
+	}
+	found := false
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		if key != "labels" {
+			continue
+		}
+		found = true
+		if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			return fmt.Errorf("labels: must be an object")
+		}
+		var labels map[string]string
+		if err := json.Unmarshal(raw, &labels); err != nil {
+			return fmt.Errorf("labels: %w", err)
+		}
+		if r.Labels == nil {
+			r.Labels = make(map[string]string, len(labels))
+		}
+		for key, value := range labels {
+			r.Labels[key] = value
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("labels: field is required")
+	}
+	return nil
 }
 
 type ClusterCommandView struct {

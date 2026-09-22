@@ -75,3 +75,13 @@ func TestPlatformDTOJSONCompatibility(t *testing.T) {
 		t.Fatalf("nil platform optionals must be omitted: %s", got)
 	}
 }
+
+func TestClusterLabelsInputMergesDuplicateObjects(t *testing.T) {
+	var input ClusterLabelsInput
+	if err := json.Unmarshal([]byte(`{"labels":{"a":"1"},"labels":{"b":"2"}}`), &input); err != nil {
+		t.Fatal(err)
+	}
+	if input.Labels["a"] != "1" || input.Labels["b"] != "2" {
+		t.Fatalf("labels = %#v", input.Labels)
+	}
+}

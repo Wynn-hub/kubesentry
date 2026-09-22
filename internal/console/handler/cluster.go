@@ -91,16 +91,8 @@ func (h *Handler) GetCluster(ctx context.Context, p dto.GetClusterParams) (dto.G
 // @Failure 404 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /clusters/{name} [put]
-func (h *Handler) UpdateCluster(ctx context.Context, req *dto.ClusterLabelsRequest, p dto.UpdateClusterParams) (dto.UpdateClusterRes, error) {
-	var input dto.ClusterLabelsInput
-	b, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(b, &input); err != nil {
-		return &dto.ClusterInternalServerHTTPError{Code: 50000, Message: "request failed"}, nil
-	}
-	if err := h.svcs.Cluster.UpdateLabels(ctx, p.Name, input); err != nil {
+func (h *Handler) UpdateCluster(ctx context.Context, req *dto.ClusterLabelsInput, p dto.UpdateClusterParams) (dto.UpdateClusterRes, error) {
+	if err := h.svcs.Cluster.UpdateLabels(ctx, p.Name, *req); err != nil {
 		return updateClusterServiceError(err), nil
 	}
 	return &dto.ClusterNameHTTPResponse{Code: 0, Message: "success", Data: dto.ClusterNameView{Name: p.Name}}, nil

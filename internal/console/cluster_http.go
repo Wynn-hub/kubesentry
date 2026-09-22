@@ -39,7 +39,7 @@ func registerClusterRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("PUT /api/v1/clusters/{name}", func(w http.ResponseWriter, r *http.Request) {
-		var body dto.ClusterLabelsRequest
+		var body dto.ClusterLabelsInput
 		if !decodeJSON(w, r, "UpdateCluster", &body) {
 			return
 		}
