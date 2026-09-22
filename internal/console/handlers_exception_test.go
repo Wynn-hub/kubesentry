@@ -67,7 +67,7 @@ func TestExceptionCRUD(t *testing.T) {
 	// The DB is seeded with a permanent "default-system-namespaces"
 	// exception (migration 0004), so assert containment rather than an
 	// exact count of 1.
-	page := mustUnmarshal[testPageResult[dto.ExceptionListItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.ExceptionItem]](t, env.Data)
 	items := page.Items
 	if page.Total < 1 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)
@@ -225,7 +225,7 @@ func TestListExceptionsHonorsSortFieldsAndStableNameTieBreak(t *testing.T) {
 			if rec.Code != 200 {
 				t.Fatalf("code=%d body=%s", rec.Code, rec.Body.String())
 			}
-			items := mustUnmarshal[testPageResult[dto.ExceptionListItem]](t, env.Data).Items
+			items := mustUnmarshal[testPageResult[dto.ExceptionItem]](t, env.Data).Items
 			got := make([]string, 0, len(test.want))
 			for _, item := range items {
 				if strings.HasPrefix(item.Name, "sort-") {
@@ -256,7 +256,7 @@ func TestListExceptionsRendersAndSortsMultiReferenceTargetSummary(t *testing.T) 
 	if rec.Code != 200 {
 		t.Fatalf("code=%d body=%s", rec.Code, rec.Body.String())
 	}
-	items := mustUnmarshal[testPageResult[dto.ExceptionListItem]](t, env.Data).Items
+	items := mustUnmarshal[testPageResult[dto.ExceptionItem]](t, env.Data).Items
 	gotOrder := make([]string, 0, len(rows))
 	gotSummaries := make(map[string]string, len(rows))
 	for _, item := range items {
@@ -297,8 +297,8 @@ func TestGetExceptionDetail(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	d := mustUnmarshal[dto.ExceptionDetail](t, env.Data)
-	if !d.Spec.AllPolicies.Or(false) || d.Status.Phase != dto.ExceptionStatusPhaseActive {
+	d := mustUnmarshal[dto.ExceptionView](t, env.Data)
+	if !d.Spec.AllPolicies || d.Status.Phase != "Active" {
 		t.Fatalf("detail = %+v", d)
 	}
 }
@@ -317,8 +317,8 @@ func TestGetExceptionDetailExpired(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	d := mustUnmarshal[dto.ExceptionDetail](t, env.Data)
-	if d.Status.Phase != dto.ExceptionStatusPhaseExpired {
+	d := mustUnmarshal[dto.ExceptionView](t, env.Data)
+	if d.Status.Phase != "Expired" {
 		t.Fatalf("phase = %q, want Expired", d.Status.Phase)
 	}
 }

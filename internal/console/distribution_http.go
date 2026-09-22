@@ -21,7 +21,7 @@ func registerDistributionRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 			return
 		}
 		response, err := h.ListDistributions(requestContext(r), p)
-		writeGenericErrorResponse(w, response, err, http.StatusInternalServerError)
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/distributions", func(w http.ResponseWriter, r *http.Request) {
 		var body dto.DistributionInput

@@ -29,7 +29,7 @@ func TestAdmissionEventSettingsRoundTrip(t *testing.T) {
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("update settings = %d, body=%s", rec.Code, rec.Body.String())
 	}
-	got := mustUnmarshal[dto.AdmissionEventSettings](t, env.Data)
+	got := mustUnmarshal[dto.AdmissionSettingsView](t, env.Data)
 	if got.DefaultRetentionDays != 21 || got.IncidentRetentionDays != 11 || !got.RetryEnabled || got.MaxRetryAttempts != 5 || got.QueueCapacity != 2048 {
 		t.Fatalf("settings = %+v", got)
 	}

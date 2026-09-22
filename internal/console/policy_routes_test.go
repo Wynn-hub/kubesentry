@@ -14,14 +14,12 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
-// These aliases keep the migrated assertions focused on the JSON contract
-// while using the generated response models rather than legacy handler-only
-// structs.
+// These aliases keep the assertions focused on the JSON contract.
 type (
-	policyListItem              = dto.PolicyListItem
-	policyDetail                = dto.PolicyDetail
-	versionList                 = dto.PolicyVersionList
-	resourceSuggestionsResponse = dto.ResourceSuggestions
+	policyListItem              = dto.PolicyItem
+	policyDetail                = dto.PolicyView
+	versionList                 = dto.PolicyVersionListView
+	resourceSuggestionsResponse = dto.ResourceSuggestionsView
 )
 
 type testPolicyRequest struct {
@@ -610,11 +608,11 @@ func TestResourceSuggestions(t *testing.T) {
 	}
 	got := mustUnmarshal[resourceSuggestionsResponse](t, env.Data)
 
-	if !containsStr(got.ApiGroups, "") || !containsStr(got.ApiGroups, "zz-test-apps") {
-		t.Fatalf("apiGroups = %v, want to contain \"\" and zz-test-apps", got.ApiGroups)
+	if !containsStr(got.APIGroups, "") || !containsStr(got.APIGroups, "zz-test-apps") {
+		t.Fatalf("apiGroups = %v, want to contain \"\" and zz-test-apps", got.APIGroups)
 	}
-	if !containsStr(got.ApiVersions, "v1") {
-		t.Fatalf("apiVersions = %v, want to contain v1", got.ApiVersions)
+	if !containsStr(got.APIVersions, "v1") {
+		t.Fatalf("apiVersions = %v, want to contain v1", got.APIVersions)
 	}
 	if !containsStr(got.Resources, "deployments") || !containsStr(got.Resources, "pods") || !containsStr(got.Resources, "zz-test-services") {
 		t.Fatalf("resources = %v, want to contain deployments/pods/zz-test-services", got.Resources)

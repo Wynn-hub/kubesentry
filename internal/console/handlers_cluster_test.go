@@ -39,7 +39,7 @@ func TestCreateClusterReturnsCommandAndRegisteringPhase(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	created := mustUnmarshal[dto.ClusterCommand](t, env.Data)
+	created := mustUnmarshal[dto.ClusterCommandView](t, env.Data)
 	if created.Name != "prod-east" || created.Command == "" {
 		t.Fatalf("created = %+v", created)
 	}
@@ -102,7 +102,7 @@ func TestCreateClusterHighAvailabilityAddsReplicaOverridesAndPersistsChoice(t *t
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	created := mustUnmarshal[dto.ClusterCommand](t, env.Data)
+	created := mustUnmarshal[dto.ClusterCommandView](t, env.Data)
 	for _, want := range []string{
 		"--set webhook.highAvailability.enabled=true",
 		"--set operator.highAvailability.enabled=true",
@@ -183,7 +183,7 @@ func TestListClustersSortedByName(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	page := mustUnmarshal[testPageResult[dto.ClusterListItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.ClusterItem]](t, env.Data)
 	items := page.Items
 	if page.Total != 2 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)
@@ -217,8 +217,8 @@ func TestClusterResponsesExposeMemberReportedInventory(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("detail code = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	detail := mustUnmarshal[dto.ClusterDetail](t, env.Data)
-	if detail.KubernetesVersion != "v1.31.2" || detail.ApiServerAddress != "https://10.96.0.1:443" ||
+	detail := mustUnmarshal[dto.ClusterView](t, env.Data)
+	if detail.KubernetesVersion != "v1.31.2" || detail.APIServerAddress != "https://10.96.0.1:443" ||
 		detail.NodeCount != 5 || detail.ReadyNodeCount != 4 {
 		t.Fatalf("detail inventory = %+v", detail)
 	}
@@ -227,7 +227,7 @@ func TestClusterResponsesExposeMemberReportedInventory(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("list code = %d", rec.Code)
 	}
-	items := mustUnmarshal[testPageResult[dto.ClusterListItem]](t, env.Data).Items
+	items := mustUnmarshal[testPageResult[dto.ClusterItem]](t, env.Data).Items
 	if len(items) != 1 || items[0].KubernetesVersion != "v1.31.2" || items[0].NodeCount != 5 || items[0].ReadyNodeCount != 4 {
 		t.Fatalf("list inventory = %+v", items)
 	}
@@ -273,8 +273,8 @@ func TestUninstallClusterCreatesTaskAndRetryFailedTask(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("create uninstall = %d: %s", rec.Code, rec.Body.String())
 	}
-	task := mustUnmarshal[dto.UninstallTask](t, env.Data)
-	if task.Status != dto.UninstallTaskStatusPending || task.ID == "" {
+	task := mustUnmarshal[dto.UninstallTaskHTTPView](t, env.Data)
+	if task.Status != "Pending" || task.ID == "" {
 		t.Fatalf("task = %+v", task)
 	}
 	taskID, err := strconv.ParseInt(string(task.ID), 10, 64)
@@ -351,13 +351,13 @@ func TestReissueTokenOnlyWhenRegistering(t *testing.T) {
 	if rec1.Code != 200 {
 		t.Fatalf("create code = %d", rec1.Code)
 	}
-	firstCommand := mustUnmarshal[dto.ClusterCommand](t, env1.Data).Command
+	firstCommand := mustUnmarshal[dto.ClusterCommandView](t, env1.Data).Command
 
 	rec2, env2 := doRequest(t, h, "POST", "/api/v1/clusters/reissue-me/reissue-token", map[string]any{"installParams": validInstallParams()})
 	if rec2.Code != 200 {
 		t.Fatalf("reissue code = %d, body = %s", rec2.Code, rec2.Body.String())
 	}
-	second := mustUnmarshal[dto.ClusterCommand](t, env2.Data)
+	second := mustUnmarshal[dto.ClusterCommandView](t, env2.Data)
 	if second.Command == "" || second.Command == firstCommand {
 		t.Fatalf("expected a fresh, different command (new token embedded); first=%q second=%q", firstCommand, second.Command)
 	}
@@ -430,7 +430,7 @@ func TestGetLatestInstallParamsReturnsNewest(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	got := mustUnmarshal[dto.InstallParams](t, env.Data)
+	got := mustUnmarshal[dto.ClusterInstallInput](t, env.Data)
 	if got.Namespace != "custom-ns" {
 		t.Errorf("namespace = %q, want custom-ns (the most recent)", got.Namespace)
 	}
@@ -448,7 +448,7 @@ func TestListInstallRecordsAcrossClusters(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	page := mustUnmarshal[testPageResult[dto.InstallRecord]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.InstallRecordItemView]](t, env.Data)
 	items := page.Items
 	if page.Total != 2 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)

@@ -53,7 +53,7 @@ func TestListDistributions(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	page := mustUnmarshal[testPageResult[dto.DistributionListItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.DistributionItem]](t, env.Data)
 	items := page.Items
 	if page.Total < 1 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)
@@ -79,12 +79,11 @@ func TestGetDistributionDetail(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	d := mustUnmarshal[dto.DistributionDetail](t, env.Data)
+	d := mustUnmarshal[dto.DistributionView](t, env.Data)
 	if len(d.Spec.PolicyGroups) != 1 || d.Spec.PolicyGroups[0] != "g1" {
 		t.Fatalf("detail = %+v", d)
 	}
-	clusters, ok := d.Spec.Clusters.Get()
-	if !ok || len(clusters.ByName) != 1 || clusters.ByName[0] != "local" {
+	if len(d.Spec.Clusters.ByName) != 1 || d.Spec.Clusters.ByName[0] != "local" {
 		t.Fatalf("detail.Spec.Clusters = %+v", d.Spec.Clusters)
 	}
 }

@@ -1,7 +1,6 @@
 package console
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -21,7 +20,7 @@ func registerClusterRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 			return
 		}
 		response, err := h.ListClusters(requestContext(r), p)
-		writeGenericErrorResponse(w, response, err, http.StatusInternalServerError)
+		writeResponse(w, response, err)
 	})
 	mux.HandleFunc("POST /api/v1/clusters", func(w http.ResponseWriter, r *http.Request) {
 		var body dto.ClusterCreateInput
@@ -95,18 +94,8 @@ func registerClusterRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
 			return
 		}
 		response, err := h.ListInstallRecords(requestContext(r), p)
-		writeGenericErrorResponse(w, response, err, http.StatusInternalServerError)
+		writeResponse(w, response, err)
 	})
-}
-
-func writeGenericErrorResponse(w http.ResponseWriter, response any, err error, status int) {
-	if failure, ok := response.(*dto.ErrorResponse); ok && err == nil {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(status)
-		_ = json.NewEncoder(w).Encode(failure)
-		return
-	}
-	writeResponse(w, response, err)
 }
 
 func decodeClustersQuery(q url.Values) (dto.ListClustersParams, error) {

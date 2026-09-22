@@ -620,6 +620,17 @@ definitions:
     - reason
     - targetSummary
     type: object
+  dto.ExceptionMatchInput:
+    properties:
+      namespaceSelector:
+        $ref: '#/definitions/dto.LabelSelectorView'
+      namespaces:
+        items:
+          type: string
+        type: array
+      resourceSelector:
+        $ref: '#/definitions/dto.LabelSelectorView'
+    type: object
   dto.ExceptionNameView:
     properties:
       name:
@@ -922,6 +933,25 @@ definitions:
         additionalProperties:
           type: string
         type: object
+    type: object
+  dto.MatchResourceInput:
+    properties:
+      apiGroups:
+        items:
+          type: string
+        type: array
+      apiVersions:
+        items:
+          type: string
+        type: array
+      resources:
+        items:
+          type: string
+        type: array
+    required:
+    - apiGroups
+    - apiVersions
+    - resources
     type: object
   dto.PlatformClusterView:
     properties:
@@ -1308,6 +1338,19 @@ definitions:
     - pageSize
     - total
     type: object
+  dto.PolicyGroupPoliciesInput:
+    properties:
+      byName:
+        items:
+          $ref: '#/definitions/dto.PolicyRefInput'
+        type: array
+      bySelector:
+        $ref: '#/definitions/dto.LabelSelectorView'
+      exclude:
+        items:
+          type: string
+        type: array
+    type: object
   dto.PolicyGroupScopeView:
     properties:
       allClusters:
@@ -1337,8 +1380,39 @@ definitions:
     - resolvedCount
     - resolvedPolicies
     type: object
+  dto.PolicyMatchInput:
+    properties:
+      operations:
+        items:
+          enum:
+          - CREATE
+          - UPDATE
+          - DELETE
+          - CONNECT
+          type: string
+        type: array
+      resources:
+        items:
+          $ref: '#/definitions/dto.MatchResourceInput'
+        type: array
+    required:
+    - operations
+    - resources
+    type: object
   dto.PolicyNameView:
     properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  dto.PolicyRefInput:
+    properties:
+      enforcementMode:
+        enum:
+        - enforce
+        - audit
+        type: string
       name:
         type: string
     required:
@@ -1458,7 +1532,7 @@ definitions:
       duration:
         type: string
       match:
-        $ref: '#/definitions/dto.SwagExceptionMatch'
+        $ref: '#/definitions/dto.ExceptionMatchInput'
       name:
         type: string
       policyGroupRefs:
@@ -1480,17 +1554,6 @@ definitions:
     - match
     - reason
     type: object
-  dto.SwagExceptionMatch:
-    properties:
-      namespaceSelector:
-        $ref: '#/definitions/dto.LabelSelectorView'
-      namespaces:
-        items:
-          type: string
-        type: array
-      resourceSelector:
-        $ref: '#/definitions/dto.LabelSelectorView'
-    type: object
   dto.SwagExceptionSpec:
     properties:
       allPolicies:
@@ -1498,7 +1561,7 @@ definitions:
       duration:
         type: string
       match:
-        $ref: '#/definitions/dto.SwagExceptionMatch'
+        $ref: '#/definitions/dto.ExceptionMatchInput'
       policyGroupRefs:
         items:
           type: string
@@ -1515,25 +1578,6 @@ definitions:
     - duration
     - match
     - reason
-    type: object
-  dto.SwagMatchResource:
-    properties:
-      apiGroups:
-        items:
-          type: string
-        type: array
-      apiVersions:
-        items:
-          type: string
-        type: array
-      resources:
-        items:
-          type: string
-        type: array
-    required:
-    - apiGroups
-    - apiVersions
-    - resources
     type: object
   dto.SwagOptionalResponse:
     properties:
@@ -1571,7 +1615,7 @@ definitions:
           type: string
         type: object
       match:
-        $ref: '#/definitions/dto.SwagPolicyMatch'
+        $ref: '#/definitions/dto.PolicyMatchInput'
       name:
         type: string
       phase:
@@ -1668,7 +1712,7 @@ definitions:
       namespaceSelector:
         $ref: '#/definitions/dto.LabelSelectorView'
       policies:
-        $ref: '#/definitions/dto.SwagPolicyGroupPolicies'
+        $ref: '#/definitions/dto.PolicyGroupPoliciesInput'
       resourceVersion:
         type: string
       selectorEnforcementMode:
@@ -1687,19 +1731,6 @@ definitions:
     required:
     - name
     type: object
-  dto.SwagPolicyGroupPolicies:
-    properties:
-      byName:
-        items:
-          $ref: '#/definitions/dto.SwagPolicyRef'
-        type: array
-      bySelector:
-        $ref: '#/definitions/dto.LabelSelectorView'
-      exclude:
-        items:
-          type: string
-        type: array
-    type: object
   dto.SwagPolicyGroupSpec:
     properties:
       description:
@@ -1711,7 +1742,7 @@ definitions:
       namespaceSelector:
         $ref: '#/definitions/dto.LabelSelectorView'
       policies:
-        $ref: '#/definitions/dto.SwagPolicyGroupPolicies'
+        $ref: '#/definitions/dto.PolicyGroupPoliciesInput'
       selectorEnforcementMode:
         enum:
         - enforce
@@ -1739,7 +1770,7 @@ definitions:
           type: string
         type: object
       match:
-        $ref: '#/definitions/dto.SwagPolicyMatch'
+        $ref: '#/definitions/dto.PolicyMatchInput'
       name:
         type: string
       rego:
@@ -1834,37 +1865,6 @@ definitions:
     - code
     - message
     type: object
-  dto.SwagPolicyMatch:
-    properties:
-      operations:
-        items:
-          enum:
-          - CREATE
-          - UPDATE
-          - DELETE
-          - CONNECT
-          type: string
-        type: array
-      resources:
-        items:
-          $ref: '#/definitions/dto.SwagMatchResource'
-        type: array
-    required:
-    - operations
-    - resources
-    type: object
-  dto.SwagPolicyRef:
-    properties:
-      enforcementMode:
-        enum:
-        - enforce
-        - audit
-        type: string
-      name:
-        type: string
-    required:
-    - name
-    type: object
   dto.SwagPolicyVersionEntry:
     properties:
       createdAt:
@@ -1878,7 +1878,7 @@ definitions:
       isCurrent:
         type: boolean
       match:
-        $ref: '#/definitions/dto.SwagPolicyMatch'
+        $ref: '#/definitions/dto.PolicyMatchInput'
       phase:
         enum:
         - Ready

@@ -55,13 +55,13 @@ func validGroupReq() *testGroupRequest {
 	}
 }
 
-func findGroup(items []dto.PolicyGroupListItem, name string) (dto.PolicyGroupListItem, bool) {
+func findGroup(items []dto.PolicyGroupItem, name string) (dto.PolicyGroupItem, bool) {
 	for _, it := range items {
 		if it.Name == name {
 			return it, true
 		}
 	}
-	return dto.PolicyGroupListItem{}, false
+	return dto.PolicyGroupItem{}, false
 }
 
 func TestListGroups(t *testing.T) {
@@ -76,7 +76,7 @@ func TestListGroups(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	page := mustUnmarshal[testPageResult[dto.PolicyGroupListItem]](t, env.Data)
+	page := mustUnmarshal[testPageResult[dto.PolicyGroupItem]](t, env.Data)
 	items := page.Items
 	if page.Total < 2 || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("page metadata = %+v", page)
@@ -98,7 +98,7 @@ func TestGetGroupDetail(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	d := mustUnmarshal[dto.PolicyGroupDetail](t, env.Data)
+	d := mustUnmarshal[dto.PolicyGroupView](t, env.Data)
 	if len(d.Spec.Policies.ByName) != 1 || d.Spec.Policies.ByName[0].Name != "p1" {
 		t.Fatalf("detail = %+v", d)
 	}
@@ -280,7 +280,7 @@ func TestSetGroupEnabledRepeatIsNoOp(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("first detail code=%d body=%s", rec.Code, rec.Body.String())
 	}
-	firstVersion := mustUnmarshal[dto.PolicyGroupDetail](t, env.Data).ResourceVersion
+	firstVersion := mustUnmarshal[dto.PolicyGroupView](t, env.Data).ResourceVersion
 	firstTopics, _ := fake.calls()
 	if len(firstTopics) != 1 || firstTopics[0] != "group" {
 		t.Fatalf("first notification topics=%v, want [group]", firstTopics)
@@ -298,7 +298,7 @@ func TestSetGroupEnabledRepeatIsNoOp(t *testing.T) {
 	if rec.Code != 200 {
 		t.Fatalf("repeat detail code=%d body=%s", rec.Code, rec.Body.String())
 	}
-	repeatVersion := mustUnmarshal[dto.PolicyGroupDetail](t, env.Data).ResourceVersion
+	repeatVersion := mustUnmarshal[dto.PolicyGroupView](t, env.Data).ResourceVersion
 	repeatTopics, _ := fake.calls()
 	if !afterRepeat.UpdatedAt.Equal(afterFirst.UpdatedAt) {
 		t.Fatalf("UpdatedAt changed on no-op: first=%s repeat=%s", afterFirst.UpdatedAt, afterRepeat.UpdatedAt)

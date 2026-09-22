@@ -7,11 +7,8 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
-// This file holds the ONLY mapping between database entities and the
-// generated ogen types. Keeping every conversion here means a schema or
-// model change has exactly one place to update — and the named enum types
-// turn an invalid value into a compile error at the conversion site rather
-// than a runtime 500 downstream.
+// This file holds the mapping between database entities and Console response
+// DTOs so schema or model changes have one conversion point.
 
 const builtinLabel = "kubesentry.io/builtin"
 

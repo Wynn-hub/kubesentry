@@ -31,22 +31,22 @@ func summaryTestPolicy(t *testing.T, repo *dbrepo.PolicyRepo, name, mode string,
 	}
 }
 
-func findSummaryGroup(groups []dto.SummaryGroup, name string) (dto.SummaryGroup, bool) {
+func findSummaryGroup(groups []dto.SummaryGroupView, name string) (dto.SummaryGroupView, bool) {
 	for _, g := range groups {
 		if g.Name == name {
 			return g, true
 		}
 	}
-	return dto.SummaryGroup{}, false
+	return dto.SummaryGroupView{}, false
 }
 
-func getSummary(t *testing.T, handler http.Handler) dto.SummaryData {
+func getSummary(t *testing.T, handler http.Handler) dto.SummaryView {
 	t.Helper()
 	rec, env := doRequest(t, handler, "GET", "/api/v1/summary", nil)
 	if rec.Code != 200 {
 		t.Fatalf("code = %d body = %s", rec.Code, rec.Body.String())
 	}
-	return mustUnmarshal[dto.SummaryData](t, env.Data)
+	return mustUnmarshal[dto.SummaryView](t, env.Data)
 }
 
 // TestSummaryTotals seeds fixtures on top of whatever the migration already

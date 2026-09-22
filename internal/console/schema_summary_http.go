@@ -27,7 +27,7 @@ func registerSchemaAndSummaryRoutes(mux *http.ServeMux, h *consolehandler.Handle
 			return
 		}
 		response, err := h.GetSummary(requestContext(r))
-		writeGenericErrorResponse(w, response, err, http.StatusInternalServerError)
+		writeResponse(w, response, err)
 	})
 }
 

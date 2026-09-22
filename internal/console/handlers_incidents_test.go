@@ -47,8 +47,8 @@ func TestAdmissionLinkIncidentListAndDetailResolveSamples(t *testing.T) {
 		t.Fatalf("list incidents = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	page := mustUnmarshal[struct {
-		Items []dto.AdmissionLinkIncidentItem `json:"items"`
-		Total int64                           `json:"total"`
+		Items []dto.IncidentItem `json:"items"`
+		Total int64              `json:"total"`
 	}](t, env.Data)
 	if page.Total != 1 || len(page.Items) != 1 || page.Items[0].Status != "active" || page.Items[0].AffectedCount != 4 {
 		t.Fatalf("incident page = %+v", page)
@@ -58,14 +58,14 @@ func TestAdmissionLinkIncidentListAndDetailResolveSamples(t *testing.T) {
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("get incident = %d, body=%s", rec.Code, rec.Body.String())
 	}
-	detail := mustUnmarshal[dto.AdmissionLinkIncidentDetail](t, env.Data)
+	detail := mustUnmarshal[dto.IncidentView](t, env.Data)
 	if detail.Detail != incident.Detail || len(detail.Samples) != 2 {
 		t.Fatalf("incident detail = %+v", detail)
 	}
-	if detail.Samples[0].Expired || !detail.Samples[0].EventDatabaseId.Set {
+	if detail.Samples[0].Expired || detail.Samples[0].EventDatabaseID == nil {
 		t.Fatalf("present sample = %+v", detail.Samples[0])
 	}
-	if !detail.Samples[1].Expired || detail.Samples[1].EventDatabaseId.Set {
+	if !detail.Samples[1].Expired || detail.Samples[1].EventDatabaseID != nil {
 		t.Fatalf("expired sample = %+v", detail.Samples[1])
 	}
 }

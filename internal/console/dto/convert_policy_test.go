@@ -105,36 +105,36 @@ func TestPolicyToListItemModeAndSource(t *testing.T) {
 		name     string
 		mode     string
 		labels   map[string]string
-		wantMode PolicyListItemEnforcementMode
-		wantSrc  PolicyListItemSource
+		wantMode string
+		wantSrc  string
 	}{
 		{
 			name:     "builtin enforce",
 			mode:     "enforce",
 			labels:   map[string]string{builtinLabel: "true"},
-			wantMode: PolicyListItemEnforcementModeEnforce,
-			wantSrc:  PolicyListItemSourceBuiltin,
+			wantMode: "enforce",
+			wantSrc:  "builtin",
 		},
 		{
 			name:     "custom audit",
 			mode:     "audit",
 			labels:   map[string]string{"team": "platform"},
-			wantMode: PolicyListItemEnforcementModeAudit,
-			wantSrc:  PolicyListItemSourceCustom,
+			wantMode: "audit",
+			wantSrc:  "custom",
 		},
 		{
 			name:     "custom when builtin label is not exactly true",
 			mode:     "audit",
 			labels:   map[string]string{builtinLabel: "false"},
-			wantMode: PolicyListItemEnforcementModeAudit,
-			wantSrc:  PolicyListItemSourceCustom,
+			wantMode: "audit",
+			wantSrc:  "custom",
 		},
 		{
 			name:     "custom when labels are empty",
 			mode:     "enforce",
 			labels:   map[string]string{},
-			wantMode: PolicyListItemEnforcementModeEnforce,
-			wantSrc:  PolicyListItemSourceCustom,
+			wantMode: "enforce",
+			wantSrc:  "custom",
 		},
 	}
 	for _, tt := range tests {
@@ -143,10 +143,10 @@ func TestPolicyToListItemModeAndSource(t *testing.T) {
 			p.EnforcementMode = tt.mode
 			p.Labels = datatypes.NewJSONType(tt.labels)
 			item := PolicyToListItem(p)
-			if item.EnforcementMode != string(tt.wantMode) {
+			if item.EnforcementMode != tt.wantMode {
 				t.Errorf("enforcementMode = %q, want %q", item.EnforcementMode, tt.wantMode)
 			}
-			if item.Source != string(tt.wantSrc) {
+			if item.Source != tt.wantSrc {
 				t.Errorf("source = %q, want %q", item.Source, tt.wantSrc)
 			}
 		})

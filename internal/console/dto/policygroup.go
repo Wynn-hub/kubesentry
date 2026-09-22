@@ -81,8 +81,8 @@ func (r *PolicyGroupInput) UnmarshalJSON(data []byte) error {
 }
 
 type PolicyRefInput struct {
-	Name            string  `json:"name"`
-	EnforcementMode *string `json:"enforcementMode,omitempty"`
+	Name            string  `json:"name" binding:"required"`
+	EnforcementMode *string `json:"enforcementMode,omitempty" enums:"enforce,audit"`
 }
 
 func (r *PolicyRefInput) UnmarshalJSON(data []byte) error {

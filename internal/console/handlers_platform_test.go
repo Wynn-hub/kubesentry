@@ -51,12 +51,12 @@ func TestPlatformOverviewSeparatesGatewayAndMemberHealth(t *testing.T) {
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("overview = %d: %s", rec.Code, rec.Body.String())
 	}
-	overview := mustUnmarshal[dto.PlatformOverview](t, env.Data)
-	if overview.PlatformHealth != dto.PlatformOverviewHealthOk || len(overview.GatewayPlane) != 4 {
+	overview := mustUnmarshal[dto.PlatformOverviewView](t, env.Data)
+	if overview.PlatformHealth != "ok" || len(overview.GatewayPlane) != 4 {
 		t.Fatalf("gateway plane = %+v", overview)
 	}
 	if overview.MemberPlane.Total != 1 || len(overview.MemberPlane.Clusters) != 1 ||
-		overview.MemberPlane.Clusters[0].Health != dto.PlatformClusterHealthDegraded {
+		overview.MemberPlane.Clusters[0].Health != "degraded" {
 		t.Fatalf("member plane = %+v", overview.MemberPlane)
 	}
 }
@@ -90,8 +90,8 @@ func TestPlatformSettingsAndTrend(t *testing.T) {
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("trend = %d: %s", rec.Code, rec.Body.String())
 	}
-	trend := mustUnmarshal[dto.PlatformTrend](t, env.Data)
-	if len(trend.Items) != 2 || trend.Items[1].CpuUsageMicros != 2000 || trend.Items[1].GcPauseMicros != 60 {
+	trend := mustUnmarshal[dto.PlatformTrendView](t, env.Data)
+	if len(trend.Items) != 2 || trend.Items[1].CPUUsageMicros != 2000 || trend.Items[1].GCPauseMicros != 60 {
 		t.Fatalf("trend = %+v", trend.Items)
 	}
 
@@ -99,7 +99,7 @@ func TestPlatformSettingsAndTrend(t *testing.T) {
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("settings = %d: %s", rec.Code, rec.Body.String())
 	}
-	settings := mustUnmarshal[dto.PlatformSettings](t, env.Data)
+	settings := mustUnmarshal[dto.PlatformSettingsView](t, env.Data)
 	if !settings.Enabled || settings.RetentionDays != 3 || settings.MaxRetentionDays != 7 {
 		t.Fatalf("settings = %+v", settings)
 	}
@@ -114,8 +114,8 @@ func TestPlatformOverviewReportsDisabledState(t *testing.T) {
 	if rec.Code != 200 || env.Code != 0 {
 		t.Fatalf("overview = %d: %s", rec.Code, rec.Body.String())
 	}
-	overview := mustUnmarshal[dto.PlatformOverview](t, env.Data)
-	if overview.Enabled || overview.PlatformHealth != dto.PlatformOverviewHealthDisabled || len(overview.GatewayPlane) != 0 {
+	overview := mustUnmarshal[dto.PlatformOverviewView](t, env.Data)
+	if overview.Enabled || overview.PlatformHealth != "disabled" || len(overview.GatewayPlane) != 0 {
 		t.Fatalf("disabled overview = %+v", overview)
 	}
 }
