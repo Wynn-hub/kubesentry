@@ -4,7 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 

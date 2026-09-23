@@ -11,13 +11,13 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 
 // newTestDB starts a throwaway PG container, runs migrations, and returns a
-// ready-to-use *gorm.DB. Mirrors internal/dbrepo/testhelper_test.go's
+// ready-to-use *gorm.DB. Mirrors internal/database/repository/testhelper_test.go's
 // newTestDB — this package's client_test.go spins up a real gateway.Server
 // (the hub side of these end-to-end tests) which now needs real repos
 // instead of a fake controller-runtime client.

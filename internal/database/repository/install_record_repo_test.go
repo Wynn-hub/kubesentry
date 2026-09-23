@@ -1,10 +1,10 @@
-package dbrepo_test
+package repository_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 func newTestRecord(clusterName string) *dbrepo.ClusterInstallRecord {

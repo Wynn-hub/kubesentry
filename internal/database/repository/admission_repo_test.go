@@ -1,4 +1,4 @@
-package dbrepo_test
+package repository_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 func TestAdmissionRepoStoresEmptyEventFieldsAsNonNullValues(t *testing.T) {

@@ -1,4 +1,4 @@
-package dbrepo_test
+package repository_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 func TestUninstallTaskRepoLifecycle(t *testing.T) {

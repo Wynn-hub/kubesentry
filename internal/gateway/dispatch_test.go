@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )

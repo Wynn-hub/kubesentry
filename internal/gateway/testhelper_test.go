@@ -11,8 +11,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 // gatewayNS is the namespace used across gateway package tests for Server
@@ -37,7 +37,7 @@ func newTestRepos(t *testing.T) Repos {
 }
 
 // newTestDB starts a throwaway PG container, runs migrations, and returns a
-// ready-to-use *gorm.DB. Mirrors internal/dbrepo/testhelper_test.go's
+// ready-to-use *gorm.DB. Mirrors internal/database/repository/testhelper_test.go's
 // newTestDB exactly — kept as a separate copy since it's unexported test
 // helper and this package cannot import dbrepo_test.
 func newTestDB(t *testing.T) *gorm.DB {

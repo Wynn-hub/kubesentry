@@ -1,4 +1,4 @@
-package dbrepo_test
+package repository_test
 
 import (
 	"context"

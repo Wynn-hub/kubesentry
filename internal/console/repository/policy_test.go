@@ -3,11 +3,11 @@ package repository
 import (
 	"testing"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 	"gorm.io/gorm"
 )
 
-// The whole point of this package is that internal/dbrepo satisfies these
+// The whole point of this package is that internal/database/repository satisfies these
 // interfaces without a forwarding layer. If dbrepo's signature drifts, this
 // test fails at compile time rather than at runtime in a handler.
 func TestDBRepoSatisfiesPolicyRepository(t *testing.T) {

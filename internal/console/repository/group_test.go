@@ -3,7 +3,7 @@ package repository
 import (
 	"testing"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 func TestDBRepoSatisfiesGroupRepository(t *testing.T) {

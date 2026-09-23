@@ -10,7 +10,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 // summaryTestPolicy inserts a Policy row directly via the repo (bypassing the

@@ -1,5 +1,5 @@
 // Package repository declares the data-access interfaces the console's service
-// layer depends on. The implementations live in internal/dbrepo (shared with
+// layer depends on. The implementations live in internal/database/repository (shared with
 // cmd/gateway) — this package only narrows them to what the console uses, so
 // the service layer can be tested against a fake and the handler layer cannot
 // reach a repository at all.
@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 // PolicyRepository is the subset of dbrepo.PolicyRepo the console needs.

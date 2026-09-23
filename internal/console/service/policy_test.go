@@ -13,7 +13,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 // fakePolicyRepo is an in-memory PolicyRepository. It exists so the service

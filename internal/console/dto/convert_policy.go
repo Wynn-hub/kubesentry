@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 // This file holds the mapping between database entities and Console response

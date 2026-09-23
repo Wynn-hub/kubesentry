@@ -10,7 +10,7 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 

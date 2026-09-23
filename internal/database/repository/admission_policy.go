@@ -1,4 +1,4 @@
-package dbrepo
+package repository
 
 import "github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
 

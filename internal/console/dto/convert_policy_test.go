@@ -9,7 +9,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 func policyFixture() *dbrepo.Policy {

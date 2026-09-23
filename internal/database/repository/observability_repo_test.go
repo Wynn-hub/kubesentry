@@ -1,4 +1,4 @@
-package dbrepo_test
+package repository_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 func TestIncidentRepoConcurrentFirstReportsConverge(t *testing.T) {

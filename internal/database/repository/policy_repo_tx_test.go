@@ -1,4 +1,4 @@
-package dbrepo_test
+package repository_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 func v1alpha1PolicyMatchFixture() v1alpha1.PolicyMatch {

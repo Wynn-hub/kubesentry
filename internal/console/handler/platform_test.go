@@ -8,7 +8,7 @@ import (
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/handler"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 type platformRepository struct {

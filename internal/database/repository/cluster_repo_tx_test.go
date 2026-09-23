@@ -1,11 +1,11 @@
-package dbrepo_test
+package repository_test
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 func TestClusterRepoWithTxRollsBackCoupledLifecycleWrites(t *testing.T) {

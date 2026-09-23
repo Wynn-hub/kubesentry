@@ -1,5 +1,5 @@
 // Package admissionpolicy holds the canonical admission-event storage-rule
-// matcher shared by the gateway plane (internal/dbrepo, internal/gateway) and
+// matcher shared by the gateway plane (internal/database/repository, internal/gateway) and
 // the member plane (internal/operator/hublink). It deliberately has no database
 // or protobuf dependency so both planes can call the exact same logic: two
 // copies of this matching rule previously drifted apart (one trimmed candidate

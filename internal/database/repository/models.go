@@ -1,7 +1,7 @@
 // Package dbrepo is the GORM data-access layer shared by cmd/gateway and
 // cmd/console. Table shapes match spec section 二; jsonb columns reuse the
 // existing v1alpha1 Spec structs verbatim instead of redefining them.
-package dbrepo
+package repository
 
 import (
 	"time"

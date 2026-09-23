@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 // GroupRepository is the subset of dbrepo.GroupRepo the policy domain needs:

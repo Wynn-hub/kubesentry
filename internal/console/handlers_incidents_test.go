@@ -8,7 +8,7 @@ import (
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
-	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
+	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
 func TestAdmissionLinkIncidentListAndDetailResolveSamples(t *testing.T) {
