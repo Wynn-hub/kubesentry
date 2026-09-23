@@ -30,7 +30,7 @@ import (
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/yaml"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/logging"
 	"github.com/Wynn-hub/kubesentry/internal/operator"
 	"github.com/Wynn-hub/kubesentry/internal/operator/hublink"

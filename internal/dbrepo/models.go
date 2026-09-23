@@ -9,7 +9,7 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/datatypes"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )

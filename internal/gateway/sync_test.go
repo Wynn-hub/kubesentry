@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	"gorm.io/datatypes"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"

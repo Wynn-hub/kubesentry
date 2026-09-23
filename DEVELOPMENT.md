@@ -195,7 +195,7 @@ These labels are used during rollback (select target version) and pruning (delet
 
 **Why**: `controller-gen` is incompatible with Go 1.26.2 and our k8s.io/api v0.31 dependency pinning.
 
-**How to edit**: When adding new fields to `internal/api/v1alpha1/types.go`:
+**How to edit**: When adding new fields to `api/kubesentry/v1alpha1/types.go`:
 
 1. Add the field to the struct
 2. Manually add a corresponding line in the `DeepCopyInto()` method:
@@ -213,7 +213,7 @@ These labels are used during rollback (select target version) and pruning (delet
    ```
 4. Note: `metav1.Time.DeepCopy()` returns `*metav1.Time`, so assign with `out.Time = in.Time.DeepCopy()` (not `&`).
 
-See `internal/api/v1alpha1/zz_generated.deepcopy.go` for complete examples.
+See `api/kubesentry/v1alpha1/zz_generated.deepcopy.go` for complete examples.
 
 ## Testing Patterns
 
@@ -257,7 +257,7 @@ EOF
 Minimum 80% coverage for core packages:
 - `internal/webhook` — webhook functionality (cache, evaluator, handler, ExceptionCache)
 - `internal/operator` — policy/group/webhookconfig/exception reconcilers
-- `internal/api/v1alpha1` — CRD types
+- `api/kubesentry/v1alpha1` — public member CRD Go API
 
 The built-in policy catalogue is covered by `test/builtins/compile_test.go` — it `helm template`s the chart and asserts every rendered Policy compiles via `webhook.CompileRego`, plus a count assertion (≥37).
 

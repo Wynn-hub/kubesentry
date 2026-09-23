@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	v1alpha1 "github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	v1alpha1 "github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"

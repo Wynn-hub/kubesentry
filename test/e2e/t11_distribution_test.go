@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	v1alpha1 "github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	v1alpha1 "github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/test/e2e/helpers"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"

@@ -120,7 +120,7 @@ go test ./... -cover
 Expected coverage:
 - `internal/webhook`: >85%
 - `internal/operator`: >80%
-- `internal/api/v1alpha1`: >80%
+- `api/kubesentry/v1alpha1`: >80%
 
 The built-in policy catalogue (`charts/kubesentry/builtin-policies/`) is covered by `test/builtins/compile_test.go`, which `helm template`s the chart and compiles every rendered Policy via `webhook.CompileRego`.
 

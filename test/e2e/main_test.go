@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	v1alpha1 "github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	v1alpha1 "github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/test/e2e/helpers"
 	admregv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"

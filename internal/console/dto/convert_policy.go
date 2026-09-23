@@ -3,7 +3,7 @@ package dto
 import (
 	"strconv"
 
-	"github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
+	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 

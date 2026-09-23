@@ -84,7 +84,7 @@ deny[msg] { ... msg := "reason" }
 
 **Built-in Rego uses v0 syntax** — OPA version bundled with this project does not support `import rego.v1` or the `some x in set` iteration form. Use classic set comprehension: `set[elem]` and `_` wildcards. See `charts/kubesentry/builtin-policies/policies/` for examples.
 
-**`zz_generated.deepcopy.go` is hand-written** — `controller-gen` is incompatible with Go 1.26.2 at the versions that support our k8s v0.31 dependencies. Do not attempt to regenerate it with `make generate`; edit it manually when adding new fields to `internal/api/v1alpha1/types.go`. Key subtlety: `metav1.Time.DeepCopy()` returns `*metav1.Time`, so `out.LastSyncTime = t` (not `&t`).
+**`zz_generated.deepcopy.go` is hand-written** — `controller-gen` is incompatible with Go 1.26.2 at the versions that support our k8s v0.31 dependencies. Do not attempt to regenerate it with `make generate`; edit it manually when adding new fields to `api/kubesentry/v1alpha1/types.go`. Key subtlety: `metav1.Time.DeepCopy()` returns `*metav1.Time`, so `out.LastSyncTime = t` (not `&t`).
 
 **PolicyVersion names** follow the pattern `{policy-name}-v{version}` and carry labels `kubesentry/policy` and `kubesentry/version` used for label-selector queries during rollback and pruning.
 
@@ -98,7 +98,7 @@ deny[msg] { ... msg := "reason" }
 
 ### Gateway Plane Invariants
 
-**Gateway/console hold zero CRDs.** `Policy`, `PolicyGroup`, `PolicyException`, `Cluster`, `PolicyDistribution` are all plain Postgres tables (`internal/dbmigrate/migrations/0001_init_schema.up.sql`) accessed through `internal/dbrepo`. The `internal/api/v1alpha1` Go structs for `Cluster`/`PolicyDistribution` still exist and are still used — but only as JSON payloads inside `gatewaypb.ManagedObject.spec_json`/the render pipeline, never as registered CRDs anywhere in the gateway plane.
+**Gateway/console hold zero CRD lifecycle responsibilities.** Their `Policy`, `PolicyGroup`, `PolicyException`, `Cluster`, and `PolicyDistribution` records are plain Postgres tables (`internal/dbmigrate/migrations/0001_init_schema.up.sql`) accessed through `internal/dbrepo`. Gateway/console may reuse versioned schema/spec types from the public `api/kubesentry/v1alpha1` package, but Kubernetes clients, Scheme ownership, reconcilers, and CRD lifecycle remain in the member plane. Gateway-only `Cluster` and `PolicyDistribution` payload models live in `internal/gatewaymodel` and are not CRDs.
 
 **Snowflake IDs, not UUIDs or serials.** `internal/dbmodel.Init(nodeID)` must run once per process before any repo touches the DB (every `cmd/gateway`, `cmd/console`, `cmd/db` `main.go` calls it with `dbmodel.NodeIDFromPodName(os.Getenv("POD_NAME"))`). Forgetting this panics or produces zero-value IDs on insert.
 
@@ -109,7 +109,7 @@ deny[msg] { ... msg := "reason" }
 ## Package Layout
 
 ```
-internal/api/v1alpha1/   CRD types (member plane) + Cluster/PolicyDistribution Go structs (gateway-plane JSON payloads only) + hand-written DeepCopy
+api/kubesentry/v1alpha1/ public member CRD Go API + hand-written DeepCopy; must not import internal packages
 internal/webhook/        cache.go, evaluator.go, handler.go, server.go (PolicyCache holds CompiledPolicy + CompiledGroup) — member plane, unchanged
 internal/operator/       policy_reconciler.go, policygroup_reconciler.go, webhookconfig_reconciler.go, exception_reconciler.go — member plane, unchanged
 internal/operator/hublink/  member-side gateway client: Register + Sync loop, apply.go renders received ManagedObjects onto member CRs
