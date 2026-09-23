@@ -9,7 +9,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
+	admissionobs "github.com/Wynn-hub/kubesentry/internal/admission/observability"
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"

@@ -30,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
+	admissionobs "github.com/Wynn-hub/kubesentry/internal/admission/observability"
 	"github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/operator/uninstall"

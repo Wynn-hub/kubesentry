@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 
-	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
+	admissionobs "github.com/Wynn-hub/kubesentry/internal/admission/observability"
 	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"

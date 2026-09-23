@@ -1,4 +1,4 @@
-package admissionobs
+package observability
 
 import (
 	"crypto/rand"

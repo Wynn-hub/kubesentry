@@ -9,7 +9,7 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/datatypes"
 
-	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
+	admissionobs "github.com/Wynn-hub/kubesentry/internal/admission/observability"
 	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )

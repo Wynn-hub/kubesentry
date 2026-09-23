@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
+	admissionobs "github.com/Wynn-hub/kubesentry/internal/admission/observability"
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
 )
 
