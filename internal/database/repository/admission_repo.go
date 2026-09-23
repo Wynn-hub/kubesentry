@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
+	admissionpolicy "github.com/Wynn-hub/kubesentry/internal/admission/policy"
 )
 
 type AdmissionRepo struct{ db *gorm.DB }

@@ -1,9 +1,9 @@
-package admissionpolicy_test
+package policy_test
 
 import (
 	"testing"
 
-	"github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
+	admissionpolicy "github.com/Wynn-hub/kubesentry/internal/admission/policy"
 )
 
 func TestNormalizedGVRLeavesCoreGroupUnprefixed(t *testing.T) {

@@ -5,7 +5,7 @@
 // copies of this matching rule previously drifted apart (one trimmed candidate
 // values, the other did not), which made the member side skip discards the
 // gateway would perform.
-package admissionpolicy
+package policy
 
 import "strings"
 

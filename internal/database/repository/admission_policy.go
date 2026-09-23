@@ -1,6 +1,6 @@
 package repository
 
-import "github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
+import admissionpolicy "github.com/Wynn-hub/kubesentry/internal/admission/policy"
 
 const (
 	AdmissionMatchModeInclude = admissionpolicy.MatchModeInclude

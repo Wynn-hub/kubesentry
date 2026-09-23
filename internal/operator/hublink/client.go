@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	admissionobs "github.com/Wynn-hub/kubesentry/internal/admission/observability"
-	"github.com/Wynn-hub/kubesentry/internal/admissionpolicy"
+	admissionpolicy "github.com/Wynn-hub/kubesentry/internal/admission/policy"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/operator/uninstall"
 	"github.com/Wynn-hub/kubesentry/internal/platformobs"
