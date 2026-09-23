@@ -10,7 +10,7 @@ import (
 	consolehandler "github.com/Wynn-hub/kubesentry/internal/console/handler"
 )
 
-func registerPolicyGroupRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
+func registerPolicyGroupRoutes(mux routeRegistrar, h *consolehandler.Handler) {
 	mux.HandleFunc("GET /api/v1/policygroups", func(w http.ResponseWriter, r *http.Request) {
 		if rejectHead(w, r, "GET,POST") {
 			return

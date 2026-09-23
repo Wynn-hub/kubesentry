@@ -12,7 +12,7 @@ import (
 	consolehandler "github.com/Wynn-hub/kubesentry/internal/console/handler"
 )
 
-func registerAdmissionRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
+func registerAdmissionRoutes(mux routeRegistrar, h *consolehandler.Handler) {
 	mux.HandleFunc("GET /api/v1/admission-events", func(w http.ResponseWriter, r *http.Request) {
 		if rejectHead(w, r, "GET") {
 			return

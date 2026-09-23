@@ -180,6 +180,14 @@ class ContractCheckerTest(unittest.TestCase):
             routes.write_text('mux.HandleFunc("GET /api/v1/widgets", nil)\n')
             checker.check_runtime_routes({"paths": {"/widgets": {"get": {}}}}, server, Path(directory))
 
+    def test_accepts_route_registrations_through_protected_group(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = Path(directory) / "server.go"
+            server.write_text("\n".join(f"{name}(protected, apiHandler)" for name in checker.ROUTE_REGISTRATIONS))
+            routes = Path(directory) / "widgets_http.go"
+            routes.write_text('mux.HandleFunc("GET /api/v1/widgets", nil)\n')
+            checker.check_runtime_routes({"paths": {"/widgets": {"get": {}}}}, server, Path(directory))
+
     def test_rejects_missing_runtime_method_and_path(self):
         with tempfile.TemporaryDirectory() as directory:
             server = Path(directory) / "server.go"

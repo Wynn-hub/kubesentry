@@ -181,7 +181,11 @@ def check_runtime_routes(document: dict, server_path: Path, route_dir: Path) -> 
         source = server_path.read_text()
     except OSError as exc:
         fail(f"cannot read console server mount contract {server_path}: {exc}")
-    missing = sorted(name for name in ROUTE_REGISTRATIONS if f"{name}(mux, apiHandler)" not in source)
+    missing = sorted(
+        name
+        for name in ROUTE_REGISTRATIONS
+        if not re.search(rf"\b{re.escape(name)}\(\s*[A-Za-z_]\w*\s*,\s*apiHandler\s*\)", source)
+    )
     if missing:
         fail(f"console server is missing route registrations: {', '.join(missing)}")
     if "ogenServer" in source:

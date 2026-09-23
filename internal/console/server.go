@@ -42,37 +42,64 @@ type Server struct {
 	mux     *http.ServeMux
 }
 
+type routeRegistrar interface {
+	HandleFunc(string, http.HandlerFunc)
+}
+
+type routeGroup struct {
+	mux        *http.ServeMux
+	middleware func(http.Handler) http.Handler
+}
+
+func (g routeGroup) HandleFunc(pattern string, handler http.HandlerFunc) {
+	if g.middleware == nil {
+		g.mux.HandleFunc(pattern, handler)
+		return
+	}
+	g.mux.Handle(pattern, g.middleware(handler))
+}
+
 // NewServer wires the REST API only; the SPA is served by a separate nginx
 // container (see Dockerfile.console-web and the gateway chart's nginx ConfigMap).
 // ready reports whether console-api's dependencies (currently: the database)
 // are reachable; nil always reports ready.
 func NewServer(h *Handlers, ready func() bool) (*Server, error) {
-	mux := http.NewServeMux()
+	return newServer(h, ready, nil)
+}
 
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+// newServer keeps operational, public, and protected routes distinct. A nil
+// protectedMiddleware preserves today's anonymous access; a future auth plan
+// can supply one here without changing individual route registrations.
+func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Handler) http.Handler) (*Server, error) {
+	mux := http.NewServeMux()
+	operational := routeGroup{mux: mux}
+	public := routeGroup{mux: mux}
+	protected := routeGroup{mux: mux, middleware: protectedMiddleware}
+
+	operational.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
+	operational.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
 		if ready == nil || ready() {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 		http.Error(w, "not ready", http.StatusServiceUnavailable)
 	})
-	mux.HandleFunc("GET /api/docs/openapi.json", h.openAPISpec)
+	public.HandleFunc("GET /api/docs/openapi.json", h.openAPISpec)
 
 	{
 		svcs := service.New(h.Repos, h.notifier())
 		svcs.Schema = h.fieldSchema
 		apiHandler := handler.New(svcs)
-		registerPolicyRoutes(mux, apiHandler)
-		registerPolicyGroupRoutes(mux, apiHandler)
-		registerExceptionRoutes(mux, apiHandler)
-		registerSchemaAndSummaryRoutes(mux, apiHandler)
-		registerAdmissionRoutes(mux, apiHandler)
-		registerClusterRoutes(mux, apiHandler)
-		registerDistributionRoutes(mux, apiHandler)
-		registerPlatformRoutes(mux, apiHandler)
+		registerPolicyRoutes(protected, apiHandler)
+		registerPolicyGroupRoutes(protected, apiHandler)
+		registerExceptionRoutes(protected, apiHandler)
+		registerSchemaAndSummaryRoutes(protected, apiHandler)
+		registerAdmissionRoutes(protected, apiHandler)
+		registerClusterRoutes(protected, apiHandler)
+		registerDistributionRoutes(protected, apiHandler)
+		registerPlatformRoutes(protected, apiHandler)
 	}
 	return &Server{Handler: rejectNonCanonicalAPIPaths(apiFallback(mux)), mux: mux}, nil
 }

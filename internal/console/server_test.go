@@ -43,6 +43,39 @@ func TestReadyzNilAlwaysReady(t *testing.T) {
 	}
 }
 
+func TestProtectedRoutesHaveAuthenticationMiddlewareSeam(t *testing.T) {
+	protected := func(http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("X-Protected-Route", "true")
+			w.WriteHeader(http.StatusTeapot)
+		})
+	}
+	srv, err := newServer(&Handlers{}, nil, protected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		path      string
+		protected bool
+	}{
+		{path: "/healthz"},
+		{path: "/readyz"},
+		{path: "/api/docs/openapi.json"},
+		{path: "/api/v1/policies", protected: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			srv.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tt.path, nil))
+			got := rec.Header().Get("X-Protected-Route") == "true"
+			if got != tt.protected {
+				t.Fatalf("protected middleware applied = %v, want %v", got, tt.protected)
+			}
+		})
+	}
+}
+
 func TestUnknownAPIRouteIs404JSON(t *testing.T) {
 	h := newBareServer(func() bool { return true })
 	rec := httptest.NewRecorder()

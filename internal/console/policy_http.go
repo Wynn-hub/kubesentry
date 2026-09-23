@@ -17,7 +17,7 @@ import (
 	consolehandler "github.com/Wynn-hub/kubesentry/internal/console/handler"
 )
 
-func registerPolicyRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
+func registerPolicyRoutes(mux routeRegistrar, h *consolehandler.Handler) {
 	mux.HandleFunc("GET /api/v1/policies/validate", policyMethodNotAllowed("POST"))
 	mux.HandleFunc("PUT /api/v1/policies/validate", policyMethodNotAllowed("POST"))
 	mux.HandleFunc("DELETE /api/v1/policies/validate", policyMethodNotAllowed("POST"))

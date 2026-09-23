@@ -9,7 +9,7 @@ import (
 	consolehandler "github.com/Wynn-hub/kubesentry/internal/console/handler"
 )
 
-func registerSchemaAndSummaryRoutes(mux *http.ServeMux, h *consolehandler.Handler) {
+func registerSchemaAndSummaryRoutes(mux routeRegistrar, h *consolehandler.Handler) {
 	mux.HandleFunc("GET /api/v1/schema/fields", func(w http.ResponseWriter, r *http.Request) {
 		if rejectHead(w, r, "GET") {
 			return
