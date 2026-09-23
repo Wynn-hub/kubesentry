@@ -161,6 +161,8 @@ test:
 
 lint:
 	go vet ./...
+	python3 scripts/check_architecture_boundaries_test.py
+	python3 scripts/check_architecture_boundaries.py
 
 # ── E2E Tests ─────────────────────────────────────────────────────────────────
 # Build images tagged e2e-test (local only, no push to registry).
