@@ -163,7 +163,7 @@ func TestOpenAPIDocumentationEndpoints(t *testing.T) {
 	if err := json.Unmarshal(spec.Body.Bytes(), &document); err != nil {
 		t.Fatalf("decode openapi json: %v", err)
 	}
-	if document["openapi"] != "3.1.0" {
+	if document["openapi"] != "3.0.0" {
 		t.Fatalf("openapi version = %v", document["openapi"])
 	}
 	assertAllRefsResolve(t, document, document)
