@@ -16,10 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1alpha1 "github.com/Wynn-hub/kubesentry/internal/api/v1alpha1"
 	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
-	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
