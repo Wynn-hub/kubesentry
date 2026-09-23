@@ -10,9 +10,9 @@ import (
 	gormpg "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	dbmigrate "github.com/Wynn-hub/kubesentry/internal/database/migrate"
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
-	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 )
 

@@ -66,7 +66,7 @@ func findGroup(items []dto.PolicyGroupItem, name string) (dto.PolicyGroupItem, b
 
 func TestListGroups(t *testing.T) {
 	// The migration seeds a "default" policy group alongside the 37 builtin
-	// policies (see internal/dbmigrate/seed_test.go), so the list is never
+	// policies (see internal/database/migrate/seed_test.go), so the list is never
 	// empty even in a fresh DB — assert our two seeded groups are present
 	// rather than asserting an exact total count.
 	h, repos := newDBTestServer(t)

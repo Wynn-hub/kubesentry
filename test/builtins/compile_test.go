@@ -10,7 +10,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcwait "github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
+	dbmigrate "github.com/Wynn-hub/kubesentry/internal/database/migrate"
 	"github.com/Wynn-hub/kubesentry/internal/webhook"
 )
 

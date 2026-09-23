@@ -104,7 +104,7 @@ func findPolicy(items []policyListItem, name string) (policyListItem, bool) {
 
 // zzTestKeyword prefixes fixture names in list-filter tests. The migration
 // seeds 37 real builtin policies alongside whatever a test creates (see
-// internal/dbmigrate/seed_test.go), so a plain mode/phase filter also
+// internal/database/migrate/seed_test.go), so a plain mode/phase filter also
 // matches builtin rows — these tests narrow with an always-included keyword
 // filter unlikely to collide with any real policy name, then assert on the
 // narrowed set instead of the full list.
@@ -575,7 +575,7 @@ func containsStr(items []string, want string) bool {
 
 func TestResourceSuggestions(t *testing.T) {
 	// The migration seeds 37 real builtin policies (see
-	// internal/dbmigrate/seed_test.go), which contribute their own
+	// internal/database/migrate/seed_test.go), which contribute their own
 	// apiGroups/resources to this aggregate — assert our fixtures' values
 	// are present (and the intra-policy duplicate "pods" entry collapses to
 	// one), rather than asserting the aggregate equals only our fixtures.

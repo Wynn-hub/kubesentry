@@ -1,7 +1,7 @@
 // Package dbmigrate wraps golang-migrate with the project's embedded SQL
 // migration files, so cmd/db and every testcontainers-based test call the
 // exact same code path (spec D2/D16).
-package dbmigrate
+package migrate
 
 import (
 	"database/sql"

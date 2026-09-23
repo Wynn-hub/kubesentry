@@ -21,9 +21,9 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	dbmigrate "github.com/Wynn-hub/kubesentry/internal/database/migrate"
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
-	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 	"github.com/Wynn-hub/kubesentry/internal/logging"

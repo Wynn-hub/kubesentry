@@ -10,8 +10,8 @@ import (
 	gormpg "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	dbmigrate "github.com/Wynn-hub/kubesentry/internal/database/migrate"
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
-	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 )
 
 // newTestDB starts a throwaway PG container, runs migrations, and returns a

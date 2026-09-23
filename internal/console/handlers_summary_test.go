@@ -51,7 +51,7 @@ func getSummary(t *testing.T, handler http.Handler) dto.SummaryView {
 
 // TestSummaryTotals seeds fixtures on top of whatever the migration already
 // seeded (37 builtin policies + the "default" group — see
-// internal/dbmigrate/seed_test.go) and asserts totals grew by exactly the
+// internal/database/migrate/seed_test.go) and asserts totals grew by exactly the
 // fixture count, since a fresh DB is never actually empty here.
 func TestSummaryTotals(t *testing.T) {
 	handler, repos := newDBTestServer(t)

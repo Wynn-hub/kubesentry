@@ -13,8 +13,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
+	dbmigrate "github.com/Wynn-hub/kubesentry/internal/database/migrate"
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
-	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
 )
 
 // newTestDB starts a throwaway PG container, runs migrations, and returns a

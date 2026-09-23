@@ -1,4 +1,4 @@
-package dbmigrate_test
+package migrate_test
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcwait "github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
+	dbmigrate "github.com/Wynn-hub/kubesentry/internal/database/migrate"
 )
 
 func TestMigrateCreatesAllTables(t *testing.T) {
