@@ -34,7 +34,7 @@ import (
 	admissionpolicy "github.com/Wynn-hub/kubesentry/internal/admission/policy"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 	"github.com/Wynn-hub/kubesentry/internal/operator/uninstall"
-	"github.com/Wynn-hub/kubesentry/internal/platformobs"
+	platformobs "github.com/Wynn-hub/kubesentry/internal/platform/observability"
 	"github.com/Wynn-hub/kubesentry/internal/tlssetup"
 )
 

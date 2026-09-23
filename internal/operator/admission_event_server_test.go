@@ -10,7 +10,7 @@ import (
 
 	admissionobs "github.com/Wynn-hub/kubesentry/internal/admission/observability"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
-	"github.com/Wynn-hub/kubesentry/internal/platformobs"
+	platformobs "github.com/Wynn-hub/kubesentry/internal/platform/observability"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

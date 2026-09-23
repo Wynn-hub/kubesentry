@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
-	"github.com/Wynn-hub/kubesentry/internal/platformobs"
+	platformobs "github.com/Wynn-hub/kubesentry/internal/platform/observability"
 )
 
 type PlatformReporter struct {

@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
-	"github.com/Wynn-hub/kubesentry/internal/platformobs"
+	platformobs "github.com/Wynn-hub/kubesentry/internal/platform/observability"
 )
 
 type PlatformReporter struct {

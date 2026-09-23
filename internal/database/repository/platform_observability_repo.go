@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/Wynn-hub/kubesentry/internal/database/model"
-	"github.com/Wynn-hub/kubesentry/internal/platformobs"
+	platformobs "github.com/Wynn-hub/kubesentry/internal/platform/observability"
 )
 
 const (

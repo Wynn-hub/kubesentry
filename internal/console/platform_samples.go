@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
-	"github.com/Wynn-hub/kubesentry/internal/platformobs"
+	platformobs "github.com/Wynn-hub/kubesentry/internal/platform/observability"
 )
 
 var platformSampleInterval = platformobs.DefaultInterval

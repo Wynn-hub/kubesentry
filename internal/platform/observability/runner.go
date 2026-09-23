@@ -1,4 +1,4 @@
-package platformobs
+package observability
 
 import (
 	"context"
