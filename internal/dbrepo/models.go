@@ -10,12 +10,12 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
 )
 
 type Cluster struct {
-	dbmodel.Base
+	model.Base
 	Name            string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
 	ClusterUID      string
 	Labels          datatypes.JSONType[map[string]string]
@@ -37,7 +37,7 @@ type Cluster struct {
 func (Cluster) TableName() string { return "kubesentry.clusters" }
 
 type Policy struct {
-	dbmodel.Base
+	model.Base
 	Name            string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
 	Description     string
 	Rego            string
@@ -52,7 +52,7 @@ type Policy struct {
 func (Policy) TableName() string { return "kubesentry.policies" }
 
 type PolicyVersion struct {
-	dbmodel.Base
+	model.Base
 	PolicyID     int64
 	Version      int
 	Rego         string
@@ -62,7 +62,7 @@ type PolicyVersion struct {
 func (PolicyVersion) TableName() string { return "kubesentry.policy_versions" }
 
 type PolicyGroup struct {
-	dbmodel.Base
+	model.Base
 	Name        string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
 	Spec        datatypes.JSONType[v1alpha1.PolicyGroupSpec]
 	Labels      datatypes.JSONType[map[string]string]
@@ -72,7 +72,7 @@ type PolicyGroup struct {
 func (PolicyGroup) TableName() string { return "kubesentry.policy_groups" }
 
 type PolicyException struct {
-	dbmodel.Base
+	model.Base
 	Name        string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
 	Spec        datatypes.JSONType[v1alpha1.PolicyExceptionSpec]
 	ExpiresAt   *time.Time
@@ -83,7 +83,7 @@ type PolicyException struct {
 func (PolicyException) TableName() string { return "kubesentry.policy_exceptions" }
 
 type PolicyDistribution struct {
-	dbmodel.Base
+	model.Base
 	Name      string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
 	Spec      datatypes.JSONType[gatewaymodel.PolicyDistributionSpec]
 	Managed   bool
@@ -94,7 +94,7 @@ type PolicyDistribution struct {
 func (PolicyDistribution) TableName() string { return "kubesentry.policy_distributions" }
 
 type DistributionClusterStatus struct {
-	dbmodel.Base
+	model.Base
 	DistributionID     int64
 	ClusterID          int64
 	Status             string
@@ -105,7 +105,7 @@ type DistributionClusterStatus struct {
 func (DistributionClusterStatus) TableName() string { return "kubesentry.distribution_cluster_status" }
 
 type ClusterInstallRecord struct {
-	dbmodel.Base
+	model.Base
 	ClusterName          string
 	Namespace            string
 	WebhookRepository    string
@@ -126,7 +126,7 @@ func (ClusterInstallRecord) TableName() string { return "kubesentry.cluster_inst
 // remove the KubeSentry release resources it owns. The member's acknowledgement
 // and result are stored before the platform changes the cluster lifecycle.
 type UninstallTask struct {
-	dbmodel.Base
+	model.Base
 	ClusterID   int64
 	Status      string
 	RequestedAt time.Time
@@ -163,7 +163,7 @@ func (AdmissionEventSettings) TableName() string { return "kubesentry.admission_
 // stores the event, an empty rule set stores everything, and retention comes
 // from the global AdmissionEventSettings. Priority only fixes the display order.
 type AdmissionStoragePolicy struct {
-	dbmodel.Base
+	model.Base
 	Priority   int
 	MatchMode  string
 	Verdicts   pq.StringArray `gorm:"type:text[]"`
@@ -175,7 +175,7 @@ type AdmissionStoragePolicy struct {
 func (AdmissionStoragePolicy) TableName() string { return "kubesentry.admission_storage_policies" }
 
 type AdmissionEvent struct {
-	dbmodel.Base
+	model.Base
 	EventID              string `gorm:"uniqueIndex"`
 	RequestUID           string
 	ClusterID            int64

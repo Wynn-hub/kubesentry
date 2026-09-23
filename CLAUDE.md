@@ -52,7 +52,7 @@ Five independent Go binaries split across two planes that never talk to each oth
 - `tls-setup` subcommand: generates an ECDSA P-256 self-signed CA + server cert, writes a TLS Secret, patches the VWC `caBundle`. Skips if the Secret already exists.
 - When `GATEWAY_ADDRESS` is set, the operator additionally starts `internal/operator/hublink` as a manager `Runnable`: this is the member-cluster side of the gateway connection — one-time `Register`, then a long-lived `Sync` stream (heartbeats + status reports up, `DesiredState` snapshots down) with exponential-backoff reconnect. `hublink/apply.go` applies the received `Policy`/`PolicyGroup` `ManagedObject`s as CRs on the member cluster, pruning ones no longer in the snapshot. Single-cluster installs simply never set `GATEWAY_ADDRESS`, so `hublink` never starts — that omission is the entire single-cluster compatibility story.
 
-**`cmd/gateway`** — Gateway plane, PostgreSQL-backed via GORM (`internal/dbmodel`, `internal/dbrepo`). Implements the `gatewaypb.Hub` gRPC service (`api/proto/gateway/v1/gateway.proto`, generated into `internal/gatewaypb`):
+**`cmd/gateway`** — Gateway plane, PostgreSQL-backed via GORM (`internal/database/model`, `internal/dbrepo`). Implements the `gatewaypb.Hub` gRPC service (`api/proto/gateway/v1/gateway.proto`, generated into `internal/gatewaypb`):
 - `Register`/`Sync` — member-cluster registration and the long-lived bidirectional stream described above. `Sync`'s `pushLoop` (`internal/gateway/server.go`) renders each connected cluster's `DesiredState` snapshot from the DB (`internal/gateway/render.go`) and resends it whenever `Notifier` fires (a real content change) or a 60s resync ticker elapses (drift correction), whichever comes first.
 - `NotifyChange` — fire-and-forget: wakes every connected cluster's `pushLoop` to re-render. Carries an optional `trace_id` (spec D18) that rides the next `DesiredState` push and ends up as the `kubesentry.io/last-trace-id` annotation on the member CR `hublink/apply.go` applies.
 - `Dispatch` — a dumb point-to-point relay: forwards an `Envelope` payload to the named cluster's live `Sync` session and waits up to 10s for a correlated reply. No destination resolution, no offline queueing, and nothing calls it yet — see "Known Follow-ups" below.
@@ -100,7 +100,7 @@ deny[msg] { ... msg := "reason" }
 
 **Gateway/console hold zero CRD lifecycle responsibilities.** Their `Policy`, `PolicyGroup`, `PolicyException`, `Cluster`, and `PolicyDistribution` records are plain Postgres tables (`internal/dbmigrate/migrations/0001_init_schema.up.sql`) accessed through `internal/dbrepo`. Gateway/console may reuse versioned schema/spec types from the public `api/kubesentry/v1alpha1` package, but Kubernetes clients, Scheme ownership, reconcilers, and CRD lifecycle remain in the member plane. Gateway-only `Cluster` and `PolicyDistribution` payload models live in `internal/gatewaymodel` and are not CRDs.
 
-**Snowflake IDs, not UUIDs or serials.** `internal/dbmodel.Init(nodeID)` must run once per process before any repo touches the DB (every `cmd/gateway`, `cmd/console`, `cmd/db` `main.go` calls it with `dbmodel.NodeIDFromPodName(os.Getenv("POD_NAME"))`). Forgetting this panics or produces zero-value IDs on insert.
+**Snowflake IDs, not UUIDs or serials.** `internal/database/model.Init(nodeID)` must run once per process before any repo touches the DB (every `cmd/gateway`, `cmd/console`, `cmd/db` `main.go` calls it with `model.NodeIDFromPodName(os.Getenv("POD_NAME"))`). Forgetting this panics or produces zero-value IDs on insert.
 
 **Auth model is two-tier.** Member clusters use a one-time `RegTokenHash` (issued at `Cluster` row creation, consumed by `Register`) then a long-lived `AuthTokenHash` (issued by `Register`, used by every `Sync` call) — gateway only ever stores SHA-256 hashes, never plaintext, and compares with `crypto/subtle.ConstantTimeCompare`. Non-cluster components (`console-api`) instead present a single shared static token (`GATEWAY_SHARED_TOKEN`) on `Connect` — see "Known Follow-ups", this token is currently unconfigured everywhere.
 
@@ -114,7 +114,7 @@ internal/webhook/        cache.go, evaluator.go, handler.go, server.go (PolicyCa
 internal/operator/       policy_reconciler.go, policygroup_reconciler.go, webhookconfig_reconciler.go, exception_reconciler.go — member plane, unchanged
 internal/operator/hublink/  member-side gateway client: Register + Sync loop, apply.go renders received ManagedObjects onto member CRs
 internal/tlssetup/       ECDSA cert generation (no k8s dependency), shared by operator tls-setup and cmd/gateway's default TLS bundle
-internal/dbmodel/        Snowflake ID generator + GORM base model (CreatedAt/UpdatedAt/ID conventions shared by every dbrepo model)
+internal/database/model/ Snowflake ID generator + GORM base model (CreatedAt/UpdatedAt/ID conventions shared by every repository model)
 internal/dbmigrate/      golang-migrate wrapper + migrations/*.sql (schema + seed data)
 internal/dbrepo/         GORM repositories: cluster_repo.go, policy_repo.go, group_repo.go, exception_repo.go, distribution_repo.go, install_record_repo.go
 internal/gatewaypb/      generated from api/proto/gateway/v1/gateway.proto (Register/Sync/Connect/NotifyChange/Dispatch)
@@ -123,7 +123,7 @@ internal/groupresolve/   PolicyGroup membership resolution (byName/bySelector/ex
 internal/console/        REST handlers (policy/group/exception/summary/schema), gatewaylink.go (Connect client), startup_validate.go, cursor.go, response.go, server.go
 cmd/webhook/             main: informer setup (Policy + PolicyGroup + Namespace + PolicyException), cache sync, server start — member plane
 cmd/operator/            main: manager setup, reconciler registration, tls-setup subcommand, optional hublink Runnable when GATEWAY_ADDRESS is set
-cmd/gateway/             main: GORM DB open, dbmodel.Init, gRPC server on GRPC_ADDR, plain-HTTP health server on :8081, StatusFlusher
+cmd/gateway/             main: GORM DB open, model.Init, gRPC server on GRPC_ADDR, plain-HTTP health server on :8081, StatusFlusher
 cmd/console/             main: GORM DB open, discovery client (schema handler only), optional Connect link to gateway, HTTP server (api container only, no embedded frontend)
 cmd/db/                  main: `db migrate` (Helm hook Job) and `db register-cluster --name=<name>` (dev/deploy-local seeding)
 web/                     Vue 3 + TypeScript SPA (Element Plus, vue-i18n, vue-router), built to web/dist and served by the console chart's nginx `web` container (no longer embedded into the Go binary)

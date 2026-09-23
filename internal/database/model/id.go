@@ -1,6 +1,6 @@
-// Package dbmodel provides the shared snowflake ID generator and the base
+// Package model provides the shared snowflake ID generator and the base
 // GORM model embedded by every table in the kubesentry schema (spec D4/D5/D6).
-package dbmodel
+package model
 
 import (
 	"hash/fnv"

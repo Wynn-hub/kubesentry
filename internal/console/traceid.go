@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 )
 
 // TraceIDFromRequest returns a per-request correlation id: reuses an inbound
@@ -14,5 +14,5 @@ func TraceIDFromRequest(r *http.Request) string {
 	if id := r.Header.Get("X-Request-Id"); id != "" {
 		return id
 	}
-	return strconv.FormatInt(dbmodel.NewID(), 10)
+	return strconv.FormatInt(model.NewID(), 10)
 }

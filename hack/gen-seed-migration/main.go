@@ -15,7 +15,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 )
 
 type policyYAML struct {
@@ -84,7 +84,7 @@ func mustJSON(v interface{}) string {
 
 func main() {
 	// ponytail: throwaway node id, this binary runs once on a laptop, not in prod.
-	if err := dbmodel.Init(1); err != nil {
+	if err := model.Init(1); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -130,14 +130,14 @@ func main() {
 			}},
 		})
 		fmt.Printf("INSERT INTO policies (id, name, description, rego, enforcement_mode, match, compile_ok) VALUES (%d, %s, %s, %s, %s, %s::jsonb, true);\n",
-			dbmodel.NewID(),
+			model.NewID(),
 			sqlQuote(name), sqlQuote(p.Spec.Description), sqlQuote(p.Spec.Rego), sqlQuote(p.Spec.EnforcementMode), sqlQuote(matchJSON))
 		groupMembers = append(groupMembers, groupMember{Name: name, EnforcementMode: p.Spec.EnforcementMode})
 	}
 	fmt.Println()
 	gs := groupSpec{DisplayName: "Default", Enabled: true}
 	gs.Policies.ByName = groupMembers
-	fmt.Printf("INSERT INTO policy_groups (id, name, spec) VALUES (%d, 'default', %s::jsonb);\n", dbmodel.NewID(), sqlQuote(mustJSON(gs)))
+	fmt.Printf("INSERT INTO policy_groups (id, name, spec) VALUES (%d, 'default', %s::jsonb);\n", model.NewID(), sqlQuote(mustJSON(gs)))
 
 	distSpec := map[string]interface{}{
 		"policyGroups": []string{"default"},
@@ -145,5 +145,5 @@ func main() {
 			"clusterSelector": map[string]interface{}{},
 		},
 	}
-	fmt.Printf("INSERT INTO policy_distributions (id, name, spec) VALUES (%d, 'default', %s::jsonb);\n", dbmodel.NewID(), sqlQuote(mustJSON(distSpec)))
+	fmt.Printf("INSERT INTO policy_distributions (id, name, spec) VALUES (%d, 'default', %s::jsonb);\n", model.NewID(), sqlQuote(mustJSON(distSpec)))
 }

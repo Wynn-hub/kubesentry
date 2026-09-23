@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
 )
 
@@ -22,8 +22,8 @@ func TestTraceIDFromRequestReusesHeader(t *testing.T) {
 }
 
 func TestTraceIDFromRequestGeneratesWhenMissing(t *testing.T) {
-	if err := dbmodel.Init(1); err != nil {
-		t.Fatalf("dbmodel.Init: %v", err)
+	if err := model.Init(1); err != nil {
+		t.Fatalf("model.Init: %v", err)
 	}
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 	got := TraceIDFromRequest(r)
@@ -33,8 +33,8 @@ func TestTraceIDFromRequestGeneratesWhenMissing(t *testing.T) {
 }
 
 func TestTraceIDFromRequestGeneratesUniqueIDs(t *testing.T) {
-	if err := dbmodel.Init(1); err != nil {
-		t.Fatalf("dbmodel.Init: %v", err)
+	if err := model.Init(1); err != nil {
+		t.Fatalf("model.Init: %v", err)
 	}
 	id1 := TraceIDFromRequest(httptest.NewRequest(http.MethodPost, "/", nil))
 	id2 := TraceIDFromRequest(httptest.NewRequest(http.MethodPost, "/", nil))

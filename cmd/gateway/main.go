@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gateway"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaypb"
@@ -52,7 +52,7 @@ func main() {
 		slog.Error("open database", "error", err)
 		os.Exit(1)
 	}
-	if err := dbmodel.Init(dbmodel.NodeIDFromPodName(os.Getenv("POD_NAME"))); err != nil {
+	if err := model.Init(model.NodeIDFromPodName(os.Getenv("POD_NAME"))); err != nil {
 		slog.Error("init id generator", "error", err)
 		os.Exit(1)
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
@@ -147,7 +147,7 @@ func TestAdmissionRepoUpdatesDeliverySettingsAndMatchModeAtomically(t *testing.T
 func seedCleanupEvent(t *testing.T, repo *dbrepo.AdmissionRepo, cluster *dbrepo.Cluster, eventID, namespace, resource string, createdAt time.Time) {
 	t.Helper()
 	err := repo.CreateEventsIdempotent(context.Background(), []dbrepo.AdmissionEvent{{
-		Base:        dbmodel.Base{CreatedAt: createdAt},
+		Base:        model.Base{CreatedAt: createdAt},
 		EventID:     eventID,
 		ClusterID:   cluster.ID,
 		ClusterName: cluster.Name,
@@ -282,7 +282,7 @@ func TestAdmissionRepoCleanupPagesBeyondOneBatch(t *testing.T) {
 	events := make([]dbrepo.AdmissionEvent, 0, total)
 	for i := 0; i < total; i++ {
 		events = append(events, dbrepo.AdmissionEvent{
-			Base:        dbmodel.Base{CreatedAt: now.Add(-72 * time.Hour)},
+			Base:        model.Base{CreatedAt: now.Add(-72 * time.Hour)},
 			EventID:     fmt.Sprintf("batch-%04d", i),
 			ClusterID:   cluster.ID,
 			ClusterName: cluster.Name,

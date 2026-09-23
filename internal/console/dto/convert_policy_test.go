@@ -8,13 +8,13 @@ import (
 	"gorm.io/datatypes"
 
 	"github.com/Wynn-hub/kubesentry/api/kubesentry/v1alpha1"
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
 func policyFixture() *dbrepo.Policy {
 	return &dbrepo.Policy{
-		Base: dbmodel.Base{
+		Base: model.Base{
 			ID:        42,
 			CreatedAt: time.Date(2026, 8, 3, 10, 15, 30, 0, time.UTC),
 			UpdatedAt: time.Date(2026, 8, 3, 11, 20, 45, 0, time.UTC),

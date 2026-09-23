@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 )
 
 // validRego is a minimal v0-syntax module satisfying the kubesentry contract.
@@ -61,7 +61,7 @@ func newTestServerWithHandlers(t *testing.T) (http.Handler, *Handlers) {
 
 func initTestIDs(t *testing.T) {
 	t.Helper()
-	if err := dbmodel.Init(1); err != nil {
+	if err := model.Init(1); err != nil {
 		t.Fatal(err)
 	}
 }

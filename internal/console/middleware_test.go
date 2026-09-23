@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 )
 
 // An inbound X-Request-Id must be reused verbatim so one trace spans the whole
@@ -22,8 +22,8 @@ func TestRequestContextReusesInboundTraceID(t *testing.T) {
 // With no inbound header a fresh id must be minted, so every request stays
 // traceable even when the caller sends nothing.
 func TestRequestContextMintsTraceIDWhenAbsent(t *testing.T) {
-	if err := dbmodel.Init(1); err != nil {
-		t.Fatalf("dbmodel.Init: %v", err)
+	if err := model.Init(1); err != nil {
+		t.Fatalf("model.Init: %v", err)
 	}
 	req := httptest.NewRequest("GET", "/api/v1/policies", nil)
 	seen := TraceIDFromContext(requestContext(req))

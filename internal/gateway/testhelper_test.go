@@ -10,8 +10,8 @@ import (
 	gormpg "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	"github.com/Wynn-hub/kubesentry/internal/dbmigrate"
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
@@ -61,8 +61,8 @@ func newTestDB(t *testing.T) *gorm.DB {
 	if err := dbmigrate.Migrate(dsn); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	if err := dbmodel.Init(1); err != nil {
-		t.Fatalf("dbmodel.Init: %v", err)
+	if err := model.Init(1); err != nil {
+		t.Fatalf("model.Init: %v", err)
 	}
 	db, err := gorm.Open(gormpg.Open(dsn), &gorm.Config{})
 	if err != nil {

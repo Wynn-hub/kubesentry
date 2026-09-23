@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 )
 
@@ -66,7 +66,7 @@ func TestAdmissionListOwnsPaginationMappingAndPolicyFallback(t *testing.T) {
 	repo := &admissionRepositoryStub{
 		total: 1,
 		events: []dbrepo.AdmissionEvent{{
-			Base:       dbmodel.Base{ID: 2081582208838783001},
+			Base:       model.Base{ID: 2081582208838783001},
 			Violations: datatypes.JSON(`["[host-ipc-set via default] host IPC is not allowed"]`),
 		}},
 	}

@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	"github.com/Wynn-hub/kubesentry/internal/dbrepo"
 	"github.com/Wynn-hub/kubesentry/internal/gatewayauth"
 	"github.com/Wynn-hub/kubesentry/internal/gatewaymodel"
@@ -46,7 +46,7 @@ func RegisterLocalCluster(ctx context.Context, c client.Client, name string) (to
 	}
 	defer stop()
 
-	if err := dbmodel.Init(dbmodel.NodeIDFromPodName("e2e-test")); err != nil {
+	if err := model.Init(model.NodeIDFromPodName("e2e-test")); err != nil {
 		return "", "", fmt.Errorf("init id generator: %w", err)
 	}
 

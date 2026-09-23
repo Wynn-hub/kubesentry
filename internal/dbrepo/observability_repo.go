@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/Wynn-hub/kubesentry/internal/admissionobs"
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 )
 
 type IncidentRepo struct{ db *gorm.DB }
@@ -43,7 +43,7 @@ func (r *IncidentRepo) Upsert(
 	receivedAt = receivedAt.UTC()
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		row := AdmissionLinkIncident{
-			ID: dbmodel.NewID(), ClusterID: clusterID, ClusterName: clusterName,
+			ID: model.NewID(), ClusterID: clusterID, ClusterName: clusterName,
 			IncidentKey: incident.IncidentKey, ReporterInstanceID: incident.ReporterInstanceID,
 			Component: string(incident.Component), Reason: incident.Reason,
 			StartedAt: incident.StartedAt.UTC(), LastSeenAt: incident.LastSeenAt.UTC(),

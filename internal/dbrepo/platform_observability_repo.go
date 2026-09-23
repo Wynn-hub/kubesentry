@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/Wynn-hub/kubesentry/internal/dbmodel"
+	"github.com/Wynn-hub/kubesentry/internal/database/model"
 	"github.com/Wynn-hub/kubesentry/internal/platformobs"
 )
 
@@ -76,7 +76,7 @@ func (r *PlatformObservabilityRepo) UpsertSample(
 			if leadershipComponent(sample.Component) && previous.Role != string(sample.Role) {
 				result.RoleChanged = true
 				event := PlatformLeadershipEvent{
-					ID:          dbmodel.NewID(),
+					ID:          model.NewID(),
 					Component:   string(sample.Component),
 					ClusterID:   sample.ClusterID,
 					ClusterName: sample.ClusterName,
@@ -147,7 +147,7 @@ func platformSampleRow(sample platformobs.Sample, bucket, receivedAt time.Time, 
 		stats = map[string]any{}
 	}
 	return PlatformComponentSample{
-		ID:                   dbmodel.NewID(),
+		ID:                   model.NewID(),
 		BucketStartedAt:      bucket,
 		Component:            string(sample.Component),
 		Instance:             sample.Instance,
@@ -190,7 +190,7 @@ func (r *PlatformObservabilityRepo) RecordSessionLost(
 		return errors.New("session loss is only valid for leadership components")
 	}
 	event := PlatformLeadershipEvent{
-		ID:          dbmodel.NewID(),
+		ID:          model.NewID(),
 		Component:   string(component),
 		ClusterID:   clusterID,
 		ClusterName: clusterName,
