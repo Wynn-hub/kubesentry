@@ -326,6 +326,16 @@ type platformHealthSignals struct {
 }
 
 func buildPlatformComponent(component platformobs.Component, rows []dbrepo.PlatformComponentSample, lastChange time.Time, signals platformHealthSignals, now time.Time) dto.PlatformComponentView {
+	active := make([]dbrepo.PlatformComponentSample, 0, len(rows))
+	for _, row := range rows {
+		if now.Sub(row.LastObservedAt) <= platformNoDataAfter {
+			active = append(active, row)
+		}
+	}
+	if len(active) > 0 {
+		rows = active
+	}
+
 	hasLeadership := component == platformobs.ComponentGateway || component == platformobs.ComponentOperator
 	result := dto.PlatformComponentView{
 		Component: string(component), Health: "unavailable",

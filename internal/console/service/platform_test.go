@@ -145,6 +145,26 @@ func TestBuildPlatformComponentPreservesHealthSemantics(t *testing.T) {
 	}
 }
 
+func TestBuildPlatformComponentIgnoresSupersededStaleInstances(t *testing.T) {
+	now := time.Now().UTC()
+	quiet := platformHealthSignals{restarted: map[string]bool{}, pressured: map[string]bool{}, cpuUsage: map[string]int64{}}
+	fresh := dbrepo.PlatformComponentSample{
+		Component: string(platformobs.ComponentConsoleAPI), Instance: "console-new",
+		Role: string(platformobs.RoleNone), ProcessStartedAt: now.Add(-time.Minute),
+		Health: string(platformobs.HealthOK), LastObservedAt: now,
+	}
+	stale := fresh
+	stale.Instance = "console-old"
+	stale.ProcessStartedAt = now.Add(-time.Hour)
+	stale.LastObservedAt = now.Add(-platformNoDataAfter - time.Second)
+
+	component := buildPlatformComponent(platformobs.ComponentConsoleAPI,
+		[]dbrepo.PlatformComponentSample{stale, fresh}, time.Time{}, quiet, now)
+	if component.Health != "ok" || len(component.Instances) != 1 || component.Instances[0].Instance != fresh.Instance {
+		t.Fatalf("component = %+v, want only the fresh replacement instance", component)
+	}
+}
+
 func TestBuildPlatformComponentUsesPressureAndRestartSignals(t *testing.T) {
 	now := time.Now().UTC()
 	row := dbrepo.PlatformComponentSample{
