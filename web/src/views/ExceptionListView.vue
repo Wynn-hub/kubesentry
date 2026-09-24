@@ -17,7 +17,9 @@
       <template #default="{ row }"><PhaseTag :phase="row.phase" /></template>
     </el-table-column>
     <el-table-column :label="$t('exception.target')" prop="targetSummary" sortable="custom" :sort-orders="sortOrders" />
-    <el-table-column :label="$t('exception.duration')" prop="duration" sortable="custom" :sort-orders="sortOrders" width="110" />
+    <el-table-column :label="$t('exception.duration')" prop="duration" sortable="custom" :sort-orders="sortOrders" width="110">
+      <template #default="{ row }">{{ row.name === 'default-system-namespaces' ? $t('exception.permanent') : row.duration }}</template>
+    </el-table-column>
     <el-table-column :label="$t('exception.expiresAt')" prop="expiresAt" sortable="custom" :sort-orders="sortOrders" width="200">
       <template #default="{ row }">{{ row.expiresAt ? new Date(row.expiresAt).toLocaleString() : '-' }}</template>
     </el-table-column>
@@ -27,7 +29,7 @@
         <el-button link type="primary" @click="$router.push(`/exceptions/${row.name}/edit`)">
           {{ $t('common.edit') }}
         </el-button>
-        <el-button link type="danger" @click="onDelete(row.name)">{{ $t('common.delete') }}</el-button>
+        <el-button v-if="row.name !== 'default-system-namespaces'" link type="danger" @click="onDelete(row.name)">{{ $t('common.delete') }}</el-button>
       </template>
     </el-table-column>
   </el-table>

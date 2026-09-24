@@ -21,6 +21,11 @@ export default {
     labelValuePlaceholder: 'Type a value and press Enter, multiple allowed',
     multiValueOrHint: 'Multiple values are combined with OR — matching any one is enough',
   },
+  phase: {
+    Ready: 'Ready', Invalid: 'Invalid', Syncing: 'Syncing', Disabled: 'Disabled', Degraded: 'Degraded',
+    Active: 'Active', Expired: 'Expired', Online: 'Online', Offline: 'Offline', Registering: 'Registering',
+    Uninstalling: 'Uninstalling', Uninstalled: 'Uninstalled', UninstallFailed: 'Uninstall failed',
+  },
   apiDocs: {
     title: 'API Documentation Center',
     subtitle: 'Control-plane HTTP reference, in-browser requests, and the other contract entry points',
@@ -70,6 +75,7 @@ export default {
     excludedHint: 'Explicitly excluded from this group. To re-include, select it again on the edit page.',
     enableDone: '{name} enabled', disableDone: '{name} disabled',
     targetClusters: 'Target Clusters', allClusters: 'All clusters', selectedClusters: 'Selected clusters', selectClusters: 'Select at least one cluster',
+    defaultScopeHint: 'The default policy group always targets all clusters',
   },
   cluster: {
     title: 'Clusters', subtitle: 'Manage registered member clusters',
@@ -102,6 +108,8 @@ export default {
     nsTarget: 'Namespaces', nsAllHint: 'Exempting all namespaces isn\'t supported here — disable the relevant policy group instead',
     resSelector: 'Resource Object Label', resSelectorHint: 'Any resource object carrying this label will be exempted',
     targetClusters: 'Target Clusters', allClusters: 'All clusters', selectedClusters: 'Selected clusters', selectClusters: 'Select at least one cluster',
+    defaultProtectedHint: 'The default system namespace exception always targets all policies and clusters and never expires',
+    permanent: 'Permanent',
   },
   distribution: {
     title: 'Distribution', subtitle: 'Manage which clusters each policy group is pushed to',

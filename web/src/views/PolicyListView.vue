@@ -26,7 +26,7 @@
       :placeholder="$t('policy.allPhases')"
       style="width: 170px"
     >
-      <el-option v-for="p in ['Ready', 'Invalid', 'Syncing']" :key="p" :label="p" :value="p" />
+      <el-option v-for="p in ['Ready', 'Invalid', 'Syncing']" :key="p" :label="$t(`phase.${p}`)" :value="p" />
     </el-select>
     <el-select
       v-model="modeFilter"
@@ -56,7 +56,7 @@
     </el-table-column>
     <el-table-column :label="$t('policy.source')" prop="source" sortable="custom" :sort-orders="sortOrders" width="100">
       <template #default="{ row }">
-        <el-tag size="small" :type="row.source === 'builtin' ? 'info' : 'primary'">{{ row.source }}</el-tag>
+        <el-tag size="small" :type="row.source === 'builtin' ? 'info' : 'primary'">{{ $t(`policy.${row.source}`) }}</el-tag>
       </template>
     </el-table-column>
     <el-table-column :label="$t('policy.mode')" prop="enforcementMode" sortable="custom" :sort-orders="sortOrders" width="115">

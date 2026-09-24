@@ -8,7 +8,7 @@
       <el-input v-model="form.name" :disabled="isEdit" />
     </el-form-item>
     <el-form-item :label="$t('group.displayName')">
-      <el-input v-model="form.displayName" />
+      <el-input v-model="form.displayName" :disabled="isDefault" />
     </el-form-item>
     <el-form-item :label="$t('common.description')">
       <el-input v-model="form.description" type="textarea" :rows="2" />
@@ -17,8 +17,9 @@
       <el-switch v-model="form.enabled" />
     </el-form-item>
     <el-form-item :label="$t('group.targetClusters')" required>
-      <el-switch v-model="allClusters" :active-text="$t('group.allClusters')" :inactive-text="$t('group.selectedClusters')" />
-      <el-select v-if="!allClusters" v-model="clusterNames" multiple filterable style="width: 100%; margin-top: 8px" :placeholder="$t('group.selectClusters')">
+      <el-switch v-model="allClusters" :disabled="isDefault" :active-text="$t('group.allClusters')" :inactive-text="$t('group.selectedClusters')" />
+      <span v-if="isDefault" style="margin-left: 12px; color: var(--el-text-color-secondary)">{{ $t('group.defaultScopeHint') }}</span>
+      <el-select v-if="!allClusters && !isDefault" v-model="clusterNames" multiple filterable style="width: 100%; margin-top: 8px" :placeholder="$t('group.selectClusters')">
         <el-option v-for="name in availableClusters" :key="name" :label="name" :value="name" />
       </el-select>
     </el-form-item>
@@ -126,6 +127,7 @@ const { goBack } = useBackNavigation()
 
 const isEdit = route.name === 'group-edit'
 const editName = String(route.params.name ?? '')
+const isDefault = isEdit && editName === 'default'
 const saving = ref(false)
 let resourceVersion = ''
 let source = 'custom'
@@ -207,14 +209,14 @@ function toRequest(): GroupRequest {
     },
     selectorEnforcementMode: form.selectorEnforcementMode || undefined,
     resourceVersion: isEdit ? resourceVersion : undefined,
-    allClusters: allClusters.value,
-    clusterNames: allClusters.value ? undefined : clusterNames.value,
+    allClusters: isDefault ? true : allClusters.value,
+    clusterNames: isDefault || allClusters.value ? undefined : clusterNames.value,
   }
 }
 
 async function onSave() {
-  if (!allClusters.value && clusterNames.value.length === 0) { ElMessage.error(t('group.selectClusters')); return }
-  if (source === 'builtin') {
+  if (!isDefault && !allClusters.value && clusterNames.value.length === 0) { ElMessage.error(t('group.selectClusters')); return }
+  if (source === 'builtin' && !isDefault) {
     try {
       await ElMessageBox.confirm(t('common.builtinWarning'))
     } catch {

@@ -45,6 +45,8 @@ describe('API documentation view', () => {
       expect.any(HTMLElement),
       expect.objectContaining({
         url: '/api/docs/openapi.json',
+        darkMode: true,
+        theme: 'none',
         hideTestRequestButton: false,
         tagsSorter: 'alpha',
       }),

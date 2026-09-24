@@ -8,25 +8,26 @@
       <el-input v-model="form.name" :disabled="isEdit" />
     </el-form-item>
     <el-form-item :label="$t('exception.targetClusters')" required>
-      <el-switch v-model="allClusters" :active-text="$t('exception.allClusters')" :inactive-text="$t('exception.selectedClusters')" />
-      <el-select v-if="!allClusters" v-model="clusterNames" multiple filterable style="width: 100%; margin-top: 8px" :placeholder="$t('exception.selectClusters')">
+      <el-switch v-model="allClusters" :disabled="isDefault" :active-text="$t('exception.allClusters')" :inactive-text="$t('exception.selectedClusters')" />
+      <span v-if="isDefault" style="margin-left: 12px; color: var(--el-text-color-secondary)">{{ $t('exception.defaultProtectedHint') }}</span>
+      <el-select v-if="!allClusters && !isDefault" v-model="clusterNames" multiple filterable style="width: 100%; margin-top: 8px" :placeholder="$t('exception.selectClusters')">
         <el-option v-for="name in availableClusters" :key="name" :label="name" :value="name" />
       </el-select>
     </el-form-item>
 
     <el-form-item :label="$t('exception.target')" required>
-      <el-radio-group v-model="targetKind">
+      <el-radio-group v-model="targetKind" :disabled="isDefault">
         <el-radio value="policies">{{ $t('exception.targetPolicies') }}</el-radio>
         <el-radio value="groups">{{ $t('exception.targetGroups') }}</el-radio>
         <el-radio value="all">{{ $t('exception.targetAll') }}</el-radio>
       </el-radio-group>
     </el-form-item>
-    <el-form-item v-if="targetKind === 'policies'" label=" ">
+    <el-form-item v-if="targetKind === 'policies' && !isDefault" label=" ">
       <el-select v-model="form.policyRefs" multiple filterable style="width: 100%">
         <el-option v-for="p in policyNames" :key="p" :label="p" :value="p" />
       </el-select>
     </el-form-item>
-    <el-form-item v-if="targetKind === 'groups'" label=" ">
+    <el-form-item v-if="targetKind === 'groups' && !isDefault" label=" ">
       <el-select v-model="form.policyGroupRefs" multiple filterable style="width: 100%">
         <el-option v-for="g in groupNames" :key="g" :label="g" :value="g" />
       </el-select>
@@ -48,7 +49,7 @@
         </p>
       </div>
     </el-form-item>
-    <el-form-item :label="$t('exception.resSelector')">
+    <el-form-item v-if="!isDefault" :label="$t('exception.resSelector')">
       <div style="width: 100%">
         <LabelEditor v-model="resourceSelector" />
         <p style="color: var(--el-text-color-secondary); margin: 4px 0 0; font-size: 13px">
@@ -58,9 +59,10 @@
     </el-form-item>
 
     <el-form-item :label="$t('exception.duration')" required>
-      <el-input v-model="form.duration" placeholder="24h / 30m / 168h" style="width: 200px" />
+      <span v-if="isDefault">{{ $t('exception.permanent') }}</span>
+      <el-input v-else v-model="form.duration" placeholder="24h / 30m / 168h" style="width: 200px" />
     </el-form-item>
-    <el-form-item :label="$t('exception.retain')">
+    <el-form-item v-if="!isDefault" :label="$t('exception.retain')">
       <el-input v-model="form.retainAfterExpiry" placeholder="0s" style="width: 200px" />
     </el-form-item>
     <el-form-item :label="$t('exception.reason')" required>
@@ -100,6 +102,7 @@ const { goBack } = useBackNavigation()
 
 const isEdit = route.name === 'exception-edit'
 const editName = String(route.params.name ?? '')
+const isDefault = isEdit && editName === 'default-system-namespaces'
 const saving = ref(false)
 let resourceVersion = ''
 
@@ -130,25 +133,25 @@ const form = reactive({
 function toRequest(): ExceptionRequest {
   return {
     name: isEdit ? undefined : form.name,
-    policyRefs: targetKind.value === 'policies' ? form.policyRefs : undefined,
-    policyGroupRefs: targetKind.value === 'groups' ? form.policyGroupRefs : undefined,
-    allPolicies: targetKind.value === 'all' ? true : undefined,
+    policyRefs: !isDefault && targetKind.value === 'policies' ? form.policyRefs : undefined,
+    policyGroupRefs: !isDefault && targetKind.value === 'groups' ? form.policyGroupRefs : undefined,
+    allPolicies: isDefault || targetKind.value === 'all' ? true : undefined,
     match: {
       namespaces: nsMode.value === 'name' && namespaceNames.value.length ? namespaceNames.value : undefined,
       namespaceSelector: nsMode.value === 'label' ? (nsSelector.value ?? undefined) : undefined,
-      resourceSelector: resourceSelector.value ?? undefined,
+      resourceSelector: isDefault ? undefined : (resourceSelector.value ?? undefined),
     },
     duration: form.duration,
     retainAfterExpiry: form.retainAfterExpiry || undefined,
     reason: form.reason,
     resourceVersion: isEdit ? resourceVersion : undefined,
-    allClusters: allClusters.value,
-    clusterNames: allClusters.value ? undefined : clusterNames.value,
+    allClusters: isDefault ? true : allClusters.value,
+    clusterNames: isDefault || allClusters.value ? undefined : clusterNames.value,
   }
 }
 
 async function onSave() {
-  if (!allClusters.value && clusterNames.value.length === 0) { ElMessage.error(t('exception.selectClusters')); return }
+  if (!isDefault && !allClusters.value && clusterNames.value.length === 0) { ElMessage.error(t('exception.selectClusters')); return }
   saving.value = true
   try {
     if (isEdit) {

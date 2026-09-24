@@ -36,7 +36,7 @@
         <el-button link type="primary" @click="$router.push(`/policygroups/${row.name}/edit`)">
           {{ $t('common.edit') }}
         </el-button>
-        <el-button link type="danger" @click="onDelete(row)">{{ $t('common.delete') }}</el-button>
+        <el-button v-if="row.name !== 'default'" link type="danger" @click="onDelete(row)">{{ $t('common.delete') }}</el-button>
       </template>
     </el-table-column>
   </el-table>

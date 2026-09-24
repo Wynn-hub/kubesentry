@@ -21,6 +21,11 @@ export default {
     labelValuePlaceholder: '输入值回车添加，可添加多个',
     multiValueOrHint: '多个值之间是或（OR）关系，满足其中任意一个即算匹配',
   },
+  phase: {
+    Ready: '就绪', Invalid: '无效', Syncing: '同步中', Disabled: '已停用', Degraded: '降级',
+    Active: '生效中', Expired: '已过期', Online: '在线', Offline: '离线', Registering: '注册中',
+    Uninstalling: '卸载中', Uninstalled: '已卸载', UninstallFailed: '卸载失败',
+  },
   apiDocs: {
     title: 'API 文档中心',
     subtitle: '控制面 HTTP API 参考、在线调试与其他契约入口',
@@ -69,6 +74,8 @@ export default {
     excluded: '已排除的策略',
     excludedHint: '已被明确排除，重新加入请前往编辑页勾选。',
     enableDone: '{name} 已启用', disableDone: '{name} 已停用',
+    targetClusters: '目标集群', allClusters: '全部集群', selectedClusters: '指定集群', selectClusters: '请至少选择一个集群',
+    defaultScopeHint: '默认策略组固定作用于全部集群',
   },
   cluster: {
     title: '集群管理', subtitle: '管理已注册的成员集群',
@@ -100,6 +107,9 @@ export default {
     targetPolicies: '指定策略', targetGroups: '指定策略组', targetAll: '全部策略',
     nsTarget: '命名空间', nsAllHint: '不支持豁免全部命名空间；如需豁免全部命名空间，请停用对应的策略组',
     resSelector: '资源对象标签', resSelectorHint: '带有该标签的任意资源对象都会被豁免',
+    targetClusters: '目标集群', allClusters: '全部集群', selectedClusters: '指定集群', selectClusters: '请至少选择一个集群',
+    defaultProtectedHint: '默认系统命名空间豁免固定作用于全部策略和全部集群，并永久有效',
+    permanent: '永久有效',
   },
   distribution: {
     title: '策略下发', subtitle: '管理策略组下发到哪些集群',

@@ -46,7 +46,8 @@ onMounted(() => {
   if (!referenceRoot.value) return
   scalarReference = createApiReference(referenceRoot.value, {
     url: '/api/docs/openapi.json',
-    theme: 'purple',
+    theme: 'none',
+    darkMode: true,
     layout: 'modern',
     hideTestRequestButton: false,
     tagsSorter: 'alpha',
@@ -70,8 +71,23 @@ onBeforeUnmount(() => scalarReference?.destroy())
 .contract-location { color: var(--accent-scan) !important; font-family: var(--font-mono); font-size: 12px !important; }
 .contract-auth { border-left: 2px solid var(--ink-600); padding-left: 8px; }
 .contract-grid a { color: var(--accent-scan); font-family: var(--font-mono); font-size: 12px; }
-.reference-section { border: 1px solid var(--ink-700); border-radius: 8px; overflow: hidden; background: var(--paper-050); }
+.reference-section { border: 1px solid var(--ink-700); border-radius: 8px; overflow: hidden; background: var(--ink-900); }
 .reference-heading { padding: 18px 20px; background: var(--ink-900); border-bottom: 1px solid var(--ink-700); }
-.scalar-reference { min-height: 720px; color: #1f2937; }
+.scalar-reference {
+  min-height: 720px;
+  color: var(--paper-050);
+  --scalar-background-1: var(--ink-900);
+  --scalar-background-2: var(--ink-800);
+  --scalar-background-3: var(--ink-700);
+  --scalar-background-accent: var(--ink-700);
+  --scalar-border-color: var(--ink-600);
+  --scalar-color-1: var(--paper-050);
+  --scalar-color-2: var(--steel-300);
+  --scalar-color-3: var(--steel-400);
+  --scalar-color-accent: var(--accent-scan);
+  --scalar-link-color: var(--accent-scan);
+  --scalar-font: var(--font-display);
+  --scalar-font-code: var(--font-mono);
+}
 @media (max-width: 1100px) { .contract-grid { grid-template-columns: 1fr; } }
 </style>
