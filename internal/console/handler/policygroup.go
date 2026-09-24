@@ -100,7 +100,7 @@ func (h *Handler) CreatePolicyGroup(ctx context.Context, input *dto.PolicyGroupI
 func (h *Handler) UpdatePolicyGroup(ctx context.Context, input *dto.PolicyGroupInput, p dto.UpdatePolicyGroupParams) (dto.UpdatePolicyGroupRes, error) {
 	e := h.svcs.PolicyGroup.Update(ctx, p.Name, input)
 	if e != nil {
-		if p.Name == "default" {
+		if errors.Is(e, service.ErrDefaultPolicyGroupScope) {
 			return &dto.PolicyGroupForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
 		}
 		if errors.Is(e, service.ErrNotFound) {

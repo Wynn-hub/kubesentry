@@ -18,6 +18,8 @@ func TestPolicyGroupRouteMatrix(t *testing.T) {
 		t.Fatal(err)
 	}
 	validBody := string(validBodyBytes)
+	defaultUpdateBody := strings.Replace(validBody, `"name":"my-group",`, "", 1)
+	defaultInvalidScopeBody := strings.Replace(defaultUpdateBody, `"allClusters":true`, `"allClusters":false`, 1)
 	validEnabled := `{"enabled":true}`
 	ok := routeExpectation{status: 200, code: 0, contentType: "application/json; charset=utf-8", message: "success"}
 	bad := routeExpectation{status: 400, code: 40000, contentType: "application/json"}
@@ -35,6 +37,7 @@ func TestPolicyGroupRouteMatrix(t *testing.T) {
 		{name: "invalid page size", method: http.MethodGet, path: "/api/v1/policygroups?pageSize=11", want: withMessage(bad, `"pageSize"`)},
 		{name: "invalid sort enum", method: http.MethodGet, path: "/api/v1/policygroups?sortBy=createdAt", want: withMessage(bad, `"sortBy"`)},
 		{name: "business not found", method: http.MethodGet, path: "/api/v1/policygroups/does-not-exist", want: notFound},
+		{name: "default group resolves builtins", method: http.MethodGet, path: "/api/v1/policygroups/default", want: ok},
 		{name: "escaped path", method: http.MethodGet, path: "/api/v1/policygroups/does%20not%20exist", want: notFound},
 		{name: "double slash path", method: http.MethodGet, path: "/api/v1/policygroups//example", want: unknownRoute},
 		{name: "dot path", method: http.MethodGet, path: "/api/v1/policygroups/./example", want: unknownRoute},
@@ -57,7 +60,8 @@ func TestPolicyGroupRouteMatrix(t *testing.T) {
 		{name: "unknown field accepted", method: http.MethodPut, path: "/api/v1/policygroups/does-not-exist/enabled", body: `{"enabled":true,"unknown":true}`, contentType: "application/json", want: notFound},
 		{name: "large unknown field accepted", method: http.MethodPut, path: "/api/v1/policygroups/does-not-exist/enabled", body: `{"enabled":true,"padding":"` + strings.Repeat("x", 1<<20) + `"}`, contentType: "application/json", want: notFound},
 		{name: "enabled trailing JSON", method: http.MethodPut, path: "/api/v1/policygroups/does-not-exist/enabled", body: validEnabled + `{}`, contentType: "application/json", want: withMessage(bad, "unexpected trailing data")},
-		{name: "update reserved group forbidden", method: http.MethodPut, path: "/api/v1/policygroups/default", body: validBody, contentType: "application/json", want: routeExpectation{status: 403, code: 40300, contentType: "application/json; charset=utf-8", message: "default policy group scope is managed"}},
+		{name: "update default group", method: http.MethodPut, path: "/api/v1/policygroups/default", body: defaultUpdateBody, contentType: "application/json", want: ok},
+		{name: "change default group cluster scope forbidden", method: http.MethodPut, path: "/api/v1/policygroups/default", body: defaultInvalidScopeBody, contentType: "application/json", want: routeExpectation{status: 403, code: 40300, contentType: "application/json; charset=utf-8", message: "all clusters"}},
 		{name: "delete reserved group forbidden", method: http.MethodDelete, path: "/api/v1/policygroups/default", want: routeExpectation{status: 403, code: 40300, contentType: "application/json; charset=utf-8", message: "default policy group cannot be deleted"}},
 		{name: "unknown route", method: http.MethodGet, path: "/api/v1/policygroups/example/unknown", want: unknownRoute},
 		{name: "method mismatch", method: http.MethodPatch, path: "/api/v1/policygroups/example", want: methodNotAllowed("DELETE,GET,PUT")},
@@ -73,9 +77,20 @@ func TestPolicyGroupRouteMatrix(t *testing.T) {
 			if tt.want.status != http.StatusOK {
 				return
 			}
+			if tt.name == "update default group" {
+				return
+			}
 			object, ok := data.(map[string]any)
 			if !ok {
-				t.Fatalf("list data = %v, want pagination object", data)
+				t.Fatalf("response data = %v, want object", data)
+			}
+			if tt.name == "default group resolves builtins" {
+				status := object["status"].(map[string]any)
+				scope := object["scope"].(map[string]any)
+				if status["phase"] != "Ready" || status["resolvedCount"] != float64(37) || scope["allClusters"] != true {
+					t.Fatalf("default group status/scope = %v/%v", status, scope)
+				}
+				return
 			}
 			items, ok := object["items"].([]any)
 			if !ok || len(items) == 0 || object["total"] != float64(len(items)) {

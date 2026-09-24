@@ -41,8 +41,12 @@ func TestExceptionRouteMatrix(t *testing.T) {
 		{name: "business detail success", method: http.MethodGet, path: "/api/v1/exceptions/default-system-namespaces", want: ok},
 		{name: "business not found", method: http.MethodGet, path: "/api/v1/exceptions/does-not-exist", want: notFound},
 		{name: "delete not found", method: http.MethodDelete, path: "/api/v1/exceptions/does-not-exist", want: notFound},
+		{name: "delete default exception forbidden", method: http.MethodDelete, path: "/api/v1/exceptions/default-system-namespaces", want: routeExpectation{status: 403, code: 40300, contentType: "application/json; charset=utf-8", message: "cannot be deleted"}},
 		{name: "create conflict", method: http.MethodPost, path: "/api/v1/exceptions", body: duplicateBody, contentType: "application/json", want: routeExpectation{status: 409, code: 40900, contentType: "application/json; charset=utf-8", message: "already exists"}},
 		{name: "update conflict", method: http.MethodPut, path: "/api/v1/exceptions/default-system-namespaces", body: conflictBody, contentType: "application/json", want: routeExpectation{status: 409, code: 40900, contentType: "application/json; charset=utf-8", message: "modified"}},
+		{name: "default exception requires namespace scope", method: http.MethodPut, path: "/api/v1/exceptions/default-system-namespaces", body: `{"allPolicies":true,"match":{},"duration":"","reason":"system namespaces","allClusters":true}`, contentType: "application/json", want: routeExpectation{status: 400, code: 40000, contentType: "application/json; charset=utf-8", message: "namespace"}},
+		{name: "update default exception namespaces", method: http.MethodPut, path: "/api/v1/exceptions/default-system-namespaces", body: updateBody, contentType: "application/json", want: ok},
+		{name: "default exception keeps protected fields", method: http.MethodGet, path: "/api/v1/exceptions/default-system-namespaces", want: ok},
 		{name: "escaped path", method: http.MethodGet, path: "/api/v1/exceptions/does%20not%20exist", want: notFound},
 		{name: "escaped slash path", method: http.MethodGet, path: "/api/v1/exceptions/does%2Fnot%2Fexist", want: notFound},
 		{name: "double slash path", method: http.MethodGet, path: "/api/v1/exceptions//example", want: unknownRoute},
@@ -75,14 +79,24 @@ func TestExceptionRouteMatrix(t *testing.T) {
 			if tt.want.status != http.StatusOK {
 				return
 			}
+			if tt.name == "update default exception namespaces" {
+				return
+			}
 			object, ok := data.(map[string]any)
 			if !ok {
 				t.Fatalf("success data = %T, want object", data)
 			}
-			if tt.name == "business detail success" {
+			if tt.name == "business detail success" || tt.name == "default exception keeps protected fields" {
 				spec, specOK := object["spec"].(map[string]any)
 				if object["name"] != "default-system-namespaces" || !specOK || spec["match"] == nil {
 					t.Fatalf("detail data = %v", object)
+				}
+				if tt.name == "default exception keeps protected fields" {
+					scope := object["scope"].(map[string]any)
+					match := spec["match"].(map[string]any)
+					if spec["allPolicies"] != true || spec["policyRefs"] != nil || scope["allClusters"] != true || match["resourceSelector"] != nil {
+						t.Fatalf("protected exception fields changed: spec=%v scope=%v", spec, scope)
+					}
 				}
 				return
 			}

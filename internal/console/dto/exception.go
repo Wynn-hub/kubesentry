@@ -250,6 +250,14 @@ type ExceptionNotFoundHTTPError struct {
 	Message string `json:"message"`
 }
 
+type ExceptionForbiddenHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*ExceptionForbiddenHTTPError) HTTPStatus() int     { return 403 }
+func (*ExceptionForbiddenHTTPError) deleteExceptionRes() {}
+
 func (*ExceptionNotFoundHTTPError) HTTPStatus() int     { return 404 }
 func (*ExceptionNotFoundHTTPError) getExceptionRes()    {}
 func (*ExceptionNotFoundHTTPError) updateExceptionRes() {}

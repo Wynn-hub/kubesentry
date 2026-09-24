@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -23,6 +22,8 @@ import (
 
 const defaultGroupName = "default"
 
+var ErrDefaultPolicyGroupScope = errors.New("default policy group must target all clusters")
+
 type PolicyGroupService struct {
 	repos    repository.Repositories
 	notifier Notifier
@@ -35,11 +36,15 @@ func NewPolicyGroupService(r repository.Repositories, n Notifier) *PolicyGroupSe
 func policyList(in []dbrepo.Policy) []v1alpha1.Policy {
 	out := make([]v1alpha1.Policy, 0, len(in))
 	for _, p := range in {
-		var x v1alpha1.Policy
-		b, _ := json.Marshal(p)
-		if json.Unmarshal(b, &x) == nil {
-			out = append(out, x)
-		}
+		out = append(out, v1alpha1.Policy{
+			ObjectMeta: metav1.ObjectMeta{Name: p.Name, Labels: p.Labels.Data(), Annotations: p.Annotations.Data()},
+			Spec: v1alpha1.PolicySpec{
+				Description:     p.Description,
+				Rego:            p.Rego,
+				EnforcementMode: p.EnforcementMode,
+				Match:           p.Match.Data(),
+			},
+		})
 	}
 	return out
 }
@@ -239,15 +244,18 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupInp
 }
 
 func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.PolicyGroupInput) error {
-	if name == defaultGroupName {
-		return fmt.Errorf("default policy group scope is managed; use the enabled endpoint to disable it")
-	}
 	for _, excluded := range req.Policies.Exclude {
 		if strings.TrimSpace(excluded) == "" {
 			return &ValidationError{Msg: "excluded policy name must not be empty"}
 		}
 	}
-	if e := validatePolicyGroupScope(boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
+	allClusters := boolOr(req.AllClusters, false)
+	if name == defaultGroupName {
+		if (req.AllClusters != nil && !*req.AllClusters) || len(req.ClusterNames) > 0 {
+			return ErrDefaultPolicyGroupScope
+		}
+		allClusters = true
+	} else if e := validatePolicyGroupScope(allClusters, req.ClusterNames); e != nil {
 		return e
 	}
 	g, e := s.repos.PolicyGroups.GetByName(ctx, name)
@@ -261,10 +269,13 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 		return newConflict("policygroup has been modified, refresh and retry")
 	}
 	spec := groupSpec(req)
+	if name == defaultGroupName {
+		spec.DisplayName = g.Spec.Data().DisplayName
+	}
 	if e = s.repos.PolicyGroups.UpdateCAS(ctx, g.ID, g.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec)}); e != nil {
 		return e
 	}
-	if e = syncScope(ctx, s.repos, name, boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
+	if e = syncScope(ctx, s.repos, name, allClusters, req.ClusterNames); e != nil {
 		return e
 	}
 	s.notify(ctx)

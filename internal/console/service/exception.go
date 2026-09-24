@@ -26,6 +26,10 @@ type ExceptionService struct {
 	notifier Notifier
 }
 
+const defaultExceptionName = "default-system-namespaces"
+
+var ErrDefaultExceptionDelete = errors.New("default system namespace exception cannot be deleted")
+
 func NewExceptionService(r repository.Repositories, n Notifier) *ExceptionService {
 	return &ExceptionService{repos: r, notifier: n}
 }
@@ -172,6 +176,9 @@ func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionInput) er
 }
 func mustDuration(v string) time.Duration { d, _ := time.ParseDuration(v); return d }
 func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.ExceptionInput) error {
+	if name == defaultExceptionName {
+		return s.updateDefault(ctx, r)
+	}
 	if err := validateExceptionRequest(r, false); err != nil {
 		return err
 	}
@@ -208,6 +215,51 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 	return nil
 }
 
+func (s *ExceptionService) updateDefault(ctx context.Context, r *dto.ExceptionInput) error {
+	selector := r.Match.NamespaceSelector
+	if len(r.Match.Namespaces) == 0 && (selector == nil || len(selector.MatchLabels)+len(selector.MatchExpressions) == 0) {
+		return &ValidationError{Msg: "default exception requires at least one namespace or namespace selector"}
+	}
+	for _, namespace := range r.Match.Namespaces {
+		if strings.TrimSpace(namespace) == "" {
+			return &ValidationError{Msg: "namespace entries must not be empty"}
+		}
+	}
+	if strings.TrimSpace(r.Reason) == "" {
+		return &ValidationError{Msg: "reason is required"}
+	}
+	if s.repos.ExceptionUOW == nil {
+		return errors.New("exception unit of work is unavailable")
+	}
+	if err := s.repos.ExceptionUOW.WithinTransaction(ctx, func(exceptions repository.ExceptionRepository, distributions repository.DistributionRepository) error {
+		e, err := exceptions.GetByName(ctx, defaultExceptionName)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+			return err
+		}
+		if rv := stringOr(r.ResourceVersion, ""); rv != "" && rv != strconv.FormatInt(e.UpdatedAt.UnixNano(), 10) {
+			return newConflict("exception has been modified, refresh and retry")
+		}
+		spec := e.Spec.Data()
+		spec.Match.Namespaces = append([]string(nil), r.Match.Namespaces...)
+		spec.Match.NamespaceSelector = labelSelectorModel(r.Match.NamespaceSelector)
+		spec.Reason = r.Reason
+		if err := exceptions.UpdateCAS(ctx, e.ID, e.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec)}); err != nil {
+			if errors.Is(err, dbrepo.ErrConflict) {
+				return newConflict("exception has been modified, refresh and retry")
+			}
+			return err
+		}
+		return syncExceptionScope(ctx, distributions, defaultExceptionName, true, nil)
+	}); err != nil {
+		return err
+	}
+	s.notify(ctx)
+	return nil
+}
+
 func exceptionSpec(r *dto.ExceptionInput) v1alpha1.PolicyExceptionSpec {
 	return v1alpha1.PolicyExceptionSpec{
 		PolicyRefs:      r.PolicyRefs,
@@ -225,6 +277,9 @@ func exceptionSpec(r *dto.ExceptionInput) v1alpha1.PolicyExceptionSpec {
 }
 
 func (s *ExceptionService) Delete(ctx context.Context, name string) error {
+	if name == defaultExceptionName {
+		return ErrDefaultExceptionDelete
+	}
 	if s.repos.ExceptionUOW == nil {
 		return errors.New("exception unit of work is unavailable")
 	}

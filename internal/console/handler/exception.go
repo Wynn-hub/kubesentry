@@ -125,12 +125,16 @@ func stringOr(value *string) string {
 // @Produce json
 // @Param name path dto.ExceptionPath true "例外名称"
 // @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Failure 404 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /exceptions/{name} [delete]
 func (h *Handler) DeleteException(ctx context.Context, p dto.DeleteExceptionParams) (dto.DeleteExceptionRes, error) {
 	e := h.svcs.Exception.Delete(ctx, p.Name)
 	if e != nil {
+		if errors.Is(e, service.ErrDefaultExceptionDelete) {
+			return &dto.ExceptionForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
+		}
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.ExceptionNotFoundHTTPError{Code: 40400, Message: e.Error()}, nil
 		}

@@ -3158,6 +3158,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.SwagEmptyResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
