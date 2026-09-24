@@ -50,7 +50,7 @@ func validGroupReq() *testGroupRequest {
 		DisplayName: "My Group",
 		Enabled:     true,
 		Policies: v1alpha1.PolicyGroupPolicies{
-			ByName: []v1alpha1.PolicyRef{{Name: "p1", EnforcementMode: "audit"}},
+			ByName: []v1alpha1.PolicyRef{{Name: "host-ipc-set", EnforcementMode: "audit"}},
 		},
 	}
 }
@@ -359,6 +359,7 @@ func TestUpdateGroupRejectsDefaultManagedScope(t *testing.T) {
 	h, _ := newDBTestServer(t)
 	req := validGroupReq()
 	req.Name = ""
+	req.AllClusters = false
 	rec, _ := doRequest(t, h, "PUT", "/api/v1/policygroups/default", req)
 	if rec.Code != 403 {
 		t.Fatalf("code = %d, want 403", rec.Code)
