@@ -11,7 +11,7 @@
       >
         <div style="display: flex; align-items: center; gap: 8px">
           <b>{{ $t('timeline.version', { n: v.version }) }}</b>
-          <PhaseTag :phase="v.phase" />
+          <PhaseTag :phase="v.phase" kind="policy" />
           <ModeTag :mode="v.enforcementMode" />
           <el-tag v-if="v.isCurrent" type="success" size="small">{{ $t('timeline.current') }}</el-tag>
           <el-button

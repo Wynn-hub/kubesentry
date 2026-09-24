@@ -25,6 +25,8 @@ export default {
     Ready: 'Ready', Invalid: 'Invalid', Syncing: 'Syncing', Disabled: 'Disabled', Degraded: 'Degraded',
     Active: 'Active', Expired: 'Expired', Online: 'Online', Offline: 'Offline', Registering: 'Registering',
     Uninstalling: 'Uninstalling', Uninstalled: 'Uninstalled', UninstallFailed: 'Uninstall failed',
+    policy: { Ready: 'Validation passed', Invalid: 'Validation failed' },
+    group: { Ready: 'Normal', Invalid: 'Error' },
   },
   apiDocs: {
     title: 'API Documentation Center',
@@ -44,7 +46,7 @@ export default {
     scalarHint: 'Operations are grouped by OpenAPI tag. Try it Out targets same-origin /api/v1.',
   },
   policy: {
-    title: 'Policies', subtitle: 'Manage admission policies and Rego rules', source: 'Source', mode: 'Mode', phase: 'Effective Status',
+    title: 'Policies', subtitle: 'Manage admission policies and Rego rules', source: 'Source', mode: 'Mode', phase: 'Validation Status',
     referencedBy: 'Referenced By', currentVersion: 'Version', rego: 'Rego Source',
     match: 'Match Rules', operations: 'Operations', resources: 'Resources',
     apiGroups: 'API Groups', apiVersions: 'API Versions', resourceTypes: 'Resource Types', coreGroup: 'core',
@@ -54,7 +56,7 @@ export default {
     copyRego: 'Copy', copied: 'Copied',
     referencedDeleteConfirm: 'Referenced by group(s) {groups}. Force delete?',
     tabOverview: 'Overview', tabRego: 'Rego', tabVersions: 'Version History',
-    allSources: 'All sources', allPhases: 'All effective statuses', allModes: 'All modes',
+    allSources: 'All sources', allPhases: 'All validation statuses', allModes: 'All modes',
     createdAt: 'Created At', updatedAt: 'Updated At',
   },
   timeline: {
@@ -62,7 +64,7 @@ export default {
     inFlight: 'Rollback in progress…', version: 'Version v{n}', rollbackDone: 'Rollback complete',
   },
   group: {
-    title: 'Policy Groups', subtitle: 'Organize policies and scope them by namespace', displayName: 'Display Name', enabled: 'Enabled', resolvedCount: 'Members',
+    title: 'Policy Groups', subtitle: 'Organize policies and scope them by namespace', displayName: 'Display Name', enabled: 'Enabled', resolvedCount: 'Members', health: 'Member Status', issues: 'Error Details',
     policyMembers: 'Policy Members',
     members: 'Select by Name (byName)', bySelector: 'Select by Label (bySelector)',
     selectorMode: 'Select Effective Mode for Label-Matched Policies', nsSelector: 'Namespace Selector',

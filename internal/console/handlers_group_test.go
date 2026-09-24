@@ -138,6 +138,16 @@ func TestCreateGroupBadMode(t *testing.T) {
 	}
 }
 
+func TestCreateGroupRejectsMissingPolicy(t *testing.T) {
+	h, _ := newDBTestServer(t)
+	req := validGroupReq()
+	req.Policies.ByName[0].Name = "does-not-exist"
+	rec, env := doRequest(t, h, "POST", "/api/v1/policygroups", req)
+	if rec.Code != 400 || !strings.Contains(env.Message, "does-not-exist") {
+		t.Fatalf("code=%d message=%q, want missing policy validation", rec.Code, env.Message)
+	}
+}
+
 func TestCreateGroupRejectsInvalidDNSName(t *testing.T) {
 	h, _ := newDBTestServer(t)
 	req := validGroupReq()

@@ -26,7 +26,7 @@
       :placeholder="$t('policy.allPhases')"
       style="width: 170px"
     >
-      <el-option v-for="p in ['Ready', 'Invalid', 'Syncing']" :key="p" :label="$t(`phase.${p}`)" :value="p" />
+      <el-option v-for="p in POLICY_PHASES" :key="p" :label="$t(`phase.policy.${p}`)" :value="p" />
     </el-select>
     <el-select
       v-model="modeFilter"
@@ -63,7 +63,7 @@
       <template #default="{ row }"><ModeTag :mode="row.enforcementMode" /></template>
     </el-table-column>
     <el-table-column :label="$t('policy.phase')" prop="phase" sortable="custom" :sort-orders="sortOrders" width="100">
-      <template #default="{ row }"><PhaseTag :phase="row.phase" /></template>
+      <template #default="{ row }"><PhaseTag :phase="row.phase" kind="policy" /></template>
     </el-table-column>
     <el-table-column :label="$t('policy.createdAt')" prop="createdAt" sortable="custom" :sort-orders="sortOrders" width="155">
       <template #default="{ row }">
@@ -99,7 +99,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ApiError } from '../api/http'
-import { deletePolicy, listPolicies, type ListPoliciesQuery, type PolicyListItem } from '../api/policy'
+import { deletePolicy, listPolicies, POLICY_PHASES, type ListPoliciesQuery, type PolicyListItem } from '../api/policy'
 import PageHeader from '../components/PageHeader.vue'
 import ModeTag from '../components/ModeTag.vue'
 import PhaseTag from '../components/PhaseTag.vue'

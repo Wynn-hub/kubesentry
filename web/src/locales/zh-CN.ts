@@ -25,6 +25,8 @@ export default {
     Ready: '就绪', Invalid: '无效', Syncing: '同步中', Disabled: '已停用', Degraded: '降级',
     Active: '生效中', Expired: '已过期', Online: '在线', Offline: '离线', Registering: '注册中',
     Uninstalling: '卸载中', Uninstalled: '已卸载', UninstallFailed: '卸载失败',
+    policy: { Ready: '校验通过', Invalid: '校验失败' },
+    group: { Ready: '正常', Invalid: '异常' },
   },
   apiDocs: {
     title: 'API 文档中心',
@@ -44,7 +46,7 @@ export default {
     scalarHint: '接口按 OpenAPI 标签自动分组；Try it Out 请求同源 /api/v1。',
   },
   policy: {
-    title: '策略', subtitle: '管理准入校验策略与 Rego 规则', source: '来源', mode: '生效模式', phase: '生效状态',
+    title: '策略', subtitle: '管理准入校验策略与 Rego 规则', source: '来源', mode: '生效模式', phase: '校验状态',
     referencedBy: '被引用组', currentVersion: '当前版本', rego: 'Rego 源码',
     match: '匹配规则', operations: '操作', resources: '资源',
     apiGroups: 'API 组', apiVersions: 'API 版本', resourceTypes: '资源类型', coreGroup: '核心组（core）',
@@ -54,7 +56,7 @@ export default {
     copyRego: '复制', copied: '已复制',
     referencedDeleteConfirm: '该策略被组 {groups} 引用，强制删除？',
     tabOverview: '概览', tabRego: 'Rego', tabVersions: '版本历史',
-    allSources: '全部来源', allPhases: '全部生效状态', allModes: '全部模式',
+    allSources: '全部来源', allPhases: '全部校验状态', allModes: '全部模式',
     createdAt: '创建时间', updatedAt: '最后修改时间',
   },
   timeline: {
@@ -62,7 +64,7 @@ export default {
     inFlight: '回滚处理中…', version: '版本 v{n}', rollbackDone: '回滚完成',
   },
   group: {
-    title: '策略组', subtitle: '组织策略并按命名空间圈定生效范围', displayName: '显示名', enabled: '启用', resolvedCount: '成员数',
+    title: '策略组', subtitle: '组织策略并按命名空间圈定生效范围', displayName: '显示名', enabled: '启用', resolvedCount: '成员数', health: '成员状态', issues: '异常原因',
     policyMembers: '策略成员',
     members: '按名称选择（byName）', bySelector: '按标签选择（bySelector）',
     selectorMode: '选择被标签命中的策略的生效模式', nsSelector: '命名空间选择器',

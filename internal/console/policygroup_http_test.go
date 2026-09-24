@@ -18,7 +18,14 @@ func TestPolicyGroupRouteMatrix(t *testing.T) {
 		t.Fatal(err)
 	}
 	validBody := string(validBodyBytes)
-	defaultUpdateBody := strings.Replace(validBody, `"name":"my-group",`, "", 1)
+	defaultReq := validGroupReq()
+	defaultReq.Name = ""
+	defaultReq.Policies.ByName = nil
+	defaultUpdateBodyBytes, err := json.Marshal(defaultReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defaultUpdateBody := string(defaultUpdateBodyBytes)
 	defaultInvalidScopeBody := strings.Replace(defaultUpdateBody, `"allClusters":true`, `"allClusters":false`, 1)
 	validEnabled := `{"enabled":true}`
 	ok := routeExpectation{status: 200, code: 0, contentType: "application/json; charset=utf-8", message: "success"}

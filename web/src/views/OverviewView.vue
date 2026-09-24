@@ -89,7 +89,7 @@
         <template v-if="attentionPage.total">
           <p v-for="p in attentionPage.items" :key="p.name" class="attention-row">
             <router-link :to="`/policies/${p.name}`">{{ p.name }}</router-link>
-            <PhaseTag :phase="p.phase" />
+            <PhaseTag :phase="p.phase" kind="policy" />
           </p>
         </template>
         <p v-else class="all-clear">

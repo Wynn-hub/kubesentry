@@ -27,8 +27,8 @@
         />
       </template>
     </el-table-column>
-    <el-table-column :label="$t('policy.phase')" prop="phase" sortable="custom" :sort-orders="sortOrders" width="120">
-      <template #default="{ row }"><PhaseTag :phase="row.phase" /></template>
+    <el-table-column :label="$t('group.health')" prop="phase" sortable="custom" :sort-orders="sortOrders" width="120">
+      <template #default="{ row }"><PhaseTag :phase="row.phase" kind="group" /></template>
     </el-table-column>
     <el-table-column :label="$t('group.resolvedCount')" prop="resolvedCount" sortable="custom" :sort-orders="sortOrders" width="110" />
     <el-table-column :label="$t('common.actions')" width="160">

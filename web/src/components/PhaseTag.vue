@@ -9,9 +9,13 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const props = defineProps<{ phase?: string }>()
+const props = defineProps<{ phase?: string, kind?: 'policy' | 'group' }>()
 const { t, te } = useI18n()
-const label = computed(() => props.phase && te(`phase.${props.phase}`) ? t(`phase.${props.phase}`) : (props.phase || '-'))
+const label = computed(() => {
+  const contextualKey = props.kind && props.phase ? `phase.${props.kind}.${props.phase}` : ''
+  if (contextualKey && te(contextualKey)) return t(contextualKey)
+  return props.phase && te(`phase.${props.phase}`) ? t(`phase.${props.phase}`) : (props.phase || '-')
+})
 const statusClass = computed(() => {
   if (props.phase === 'Ready' || props.phase === 'Active') return 'is-success'
   if (props.phase === 'Invalid' || props.phase === 'Degraded') return 'is-danger'

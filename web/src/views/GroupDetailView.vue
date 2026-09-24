@@ -2,7 +2,7 @@
   <div v-if="d">
     <PageHeader show-back :title="d.spec.displayName || d.name">
       <el-tag size="small" :type="d.source === 'builtin' ? 'info' : 'primary'">{{ d.source }}</el-tag>
-      <PhaseTag :phase="d.status.phase" />
+      <PhaseTag :phase="d.status.phase" kind="group" />
       <el-button @click="$router.push(`/policygroups/${d.name}/edit`)">{{ $t('common.edit') }}</el-button>
     </PageHeader>
 
@@ -14,6 +14,16 @@
         <code>{{ JSON.stringify(d.spec.namespaceSelector ?? {}) }}</code>
       </el-descriptions-item>
     </el-descriptions>
+
+    <el-alert
+      v-if="d.status.issues?.length"
+      type="error"
+      :title="$t('group.issues')"
+      :description="d.status.issues.join('; ')"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 16px"
+    />
 
     <h3>{{ $t('group.resolved') }} ({{ d.status.resolvedCount ?? 0 }})</h3>
     <el-table :data="membersPage.items">

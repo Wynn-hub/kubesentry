@@ -1364,6 +1364,10 @@ definitions:
     type: object
   dto.PolicyGroupStatusView:
     properties:
+      issues:
+        items:
+          type: string
+        type: array
       phase:
         enum:
         - Ready
@@ -1376,6 +1380,7 @@ definitions:
           $ref: '#/definitions/dto.EffectiveMemberView'
         type: array
     required:
+    - issues
     - phase
     - resolvedCount
     - resolvedPolicies

@@ -244,6 +244,7 @@ type (
 		Phase            string                `json:"phase" binding:"required" enums:"Ready,Invalid"`
 		ResolvedCount    int                   `json:"resolvedCount" binding:"required"`
 		ResolvedPolicies []EffectiveMemberView `json:"resolvedPolicies" binding:"required"`
+		Issues           []string              `json:"issues" binding:"required"`
 	}
 	PolicyGroupView struct {
 		Name            string                   `json:"name"`

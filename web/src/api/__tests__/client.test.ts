@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { apiClient } from '../generated/client'
+import { POLICY_PHASES } from '../policy'
 
 function captureURL(response = { code: 0, message: 'success', data: { items: [], total: 0, page: 1, pageSize: 20 } }) {
   let received: Request | undefined
@@ -13,6 +14,10 @@ function captureURL(response = { code: 0, message: 'success', data: { items: [],
 }
 
 describe('generated client query serialization', () => {
+  it('offers only phases supported by the policy API', () => {
+    expect(POLICY_PHASES).toEqual(['Ready', 'Invalid'])
+  })
+
   it('serializes multi-value admission filters as one comma-separated form value', async () => {
     const capture = captureURL()
     await apiClient.GET('/admission-events', {

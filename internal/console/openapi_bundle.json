@@ -1952,6 +1952,12 @@
             },
             "dto.PolicyGroupStatusView": {
                 "properties": {
+                    "issues": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "phase": {
                         "enum": [
                             "Ready",
@@ -1970,6 +1976,7 @@
                     }
                 },
                 "required": [
+                    "issues",
                     "phase",
                     "resolvedCount",
                     "resolvedPolicies"

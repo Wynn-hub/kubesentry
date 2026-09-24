@@ -134,7 +134,38 @@ func detail(g *dbrepo.PolicyGroup, ps []v1alpha1.Policy, scope dto.PolicyGroupSc
 	for _, x := range m {
 		members = append(members, dto.EffectiveMemberView{Name: x.Name, EnforcementMode: x.EnforcementMode, Source: x.Source})
 	}
-	return dto.PolicyGroupView{Name: g.Name, Source: source, ResourceVersion: strconv.FormatInt(g.UpdatedAt.UnixNano(), 10), Spec: normalizeGroupSpec(s), Status: dto.PolicyGroupStatusView{Phase: phase, ResolvedCount: len(m), ResolvedPolicies: members}, Scope: scope}
+	return dto.PolicyGroupView{Name: g.Name, Source: source, ResourceVersion: strconv.FormatInt(g.UpdatedAt.UnixNano(), 10), Spec: normalizeGroupSpec(s), Status: dto.PolicyGroupStatusView{Phase: phase, ResolvedCount: len(m), ResolvedPolicies: members, Issues: policyGroupIssues(c)}, Scope: scope}
+}
+
+func policyGroupIssues(conditions []metav1.Condition) []string {
+	issues := make([]string, 0, len(conditions))
+	for _, condition := range conditions {
+		switch condition.Type {
+		case groupresolve.CondTypeMissingMember:
+			issues = append(issues, fmt.Sprintf("policy %q does not exist", condition.Message))
+		case groupresolve.CondTypeInvalidSelector:
+			issues = append(issues, "invalid policy selector: "+condition.Message)
+		default:
+			issues = append(issues, condition.Message)
+		}
+	}
+	return issues
+}
+
+func validatePolicyGroupMembers(spec v1alpha1.PolicyGroupSpec, policies []v1alpha1.Policy) error {
+	_, conditions := groupresolve.Resolve(spec, policies)
+	if issues := policyGroupIssues(conditions); len(issues) > 0 {
+		return &ValidationError{Msg: strings.Join(issues, "; ")}
+	}
+	return nil
+}
+
+func (s *PolicyGroupService) validateMembers(ctx context.Context, spec v1alpha1.PolicyGroupSpec) error {
+	policies, err := s.repos.Policies.List(ctx)
+	if err != nil {
+		return err
+	}
+	return validatePolicyGroupMembers(spec, policyList(policies))
 }
 
 func normalizeGroupSpec(spec v1alpha1.PolicyGroupSpec) v1alpha1.PolicyGroupSpec {
@@ -224,6 +255,9 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupInp
 		}
 	}
 	spec := groupSpec(req)
+	if e := s.validateMembers(ctx, spec); e != nil {
+		return e
+	}
 	if e := validatePolicyGroupScope(boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
 		return e
 	}
@@ -271,6 +305,9 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 	spec := groupSpec(req)
 	if name == defaultGroupName {
 		spec.DisplayName = g.Spec.Data().DisplayName
+	}
+	if e = s.validateMembers(ctx, spec); e != nil {
+		return e
 	}
 	if e = s.repos.PolicyGroups.UpdateCAS(ctx, g.ID, g.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec)}); e != nil {
 		return e

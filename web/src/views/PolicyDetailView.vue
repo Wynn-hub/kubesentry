@@ -2,7 +2,7 @@
   <div v-if="d">
     <PageHeader show-back :title="d.name">
       <el-tag size="small" :type="d.source === 'builtin' ? 'info' : 'primary'">{{ d.source }}</el-tag>
-      <PhaseTag :phase="d.phase" />
+      <PhaseTag :phase="d.phase" kind="policy" />
       <el-button @click="$router.push(`/policies/${d.name}/edit`)">{{ $t('common.edit') }}</el-button>
     </PageHeader>
 

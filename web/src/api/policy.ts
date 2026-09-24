@@ -11,6 +11,7 @@ export type VersionEntry = components['schemas']['dto.SwagPolicyVersionEntry']
 export type VersionTimeline = components['schemas']['dto.SwagPolicyVersionList']
 export type ResourceSuggestions = components['schemas']['dto.SwagResourceSuggestions']
 export type ListPoliciesQuery = NonNullable<operations['listPolicies']['parameters']['query']>
+export const POLICY_PHASES = ['Ready', 'Invalid'] as const
 
 export const listPolicies = (params: ListPoliciesQuery = {}) =>
   extract<'listPolicies'>(apiClient.GET('/policies', { params: { query: params } }))

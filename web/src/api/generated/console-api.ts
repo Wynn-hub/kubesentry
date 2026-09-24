@@ -1214,6 +1214,7 @@ export interface components {
             clusterNames?: string[];
         };
         "dto.PolicyGroupStatusView": {
+            issues: string[];
             /** @enum {string} */
             phase: "Ready" | "Invalid";
             resolvedCount: number;
@@ -2870,6 +2871,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["dto.SwagEmptyResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["dto.SwagErrorResponse"];
                 };
             };
             /** @description Not Found */
