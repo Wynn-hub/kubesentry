@@ -16,6 +16,7 @@ import (
 
 type Cluster struct {
 	model.Base
+	TenantID        *int64
 	Name            string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
 	ClusterUID      string
 	Labels          datatypes.JSONType[map[string]string]
@@ -38,6 +39,8 @@ func (Cluster) TableName() string { return "kubesentry.clusters" }
 
 type Policy struct {
 	model.Base
+	OwnerType       string `gorm:"default:system"`
+	TenantID        *int64
 	Name            string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
 	Description     string
 	Rego            string
@@ -63,6 +66,8 @@ func (PolicyVersion) TableName() string { return "kubesentry.policy_versions" }
 
 type PolicyGroup struct {
 	model.Base
+	OwnerType   string `gorm:"default:system"`
+	TenantID    *int64
 	Name        string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
 	Spec        datatypes.JSONType[v1alpha1.PolicyGroupSpec]
 	Labels      datatypes.JSONType[map[string]string]
@@ -73,6 +78,8 @@ func (PolicyGroup) TableName() string { return "kubesentry.policy_groups" }
 
 type PolicyException struct {
 	model.Base
+	OwnerType   string `gorm:"default:system"`
+	TenantID    *int64
 	Name        string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
 	Spec        datatypes.JSONType[v1alpha1.PolicyExceptionSpec]
 	ExpiresAt   *time.Time
@@ -84,14 +91,67 @@ func (PolicyException) TableName() string { return "kubesentry.policy_exceptions
 
 type PolicyDistribution struct {
 	model.Base
-	Name      string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
-	Spec      datatypes.JSONType[gatewaymodel.PolicyDistributionSpec]
-	Managed   bool
-	OwnerType string
-	OwnerName string
+	TenantID          *int64
+	ResourceOwnerType string `gorm:"default:system"`
+	Name              string `gorm:"uniqueIndex:,where:deleted_at IS NULL"`
+	Spec              datatypes.JSONType[gatewaymodel.PolicyDistributionSpec]
+	Managed           bool
+	OwnerType         string
+	OwnerName         string
 }
 
 func (PolicyDistribution) TableName() string { return "kubesentry.policy_distributions" }
+
+type Role string
+
+const (
+	RoleSystemAdmin Role = "system_admin"
+	RoleTenantAdmin Role = "tenant_admin"
+	RoleViewer      Role = "viewer"
+)
+
+type UserStatus string
+
+const (
+	UserStatusActive   UserStatus = "active"
+	UserStatusDisabled UserStatus = "disabled"
+)
+
+type Tenant struct {
+	model.Base
+	Name   string
+	Status UserStatus
+}
+
+func (Tenant) TableName() string { return "kubesentry.tenants" }
+
+type User struct {
+	model.Base
+	Username     string
+	PasswordHash string
+	Role         Role
+	Status       UserStatus
+	TenantID     *int64
+}
+
+func (User) TableName() string { return "kubesentry.users" }
+
+type Session struct {
+	model.Base
+	UserID     int64
+	TokenHash  string
+	ExpiresAt  time.Time
+	LastSeenAt time.Time
+	RevokedAt  *time.Time
+}
+
+func (Session) TableName() string { return "kubesentry.sessions" }
+
+type Principal struct {
+	UserID   int64
+	Role     Role
+	TenantID *int64
+}
 
 type DistributionClusterStatus struct {
 	model.Base

@@ -42,12 +42,36 @@ func TestMigrateCreatesAllTables(t *testing.T) {
 	defer db.Close()
 
 	wantTables := []string{
+		"tenants", "users", "sessions",
 		"clusters", "policies", "policy_versions", "policy_groups",
 		"policy_exceptions", "policy_distributions", "distribution_cluster_status",
 		"cluster_install_records", "cluster_uninstall_tasks",
 		"admission_event_settings", "admission_storage_policies", "admission_events",
 		"platform_observability_settings", "admission_link_incidents",
 		"platform_component_samples", "platform_leadership_events",
+	}
+
+	var username, role, passwordHash string
+	var tenantID *int64
+	err = db.QueryRowContext(ctx, `SELECT username, role, password_hash, tenant_id FROM kubesentry.users WHERE username = 'admin'`).
+		Scan(&username, &role, &passwordHash, &tenantID)
+	if err != nil || username != "admin" || role != "system_admin" || passwordHash != "" || tenantID != nil {
+		t.Fatalf("admin bootstrap row = (%q, %q, %q, %v), err=%v", username, role, passwordHash, tenantID, err)
+	}
+
+	for _, table := range []string{"policies", "policy_groups", "policy_exceptions"} {
+		var count int
+		if err := db.QueryRow(`SELECT count(*) FROM kubesentry.` + table + ` WHERE tenant_id IS NOT NULL OR owner_type <> 'system'`).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("%s non-system seed count = %d, err=%v", table, count, err)
+		}
+	}
+	var tenantOwnedDistributions int
+	if err := db.QueryRow(`SELECT count(*) FROM kubesentry.policy_distributions WHERE tenant_id IS NOT NULL OR resource_owner_type <> 'system'`).Scan(&tenantOwnedDistributions); err != nil || tenantOwnedDistributions != 0 {
+		t.Fatalf("policy_distributions non-system seed count = %d, err=%v", tenantOwnedDistributions, err)
+	}
+	var assignedClusters int
+	if err := db.QueryRow(`SELECT count(*) FROM kubesentry.clusters WHERE tenant_id IS NOT NULL`).Scan(&assignedClusters); err != nil || assignedClusters != 0 {
+		t.Fatalf("assigned seed cluster count = %d, err=%v", assignedClusters, err)
 	}
 	for _, name := range wantTables {
 		var exists bool
