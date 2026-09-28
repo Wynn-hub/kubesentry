@@ -78,6 +78,18 @@ type AdmissionRepository interface {
 	Trend(context.Context, time.Time, time.Time, bool) ([]dbrepo.AdmissionEventTrendBucket, error)
 }
 
+type IdentityRepository interface {
+	GetUserByUsername(context.Context, string) (*dbrepo.User, error)
+	UpdateUser(context.Context, *dbrepo.User) error
+	GetTenant(context.Context, int64) (*dbrepo.Tenant, error)
+	InitializeAdmin(context.Context, string, time.Time) (bool, error)
+	CreateSession(context.Context, *dbrepo.Session) error
+	GetActiveSession(context.Context, string, time.Time) (*dbrepo.Session, *dbrepo.User, *dbrepo.Tenant, error)
+	TouchSession(context.Context, int64, time.Time) error
+	RevokeSession(context.Context, int64, time.Time) error
+	RevokeUserSessions(context.Context, int64) error
+}
+
 // ExceptionUnitOfWork commits an exception mutation and its managed scope
 // distribution as one database transaction. The callback receives repositories
 // bound to the same transaction.
@@ -119,6 +131,7 @@ type Repositories struct {
 	Incidents      *dbrepo.IncidentRepo
 	Admission      *dbrepo.AdmissionRepo
 	Platform       *dbrepo.PlatformObservabilityRepo
+	Identity       IdentityRepository
 	ExceptionUOW   ExceptionUnitOfWork
 	ClusterUOW     ClusterUnitOfWork
 }
@@ -140,6 +153,7 @@ func New(db *gorm.DB) Repositories {
 		Incidents:      dbrepo.NewIncidentRepo(db),
 		Admission:      dbrepo.NewAdmissionRepo(db),
 		Platform:       dbrepo.NewPlatformObservabilityRepo(db),
+		Identity:       dbrepo.NewIdentityRepo(db),
 		ExceptionUOW:   exceptionUnitOfWork{repo: exceptions},
 		ClusterUOW:     clusterUnitOfWork{repo: clusters},
 	}

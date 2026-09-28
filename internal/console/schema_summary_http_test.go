@@ -103,6 +103,7 @@ func TestSchemaAndSummaryRouteMatrix(t *testing.T) {
 func TestSummaryRepositoryFailure(t *testing.T) {
 	db := newTestDB(t)
 	repos := repository.New(db)
+	repos.Identity = nil
 	actual, err := NewServer(&Handlers{Repos: repos}, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)

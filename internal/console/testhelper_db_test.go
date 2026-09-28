@@ -56,7 +56,9 @@ func newTestDB(t *testing.T) *gorm.DB {
 // handlers need.
 func dbRepos(t *testing.T) repository.Repositories {
 	t.Helper()
-	return repository.New(newTestDB(t))
+	repos := repository.New(newTestDB(t))
+	repos.Identity = nil
+	return repos
 }
 
 // newDBTestServer builds a console server backed by a real (testcontainers)

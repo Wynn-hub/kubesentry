@@ -149,6 +149,7 @@ func (Session) TableName() string { return "kubesentry.sessions" }
 
 type Principal struct {
 	UserID   int64
+	Username string
 	Role     Role
 	TenantID *int64
 }

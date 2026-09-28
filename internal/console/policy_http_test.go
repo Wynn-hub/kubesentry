@@ -114,7 +114,9 @@ func TestPolicyRouteMatrix(t *testing.T) {
 
 func TestPolicyListRepositoryFailure(t *testing.T) {
 	db := newTestDB(t)
-	server, err := NewServer(&Handlers{Repos: repository.New(db)}, func() bool { return true })
+	repos := repository.New(db)
+	repos.Identity = nil
+	server, err := NewServer(&Handlers{Repos: repos}, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}

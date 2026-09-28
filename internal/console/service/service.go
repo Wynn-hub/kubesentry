@@ -23,6 +23,7 @@ type Services struct {
 	Distribution *DistributionService
 	Schema       func(context.Context, dto.FieldSchemaOptions) ([]dto.FieldNodeView, error)
 	Platform     *PlatformService
+	Auth         *AuthService
 }
 
 // New wires every service from the repository bundle and an optional Notifier.
@@ -39,5 +40,6 @@ func New(repos repository.Repositories, notifier Notifier) Services {
 		Distribution: NewDistributionService(repos, notifier),
 		Platform:     NewPlatformService(repos.Platform, repos.Clusters, notifier),
 		Admission:    NewAdmissionService(repos.Admission, notifier),
+		Auth:         NewAuthService(repos.Identity),
 	}
 }

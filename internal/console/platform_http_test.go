@@ -99,7 +99,9 @@ func TestPlatformRouteMatrix(t *testing.T) {
 
 func TestPlatformSettingsRepositoryFailure(t *testing.T) {
 	actualDB := newTestDB(t)
-	actual, err := NewServer(&Handlers{Repos: repository.New(actualDB)}, func() bool { return true })
+	repos := repository.New(actualDB)
+	repos.Identity = nil
+	actual, err := NewServer(&Handlers{Repos: repos}, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}

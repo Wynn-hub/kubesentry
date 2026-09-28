@@ -72,6 +72,14 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 // can supply one here without changing individual route registrations.
 func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Handler) http.Handler) (*Server, error) {
 	mux := http.NewServeMux()
+	svcs := service.New(h.Repos, h.notifier())
+	var auth *authHTTP
+	if h.Repos.Identity != nil {
+		auth = newAuthHTTP(svcs.Auth)
+		if protectedMiddleware == nil {
+			protectedMiddleware = auth.middleware
+		}
+	}
 	operational := routeGroup{mux: mux}
 	public := routeGroup{mux: mux}
 	protected := routeGroup{mux: mux, middleware: protectedMiddleware}
@@ -87,9 +95,15 @@ func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Han
 		http.Error(w, "not ready", http.StatusServiceUnavailable)
 	})
 	public.HandleFunc("GET /api/docs/openapi.json", h.openAPISpec)
+	if auth != nil {
+		public.HandleFunc("GET /api/v1/setup/status", auth.setupStatus)
+		public.HandleFunc("POST /api/v1/setup/admin", auth.setupAdmin)
+		public.HandleFunc("POST /api/v1/auth/login", auth.login)
+		protected.HandleFunc("POST /api/v1/auth/logout", auth.logout)
+		protected.HandleFunc("GET /api/v1/me", auth.me)
+	}
 
 	{
-		svcs := service.New(h.Repos, h.notifier())
 		svcs.Schema = h.fieldSchema
 		apiHandler := handler.New(svcs)
 		registerPolicyRoutes(protected, apiHandler)
