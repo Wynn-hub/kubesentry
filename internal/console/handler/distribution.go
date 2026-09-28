@@ -106,6 +106,9 @@ func (h *Handler) DeleteDistribution(ctx context.Context, p dto.DeleteDistributi
 }
 
 func distributionCreateError(err error) dto.CreateDistributionRes {
+	if errors.Is(err, service.ErrForbidden) {
+		return &dto.DistributionForbiddenHTTPError{Code: 40300, Message: err.Error()}
+	}
 	if _, ok := err.(*service.ValidationError); ok {
 		return &dto.DistributionBadRequestHTTPError{Code: 40000, Message: err.Error()}
 	}
@@ -123,6 +126,9 @@ func distributionGetError(err error) dto.GetDistributionRes {
 }
 
 func distributionUpdateError(err error) dto.UpdateDistributionRes {
+	if errors.Is(err, service.ErrForbidden) {
+		return &dto.DistributionForbiddenHTTPError{Code: 40300, Message: err.Error()}
+	}
 	if _, ok := err.(*service.ValidationError); ok {
 		return &dto.DistributionBadRequestHTTPError{Code: 40000, Message: err.Error()}
 	}
@@ -136,6 +142,9 @@ func distributionUpdateError(err error) dto.UpdateDistributionRes {
 }
 
 func distributionDeleteError(err error) dto.DeleteDistributionRes {
+	if errors.Is(err, service.ErrForbidden) {
+		return &dto.DistributionForbiddenHTTPError{Code: 40300, Message: err.Error()}
+	}
 	if errors.Is(err, service.ErrNotFound) {
 		return &dto.DistributionNotFoundHTTPError{Code: 40400, Message: "distribution not found"}
 	}

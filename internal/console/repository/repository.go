@@ -12,6 +12,7 @@ type DistributionRepository interface {
 	List(context.Context) ([]dbrepo.PolicyDistribution, error)
 	GetByName(context.Context, string) (*dbrepo.PolicyDistribution, error)
 	ListPage(context.Context, dbrepo.PageOptions) ([]dbrepo.PolicyDistribution, int64, error)
+	ListPageVisible(context.Context, int64, dbrepo.PageOptions) ([]dbrepo.PolicyDistribution, int64, error)
 	Create(context.Context, *dbrepo.PolicyDistribution) error
 	Update(context.Context, *dbrepo.PolicyDistribution) error
 	UpdateCAS(context.Context, int64, time.Time, map[string]any) error

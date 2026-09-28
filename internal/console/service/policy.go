@@ -100,6 +100,9 @@ func (s *PolicyService) Get(ctx context.Context, name string) (*dto.PolicyView, 
 }
 
 func (s *PolicyService) Create(ctx context.Context, req *dto.PolicyInput) error {
+	if err := requireEditor(ctx); err != nil {
+		return err
+	}
 	if err := s.validatePolicyRequest(req, true); err != nil {
 		return err
 	}
@@ -115,6 +118,12 @@ func (s *PolicyService) Create(ctx context.Context, req *dto.PolicyInput) error 
 		// labels field persisted a nil map, not an empty object.
 		Labels:      datatypes.NewJSONType(mapOrNil(req.Labels)),
 		Annotations: datatypes.NewJSONType(applyAnnotations(nil, mapOrNil(req.Annotations))),
+	}
+	principal := requestPrincipal(ctx)
+	if principal.Role == dbrepo.RoleTenantAdmin {
+		p.OwnerType, p.TenantID = ownerTenant, principal.TenantID
+	} else {
+		p.OwnerType = ownerSystem
 	}
 
 	err := s.policies.CreateWithVersion(ctx, p, &dbrepo.PolicyVersion{
@@ -155,6 +164,14 @@ func (s *PolicyService) Update(ctx context.Context, name string, req *dto.Policy
 			return ErrNotFound
 		}
 		return fmt.Errorf("get policy: %w", err)
+	}
+	if err := authorizeOwner(ctx, p.OwnerType, p.TenantID); err != nil {
+		return err
+	}
+	if blocked, err := s.referencedByOtherTenant(ctx, p); err != nil {
+		return fmt.Errorf("check policy references: %w", err)
+	} else if blocked {
+		return newConflict("policy is referenced by another tenant and cannot be modified")
 	}
 
 	if rv := stringOr(req.ResourceVersion, ""); rv != "" && rv != dto.PolicyResourceVersion(p) {
@@ -234,7 +251,7 @@ func (s *PolicyService) ValidateRego(ctx context.Context, rego string) error {
 	return nil
 }
 
-func (s *PolicyService) Delete(ctx context.Context, name string, force bool) error {
+func (s *PolicyService) Delete(ctx context.Context, name string, _ bool) error {
 	p, err := s.policies.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -242,15 +259,16 @@ func (s *PolicyService) Delete(ctx context.Context, name string, force bool) err
 		}
 		return fmt.Errorf("get policy: %w", err)
 	}
+	if err := authorizeOwner(ctx, p.OwnerType, p.TenantID); err != nil {
+		return err
+	}
 
-	if !force {
-		refs, err := s.referencingGroups(ctx, p.Name)
-		if err != nil {
-			return fmt.Errorf("list policy groups: %w", err)
-		}
-		if len(refs) > 0 {
-			return &ReferencedByError{Groups: refs}
-		}
+	refs, err := s.referencingGroups(ctx, p.Name)
+	if err != nil {
+		return fmt.Errorf("list policy groups: %w", err)
+	}
+	if len(refs) > 0 {
+		return &ReferencedByError{Groups: refs}
 	}
 
 	if err := s.policies.Delete(ctx, p.ID); err != nil {
@@ -319,6 +337,14 @@ func (s *PolicyService) Rollback(ctx context.Context, name string, direction str
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("get policy: %w", err)
+	}
+	if err := authorizeOwner(ctx, p.OwnerType, p.TenantID); err != nil {
+		return nil, err
+	}
+	if blocked, err := s.referencedByOtherTenant(ctx, p); err != nil {
+		return nil, fmt.Errorf("check policy references: %w", err)
+	} else if blocked {
+		return nil, newConflict("policy is referenced by another tenant and cannot be modified")
 	}
 
 	if direction == "next" {
@@ -522,6 +548,33 @@ func (s *PolicyService) referencingGroups(ctx context.Context, policyName string
 	}
 	sort.Strings(refs)
 	return refs, nil
+}
+
+func (s *PolicyService) referencedByOtherTenant(ctx context.Context, policy *dbrepo.Policy) (bool, error) {
+	if policy.OwnerType != ownerTenant || policy.TenantID == nil {
+		return false, nil
+	}
+	groups, err := s.groups.List(ctx)
+	if err != nil {
+		return false, err
+	}
+	policies, err := s.policies.List(ctx)
+	if err != nil {
+		return false, err
+	}
+	resolved := policyList(policies)
+	for i := range groups {
+		if groups[i].TenantID != nil && *groups[i].TenantID == *policy.TenantID {
+			continue
+		}
+		members, _ := groupresolve.Resolve(groups[i].Spec.Data(), resolved)
+		for _, member := range members {
+			if member.Name == policy.Name {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 // isUniqueViolation moved to dbrepo.IsUniqueViolation so the legacy console

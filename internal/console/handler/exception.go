@@ -67,6 +67,9 @@ func (h *Handler) GetException(ctx context.Context, p dto.GetExceptionParams) (d
 func (h *Handler) CreateException(ctx context.Context, input *dto.ExceptionInput) (dto.CreateExceptionRes, error) {
 	e := h.svcs.Exception.Create(ctx, input)
 	if e != nil {
+		if errors.Is(e, service.ErrForbidden) {
+			return &dto.ExceptionForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
+		}
 		var v *service.ValidationError
 		if errors.As(e, &v) {
 			return &dto.ExceptionBadRequestHTTPError{Code: 40000, Message: e.Error()}, nil
@@ -96,6 +99,9 @@ func (h *Handler) CreateException(ctx context.Context, input *dto.ExceptionInput
 func (h *Handler) UpdateException(ctx context.Context, input *dto.ExceptionInput, p dto.UpdateExceptionParams) (dto.UpdateExceptionRes, error) {
 	e := h.svcs.Exception.Update(ctx, p.Name, input)
 	if e != nil {
+		if errors.Is(e, service.ErrForbidden) {
+			return &dto.ExceptionForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
+		}
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.ExceptionNotFoundHTTPError{Code: 40400, Message: e.Error()}, nil
 		}
@@ -132,7 +138,7 @@ func stringOr(value *string) string {
 func (h *Handler) DeleteException(ctx context.Context, p dto.DeleteExceptionParams) (dto.DeleteExceptionRes, error) {
 	e := h.svcs.Exception.Delete(ctx, p.Name)
 	if e != nil {
-		if errors.Is(e, service.ErrDefaultExceptionDelete) {
+		if errors.Is(e, service.ErrDefaultExceptionDelete) || errors.Is(e, service.ErrForbidden) {
 			return &dto.ExceptionForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
 		}
 		if errors.Is(e, service.ErrNotFound) {

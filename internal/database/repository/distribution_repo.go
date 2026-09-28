@@ -34,8 +34,16 @@ func (r *DistributionRepo) List(ctx context.Context) ([]PolicyDistribution, erro
 }
 
 func (r *DistributionRepo) ListPage(ctx context.Context, options PageOptions) ([]PolicyDistribution, int64, error) {
+	return r.listPage(r.db.WithContext(ctx).Model(&PolicyDistribution{}), options)
+}
+
+func (r *DistributionRepo) ListPageVisible(ctx context.Context, tenantID int64, options PageOptions) ([]PolicyDistribution, int64, error) {
+	return r.listPage(r.db.WithContext(ctx).Model(&PolicyDistribution{}).Where("resource_owner_type = ? OR tenant_id = ?", "system", tenantID), options)
+}
+
+func (r *DistributionRepo) listPage(query *gorm.DB, options PageOptions) ([]PolicyDistribution, int64, error) {
 	items, total, err := queryPage[PolicyDistribution](
-		r.db.WithContext(ctx).Model(&PolicyDistribution{}),
+		query,
 		options,
 		map[string]string{"name": "name"},
 		"name ASC",

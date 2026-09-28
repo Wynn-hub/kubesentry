@@ -275,6 +275,8 @@ type DistributionForbiddenHTTPError struct {
 }
 
 func (*DistributionForbiddenHTTPError) HTTPStatus() int        { return 403 }
+func (*DistributionForbiddenHTTPError) createDistributionRes() {}
+func (*DistributionForbiddenHTTPError) updateDistributionRes() {}
 func (*DistributionForbiddenHTTPError) deleteDistributionRes() {}
 
 type DistributionNotFoundHTTPError struct {

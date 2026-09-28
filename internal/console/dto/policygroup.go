@@ -332,9 +332,11 @@ type PolicyGroupForbiddenHTTPError struct {
 	Message string `json:"message"`
 }
 
-func (*PolicyGroupForbiddenHTTPError) HTTPStatus() int       { return 403 }
-func (*PolicyGroupForbiddenHTTPError) updatePolicyGroupRes() {}
-func (*PolicyGroupForbiddenHTTPError) deletePolicyGroupRes() {}
+func (*PolicyGroupForbiddenHTTPError) HTTPStatus() int           { return 403 }
+func (*PolicyGroupForbiddenHTTPError) createPolicyGroupRes()     {}
+func (*PolicyGroupForbiddenHTTPError) updatePolicyGroupRes()     {}
+func (*PolicyGroupForbiddenHTTPError) setPolicyGroupEnabledRes() {}
+func (*PolicyGroupForbiddenHTTPError) deletePolicyGroupRes()     {}
 
 type PolicyGroupNotFoundHTTPError struct {
 	Code    int    `json:"code"`

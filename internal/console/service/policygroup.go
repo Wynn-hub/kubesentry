@@ -57,13 +57,13 @@ func groupSpec(req *dto.PolicyGroupInput) v1alpha1.PolicyGroupSpec {
 	return v1alpha1.PolicyGroupSpec{DisplayName: stringOr(req.DisplayName, ""), Description: stringOr(req.Description, ""), Enabled: req.Enabled, NamespaceSelector: labelSelectorModel(req.NamespaceSelector), Policies: v1alpha1.PolicyGroupPolicies{ByName: byName, BySelector: labelSelectorModel(req.Policies.BySelector), Exclude: req.Policies.Exclude}, SelectorEnforcementMode: stringOr(req.SelectorEnforcementMode, "")}
 }
 
-func scopeFor(ctx context.Context, r repository.Repositories, owner string) (dto.PolicyGroupScopeView, error) {
+func scopeFor(ctx context.Context, r repository.Repositories, owner, resourceOwnerType string, tenantID *int64) (dto.PolicyGroupScopeView, error) {
 	ds, e := r.Distributions.List(ctx)
 	if e != nil {
 		return dto.PolicyGroupScopeView{}, e
 	}
 	for _, d := range ds {
-		if d.Managed && d.OwnerType == "PolicyGroup" && d.OwnerName == owner {
+		if d.Managed && d.OwnerType == "PolicyGroup" && d.OwnerName == owner && d.ResourceOwnerType == resourceOwnerType && sameTenant(d.TenantID, tenantID) {
 			s := d.Spec.Data()
 			return dto.PolicyGroupScopeView{AllClusters: s.Clusters.ClusterSelector != nil, ClusterNames: append([]string{}, s.Clusters.ByName...)}, nil
 		}
@@ -71,13 +71,32 @@ func scopeFor(ctx context.Context, r repository.Repositories, owner string) (dto
 	return dto.PolicyGroupScopeView{AllClusters: true, ClusterNames: []string{}}, nil
 }
 
-func syncScope(ctx context.Context, r repository.Repositories, owner string, all bool, names []string) error {
+func syncScope(ctx context.Context, r repository.Repositories, owner, resourceOwnerType string, tenantID *int64, all bool, names []string) error {
+	if resourceOwnerType == ownerTenant {
+		clusters, err := r.Clusters.ListForTenant(ctx, *tenantID)
+		if err != nil {
+			return err
+		}
+		if all {
+			names = make([]string, 0, len(clusters))
+			for _, cluster := range clusters {
+				names = append(names, cluster.Name)
+			}
+			all = false
+		}
+	}
 	if !all {
 		if len(names) == 0 {
 			return &ValidationError{Msg: "clusterNames is required when allClusters is false"}
 		}
 		for _, n := range names {
-			c, e := r.Clusters.GetByName(ctx, n)
+			var c *dbrepo.Cluster
+			var e error
+			if tenantID == nil {
+				c, e = r.Clusters.GetByName(ctx, n)
+			} else {
+				c, e = r.Clusters.GetByNameForTenant(ctx, *tenantID, n)
+			}
 			if e != nil {
 				return e
 			}
@@ -98,21 +117,21 @@ func syncScope(ctx context.Context, r repository.Repositories, owner string, all
 	}
 	spec.PolicyGroups = []string{owner}
 	for _, d := range ds {
-		if d.Managed && d.OwnerType == "PolicyGroup" && d.OwnerName == owner {
+		if d.Managed && d.OwnerType == "PolicyGroup" && d.OwnerName == owner && d.ResourceOwnerType == resourceOwnerType && sameTenant(d.TenantID, tenantID) {
 			d.Spec = datatypes.NewJSONType(spec)
 			return r.Distributions.Update(ctx, &d)
 		}
 	}
-	return r.Distributions.Create(ctx, &dbrepo.PolicyDistribution{Name: "scope-group-" + strings.ToLower(owner), Managed: true, OwnerType: "PolicyGroup", OwnerName: owner, Spec: datatypes.NewJSONType(spec)})
+	return r.Distributions.Create(ctx, &dbrepo.PolicyDistribution{Name: "scope-group-" + strings.ToLower(owner), ResourceOwnerType: resourceOwnerType, TenantID: tenantID, Managed: true, OwnerType: "PolicyGroup", OwnerName: owner, Spec: datatypes.NewJSONType(spec)})
 }
 
-func deleteScope(ctx context.Context, r repository.Repositories, owner string) error {
+func deleteScope(ctx context.Context, r repository.Repositories, owner, resourceOwnerType string, tenantID *int64) error {
 	ds, e := r.Distributions.List(ctx)
 	if e != nil {
 		return e
 	}
 	for _, d := range ds {
-		if d.Managed && d.OwnerType == "PolicyGroup" && d.OwnerName == owner {
+		if d.Managed && d.OwnerType == "PolicyGroup" && d.OwnerName == owner && d.ResourceOwnerType == resourceOwnerType && sameTenant(d.TenantID, tenantID) {
 			return r.Distributions.Delete(ctx, d.ID)
 		}
 	}
@@ -175,7 +194,7 @@ func normalizeGroupSpec(spec v1alpha1.PolicyGroupSpec) v1alpha1.PolicyGroupSpec 
 }
 
 func (s *PolicyGroupService) Get(ctx context.Context, name string) (*dto.PolicyGroupView, error) {
-	g, e := s.repos.PolicyGroups.GetByName(ctx, name)
+	g, e := s.visibleGroup(ctx, name)
 	if e != nil {
 		if errors.Is(e, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
@@ -186,7 +205,7 @@ func (s *PolicyGroupService) Get(ctx context.Context, name string) (*dto.PolicyG
 	if e != nil {
 		return nil, e
 	}
-	sc, e := scopeFor(ctx, s.repos, name)
+	sc, e := scopeFor(ctx, s.repos, name, g.OwnerType, g.TenantID)
 	if e != nil {
 		return nil, e
 	}
@@ -206,6 +225,9 @@ func (s *PolicyGroupService) List(ctx context.Context, page, size int, sortBy, o
 	pol := policyList(ps)
 	items := make([]dto.PolicyGroupItem, 0, len(gs))
 	for _, g := range gs {
+		if !visibleTo(ctx, g.OwnerType, g.TenantID) {
+			continue
+		}
 		d := detail(&g, pol, dto.PolicyGroupScopeView{})
 		items = append(items, dto.PolicyGroupItem{Name: g.Name, Source: d.Source, DisplayName: d.Spec.DisplayName, Enabled: d.Spec.Enabled, Phase: d.Status.Phase, ResolvedCount: d.Status.ResolvedCount})
 	}
@@ -242,6 +264,9 @@ func (s *PolicyGroupService) List(ctx context.Context, page, size int, sortBy, o
 }
 
 func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupInput) error {
+	if err := requireEditor(ctx); err != nil {
+		return err
+	}
 	name := stringOr(req.Name, "")
 	if errs := validation.IsDNS1123Subdomain(name); len(errs) > 0 {
 		return &ValidationError{Msg: "invalid name: " + strings.Join(errs, "; ")}
@@ -261,14 +286,23 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupInp
 	if e := validatePolicyGroupScope(boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
 		return e
 	}
+	if e := validateGroupClusterTargets(ctx, s.repos.Clusters, req.ClusterNames); e != nil {
+		return e
+	}
 	g := &dbrepo.PolicyGroup{Name: name, Spec: datatypes.NewJSONType(spec), Labels: datatypes.NewJSONType(map[string]string{}), Annotations: datatypes.NewJSONType(map[string]string{})}
+	principal := requestPrincipal(ctx)
+	if principal.Role == dbrepo.RoleTenantAdmin {
+		g.OwnerType, g.TenantID = ownerTenant, principal.TenantID
+	} else {
+		g.OwnerType = ownerSystem
+	}
 	if e := s.repos.PolicyGroups.Create(ctx, g); e != nil {
 		if dbrepo.IsUniqueViolation(e) {
 			return newConflict("policygroup %s already exists", name)
 		}
 		return e
 	}
-	if e := syncScope(ctx, s.repos, name, boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
+	if e := syncScope(ctx, s.repos, name, g.OwnerType, g.TenantID, boolOr(req.AllClusters, false), req.ClusterNames); e != nil {
 		return e
 	}
 	if s.notifier != nil {
@@ -292,11 +326,17 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 	} else if e := validatePolicyGroupScope(allClusters, req.ClusterNames); e != nil {
 		return e
 	}
-	g, e := s.repos.PolicyGroups.GetByName(ctx, name)
+	if e := validateGroupClusterTargets(ctx, s.repos.Clusters, req.ClusterNames); e != nil {
+		return e
+	}
+	g, e := s.visibleGroup(ctx, name)
 	if e != nil {
 		if errors.Is(e, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
+		return e
+	}
+	if e = authorizeOwner(ctx, g.OwnerType, g.TenantID); e != nil {
 		return e
 	}
 	if rv := stringOr(req.ResourceVersion, ""); rv != "" && rv != strconv.FormatInt(g.UpdatedAt.UnixNano(), 10) {
@@ -312,7 +352,7 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 	if e = s.repos.PolicyGroups.UpdateCAS(ctx, g.ID, g.UpdatedAt, map[string]any{"spec": datatypes.NewJSONType(spec)}); e != nil {
 		return e
 	}
-	if e = syncScope(ctx, s.repos, name, allClusters, req.ClusterNames); e != nil {
+	if e = syncScope(ctx, s.repos, name, g.OwnerType, g.TenantID, allClusters, req.ClusterNames); e != nil {
 		return e
 	}
 	s.notify(ctx)
@@ -320,11 +360,14 @@ func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.P
 }
 
 func (s *PolicyGroupService) SetEnabled(ctx context.Context, name string, enabled bool) error {
-	g, e := s.repos.PolicyGroups.GetByName(ctx, name)
+	g, e := s.visibleGroup(ctx, name)
 	if e != nil {
 		if errors.Is(e, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
+		return e
+	}
+	if e = authorizeOwner(ctx, g.OwnerType, g.TenantID); e != nil {
 		return e
 	}
 	spec := g.Spec.Data()
@@ -343,17 +386,20 @@ func (s *PolicyGroupService) Delete(ctx context.Context, name string) error {
 	if name == defaultGroupName {
 		return fmt.Errorf("default policy group cannot be deleted")
 	}
-	g, e := s.repos.PolicyGroups.GetByName(ctx, name)
+	g, e := s.visibleGroup(ctx, name)
 	if e != nil {
 		if errors.Is(e, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		}
 		return e
 	}
+	if e = authorizeOwner(ctx, g.OwnerType, g.TenantID); e != nil {
+		return e
+	}
 	if e = s.repos.PolicyGroups.Delete(ctx, g.ID); e != nil {
 		return e
 	}
-	if e = deleteScope(ctx, s.repos, name); e != nil {
+	if e = deleteScope(ctx, s.repos, name, g.OwnerType, g.TenantID); e != nil {
 		return e
 	}
 	s.notify(ctx)
@@ -370,8 +416,60 @@ func validatePolicyGroupScope(all bool, names []string) error {
 	return nil
 }
 
+func validateGroupClusterTargets(ctx context.Context, clusters repository.ClusterRepository, names []string) error {
+	principal := requestPrincipal(ctx)
+	for _, name := range names {
+		var cluster *dbrepo.Cluster
+		var err error
+		if principal.Role == dbrepo.RoleTenantAdmin {
+			cluster, err = clusters.GetByNameForTenant(ctx, *principal.TenantID, name)
+		} else {
+			cluster, err = clusters.GetByName(ctx, name)
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &ValidationError{Msg: fmt.Sprintf("target cluster %q is not available", name)}
+		}
+		if err != nil {
+			return err
+		}
+		if cluster.Phase == gatewaymodel.ClusterPhaseUninstalled {
+			return &ValidationError{Msg: fmt.Sprintf("target cluster %q is uninstalled", name)}
+		}
+	}
+	return nil
+}
+
 func (s *PolicyGroupService) notify(ctx context.Context) {
 	if s.notifier != nil {
 		s.notifier.NotifyChange(ctx, "group")
 	}
+}
+
+func (s *PolicyGroupService) visibleGroup(ctx context.Context, name string) (*dbrepo.PolicyGroup, error) {
+	groups, err := s.repos.PolicyGroups.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	principal := requestPrincipal(ctx)
+	var system *dbrepo.PolicyGroup
+	for i := range groups {
+		group := &groups[i]
+		if group.Name != name || !visibleTo(ctx, group.OwnerType, group.TenantID) {
+			continue
+		}
+		if principal.TenantID != nil && group.TenantID != nil && *principal.TenantID == *group.TenantID {
+			return group, nil
+		}
+		if group.OwnerType == ownerSystem {
+			system = group
+		}
+	}
+	if system != nil {
+		return system, nil
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func sameTenant(a, b *int64) bool {
+	return a == nil && b == nil || a != nil && b != nil && *a == *b
 }

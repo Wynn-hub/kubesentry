@@ -35,7 +35,7 @@ func NewExceptionService(r repository.Repositories, n Notifier) *ExceptionServic
 }
 
 func (s *ExceptionService) Get(ctx context.Context, name string) (*dto.ExceptionView, error) {
-	e, err := s.repos.Exceptions.GetByName(ctx, name)
+	e, err := s.visibleException(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
@@ -51,7 +51,7 @@ func (s *ExceptionService) Get(ctx context.Context, name string) (*dto.Exception
 			st.Phase = "Expired"
 		}
 	}
-	scope, err := exceptionScopeFor(ctx, s.repos, name)
+	scope, err := exceptionScopeFor(ctx, s.repos, name, e.OwnerType, e.TenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +65,9 @@ func (s *ExceptionService) List(ctx context.Context, page, size int, sortBy, ord
 	}
 	items := make([]dto.ExceptionItem, 0, len(xs))
 	for _, e := range xs {
+		if !visibleTo(ctx, e.OwnerType, e.TenantID) {
+			continue
+		}
 		sp := e.Spec.Data()
 		phase := "Active"
 		if e.ExpiresAt != nil && e.ExpiresAt.Before(time.Now()) {
@@ -147,16 +150,30 @@ func summarizeExceptionRefs(refs []string) string {
 }
 
 func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionInput) error {
+	if err := requireEditor(ctx); err != nil {
+		return err
+	}
 	if err := validateExceptionRequest(r, true); err != nil {
 		return err
 	}
-	if err := validateExceptionScopeTargets(ctx, s.repos.Clusters, boolOr(r.AllClusters, false), r.ClusterNames); err != nil {
+	allClusters, clusterNames, err := exceptionTargetClusters(ctx, s.repos.Clusters, boolOr(r.AllClusters, false), r.ClusterNames)
+	if err != nil {
+		return err
+	}
+	if err := validateExceptionScopeTargets(ctx, s.repos.Clusters, allClusters, clusterNames); err != nil {
+		return err
+	}
+	if err := s.validateGroupRefs(ctx, r.PolicyGroupRefs); err != nil {
 		return err
 	}
 	name := stringOr(r.Name, "")
 	spec := exceptionSpec(r)
 	exp := time.Now().Add(mustDuration(r.Duration))
-	e := &dbrepo.PolicyException{Name: name, Spec: datatypes.NewJSONType(spec), ExpiresAt: &exp}
+	e := &dbrepo.PolicyException{Name: name, OwnerType: ownerSystem, Spec: datatypes.NewJSONType(spec), ExpiresAt: &exp}
+	principal := requestPrincipal(ctx)
+	if principal.Role == dbrepo.RoleTenantAdmin {
+		e.OwnerType, e.TenantID = ownerTenant, principal.TenantID
+	}
 	if s.repos.ExceptionUOW == nil {
 		return errors.New("exception unit of work is unavailable")
 	}
@@ -167,7 +184,7 @@ func (s *ExceptionService) Create(ctx context.Context, r *dto.ExceptionInput) er
 			}
 			return err
 		}
-		return syncExceptionScope(ctx, distributions, name, boolOr(r.AllClusters, false), r.ClusterNames)
+		return syncExceptionScope(ctx, distributions, name, e.OwnerType, e.TenantID, allClusters, clusterNames)
 	}); err != nil {
 		return err
 	}
@@ -182,7 +199,14 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 	if err := validateExceptionRequest(r, false); err != nil {
 		return err
 	}
-	if err := validateExceptionScopeTargets(ctx, s.repos.Clusters, boolOr(r.AllClusters, false), r.ClusterNames); err != nil {
+	allClusters, clusterNames, err := exceptionTargetClusters(ctx, s.repos.Clusters, boolOr(r.AllClusters, false), r.ClusterNames)
+	if err != nil {
+		return err
+	}
+	if err := validateExceptionScopeTargets(ctx, s.repos.Clusters, allClusters, clusterNames); err != nil {
+		return err
+	}
+	if err := s.validateGroupRefs(ctx, r.PolicyGroupRefs); err != nil {
 		return err
 	}
 	spec := exceptionSpec(r)
@@ -191,11 +215,14 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 		return errors.New("exception unit of work is unavailable")
 	}
 	if err := s.repos.ExceptionUOW.WithinTransaction(ctx, func(exceptions repository.ExceptionRepository, distributions repository.DistributionRepository) error {
-		e, err := exceptions.GetByName(ctx, name)
+		e, err := s.visibleExceptionWith(ctx, exceptions, name)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrNotFound
 			}
+			return err
+		}
+		if err := authorizeOwner(ctx, e.OwnerType, e.TenantID); err != nil {
 			return err
 		}
 		if rv := stringOr(r.ResourceVersion, ""); rv != "" && rv != strconv.FormatInt(e.UpdatedAt.UnixNano(), 10) {
@@ -207,7 +234,7 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 			}
 			return err
 		}
-		return syncExceptionScope(ctx, distributions, name, boolOr(r.AllClusters, false), r.ClusterNames)
+		return syncExceptionScope(ctx, distributions, name, e.OwnerType, e.TenantID, allClusters, clusterNames)
 	}); err != nil {
 		return err
 	}
@@ -216,6 +243,9 @@ func (s *ExceptionService) Update(ctx context.Context, name string, r *dto.Excep
 }
 
 func (s *ExceptionService) updateDefault(ctx context.Context, r *dto.ExceptionInput) error {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return err
+	}
 	selector := r.Match.NamespaceSelector
 	if len(r.Match.Namespaces) == 0 && (selector == nil || len(selector.MatchLabels)+len(selector.MatchExpressions) == 0) {
 		return &ValidationError{Msg: "default exception requires at least one namespace or namespace selector"}
@@ -252,7 +282,7 @@ func (s *ExceptionService) updateDefault(ctx context.Context, r *dto.ExceptionIn
 			}
 			return err
 		}
-		return syncExceptionScope(ctx, distributions, defaultExceptionName, true, nil)
+		return syncExceptionScope(ctx, distributions, defaultExceptionName, e.OwnerType, e.TenantID, true, nil)
 	}); err != nil {
 		return err
 	}
@@ -284,17 +314,20 @@ func (s *ExceptionService) Delete(ctx context.Context, name string) error {
 		return errors.New("exception unit of work is unavailable")
 	}
 	if err := s.repos.ExceptionUOW.WithinTransaction(ctx, func(exceptions repository.ExceptionRepository, distributions repository.DistributionRepository) error {
-		e, err := exceptions.GetByName(ctx, name)
+		e, err := s.visibleExceptionWith(ctx, exceptions, name)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrNotFound
 			}
 			return err
 		}
+		if err := authorizeOwner(ctx, e.OwnerType, e.TenantID); err != nil {
+			return err
+		}
 		if err := exceptions.Delete(ctx, e.ID); err != nil {
 			return err
 		}
-		return deleteExceptionScope(ctx, distributions, name)
+		return deleteExceptionScope(ctx, distributions, name, e.OwnerType, e.TenantID)
 	}); err != nil {
 		return err
 	}
@@ -353,13 +386,13 @@ func validateExceptionRequest(req *dto.ExceptionInput, create bool) error {
 	return nil
 }
 
-func exceptionScopeFor(ctx context.Context, repos repository.Repositories, owner string) (dto.ExceptionScopeView, error) {
+func exceptionScopeFor(ctx context.Context, repos repository.Repositories, owner, resourceOwnerType string, tenantID *int64) (dto.ExceptionScopeView, error) {
 	distributions, err := repos.Distributions.List(ctx)
 	if err != nil {
 		return dto.ExceptionScopeView{}, err
 	}
 	for _, distribution := range distributions {
-		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner {
+		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner && distribution.ResourceOwnerType == resourceOwnerType && sameTenant(distribution.TenantID, tenantID) {
 			spec := distribution.Spec.Data()
 			names := append([]string{}, spec.Clusters.ByName...)
 			return dto.ExceptionScopeView{AllClusters: spec.Clusters.ClusterSelector != nil, ClusterNames: names}, nil
@@ -369,9 +402,16 @@ func exceptionScopeFor(ctx context.Context, repos repository.Repositories, owner
 }
 
 func validateExceptionScopeTargets(ctx context.Context, clusters repository.ClusterRepository, all bool, names []string) error {
+	principal := requestPrincipal(ctx)
 	if !all {
 		for _, name := range names {
-			cluster, err := clusters.GetByName(ctx, name)
+			var cluster *dbrepo.Cluster
+			var err error
+			if principal.Role == dbrepo.RoleTenantAdmin {
+				cluster, err = clusters.GetByNameForTenant(ctx, *principal.TenantID, name)
+			} else {
+				cluster, err = clusters.GetByName(ctx, name)
+			}
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					return &ValidationError{Msg: fmt.Sprintf("target cluster %q does not exist", name)}
@@ -386,7 +426,23 @@ func validateExceptionScopeTargets(ctx context.Context, clusters repository.Clus
 	return nil
 }
 
-func syncExceptionScope(ctx context.Context, distributions repository.DistributionRepository, owner string, all bool, names []string) error {
+func exceptionTargetClusters(ctx context.Context, clusters repository.ClusterRepository, all bool, names []string) (bool, []string, error) {
+	principal := requestPrincipal(ctx)
+	if principal.Role != dbrepo.RoleTenantAdmin || !all {
+		return all, names, nil
+	}
+	rows, err := clusters.ListForTenant(ctx, *principal.TenantID)
+	if err != nil {
+		return false, nil, err
+	}
+	names = make([]string, 0, len(rows))
+	for _, cluster := range rows {
+		names = append(names, cluster.Name)
+	}
+	return false, names, nil
+}
+
+func syncExceptionScope(ctx context.Context, distributions repository.DistributionRepository, owner, resourceOwnerType string, tenantID *int64, all bool, names []string) error {
 	spec := gatewaymodel.PolicyDistributionSpec{PolicyExceptions: []string{owner}}
 	if all {
 		spec.Clusters.ClusterSelector = &metav1.LabelSelector{}
@@ -399,25 +455,68 @@ func syncExceptionScope(ctx context.Context, distributions repository.Distributi
 	}
 	for i := range rows {
 		distribution := &rows[i]
-		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner {
+		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner && distribution.ResourceOwnerType == resourceOwnerType && sameTenant(distribution.TenantID, tenantID) {
 			distribution.Spec = datatypes.NewJSONType(spec)
 			return distributions.Update(ctx, distribution)
 		}
 	}
 	return distributions.Create(ctx, &dbrepo.PolicyDistribution{
 		Name: "scope-exception-" + strings.ToLower(owner), Managed: true,
-		OwnerType: "PolicyException", OwnerName: owner, Spec: datatypes.NewJSONType(spec),
+		ResourceOwnerType: resourceOwnerType, TenantID: tenantID, OwnerType: "PolicyException", OwnerName: owner, Spec: datatypes.NewJSONType(spec),
 	})
 }
 
-func deleteExceptionScope(ctx context.Context, distributions repository.DistributionRepository, owner string) error {
+func deleteExceptionScope(ctx context.Context, distributions repository.DistributionRepository, owner, resourceOwnerType string, tenantID *int64) error {
 	rows, err := distributions.List(ctx)
 	if err != nil {
 		return err
 	}
 	for _, distribution := range rows {
-		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner {
+		if distribution.Managed && distribution.OwnerType == "PolicyException" && distribution.OwnerName == owner && distribution.ResourceOwnerType == resourceOwnerType && sameTenant(distribution.TenantID, tenantID) {
 			return distributions.Delete(ctx, distribution.ID)
+		}
+	}
+	return nil
+}
+
+func (s *ExceptionService) visibleException(ctx context.Context, name string) (*dbrepo.PolicyException, error) {
+	return s.visibleExceptionWith(ctx, s.repos.Exceptions, name)
+}
+
+func (s *ExceptionService) visibleExceptionWith(ctx context.Context, repo repository.ExceptionRepository, name string) (*dbrepo.PolicyException, error) {
+	exceptions, err := repo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	principal := requestPrincipal(ctx)
+	var system *dbrepo.PolicyException
+	for i := range exceptions {
+		exception := &exceptions[i]
+		if exception.Name != name || !visibleTo(ctx, exception.OwnerType, exception.TenantID) {
+			continue
+		}
+		if principal.TenantID != nil && exception.TenantID != nil && *principal.TenantID == *exception.TenantID {
+			return exception, nil
+		}
+		if exception.OwnerType == ownerSystem {
+			system = exception
+		}
+	}
+	if system != nil {
+		return system, nil
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (s *ExceptionService) validateGroupRefs(ctx context.Context, names []string) error {
+	for _, name := range names {
+		if _, err := s.repos.PolicyGroups.GetByName(ctx, name); err != nil && requestPrincipal(ctx).Role == dbrepo.RoleSystemAdmin {
+			return &ValidationError{Msg: fmt.Sprintf("policy group %q does not exist", name)}
+		}
+		if requestPrincipal(ctx).Role != dbrepo.RoleSystemAdmin {
+			if _, err := NewPolicyGroupService(s.repos, nil).visibleGroup(ctx, name); err != nil {
+				return &ValidationError{Msg: fmt.Sprintf("policy group %q is not visible to the tenant", name)}
+			}
 		}
 	}
 	return nil

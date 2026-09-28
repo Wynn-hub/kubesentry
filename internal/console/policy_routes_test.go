@@ -363,8 +363,8 @@ func TestDeletePolicyReferenced(t *testing.T) {
 	}
 
 	rec, _ = doRequest(t, h, "DELETE", "/api/v1/policies/p1?force=true", nil)
-	if rec.Code != 200 {
-		t.Fatalf("force delete code = %d", rec.Code)
+	if rec.Code != 409 {
+		t.Fatalf("force delete code = %d, want 409", rec.Code)
 	}
 }
 
@@ -425,8 +425,8 @@ func TestDeletePolicyReferencedBySelector(t *testing.T) {
 	}
 
 	rec, _ = doRequest(t, h, "DELETE", "/api/v1/policies/p1?force=true", nil)
-	if rec.Code != 200 {
-		t.Fatalf("force delete code = %d", rec.Code)
+	if rec.Code != 409 {
+		t.Fatalf("force delete code = %d, want 409", rec.Code)
 	}
 }
 

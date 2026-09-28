@@ -10,6 +10,8 @@ import (
 func mapCreatePolicyError(err error) dto.CreatePolicyRes {
 	var valErr *service.ValidationError
 	switch {
+	case errors.Is(err, service.ErrForbidden):
+		return &dto.PolicyForbiddenHTTPError{Code: 40300, Message: err.Error()}
 	case errors.As(err, &valErr):
 		return &dto.PolicyBadRequestHTTPError{Code: 40000, Message: err.Error()}
 	case service.IsConflict(err):
@@ -31,6 +33,8 @@ func mapGetPolicyError(err error) dto.GetPolicyRes {
 func mapUpdatePolicyError(err error) dto.UpdatePolicyRes {
 	var valErr *service.ValidationError
 	switch {
+	case errors.Is(err, service.ErrForbidden):
+		return &dto.PolicyForbiddenHTTPError{Code: 40300, Message: err.Error()}
 	case errors.As(err, &valErr):
 		return &dto.PolicyBadRequestHTTPError{Code: 40000, Message: err.Error()}
 	case errors.Is(err, service.ErrNotFound):
@@ -45,6 +49,8 @@ func mapUpdatePolicyError(err error) dto.UpdatePolicyRes {
 func mapDeletePolicyError(err error) dto.DeletePolicyRes {
 	var refErr *service.ReferencedByError
 	switch {
+	case errors.Is(err, service.ErrForbidden):
+		return &dto.PolicyForbiddenHTTPError{Code: 40300, Message: err.Error()}
 	case errors.As(err, &refErr):
 		return &dto.DeletePolicyConflictHTTPError{Code: 40900, Message: err.Error(), Data: dto.PolicyReferencedByView{ReferencedBy: refErr.Groups}}
 	case errors.Is(err, service.ErrNotFound):
@@ -66,6 +72,8 @@ func mapListPolicyVersionsError(err error) dto.ListPolicyVersionsRes {
 func mapRollbackPolicyError(err error) dto.RollbackPolicyRes {
 	var valErr *service.ValidationError
 	switch {
+	case errors.Is(err, service.ErrForbidden):
+		return &dto.PolicyForbiddenHTTPError{Code: 40300, Message: err.Error()}
 	case errors.As(err, &valErr):
 		return &dto.PolicyBadRequestHTTPError{Code: 40000, Message: err.Error()}
 	case errors.Is(err, service.ErrNotFound):

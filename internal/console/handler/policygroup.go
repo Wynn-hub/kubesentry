@@ -70,6 +70,9 @@ func (h *Handler) GetPolicyGroup(ctx context.Context, p dto.GetPolicyGroupParams
 func (h *Handler) CreatePolicyGroup(ctx context.Context, input *dto.PolicyGroupInput) (dto.CreatePolicyGroupRes, error) {
 	e := h.svcs.PolicyGroup.Create(ctx, input)
 	if e != nil {
+		if errors.Is(e, service.ErrForbidden) {
+			return &dto.PolicyGroupForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
+		}
 		var v *service.ValidationError
 		if errors.As(e, &v) {
 			return &dto.PolicyGroupBadRequestHTTPError{Code: 40000, Message: e.Error()}, nil
@@ -100,7 +103,7 @@ func (h *Handler) CreatePolicyGroup(ctx context.Context, input *dto.PolicyGroupI
 func (h *Handler) UpdatePolicyGroup(ctx context.Context, input *dto.PolicyGroupInput, p dto.UpdatePolicyGroupParams) (dto.UpdatePolicyGroupRes, error) {
 	e := h.svcs.PolicyGroup.Update(ctx, p.Name, input)
 	if e != nil {
-		if errors.Is(e, service.ErrDefaultPolicyGroupScope) {
+		if errors.Is(e, service.ErrDefaultPolicyGroupScope) || errors.Is(e, service.ErrForbidden) {
 			return &dto.PolicyGroupForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
 		}
 		if errors.Is(e, service.ErrNotFound) {
@@ -135,6 +138,9 @@ func (h *Handler) UpdatePolicyGroup(ctx context.Context, input *dto.PolicyGroupI
 func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupEnabledInput, p dto.SetPolicyGroupEnabledParams) (dto.SetPolicyGroupEnabledRes, error) {
 	e := h.svcs.PolicyGroup.SetEnabled(ctx, p.Name, r.Enabled)
 	if e != nil {
+		if errors.Is(e, service.ErrForbidden) {
+			return &dto.PolicyGroupForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
+		}
 		if errors.Is(e, service.ErrNotFound) {
 			return &dto.PolicyGroupNotFoundHTTPError{Code: 40400, Message: e.Error()}, nil
 		}
@@ -160,7 +166,7 @@ func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupE
 func (h *Handler) DeletePolicyGroup(ctx context.Context, p dto.DeletePolicyGroupParams) (dto.DeletePolicyGroupRes, error) {
 	e := h.svcs.PolicyGroup.Delete(ctx, p.Name)
 	if e != nil {
-		if p.Name == "default" {
+		if p.Name == "default" || errors.Is(e, service.ErrForbidden) {
 			return &dto.PolicyGroupForbiddenHTTPError{Code: 40300, Message: e.Error()}, nil
 		}
 		if errors.Is(e, service.ErrNotFound) {

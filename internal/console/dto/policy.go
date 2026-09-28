@@ -315,6 +315,17 @@ type PolicyNotFoundHTTPError struct {
 	Message string `json:"message"`
 }
 
+type PolicyForbiddenHTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (*PolicyForbiddenHTTPError) HTTPStatus() int    { return 403 }
+func (*PolicyForbiddenHTTPError) createPolicyRes()   {}
+func (*PolicyForbiddenHTTPError) updatePolicyRes()   {}
+func (*PolicyForbiddenHTTPError) deletePolicyRes()   {}
+func (*PolicyForbiddenHTTPError) rollbackPolicyRes() {}
+
 func (*PolicyNotFoundHTTPError) HTTPStatus() int        { return 404 }
 func (*PolicyNotFoundHTTPError) getPolicyRes()          {}
 func (*PolicyNotFoundHTTPError) updatePolicyRes()       {}

@@ -256,6 +256,8 @@ type ExceptionForbiddenHTTPError struct {
 }
 
 func (*ExceptionForbiddenHTTPError) HTTPStatus() int     { return 403 }
+func (*ExceptionForbiddenHTTPError) createExceptionRes() {}
+func (*ExceptionForbiddenHTTPError) updateExceptionRes() {}
 func (*ExceptionForbiddenHTTPError) deleteExceptionRes() {}
 
 func (*ExceptionNotFoundHTTPError) HTTPStatus() int     { return 404 }
