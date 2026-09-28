@@ -18,6 +18,7 @@ type AdmissionRepo struct{ db *gorm.DB }
 
 type AdmissionEventPageOptions struct {
 	PageOptions
+	TenantID     *int64
 	ClusterNames []string
 	Verdicts     []string
 	PolicyName   string
@@ -112,6 +113,15 @@ func (r *AdmissionRepo) GetEvent(ctx context.Context, id int64) (*AdmissionEvent
 	return &event, nil
 }
 
+func (r *AdmissionRepo) GetEventForTenant(ctx context.Context, tenantID, id int64) (*AdmissionEvent, error) {
+	var event AdmissionEvent
+	err := r.db.WithContext(ctx).Where("id = ? AND cluster_id IN (SELECT id FROM kubesentry.clusters WHERE tenant_id = ? AND deleted_at IS NULL)", id, tenantID).First(&event).Error
+	if err != nil {
+		return nil, fmt.Errorf("get tenant admission event %d: %w", id, err)
+	}
+	return &event, nil
+}
+
 func (r *AdmissionRepo) EventDatabaseIDs(ctx context.Context, eventIDs []string) (map[string]int64, error) {
 	result := make(map[string]int64, len(eventIDs))
 	if len(eventIDs) == 0 {
@@ -133,6 +143,9 @@ func (r *AdmissionRepo) EventDatabaseIDs(ctx context.Context, eventIDs []string)
 
 func (r *AdmissionRepo) ListEventsPage(ctx context.Context, options AdmissionEventPageOptions) ([]AdmissionEvent, int64, error) {
 	query := r.db.WithContext(ctx).Model(&AdmissionEvent{})
+	if options.TenantID != nil {
+		query = query.Where("cluster_id IN (SELECT id FROM kubesentry.clusters WHERE tenant_id = ? AND deleted_at IS NULL)", *options.TenantID)
+	}
 	if len(options.ClusterNames) > 0 {
 		query = query.Where("cluster_name IN ?", options.ClusterNames)
 	}
@@ -186,6 +199,18 @@ func (r *AdmissionRepo) Trend(ctx context.Context, from, to time.Time, hourly bo
 	}
 	var rows []AdmissionEventTrendBucket
 	err := r.db.WithContext(ctx).Model(&AdmissionEvent{}).Select("date_trunc(?, occurred_at) AS bucket, verdict, COUNT(*) AS count", unit).
+		Where("occurred_at >= ? AND occurred_at <= ?", from, to).Group("bucket, verdict").Order("bucket ASC").Scan(&rows).Error
+	return rows, err
+}
+
+func (r *AdmissionRepo) TrendForTenant(ctx context.Context, tenantID int64, from, to time.Time, hourly bool) ([]AdmissionEventTrendBucket, error) {
+	unit := "day"
+	if hourly {
+		unit = "hour"
+	}
+	var rows []AdmissionEventTrendBucket
+	err := r.db.WithContext(ctx).Model(&AdmissionEvent{}).Select("date_trunc(?, occurred_at) AS bucket, verdict, COUNT(*) AS count", unit).
+		Where("cluster_id IN (SELECT id FROM kubesentry.clusters WHERE tenant_id = ? AND deleted_at IS NULL)", tenantID).
 		Where("occurred_at >= ? AND occurred_at <= ?", from, to).Group("bucket, verdict").Order("bucket ASC").Scan(&rows).Error
 	return rows, err
 }

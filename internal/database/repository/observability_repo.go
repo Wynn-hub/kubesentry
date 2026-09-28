@@ -21,6 +21,7 @@ func NewIncidentRepo(db *gorm.DB) *IncidentRepo { return &IncidentRepo{db: db} }
 
 type IncidentPageOptions struct {
 	PageOptions
+	TenantID     *int64
 	ClusterNames []string
 	Components   []string
 	Reasons      []string
@@ -93,8 +94,20 @@ func (r *IncidentRepo) Get(ctx context.Context, id int64) (*AdmissionLinkInciden
 	return &incident, nil
 }
 
+func (r *IncidentRepo) GetForTenant(ctx context.Context, tenantID, id int64) (*AdmissionLinkIncident, error) {
+	var incident AdmissionLinkIncident
+	err := r.db.WithContext(ctx).Where("id = ? AND cluster_id IN (SELECT id FROM kubesentry.clusters WHERE tenant_id = ? AND deleted_at IS NULL)", id, tenantID).First(&incident).Error
+	if err != nil {
+		return nil, fmt.Errorf("get tenant admission link incident %d: %w", id, err)
+	}
+	return &incident, nil
+}
+
 func (r *IncidentRepo) ListPage(ctx context.Context, options IncidentPageOptions) ([]AdmissionLinkIncident, int64, error) {
 	query := r.db.WithContext(ctx).Model(&AdmissionLinkIncident{})
+	if options.TenantID != nil {
+		query = query.Where("cluster_id IN (SELECT id FROM kubesentry.clusters WHERE tenant_id = ? AND deleted_at IS NULL)", *options.TenantID)
+	}
 	if len(options.ClusterNames) > 0 {
 		query = query.Where("cluster_name IN ?", options.ClusterNames)
 	}

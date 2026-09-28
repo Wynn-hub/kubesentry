@@ -41,6 +41,9 @@ func (s *AdmissionService) Settings(ctx context.Context) (*dto.AdmissionSettings
 }
 
 func (s *AdmissionService) UpdateSettings(ctx context.Context, req *dto.AdmissionSettingsInput) (*dto.AdmissionSettingsView, error) {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return nil, err
+	}
 	settings, policies, err := admissionSettingsModels(req)
 	if err != nil {
 		return nil, err
@@ -74,6 +77,13 @@ func (s *AdmissionService) List(ctx context.Context, params dto.AdmissionEventLi
 		ResourceName: params.ResourceName,
 		Username:     params.Username,
 	}
+	principal := requestPrincipal(ctx)
+	if principal.Role != dbrepo.RoleSystemAdmin {
+		if principal.TenantID == nil {
+			return nil, ErrForbidden
+		}
+		options.TenantID = principal.TenantID
+	}
 	options.Verdicts = append(options.Verdicts, params.Verdicts...)
 	options.From, options.To = params.From, params.To
 	rows, total, err := s.repo.ListEventsPage(ctx, options)
@@ -92,7 +102,15 @@ func (s *AdmissionService) Get(ctx context.Context, resourceID string) (*dto.Adm
 	if err != nil || id <= 0 {
 		return nil, &ValidationError{Msg: "invalid event id"}
 	}
-	event, err := s.repo.GetEvent(ctx, id)
+	principal := requestPrincipal(ctx)
+	var event *dbrepo.AdmissionEvent
+	if principal.Role == dbrepo.RoleSystemAdmin {
+		event, err = s.repo.GetEvent(ctx, id)
+	} else if principal.TenantID != nil {
+		event, err = s.repo.GetEventForTenant(ctx, *principal.TenantID, id)
+	} else {
+		return nil, ErrForbidden
+	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
@@ -107,7 +125,16 @@ func (s *AdmissionService) Trend(ctx context.Context, from, to time.Time) ([]dto
 	if to.Before(from) {
 		return nil, &ValidationError{Msg: "to must be after from"}
 	}
-	rows, err := s.repo.Trend(ctx, from, to, to.Sub(from) <= 48*time.Hour)
+	principal := requestPrincipal(ctx)
+	var rows []dbrepo.AdmissionEventTrendBucket
+	var err error
+	if principal.Role == dbrepo.RoleSystemAdmin {
+		rows, err = s.repo.Trend(ctx, from, to, to.Sub(from) <= 48*time.Hour)
+	} else if principal.TenantID != nil {
+		rows, err = s.repo.TrendForTenant(ctx, *principal.TenantID, from, to, to.Sub(from) <= 48*time.Hour)
+	} else {
+		return nil, ErrForbidden
+	}
 	if err != nil {
 		return nil, err
 	}

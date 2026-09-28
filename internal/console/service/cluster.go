@@ -28,7 +28,18 @@ func NewClusterService(repos repository.Repositories, notifier Notifier) *Cluste
 }
 
 func (s *ClusterService) List(ctx context.Context, page, pageSize int, sortBy, sortOrder string) (*dto.ClusterPageView, error) {
-	rows, total, err := s.repos.Clusters.ListPage(ctx, dbrepo.PageOptions{Limit: pageSize, Offset: (page - 1) * pageSize, SortBy: sortBy, Desc: sortOrder == "desc"})
+	options := dbrepo.PageOptions{Limit: pageSize, Offset: (page - 1) * pageSize, SortBy: sortBy, Desc: sortOrder == "desc"}
+	principal := requestPrincipal(ctx)
+	var rows []dbrepo.Cluster
+	var total int64
+	var err error
+	if principal.Role == dbrepo.RoleSystemAdmin {
+		rows, total, err = s.repos.Clusters.ListPage(ctx, options)
+	} else if principal.TenantID != nil {
+		rows, total, err = s.repos.Clusters.ListPageForTenant(ctx, *principal.TenantID, options)
+	} else {
+		return nil, ErrForbidden
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
@@ -41,7 +52,7 @@ func (s *ClusterService) List(ctx context.Context, page, pageSize int, sortBy, s
 }
 
 func (s *ClusterService) Get(ctx context.Context, name string) (*dto.ClusterView, error) {
-	c, err := s.repos.Clusters.GetByName(ctx, name)
+	c, err := s.clusterForActor(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
@@ -52,6 +63,9 @@ func (s *ClusterService) Get(ctx context.Context, name string) (*dto.ClusterView
 }
 
 func (s *ClusterService) Create(ctx context.Context, req dto.ClusterCreateInput) (string, string, error) {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return "", "", err
+	}
 	if errs := validation.IsDNS1123Subdomain(req.Name); len(errs) > 0 {
 		return "", "", &ValidationError{Msg: "invalid name: " + strings.Join(errs, "; ")}
 	}
@@ -78,6 +92,9 @@ func (s *ClusterService) Create(ctx context.Context, req dto.ClusterCreateInput)
 }
 
 func (s *ClusterService) UpdateLabels(ctx context.Context, name string, req dto.ClusterLabelsInput) error {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return err
+	}
 	c, err := s.repos.Clusters.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -92,6 +109,9 @@ func (s *ClusterService) UpdateLabels(ctx context.Context, name string, req dto.
 }
 
 func (s *ClusterService) Delete(ctx context.Context, name string) error {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return err
+	}
 	c, err := s.repos.Clusters.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -109,6 +129,9 @@ func (s *ClusterService) Delete(ctx context.Context, name string) error {
 }
 
 func (s *ClusterService) ReissueToken(ctx context.Context, name string, req dto.ClusterTokenInput) (string, string, error) {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return "", "", err
+	}
 	if err := validateInstallParams(&req.InstallParams); err != nil {
 		return "", "", err
 	}
@@ -138,6 +161,9 @@ func (s *ClusterService) ReissueToken(ctx context.Context, name string, req dto.
 }
 
 func (s *ClusterService) LatestInstallParams(ctx context.Context, name string) (*dto.ClusterInstallInput, error) {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return nil, err
+	}
 	rec, err := s.repos.InstallRecords.LatestForCluster(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("latest install params: %w", err)
@@ -149,6 +175,9 @@ func (s *ClusterService) LatestInstallParams(ctx context.Context, name string) (
 }
 
 func (s *ClusterService) CreateUninstall(ctx context.Context, name string) (*dto.UninstallTaskView, error) {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return nil, err
+	}
 	c, err := s.repos.Clusters.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -180,7 +209,7 @@ func (s *ClusterService) CreateUninstall(ctx context.Context, name string) (*dto
 }
 
 func (s *ClusterService) ListUninstall(ctx context.Context, name string) ([]dto.UninstallTaskView, error) {
-	c, err := s.repos.Clusters.GetByName(ctx, name)
+	c, err := s.clusterForActor(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
@@ -199,6 +228,9 @@ func (s *ClusterService) ListUninstall(ctx context.Context, name string) ([]dto.
 }
 
 func (s *ClusterService) RetryUninstall(ctx context.Context, name string, taskID int64) error {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return err
+	}
 	c, err := s.repos.Clusters.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -226,6 +258,9 @@ func (s *ClusterService) RetryUninstall(ctx context.Context, name string, taskID
 }
 
 func (s *ClusterService) ListInstallRecords(ctx context.Context, page, pageSize int, sortBy, sortOrder string) (*dto.InstallRecordPageView, error) {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return nil, err
+	}
 	rows, total, err := s.repos.InstallRecords.ListPage(ctx, dbrepo.PageOptions{Limit: pageSize, Offset: (page - 1) * pageSize, SortBy: sortBy, Desc: sortOrder == "desc"})
 	if err != nil {
 		return nil, fmt.Errorf("list install records: %w", err)
@@ -235,6 +270,42 @@ func (s *ClusterService) ListInstallRecords(ctx context.Context, page, pageSize 
 		items = append(items, dto.InstallRecordItemView{ClusterName: rec.ClusterName, Namespace: rec.Namespace, WebhookRepository: rec.WebhookRepository, WebhookTag: rec.WebhookTag, OperatorRepository: rec.OperatorRepository, OperatorTag: rec.OperatorTag, HighAvailability: rec.HighAvailability, GatewayAddress: rec.GatewayAddress, CreatedAt: rec.CreatedAt})
 	}
 	return &dto.InstallRecordPageView{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
+}
+
+func (s *ClusterService) AssignTenant(ctx context.Context, name string, tenantID *int64) error {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return err
+	}
+	cluster, err := s.repos.Clusters.GetByName(ctx, name)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if tenantID != nil {
+		if _, err := s.repos.Identity.GetTenant(ctx, *tenantID); err != nil {
+			return ErrNotFound
+		}
+	}
+	if err := s.repos.Clusters.AssignTenant(ctx, cluster.ID, tenantID); err != nil {
+		if errors.Is(err, dbrepo.ErrClusterTenantInUse) {
+			return newConflict("%s", err.Error())
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *ClusterService) clusterForActor(ctx context.Context, name string) (*dbrepo.Cluster, error) {
+	principal := requestPrincipal(ctx)
+	if principal.Role == dbrepo.RoleSystemAdmin {
+		return s.repos.Clusters.GetByName(ctx, name)
+	}
+	if principal.TenantID == nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return s.repos.Clusters.GetByNameForTenant(ctx, *principal.TenantID, name)
 }
 
 func (s *ClusterService) recordInstall(ctx context.Context, clusterName string, p *dto.ClusterInstallInput) error {

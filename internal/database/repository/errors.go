@@ -11,7 +11,10 @@ import (
 // in between. Callers map this to an HTTP 409.
 var ErrConflict = errors.New("dbrepo: row was modified since it was read")
 
-var ErrLastSystemAdmin = errors.New("at least one enabled system administrator is required")
+var (
+	ErrLastSystemAdmin    = errors.New("at least one enabled system administrator is required")
+	ErrClusterTenantInUse = errors.New("cluster is targeted by an existing tenant distribution")
+)
 
 // IsUniqueViolation reports whether err is a Postgres unique-constraint
 // violation (SQLSTATE 23505) — the GORM-era equivalent of

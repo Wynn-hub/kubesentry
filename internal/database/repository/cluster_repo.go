@@ -7,6 +7,9 @@ import (
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 type ClusterRepo struct{ db *gorm.DB }
@@ -40,10 +43,26 @@ func (r *ClusterRepo) GetByName(ctx context.Context, name string) (*Cluster, err
 	return &c, nil
 }
 
+func (r *ClusterRepo) GetByNameForTenant(ctx context.Context, tenantID int64, name string) (*Cluster, error) {
+	var cluster Cluster
+	if err := r.db.WithContext(ctx).Where("tenant_id = ? AND name = ?", tenantID, name).First(&cluster).Error; err != nil {
+		return nil, fmt.Errorf("get tenant cluster %q: %w", name, err)
+	}
+	return &cluster, nil
+}
+
 func (r *ClusterRepo) List(ctx context.Context) ([]Cluster, error) {
 	var out []Cluster
 	if err := r.db.WithContext(ctx).Find(&out).Error; err != nil {
 		return nil, fmt.Errorf("list clusters: %w", err)
+	}
+	return out, nil
+}
+
+func (r *ClusterRepo) ListForTenant(ctx context.Context, tenantID int64) ([]Cluster, error) {
+	var out []Cluster
+	if err := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID).Find(&out).Error; err != nil {
+		return nil, fmt.Errorf("list tenant clusters: %w", err)
 	}
 	return out, nil
 }
@@ -63,6 +82,17 @@ func (r *ClusterRepo) ListPage(ctx context.Context, options PageOptions) ([]Clus
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list cluster page: %w", err)
+	}
+	return items, total, nil
+}
+
+func (r *ClusterRepo) ListPageForTenant(ctx context.Context, tenantID int64, options PageOptions) ([]Cluster, int64, error) {
+	items, total, err := queryPage[Cluster](
+		r.db.WithContext(ctx).Model(&Cluster{}).Where("tenant_id = ?", tenantID), options,
+		map[string]string{"name": "name", "phase": "phase", "operatorVersion": "operator_version", "lastHeartbeatAt": "last_heartbeat_at", "createdAt": "created_at"}, "name ASC",
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list tenant cluster page: %w", err)
 	}
 	return items, total, nil
 }
@@ -168,4 +198,39 @@ func (r *ClusterRepo) UpdatePhase(ctx context.Context, id int64, phase string) e
 
 func (r *ClusterRepo) Delete(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).Delete(&Cluster{}, id).Error
+}
+
+func (r *ClusterRepo) AssignTenant(ctx context.Context, id int64, tenantID *int64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var cluster Cluster
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&cluster, id).Error; err != nil {
+			return err
+		}
+		if cluster.TenantID != nil && (tenantID == nil || *cluster.TenantID != *tenantID) {
+			var distributions []PolicyDistribution
+			if err := tx.Where("tenant_id = ?", *cluster.TenantID).Find(&distributions).Error; err != nil {
+				return err
+			}
+			for _, distribution := range distributions {
+				if distributionTargetsCluster(distribution, cluster) {
+					return ErrClusterTenantInUse
+				}
+			}
+		}
+		return tx.Model(&cluster).Update("tenant_id", tenantID).Error
+	})
+}
+
+func distributionTargetsCluster(distribution PolicyDistribution, cluster Cluster) bool {
+	for _, name := range distribution.Spec.Data().Clusters.ByName {
+		if name == cluster.Name {
+			return true
+		}
+	}
+	selector := distribution.Spec.Data().Clusters.ClusterSelector
+	if selector == nil {
+		return false
+	}
+	parsed, err := metav1.LabelSelectorAsSelector(selector)
+	return err == nil && parsed.Matches(labels.Set(cluster.Labels.Data()))
 }

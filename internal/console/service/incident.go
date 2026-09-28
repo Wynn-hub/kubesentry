@@ -48,7 +48,15 @@ func (s *IncidentService) List(ctx context.Context, p dto.IncidentListOptions) (
 		}
 		statuses = append(statuses, string(v))
 	}
-	items, total, err := s.incidents.ListPage(ctx, dbrepo.IncidentPageOptions{PageOptions: dbrepo.PageOptions{Limit: size, Offset: (page - 1) * size, SortBy: "lastSeenAt", Desc: true}, ClusterNames: p.Clusters, Components: components, Reasons: p.Reasons, Statuses: statuses, From: p.From, To: p.To, Now: time.Now().UTC()})
+	options := dbrepo.IncidentPageOptions{PageOptions: dbrepo.PageOptions{Limit: size, Offset: (page - 1) * size, SortBy: "lastSeenAt", Desc: true}, ClusterNames: p.Clusters, Components: components, Reasons: p.Reasons, Statuses: statuses, From: p.From, To: p.To, Now: time.Now().UTC()}
+	principal := requestPrincipal(ctx)
+	if principal.Role != dbrepo.RoleSystemAdmin {
+		if principal.TenantID == nil {
+			return nil, ErrForbidden
+		}
+		options.TenantID = principal.TenantID
+	}
+	items, total, err := s.incidents.ListPage(ctx, options)
 	if err != nil {
 		return nil, fmt.Errorf("list admission link incidents: %w", err)
 	}
@@ -68,7 +76,15 @@ func (s *IncidentService) Get(ctx context.Context, id string) (*dto.IncidentView
 	if err != nil || n <= 0 {
 		return nil, &ValidationError{Msg: "invalid incident id"}
 	}
-	item, err := s.incidents.Get(ctx, n)
+	principal := requestPrincipal(ctx)
+	var item *dbrepo.AdmissionLinkIncident
+	if principal.Role == dbrepo.RoleSystemAdmin {
+		item, err = s.incidents.Get(ctx, n)
+	} else if principal.TenantID != nil {
+		item, err = s.incidents.GetForTenant(ctx, *principal.TenantID, n)
+	} else {
+		return nil, ErrForbidden
+	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound

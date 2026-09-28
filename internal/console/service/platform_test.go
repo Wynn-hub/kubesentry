@@ -61,8 +61,16 @@ func (fakePlatformClusterRepository) List(context.Context) ([]dbrepo.Cluster, er
 	return nil, nil
 }
 
+func (fakePlatformClusterRepository) ListForTenant(ctx context.Context, _ int64) ([]dbrepo.Cluster, error) {
+	return fakePlatformClusterRepository{}.List(ctx)
+}
+
 func (fakePlatformClusterRepository) GetByName(context.Context, string) (*dbrepo.Cluster, error) {
 	return nil, nil
+}
+
+func (fakePlatformClusterRepository) GetByNameForTenant(ctx context.Context, _ int64, name string) (*dbrepo.Cluster, error) {
+	return fakePlatformClusterRepository{}.GetByName(ctx, name)
 }
 
 func TestPlatformServiceUsesTypedRepositoriesForSettings(t *testing.T) {

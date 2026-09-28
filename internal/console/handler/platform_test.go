@@ -60,8 +60,16 @@ func (platformClusterRepository) List(context.Context) ([]dbrepo.Cluster, error)
 	return nil, nil
 }
 
+func (platformClusterRepository) ListForTenant(ctx context.Context, _ int64) ([]dbrepo.Cluster, error) {
+	return platformClusterRepository{}.List(ctx)
+}
+
 func (platformClusterRepository) GetByName(context.Context, string) (*dbrepo.Cluster, error) {
 	return nil, nil
+}
+
+func (platformClusterRepository) GetByNameForTenant(ctx context.Context, _ int64, name string) (*dbrepo.Cluster, error) {
+	return platformClusterRepository{}.GetByName(ctx, name)
 }
 
 func TestPlatformHandlerReturnsTypedSettingsWithoutHTTPDispatch(t *testing.T) {

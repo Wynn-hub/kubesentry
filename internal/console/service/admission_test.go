@@ -58,8 +58,16 @@ func (r *admissionRepositoryStub) GetEvent(context.Context, int64) (*dbrepo.Admi
 	return r.getEvent, r.getEventErr
 }
 
+func (r *admissionRepositoryStub) GetEventForTenant(ctx context.Context, _ int64, id int64) (*dbrepo.AdmissionEvent, error) {
+	return r.GetEvent(ctx, id)
+}
+
 func (*admissionRepositoryStub) Trend(context.Context, time.Time, time.Time, bool) ([]dbrepo.AdmissionEventTrendBucket, error) {
 	return nil, nil
+}
+
+func (r *admissionRepositoryStub) TrendForTenant(ctx context.Context, _ int64, from, to time.Time, hourly bool) ([]dbrepo.AdmissionEventTrendBucket, error) {
+	return r.Trend(ctx, from, to, hourly)
 }
 
 func TestAdmissionListOwnsPaginationMappingAndPolicyFallback(t *testing.T) {

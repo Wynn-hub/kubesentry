@@ -20,13 +20,17 @@ type DistributionRepository interface {
 type ClusterRepository interface {
 	Create(context.Context, *dbrepo.Cluster) error
 	GetByName(context.Context, string) (*dbrepo.Cluster, error)
+	GetByNameForTenant(context.Context, int64, string) (*dbrepo.Cluster, error)
 	List(context.Context) ([]dbrepo.Cluster, error)
+	ListForTenant(context.Context, int64) ([]dbrepo.Cluster, error)
 	ListPage(context.Context, dbrepo.PageOptions) ([]dbrepo.Cluster, int64, error)
+	ListPageForTenant(context.Context, int64, dbrepo.PageOptions) ([]dbrepo.Cluster, int64, error)
 	CountByPhase(context.Context) (dbrepo.ClusterPhaseCounts, error)
 	UpdateLabels(context.Context, int64, map[string]string) error
 	UpdateRegToken(context.Context, int64, string) error
 	UpdatePhase(context.Context, int64, string) error
 	Delete(context.Context, int64) error
+	AssignTenant(context.Context, int64, *int64) error
 }
 
 // PlatformClusterRepository is the read-only cluster view needed by platform
@@ -34,7 +38,9 @@ type ClusterRepository interface {
 // cluster lookups it actually performs.
 type PlatformClusterRepository interface {
 	List(context.Context) ([]dbrepo.Cluster, error)
+	ListForTenant(context.Context, int64) ([]dbrepo.Cluster, error)
 	GetByName(context.Context, string) (*dbrepo.Cluster, error)
+	GetByNameForTenant(context.Context, int64, string) (*dbrepo.Cluster, error)
 }
 
 type PlatformRepository interface {
@@ -66,6 +72,7 @@ type UninstallTaskRepository interface {
 type IncidentRepository interface {
 	ListPage(context.Context, dbrepo.IncidentPageOptions) ([]dbrepo.AdmissionLinkIncident, int64, error)
 	Get(context.Context, int64) (*dbrepo.AdmissionLinkIncident, error)
+	GetForTenant(context.Context, int64, int64) (*dbrepo.AdmissionLinkIncident, error)
 }
 
 type AdmissionRepository interface {
@@ -75,7 +82,9 @@ type AdmissionRepository interface {
 	UpdateSettingsAndPolicies(context.Context, *dbrepo.AdmissionEventSettings, []dbrepo.AdmissionStoragePolicy) error
 	ListEventsPage(context.Context, dbrepo.AdmissionEventPageOptions) ([]dbrepo.AdmissionEvent, int64, error)
 	GetEvent(context.Context, int64) (*dbrepo.AdmissionEvent, error)
+	GetEventForTenant(context.Context, int64, int64) (*dbrepo.AdmissionEvent, error)
 	Trend(context.Context, time.Time, time.Time, bool) ([]dbrepo.AdmissionEventTrendBucket, error)
+	TrendForTenant(context.Context, int64, time.Time, time.Time, bool) ([]dbrepo.AdmissionEventTrendBucket, error)
 }
 
 type IdentityRepository interface {

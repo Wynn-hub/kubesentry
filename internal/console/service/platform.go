@@ -52,6 +52,17 @@ func NewPlatformService(platform repository.PlatformRepository, clusters reposit
 	}
 }
 
+func (s *PlatformService) platformClusterForActor(ctx context.Context, name string) (*dbrepo.Cluster, error) {
+	principal := requestPrincipal(ctx)
+	if principal.Role == dbrepo.RoleSystemAdmin {
+		return s.clusters.GetByName(ctx, name)
+	}
+	if principal.TenantID == nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return s.clusters.GetByNameForTenant(ctx, *principal.TenantID, name)
+}
+
 func (s *PlatformService) Overview(ctx context.Context, p dto.PlatformOverviewOptions) (dto.PlatformOverviewView, error) {
 	if s.platform == nil || s.clusters == nil {
 		return dto.PlatformOverviewView{}, errors.New("platform observability is unavailable")
@@ -130,7 +141,15 @@ func (s *PlatformService) Overview(ctx context.Context, p dto.PlatformOverviewOp
 		result.PlatformHealth = worsePlatformHealth(result.PlatformHealth, item.Health)
 	}
 
-	clusters, err := s.clusters.List(ctx)
+	principal := requestPrincipal(ctx)
+	var clusters []dbrepo.Cluster
+	if principal.Role == dbrepo.RoleSystemAdmin {
+		clusters, err = s.clusters.List(ctx)
+	} else if principal.TenantID != nil {
+		clusters, err = s.clusters.ListForTenant(ctx, *principal.TenantID)
+	} else {
+		return dto.PlatformOverviewView{}, ErrForbidden
+	}
 	if err != nil {
 		return dto.PlatformOverviewView{}, err
 	}
@@ -158,6 +177,9 @@ func (s *PlatformService) Overview(ctx context.Context, p dto.PlatformOverviewOp
 	result.MemberPlane = dto.PlatformMemberPlaneView{
 		Total: len(all), Page: page, PageSize: pageSize, Clusters: []dto.PlatformClusterView{},
 	}
+	if principal.Role != dbrepo.RoleSystemAdmin {
+		result.GatewayPlane = []dto.PlatformComponentView{}
+	}
 	start := (page - 1) * pageSize
 	if start < len(all) {
 		end := min(start+pageSize, len(all))
@@ -176,7 +198,7 @@ func (s *PlatformService) InstanceTrend(ctx context.Context, p dto.PlatformTrend
 	}
 	clusterID := int64(0)
 	if p.Cluster != "" {
-		cluster, err := s.clusters.GetByName(ctx, p.Cluster)
+		cluster, err := s.platformClusterForActor(ctx, p.Cluster)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return dto.PlatformTrendView{}, ErrNotFound
@@ -214,7 +236,7 @@ func (s *PlatformService) LeadershipEvents(ctx context.Context, p dto.PlatformLe
 	}
 	var clusterID *int64
 	if p.Cluster != "" {
-		cluster, err := s.clusters.GetByName(ctx, p.Cluster)
+		cluster, err := s.platformClusterForActor(ctx, p.Cluster)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return dto.PlatformLeadershipPageView{}, ErrNotFound
@@ -245,6 +267,9 @@ func (s *PlatformService) LeadershipEvents(ctx context.Context, p dto.PlatformLe
 }
 
 func (s *PlatformService) Settings(ctx context.Context) (dto.PlatformSettingsView, error) {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return dto.PlatformSettingsView{}, err
+	}
 	if s.platform == nil {
 		return dto.PlatformSettingsView{}, errors.New("platform observability is unavailable")
 	}
@@ -256,6 +281,9 @@ func (s *PlatformService) Settings(ctx context.Context) (dto.PlatformSettingsVie
 }
 
 func (s *PlatformService) UpdateSettings(ctx context.Context, request dto.PlatformSettingsInput) (dto.PlatformSettingsView, error) {
+	if err := requireSystemAdmin(ctx); err != nil {
+		return dto.PlatformSettingsView{}, err
+	}
 	if s.platform == nil {
 		return dto.PlatformSettingsView{}, errors.New("platform observability is unavailable")
 	}

@@ -1,12 +1,14 @@
 package console
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path"
 	"strings"
 	"sync"
 
+	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/handler"
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 	"github.com/Wynn-hub/kubesentry/internal/console/service"
@@ -110,6 +112,23 @@ func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Han
 		protected.HandleFunc("PUT /api/v1/users/{id}/status", identity.setUserStatus)
 		protected.HandleFunc("POST /api/v1/users/{id}/reset-password", identity.resetPassword)
 		protected.HandleFunc("DELETE /api/v1/users/{id}", identity.deleteUser)
+		protected.HandleFunc("PUT /api/v1/clusters/{name}/tenant", func(w http.ResponseWriter, r *http.Request) {
+			var input dto.ClusterTenantRequest
+			if !decodeAuthJSON(w, r, &input) {
+				return
+			}
+			err := svcs.Cluster.AssignTenant(requestContext(r), r.PathValue("name"), input.TenantID)
+			switch {
+			case errors.Is(err, service.ErrNotFound):
+				writeErr(w, http.StatusNotFound, "not found")
+			case service.IsConflict(err):
+				writeErr(w, http.StatusConflict, err.Error())
+			case err != nil:
+				writeErr(w, http.StatusInternalServerError, "request failed")
+			default:
+				writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success"})
+			}
+		})
 	}
 
 	{

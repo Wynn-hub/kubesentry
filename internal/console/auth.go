@@ -21,11 +21,8 @@ import (
 
 const sessionCookieName = "kubesentry_session"
 
-type principalKey struct{}
-
 func PrincipalFromContext(ctx context.Context) (dbrepo.Principal, bool) {
-	p, ok := ctx.Value(principalKey{}).(dbrepo.Principal)
-	return p, ok
+	return dbrepo.PrincipalFromContext(ctx)
 }
 
 type loginLimiterEntry struct {
@@ -125,6 +122,10 @@ func (a *authHTTP) middleware(next http.Handler) http.Handler {
 			writeErr(w, http.StatusForbidden, "csrf validation failed")
 			return
 		}
+		if systemAdminOnlyRoute(r) && principal.Role != dbrepo.RoleSystemAdmin {
+			writeErr(w, http.StatusForbidden, "forbidden")
+			return
+		}
 		next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), principal)))
 	})
 }
@@ -151,7 +152,7 @@ func (a *authHTTP) allowLogin(key string) bool {
 }
 
 func withPrincipal(ctx context.Context, principal dbrepo.Principal) context.Context {
-	return context.WithValue(ctx, principalKey{}, principal)
+	return dbrepo.WithPrincipal(ctx, principal)
 }
 
 func decodeAuthJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
@@ -170,6 +171,20 @@ func setSessionCookie(w http.ResponseWriter, r *http.Request, value string, life
 
 func isSafeMethod(method string) bool {
 	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions
+}
+
+func systemAdminOnlyRoute(r *http.Request) bool {
+	path := r.URL.Path
+	if path == "/api/v1/install-records" || path == "/api/v1/platform/settings" {
+		return true
+	}
+	if path == "/api/v1/admission-event-settings" {
+		return r.Method != http.MethodGet
+	}
+	if strings.HasPrefix(path, "/api/v1/clusters/") {
+		return r.Method != http.MethodGet || strings.HasSuffix(path, "/latest-install-params")
+	}
+	return path == "/api/v1/clusters" && r.Method != http.MethodGet
 }
 
 func sameOrigin(r *http.Request) bool {

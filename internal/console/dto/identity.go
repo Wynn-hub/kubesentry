@@ -38,3 +38,7 @@ type UserView struct {
 	Status   dbrepo.UserStatus `json:"status"`
 	TenantID *int64            `json:"tenantId,omitempty"`
 }
+
+type ClusterTenantRequest struct {
+	TenantID *int64 `json:"tenantId"`
+}
