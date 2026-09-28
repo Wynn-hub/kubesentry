@@ -39,6 +39,26 @@ func (f *authRepoFake) GetUserByUsername(_ context.Context, username string) (*d
 	user := f.admin
 	return &user, nil
 }
+func (f *authRepoFake) GetUser(context.Context, int64) (*dbrepo.User, error) { return &f.admin, nil }
+func (f *authRepoFake) ListUsers(context.Context) ([]dbrepo.User, error) {
+	return []dbrepo.User{f.admin}, nil
+}
+func (f *authRepoFake) ListUsersByTenant(context.Context, int64) ([]dbrepo.User, error) {
+	return nil, nil
+}
+func (f *authRepoFake) ListTenants(context.Context) ([]dbrepo.Tenant, error) { return nil, nil }
+func (f *authRepoFake) CreateTenant(context.Context, *dbrepo.Tenant) error   { return nil }
+func (f *authRepoFake) UpdateTenantStatus(context.Context, int64, dbrepo.UserStatus) error {
+	return nil
+}
+func (f *authRepoFake) CreateUser(context.Context, *dbrepo.User) error { return nil }
+func (f *authRepoFake) SetUserStatusAndRevoke(context.Context, int64, dbrepo.UserStatus, time.Time) error {
+	return nil
+}
+func (f *authRepoFake) SetUserPasswordAndRevoke(context.Context, int64, string, time.Time) error {
+	return nil
+}
+func (f *authRepoFake) DeleteUserAndRevoke(context.Context, int64, time.Time) error { return nil }
 
 func (f *authRepoFake) GetTenant(context.Context, int64) (*dbrepo.Tenant, error) {
 	return f.tenant, nil

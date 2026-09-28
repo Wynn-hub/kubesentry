@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var ErrInactiveSession = errors.New("session is expired, revoked, or unavailable")
@@ -34,7 +35,14 @@ func (r *IdentityRepo) ListTenants(ctx context.Context) ([]Tenant, error) {
 }
 
 func (r *IdentityRepo) UpdateTenantStatus(ctx context.Context, id int64, status UserStatus) error {
-	return r.db.WithContext(ctx).Model(&Tenant{}).Where("id = ?", id).Update("status", status).Error
+	result := r.db.WithContext(ctx).Model(&Tenant{}).Where("id = ?", id).Update("status", status)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *IdentityRepo) CreateUser(ctx context.Context, user *User) error {
@@ -47,6 +55,20 @@ func (r *IdentityRepo) GetUserByUsername(ctx context.Context, username string) (
 		return nil, fmt.Errorf("get user %q: %w", username, err)
 	}
 	return &user, nil
+}
+
+func (r *IdentityRepo) GetUser(ctx context.Context, id int64) (*User, error) {
+	var user User
+	if err := r.db.WithContext(ctx).First(&user, id).Error; err != nil {
+		return nil, fmt.Errorf("get user %d: %w", id, err)
+	}
+	return &user, nil
+}
+
+func (r *IdentityRepo) ListUsers(ctx context.Context) ([]User, error) {
+	var users []User
+	err := r.db.WithContext(ctx).Order("username ASC").Find(&users).Error
+	return users, err
 }
 
 func (r *IdentityRepo) ListUsersByTenant(ctx context.Context, tenantID int64) ([]User, error) {
@@ -105,4 +127,69 @@ func (r *IdentityRepo) RevokeSession(ctx context.Context, id int64, at time.Time
 
 func (r *IdentityRepo) RevokeUserSessions(ctx context.Context, userID int64) error {
 	return r.db.WithContext(ctx).Model(&Session{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", time.Now()).Error
+}
+
+func (r *IdentityRepo) SetUserStatusAndRevoke(ctx context.Context, userID int64, status UserStatus, at time.Time) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// ponytail: one global identity-admin lock; split per tenant only if admin mutation throughput matters.
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", int64(2081000000000000001)).Error; err != nil {
+			return err
+		}
+		var user User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
+			return err
+		}
+		if user.Role == RoleSystemAdmin && status == UserStatusDisabled {
+			var enabled []User
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("role = ? AND status = ?", RoleSystemAdmin, UserStatusActive).Find(&enabled).Error; err != nil {
+				return err
+			}
+			if len(enabled) <= 1 {
+				return ErrLastSystemAdmin
+			}
+		}
+		if err := tx.Model(&user).Updates(map[string]any{"status": status, "updated_at": at}).Error; err != nil {
+			return err
+		}
+		return tx.Model(&Session{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", at).Error
+	})
+}
+
+func (r *IdentityRepo) SetUserPasswordAndRevoke(ctx context.Context, userID int64, hash string, at time.Time) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&User{}).Where("id = ?", userID).Updates(map[string]any{"password_hash": hash, "updated_at": at})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return tx.Model(&Session{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", at).Error
+	})
+}
+
+func (r *IdentityRepo) DeleteUserAndRevoke(ctx context.Context, userID int64, at time.Time) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Keep deletion under the same lock as status changes so the last-admin check cannot race.
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", int64(2081000000000000001)).Error; err != nil {
+			return err
+		}
+		var user User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
+			return err
+		}
+		if user.Role == RoleSystemAdmin && user.Status == UserStatusActive {
+			var enabled []User
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("role = ? AND status = ?", RoleSystemAdmin, UserStatusActive).Find(&enabled).Error; err != nil {
+				return err
+			}
+			if len(enabled) <= 1 {
+				return ErrLastSystemAdmin
+			}
+		}
+		if err := tx.Model(&Session{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", at).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&user).Error
+	})
 }

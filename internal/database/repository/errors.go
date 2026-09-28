@@ -11,6 +11,8 @@ import (
 // in between. Callers map this to an HTTP 409.
 var ErrConflict = errors.New("dbrepo: row was modified since it was read")
 
+var ErrLastSystemAdmin = errors.New("at least one enabled system administrator is required")
+
 // IsUniqueViolation reports whether err is a Postgres unique-constraint
 // violation (SQLSTATE 23505) — the GORM-era equivalent of
 // apierrors.IsAlreadyExists on a Create call against a uniqueIndex column

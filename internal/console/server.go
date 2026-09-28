@@ -101,6 +101,15 @@ func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Han
 		public.HandleFunc("POST /api/v1/auth/login", auth.login)
 		protected.HandleFunc("POST /api/v1/auth/logout", auth.logout)
 		protected.HandleFunc("GET /api/v1/me", auth.me)
+		identity := identityHTTP{service: svcs.Identity}
+		protected.HandleFunc("GET /api/v1/tenants", identity.listTenants)
+		protected.HandleFunc("POST /api/v1/tenants", identity.createTenant)
+		protected.HandleFunc("PUT /api/v1/tenants/{id}/status", identity.setTenantStatus)
+		protected.HandleFunc("GET /api/v1/users", identity.listUsers)
+		protected.HandleFunc("POST /api/v1/users", identity.createUser)
+		protected.HandleFunc("PUT /api/v1/users/{id}/status", identity.setUserStatus)
+		protected.HandleFunc("POST /api/v1/users/{id}/reset-password", identity.resetPassword)
+		protected.HandleFunc("DELETE /api/v1/users/{id}", identity.deleteUser)
 	}
 
 	{

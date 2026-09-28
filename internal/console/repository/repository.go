@@ -80,8 +80,18 @@ type AdmissionRepository interface {
 
 type IdentityRepository interface {
 	GetUserByUsername(context.Context, string) (*dbrepo.User, error)
+	GetUser(context.Context, int64) (*dbrepo.User, error)
+	ListUsers(context.Context) ([]dbrepo.User, error)
+	ListUsersByTenant(context.Context, int64) ([]dbrepo.User, error)
 	UpdateUser(context.Context, *dbrepo.User) error
+	SetUserStatusAndRevoke(context.Context, int64, dbrepo.UserStatus, time.Time) error
+	SetUserPasswordAndRevoke(context.Context, int64, string, time.Time) error
+	DeleteUserAndRevoke(context.Context, int64, time.Time) error
 	GetTenant(context.Context, int64) (*dbrepo.Tenant, error)
+	ListTenants(context.Context) ([]dbrepo.Tenant, error)
+	CreateTenant(context.Context, *dbrepo.Tenant) error
+	UpdateTenantStatus(context.Context, int64, dbrepo.UserStatus) error
+	CreateUser(context.Context, *dbrepo.User) error
 	InitializeAdmin(context.Context, string, time.Time) (bool, error)
 	CreateSession(context.Context, *dbrepo.Session) error
 	GetActiveSession(context.Context, string, time.Time) (*dbrepo.Session, *dbrepo.User, *dbrepo.Tenant, error)
