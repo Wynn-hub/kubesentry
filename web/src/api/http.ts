@@ -27,6 +27,12 @@ export class ApiError extends Error {
   }
 }
 
+let unauthorizedHandler: (() => void) | undefined
+
+export function setUnauthorizedHandler(handler: () => void) {
+  unauthorizedHandler = handler
+}
+
 // A non-zero code is the single failure signal — an HTTP 200 carrying
 // code 50000 is still an error, so the code is checked rather than the status.
 export function unwrap<Operation extends keyof operations>(
@@ -47,6 +53,7 @@ export async function extract<Operation extends keyof operations>(
 ): Promise<OperationData<Operation>> {
   try {
     const response = await result
+    if (response.response.status === 401) unauthorizedHandler?.()
     return unwrap<Operation>(response.response.status, response.data ?? response.error, `HTTP ${response.response.status}`)
   } catch (e) {
     if (e instanceof ApiError) throw e

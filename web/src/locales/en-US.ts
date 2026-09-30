@@ -1,4 +1,5 @@
 export default {
+  auth: { loginTitle: 'Sign in to KubeSentry', username: 'Username', password: 'Password', confirmPassword: 'Confirm password', passwordMismatch: 'Passwords do not match', login: 'Sign in', logout: 'Sign out', setupTitle: 'Initialize administrator', setupHint: 'Set the password for the default admin user to finish first-time setup.', initialize: 'Finish setup' },
   nav: {
     overview: 'Overview', policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions', distributions: 'Distribution',
     clusters: 'Clusters', tenants: 'Tenants',
@@ -33,7 +34,7 @@ export default {
     subtitle: 'Control-plane HTTP reference, in-browser requests, and the other contract entry points',
     consoleTitle: 'Console HTTP API',
     consoleDescription: 'The Scalar reference below groups operations by OpenAPI tag and supports same-origin Try it Out.',
-    consoleAuth: 'Console currently has no authentication middleware. The OpenAPI Bearer scheme is reserved for future use, so Try it Out currently needs no authentication. Deployment networking remains the access boundary.',
+    consoleAuth: 'Console uses an HttpOnly session cookie. After sign-in, the browser automatically includes it in same-origin Try it Out requests.',
     gatewayTitle: 'Gateway gRPC Contract',
     gatewayDescription: 'Gateway RPCs are defined with protobuf and gRPC, not REST operations, so they do not appear in the OpenAPI list below.',
     gatewayLocation: 'Source of truth: api/proto/gateway/v1/gateway.proto',

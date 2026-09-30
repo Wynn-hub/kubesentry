@@ -1,4 +1,5 @@
 export default {
+  auth: { loginTitle: '登录 KubeSentry', username: '用户名', password: '密码', confirmPassword: '确认密码', passwordMismatch: '两次输入的密码不一致', login: '登录', logout: '退出登录', setupTitle: '初始化管理员', setupHint: '首次部署需要为默认 admin 用户设置密码。', initialize: '完成初始化' },
   nav: {
     overview: '平台概览', policies: '策略', groups: '策略组', exceptions: '豁免', distributions: '策略下发',
     clusters: '集群管理', tenants: '租户管理',
@@ -33,7 +34,7 @@ export default {
     subtitle: '控制面 HTTP API 参考、在线调试与其他契约入口',
     consoleTitle: 'Console HTTP API',
     consoleDescription: '本页的 Scalar 参考按 OpenAPI 标签分组，并支持同源 Try it Out。',
-    consoleAuth: '当前 Console 没有认证中间件；OpenAPI 中的 Bearer 方案仅为未来预留，在线调试当前不需要认证。网络访问边界仍由部署环境控制。',
+    consoleAuth: 'Console 使用 HttpOnly 会话 Cookie；登录后浏览器会自动在同源 Try it Out 请求中携带会话。',
     gatewayTitle: 'Gateway gRPC 契约',
     gatewayDescription: 'Gateway 使用 protobuf 定义的 gRPC RPC，不是 REST 操作，因此不会显示在下方的 OpenAPI 列表中。',
     gatewayLocation: '权威来源：api/proto/gateway/v1/gateway.proto',

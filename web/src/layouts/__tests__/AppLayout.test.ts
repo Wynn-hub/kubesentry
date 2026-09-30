@@ -8,6 +8,7 @@ vi.mock('@scalar/api-reference', () => ({
 }))
 vi.mock('@scalar/api-reference/style.css', () => ({}))
 import AppLayout from '../AppLayout.vue'
+import { authState } from '../../auth/session'
 import { i18n } from '../../locales'
 import router from '../../router'
 
@@ -21,6 +22,8 @@ describe('application navigation', () => {
   })
 
   it('navigates to the API documentation center from the AppLayout menu', async () => {
+    authState.status = 'authenticated'
+    authState.me = { id: 1, username: 'admin', role: 'system_admin' }
     await router.push('/')
     await router.isReady()
     const target = document.createElement('div')

@@ -1,6 +1,6 @@
 <template>
   <el-config-provider :locale="elLocale">
-    <router-view />
+    <router-view v-if="authState.status !== 'unknown'" />
   </el-config-provider>
 </template>
 
@@ -9,6 +9,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import en from 'element-plus/es/locale/lang/en'
+import { authState } from './auth/session'
 
 const { locale } = useI18n()
 const elLocale = computed(() => (locale.value === 'zh-CN' ? zhCn : en))

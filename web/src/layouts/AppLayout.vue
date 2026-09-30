@@ -105,6 +105,8 @@
           <el-option label="中文" value="zh-CN" />
           <el-option label="English" value="en-US" />
         </el-select>
+        <span class="current-user">{{ authState.me?.username }}</span>
+        <el-button text @click="onLogout">{{ $t('auth.logout') }}</el-button>
       </el-header>
       <el-main class="shell-content"><router-view /></el-main>
     </el-container>
@@ -115,9 +117,13 @@
 import { useI18n } from 'vue-i18n'
 import { setLocale } from '../locales'
 import Logo from '../components/Logo.vue'
+import { useRouter } from 'vue-router'
+import { authState, signOut } from '../auth/session'
 
 const { locale } = useI18n()
+const router = useRouter()
 const onLocale = (l: 'zh-CN' | 'en-US') => setLocale(l)
+const onLogout = async () => { await signOut(); await router.push({ name: 'login' }) }
 </script>
 
 <style scoped>
@@ -233,6 +239,7 @@ const onLocale = (l: 'zh-CN' | 'en-US') => setLocale(l)
   border-bottom: 1px solid var(--ink-700);
   background: var(--ink-900);
 }
+.current-user { margin-left: 12px; color: var(--steel-300); font-size: 13px; }
 
 .shell-content {
   background:

@@ -1,9 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AppLayout from '../layouts/AppLayout.vue'
+import { authState, refreshAuth } from '../auth/session'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    { path: '/setup', name: 'setup', component: () => import('../views/SetupAdminView.vue') },
+    { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
     {
       path: '/',
       component: AppLayout,
@@ -31,6 +34,13 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  if (authState.status === 'unknown') await refreshAuth()
+  if (authState.status === 'setup' && to.name !== 'setup') return { name: 'setup' }
+  if (authState.status === 'anonymous' && to.name !== 'login') return { name: 'login', query: { redirect: to.fullPath } }
+  if (authState.status === 'authenticated' && (to.name === 'login' || to.name === 'setup')) return { name: 'overview' }
 })
 
 export default router

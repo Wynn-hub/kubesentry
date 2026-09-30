@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { apiClient } from '../generated/client'
 import { POLICY_PHASES } from '../policy'
 
-function captureURL(response = { code: 0, message: 'success', data: { items: [], total: 0, page: 1, pageSize: 20 } }) {
+function captureRequest(response: unknown = { code: 0, message: 'success', data: { items: [], total: 0, page: 1, pageSize: 20 } }) {
   let received: Request | undefined
   return {
     fetch: async (request: Request) => {
       received = request
       return new Response(JSON.stringify(response), { headers: { 'Content-Type': 'application/json' } })
     },
+    request: () => received!,
     url: () => new URL(received!.url),
   }
 }
@@ -19,7 +20,7 @@ describe('generated client query serialization', () => {
   })
 
   it('serializes multi-value admission filters as one comma-separated form value', async () => {
-    const capture = captureURL()
+    const capture = captureRequest()
     await apiClient.GET('/admission-events', {
       params: { query: { cluster: ['prod', 'staging'], verdict: ['audit', 'deny'], namespace: ['default', 'system'], gvk: ['apps/v1/deployments', 'v1/pods'], policy: 'baseline', page: 2 } },
       baseUrl: 'https://console.test/api/v1',
@@ -36,7 +37,7 @@ describe('generated client query serialization', () => {
   })
 
   it('serializes multi-value policy filters as one comma-separated form value', async () => {
-    const capture = captureURL()
+    const capture = captureRequest()
     await apiClient.GET('/policies', {
       params: { query: { phase: ['Ready', 'Invalid'], mode: ['enforce', 'audit'], source: ['builtin', 'custom'], keyword: 'privileged' } },
       baseUrl: 'https://console.test/api/v1',
@@ -48,5 +49,17 @@ describe('generated client query serialization', () => {
     expect(url.searchParams.getAll('mode')).toEqual(['enforce,audit'])
     expect(url.searchParams.getAll('source')).toEqual(['builtin,custom'])
     expect(url.searchParams.get('keyword')).toBe('privileged')
+  })
+
+  it('sends same-origin credentials and CSRF headers only for mutations', async () => {
+    const get = captureRequest({ code: 0, message: 'success', data: { required: false } })
+    await apiClient.GET('/setup/status', { baseUrl: 'https://console.test/api/v1', fetch: get.fetch })
+    expect(get.request().credentials).toBe('same-origin')
+    expect(get.request().headers.has('X-KubeSentry-CSRF')).toBe(false)
+
+    const post = captureRequest()
+    await apiClient.POST('/auth/logout', { baseUrl: 'https://console.test/api/v1', fetch: post.fetch })
+    expect(post.request().credentials).toBe('same-origin')
+    expect(post.request().headers.get('X-KubeSentry-CSRF')).toBe('1')
   })
 })
