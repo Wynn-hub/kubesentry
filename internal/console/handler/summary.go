@@ -11,6 +11,9 @@ import (
 // @Description 查询策略、策略组、例外和集群的汇总数量。
 // @Tags Summary
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SummaryView}
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /summary [get]

@@ -18,6 +18,6 @@ type SetupStatusView struct {
 type MeView struct {
 	ID       int64       `json:"id"`
 	Username string      `json:"username"`
-	Role     dbrepo.Role `json:"role"`
+	Role     dbrepo.Role `json:"role" swaggertype:"string" enums:"system_admin,tenant_admin,viewer"`
 	TenantID *int64      `json:"tenantId,omitempty"`
 }

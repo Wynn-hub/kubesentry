@@ -14,6 +14,9 @@ import (
 // @Description 查询控制面和成员集群的组件健康、实例和资源摘要。
 // @Tags Platform
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "页码" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数" Enums(10,20,50,100) default(20)
 // @Param health query string false "按成员集群聚合健康状态筛选" Enums(ok,degraded,unavailable)
@@ -46,6 +49,9 @@ func platformOverviewOptions(p dto.GetPlatformOverviewParams) dto.PlatformOvervi
 // @Description 查询指定平台组件实例在时间范围内的资源趋势。
 // @Tags Platform
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param component path string true "平台组件名称" Enums(webhook,operator,gateway,console-api,console-web,postgres)
 // @Param instance path string true "平台组件实例名称"
 // @Param cluster query string false "成员面组件所属的集群名称；Gateway 平面组件省略"
@@ -81,6 +87,9 @@ func platformTrendOptions(p dto.GetPlatformInstanceTrendParams) dto.PlatformTren
 // @Description 分页查询平台组件 Leader 变更记录。
 // @Tags Platform
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "页码" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数" Enums(10,20,50,100) default(20)
 // @Param component query string false "按发生领导权变更的组件筛选" Enums(webhook,operator,gateway,console-api,console-web,postgres)
@@ -121,6 +130,9 @@ func platformLeadershipOptions(p dto.ListPlatformLeadershipEventsParams) dto.Pla
 // @Description 查询平台组件采样和历史保存配置。
 // @Tags Platform
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.PlatformSettingsView}
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Router /platform/settings [get]
@@ -138,6 +150,9 @@ func (h *Handler) GetPlatformSettings(ctx context.Context) (dto.GetPlatformSetti
 // @Tags Platform
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param body body dto.PlatformSettingsInput true "平台可观测性设置"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.PlatformSettingsView}
 // @Failure 400 {object} dto.SwagErrorResponse

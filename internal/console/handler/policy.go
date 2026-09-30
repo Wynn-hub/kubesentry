@@ -13,6 +13,9 @@ import (
 // @Description List policies with pagination, sorting, and filters.
 // @Tags Policy
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "Page number" minimum(1) default(1)
 // @Param pageSize query int false "Page size" Enums(10,20,50,100) default(20)
 // @Param sortBy query string false "Sort field" Enums(name,source,enforcementMode,phase,createdAt,updatedAt) default(name)
@@ -74,6 +77,9 @@ func (h *Handler) ListPolicies(ctx context.Context, params dto.ListPoliciesParam
 // @Description 返回策略完整内容，含引用它的策略组列表与乐观并发令牌。
 // @Tags Policy
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.PolicyPath true "策略名称"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyDetail}
 // @Failure 404 {object} dto.SwagErrorResponse
@@ -98,6 +104,9 @@ func (h *Handler) GetPolicy(ctx context.Context, params dto.GetPolicyParams) (dt
 // @Tags Policy
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param body body dto.SwagPolicyInput true "策略"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.PolicyNameView}
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -123,6 +132,9 @@ func (h *Handler) CreatePolicy(ctx context.Context, input *dto.PolicyInput) (dto
 // @Tags Policy
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.PolicyPath true "策略名称"
 // @Param body body dto.SwagPolicyInput true "策略"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.PolicyNameView}
@@ -149,6 +161,9 @@ func (h *Handler) UpdatePolicy(ctx context.Context, input *dto.PolicyInput, para
 // @Description 默认拒绝删除被策略组引用的策略，返回 40900 并在 data.referencedBy 列出引用方。force=true 跳过该检查强制删除。
 // @Tags Policy
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.PolicyPath true "策略名称"
 // @Param force query bool false "为 true 时跳过引用检查强制删除" default(false)
 // @Success 200 {object} dto.SwagEmptyResponse
@@ -170,6 +185,9 @@ func (h *Handler) DeletePolicy(ctx context.Context, params dto.DeletePolicyParam
 // @Description 返回版本快照列表，按版本号倒序，并标记当前生效版本。
 // @Tags Policy
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.PolicyPath true "策略名称"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyVersionList}
 // @Failure 404 {object} dto.SwagErrorResponse
@@ -194,6 +212,9 @@ func (h *Handler) ListPolicyVersions(ctx context.Context, params dto.ListPolicyV
 // @Tags Policy
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.PolicyPath true "策略名称"
 // @Param body body dto.SwagRollbackInput true "回滚方向"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagRollbackResult}
@@ -222,6 +243,9 @@ func (h *Handler) RollbackPolicy(ctx context.Context, req *dto.PolicyRollbackInp
 // @Tags Policy
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param body body dto.SwagValidateRegoInput true "Rego 源码"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -241,6 +265,9 @@ func (h *Handler) ValidatePolicyRego(ctx context.Context, req *dto.PolicyValidat
 // @Description 聚合所有策略 match 中用过的 apiGroups / apiVersions / resources 并去重排序，供前端可视化编辑器的下拉建议使用。不读取 rego 字段以避免传输大字段。
 // @Tags Policy
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagResourceSuggestions}
 // @Failure 400 {object} dto.SwagErrorResponse
 // @Failure 500 {object} dto.SwagErrorResponse

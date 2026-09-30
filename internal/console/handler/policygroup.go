@@ -13,6 +13,9 @@ import (
 // @Description 分页查询策略组及其当前解析出的策略数量。
 // @Tags PolicyGroup
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "页码，从 1 开始。省略时为 1" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数。仅接受 10、20、50、100。省略时为 20" Enums(10,20,50,100) default(20)
 // @Param sortBy query string false "排序字段" Enums(name,displayName,enabled,phase,resolvedCount) default(name)
@@ -39,6 +42,9 @@ func (h *Handler) ListPolicyGroups(ctx context.Context, p dto.ListPolicyGroupsPa
 // @Description 查询策略组配置、集群作用范围和解析状态。
 // @Tags PolicyGroup
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.PolicyGroupPath true "策略组名称"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyGroupDetail}
 // @Failure 404 {object} dto.SwagErrorResponse
@@ -61,6 +67,9 @@ func (h *Handler) GetPolicyGroup(ctx context.Context, p dto.GetPolicyGroupParams
 // @Tags PolicyGroup
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param body body dto.SwagPolicyGroupInput true "策略组"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyGroupName}
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -91,6 +100,9 @@ func (h *Handler) CreatePolicyGroup(ctx context.Context, input *dto.PolicyGroupI
 // @Tags PolicyGroup
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.PolicyGroupPath true "策略组名称"
 // @Param body body dto.SwagPolicyGroupInput true "策略组"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyGroupName}
@@ -127,6 +139,9 @@ func (h *Handler) UpdatePolicyGroup(ctx context.Context, input *dto.PolicyGroupI
 // @Tags PolicyGroup
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.PolicyGroupPath true "策略组名称"
 // @Param body body dto.SwagPolicyGroupEnabledInput true "启用状态"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagPolicyGroupEnabled}
@@ -157,6 +172,9 @@ func (h *Handler) SetPolicyGroupEnabled(ctx context.Context, r *dto.PolicyGroupE
 // @Description 删除非内置策略组。
 // @Tags PolicyGroup
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.PolicyGroupPath true "策略组名称"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 403 {object} dto.SwagErrorResponse

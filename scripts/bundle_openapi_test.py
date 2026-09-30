@@ -26,13 +26,23 @@ class BundleOpenAPITest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             document = json.loads(output.read_text())
             self.assertEqual(document["openapi"], "3.0.0")
-            self.assertEqual(operation_count(document), 50)
-            self.assertIn("BearerAuth", document["components"]["securitySchemes"])
+            self.assertEqual(operation_count(document), 64)
+            cookie = document["components"]["securitySchemes"]["SessionCookie"]
+            self.assertEqual(cookie, {"type": "apiKey", "in": "cookie", "name": "kubesentry_session", "description": "HttpOnly SameSite=Strict session cookie set by login and sent automatically by browsers."})
+            self.assert_auth_contract(document)
             assert_internal_refs_resolve(self, document, document)
             self.assertEqual(
                 output.read_text(),
                 json.dumps(document, indent=4, sort_keys=True, ensure_ascii=False) + "\n",
             )
+
+    def assert_auth_contract(self, document: dict) -> None:
+        paths = document["paths"]
+        self.assertEqual(set(paths["/auth/login"]["post"]["responses"]), {"200", "400", "401", "429"})
+        self.assertEqual(paths["/auth/logout"]["post"]["security"], [{"SessionCookie": []}])
+        self.assertEqual(paths["/me"]["get"]["security"], [{"SessionCookie": []}])
+        self.assertEqual(set(paths["/users/{id}"]["delete"]["responses"]), {"200", "401", "403", "404", "409"})
+        self.assertEqual(set(paths["/clusters/{name}/tenant"]["put"]["responses"]), {"200", "400", "401", "403", "404", "409"})
 
 
 def operation_count(document: dict) -> int:

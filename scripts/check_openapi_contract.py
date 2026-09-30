@@ -11,7 +11,7 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONSOLE_OPERATION_COUNT = 50
+CONSOLE_OPERATION_COUNT = 64
 GATEWAY_METHODS = frozenset({"Register", "Sync", "Connect", "NotifyChange", "Dispatch"})
 CRD_NAMES = frozenset({
     "policies.kubesentry.io",
@@ -20,7 +20,7 @@ CRD_NAMES = frozenset({
     "policyversions.kubesentry.io",
 })
 HANDLER_OPERATION = re.compile(
-    r"(?ms)^// @ID (?P<operation>\w+).*?^func \(h \*Handler\) (?P<method>\w+)\("
+    r"(?ms)^// @ID (?P<operation>\w+).*?^func (?:\(h \*Handler\) )?(?P<method>\w+)\("
 )
 ROUTE_REGISTRATIONS = frozenset({
     "registerPolicyRoutes",
@@ -32,7 +32,7 @@ ROUTE_REGISTRATIONS = frozenset({
     "registerDistributionRoutes",
     "registerPlatformRoutes",
 })
-RUNTIME_ROUTE = re.compile(r'mux\.HandleFunc\("(?P<method>[A-Z]+) (?P<path>/api/v1[^" ]*)"')
+RUNTIME_ROUTE = re.compile(r'\w+\.HandleFunc\("(?P<method>[A-Z]+) (?P<path>/api/v1[^" ]*)"')
 
 
 def fail(message: str) -> None:
@@ -190,9 +190,10 @@ def check_runtime_routes(document: dict, server_path: Path, route_dir: Path) -> 
         fail(f"console server is missing route registrations: {', '.join(missing)}")
     if "ogenServer" in source:
         fail("console server must not mount the retired Ogen router")
+    route_files = list(route_dir.glob("*_http.go")) + [server_path]
     registered = {
         (match.group("method"), match.group("path"))
-        for path in route_dir.glob("*_http.go")
+        for path in route_files
         for match in RUNTIME_ROUTE.finditer(path.read_text())
     }
     missing_routes = sorted(operation_routes(document) - registered)
@@ -353,8 +354,8 @@ def main() -> None:
     index = load(index_path)
     if console.get("openapi") != "3.0.0" or index.get("openapi") != "3.1.0":
         fail("Console contract must use OpenAPI 3.0.0 and the API index must use OpenAPI 3.1.0")
-    if "BearerAuth" not in console.get("components", {}).get("securitySchemes", {}):
-        fail("console contract must declare BearerAuth")
+    if "SessionCookie" not in console.get("components", {}).get("securitySchemes", {}):
+        fail("console contract must declare SessionCookie")
     console_count = check_operations(console, "console")
     operations = operation_ids(console)
     check_console_route_inventory(operations)

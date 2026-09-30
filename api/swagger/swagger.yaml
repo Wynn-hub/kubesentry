@@ -412,6 +412,11 @@ definitions:
     - pageSize
     - total
     type: object
+  dto.ClusterTenantRequest:
+    properties:
+      tenantId:
+        type: integer
+    type: object
   dto.ClusterTokenInput:
     properties:
       installParams:
@@ -468,6 +473,25 @@ definitions:
     - phase
     - readyNodeCount
     - updatedAt
+    type: object
+  dto.CreateTenantRequest:
+    properties:
+      name:
+        type: string
+    type: object
+  dto.CreateUserRequest:
+    properties:
+      password:
+        type: string
+      role:
+        enum:
+        - tenant_admin
+        - viewer
+        type: string
+      tenantId:
+        type: integer
+      username:
+        type: string
     type: object
   dto.DistributionClusters:
     properties:
@@ -934,6 +958,13 @@ definitions:
           type: string
         type: object
     type: object
+  dto.LoginInput:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
   dto.MatchResourceInput:
     properties:
       apiGroups:
@@ -952,6 +983,26 @@ definitions:
     - apiGroups
     - apiVersions
     - resources
+    type: object
+  dto.MeView:
+    properties:
+      id:
+        type: integer
+      role:
+        enum:
+        - system_admin
+        - tenant_admin
+        - viewer
+        type: string
+      tenantId:
+        type: integer
+      username:
+        type: string
+    type: object
+  dto.PasswordInput:
+    properties:
+      password:
+        type: string
     type: object
   dto.PlatformClusterView:
     properties:
@@ -1422,6 +1473,16 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  dto.ResetPasswordRequest:
+    properties:
+      password:
+        type: string
+    type: object
+  dto.SetupStatusView:
+    properties:
+      required:
+        type: boolean
     type: object
   dto.SummaryGroupView:
     properties:
@@ -2005,6 +2066,26 @@ definitions:
     required:
     - rego
     type: object
+  dto.TenantStatusRequest:
+    properties:
+      status:
+        enum:
+        - active
+        - disabled
+        type: string
+    type: object
+  dto.TenantView:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        enum:
+        - active
+        - disabled
+        type: string
+    type: object
   dto.UninstallTaskHTTPView:
     properties:
       completedAt:
@@ -2039,6 +2120,34 @@ definitions:
     required:
     - id
     type: object
+  dto.UserStatusRequest:
+    properties:
+      status:
+        enum:
+        - active
+        - disabled
+        type: string
+    type: object
+  dto.UserView:
+    properties:
+      id:
+        type: integer
+      role:
+        enum:
+        - system_admin
+        - tenant_admin
+        - viewer
+        type: string
+      status:
+        enum:
+        - active
+        - disabled
+        type: string
+      tenantId:
+        type: integer
+      username:
+        type: string
+    type: object
 info:
   contact: {}
   description: KubeSentry Console HTTP API.
@@ -2061,6 +2170,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.AdmissionSettingsView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2069,6 +2186,8 @@ paths:
           description: Service Unavailable
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 获取准入事件设置
       tags:
       - AdmissionEvent
@@ -2100,10 +2219,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 更新准入事件设置
       tags:
       - AdmissionEvent
@@ -2214,10 +2343,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 分页查询准入事件
       tags:
       - AdmissionEvent
@@ -2248,6 +2387,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2256,6 +2403,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询准入事件详情
       tags:
       - AdmissionEvent
@@ -2294,10 +2443,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询准入事件趋势
       tags:
       - AdmissionEvent
@@ -2384,6 +2543,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -2392,6 +2559,8 @@ paths:
           description: Service Unavailable
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 分页查询准入链路异常
       tags:
       - LinkIncident
@@ -2422,6 +2591,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2434,9 +2611,70 @@ paths:
           description: Service Unavailable
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询准入链路异常详情
       tags:
       - LinkIncident
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 校验本地用户凭据并通过 HttpOnly Cookie 建立会话。
+      operationId: login
+      parameters:
+      - description: 登录凭据
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 登录并建立会话
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      description: 撤销当前数据库会话并清除浏览器 Cookie。
+      operationId: logout
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 注销当前会话
+      tags:
+      - Auth
   /clusters:
     get:
       description: 查询平台已登记的集群及其在线状态和节点摘要。
@@ -2488,10 +2726,20 @@ paths:
                 data:
                   $ref: '#/definitions/dto.ClusterPageView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 分页查询集群
       tags:
       - Cluster
@@ -2523,6 +2771,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -2531,6 +2787,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 创建集群登记
       tags:
       - Cluster
@@ -2551,6 +2809,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.SwagEmptyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "403":
           description: Forbidden
           schema:
@@ -2567,6 +2829,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 删除集群登记
       tags:
       - Cluster
@@ -2591,6 +2855,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.ClusterView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2599,6 +2871,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询集群详情
       tags:
       - Cluster
@@ -2631,6 +2905,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.ClusterNameView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2639,6 +2921,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 更新集群标签
       tags:
       - Cluster
@@ -2664,6 +2948,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.ClusterInstallInput'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2672,6 +2964,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询最新安装参数
       tags:
       - Cluster
@@ -2705,6 +2999,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.ClusterCommandView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2717,7 +3019,59 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 重新签发集群令牌
+      tags:
+      - Cluster
+  /clusters/{name}/tenant:
+    put:
+      consumes:
+      - application/json
+      description: 系统管理员设置集群唯一租户归属；仍被租户分发引用时拒绝转移。
+      operationId: assignClusterTenant
+      parameters:
+      - description: 集群名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 租户归属
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ClusterTenantRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 分配或解除集群租户
       tags:
       - Cluster
   /clusters/{name}/uninstall:
@@ -2742,6 +3096,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.UninstallTaskHTTPView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2754,6 +3116,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 创建集群卸载任务
       tags:
       - Cluster
@@ -2781,6 +3145,14 @@ paths:
                     $ref: '#/definitions/dto.UninstallTaskHTTPView'
                   type: array
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2789,6 +3161,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询集群卸载任务
       tags:
       - Cluster
@@ -2820,6 +3194,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.UninstallTaskIDView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2832,6 +3214,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 重试集群卸载任务
       tags:
       - Cluster
@@ -2882,10 +3266,20 @@ paths:
                 data:
                   $ref: '#/definitions/dto.DistributionPageView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 分页查询策略分发
       tags:
       - Distribution
@@ -2917,6 +3311,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -2925,6 +3327,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 创建策略分发
       tags:
       - Distribution
@@ -2945,6 +3349,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.SwagEmptyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "403":
           description: Forbidden
           schema:
@@ -2961,6 +3369,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 删除策略分发
       tags:
       - Distribution
@@ -2985,6 +3395,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.DistributionView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2993,6 +3411,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询策略分发详情
       tags:
       - Distribution
@@ -3029,6 +3449,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3041,6 +3469,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 更新策略分发
       tags:
       - Distribution
@@ -3100,10 +3530,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 分页查询策略例外
       tags:
       - Exception
@@ -3135,6 +3575,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -3143,6 +3591,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 创建策略例外
       tags:
       - Exception
@@ -3163,6 +3613,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.SwagEmptyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "403":
           description: Forbidden
           schema:
@@ -3175,6 +3629,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 删除策略例外
       tags:
       - Exception
@@ -3199,6 +3655,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.SwagExceptionDetail'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3207,6 +3671,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询策略例外详情
       tags:
       - Exception
@@ -3243,6 +3709,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3255,6 +3729,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 更新策略例外
       tags:
       - Exception
@@ -3307,13 +3783,48 @@ paths:
                 data:
                   $ref: '#/definitions/dto.InstallRecordPageView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询安装记录
       tags:
       - Cluster
+  /me:
+    get:
+      description: 返回当前用户、角色和可选租户归属。
+      operationId: getCurrentUser
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.MeView'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 查询当前登录用户
+      tags:
+      - Auth
   /platform/instances/{component}/{instance}/trend:
     get:
       description: 查询指定平台组件实例在时间范围内的资源趋势。
@@ -3366,6 +3877,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3374,6 +3893,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 获取平台实例趋势
       tags:
       - Platform
@@ -3439,6 +3960,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3447,6 +3976,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询平台领导权事件
       tags:
       - Platform
@@ -3495,10 +4026,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 获取平台运行概览
       tags:
       - Platform
@@ -3518,10 +4059,20 @@ paths:
                 data:
                   $ref: '#/definitions/dto.PlatformSettingsView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 获取平台可观测性设置
       tags:
       - Platform
@@ -3553,10 +4104,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 更新平台可观测性设置
       tags:
       - Platform
@@ -3646,10 +4207,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: List policies
       tags:
       - Policy
@@ -3681,6 +4252,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -3689,6 +4268,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 创建策略
       tags:
       - Policy
@@ -3715,6 +4296,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.SwagEmptyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3727,6 +4316,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 删除策略
       tags:
       - Policy
@@ -3751,6 +4342,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.SwagPolicyDetail'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3759,6 +4358,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询策略详情
       tags:
       - Policy
@@ -3796,6 +4397,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3808,6 +4417,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 更新策略
       tags:
       - Policy
@@ -3846,6 +4457,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3862,6 +4481,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 回滚策略到上一版本
       tags:
       - Policy
@@ -3887,6 +4508,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.SwagPolicyVersionList'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -3895,6 +4524,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询策略版本历史
       tags:
       - Policy
@@ -3919,10 +4550,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询资源建议
       tags:
       - Policy
@@ -3951,6 +4592,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 校验 Rego 源码
       tags:
       - Policy
@@ -4010,10 +4661,20 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 分页查询策略组列表
       tags:
       - PolicyGroup
@@ -4045,6 +4706,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -4053,6 +4722,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 创建策略组
       tags:
       - PolicyGroup
@@ -4073,6 +4744,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.SwagEmptyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "403":
           description: Forbidden
           schema:
@@ -4085,6 +4760,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 删除策略组
       tags:
       - PolicyGroup
@@ -4109,6 +4786,14 @@ paths:
                 data:
                   $ref: '#/definitions/dto.SwagPolicyGroupDetail'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -4117,6 +4802,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 查询策略组详情
       tags:
       - PolicyGroup
@@ -4153,6 +4840,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "403":
           description: Forbidden
           schema:
@@ -4169,6 +4860,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 更新策略组
       tags:
       - PolicyGroup
@@ -4206,6 +4899,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -4218,6 +4919,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 设置策略组启用状态
       tags:
       - PolicyGroup
@@ -4263,13 +4966,81 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "502":
           description: Bad Gateway
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 获取 Kubernetes 资源字段树
       tags:
       - Schema
+  /setup/admin:
+    post:
+      consumes:
+      - application/json
+      description: 原子设置默认 admin 用户密码；完成后再次调用返回冲突。
+      operationId: setupAdmin
+      parameters:
+      - description: 管理员密码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.PasswordInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 首次设置 admin 密码
+      tags:
+      - Auth
+  /setup/status:
+    get:
+      description: 返回是否仍需为默认 admin 用户设置初始密码。
+      operationId: getSetupStatus
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SetupStatusView'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 查询首次部署初始化状态
+      tags:
+      - Auth
   /summary:
     get:
       description: 查询策略、策略组、例外和集群的汇总数量。
@@ -4286,16 +5057,360 @@ paths:
                 data:
                   $ref: '#/definitions/dto.SummaryView'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
       summary: 获取平台资源摘要
       tags:
       - Summary
+  /tenants:
+    get:
+      description: 系统管理员查询全部租户。
+      operationId: listTenants
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.TenantView'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 查询租户列表
+      tags:
+      - Tenant
+    post:
+      consumes:
+      - application/json
+      description: 系统管理员创建单租户边界。
+      operationId: createTenant
+      parameters:
+      - description: 租户
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTenantRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TenantView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 创建租户
+      tags:
+      - Tenant
+  /tenants/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: 系统管理员启用或禁用租户。
+      operationId: setTenantStatus
+      parameters:
+      - description: 租户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 状态
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TenantStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 设置租户状态
+      tags:
+      - Tenant
+  /users:
+    get:
+      description: 系统管理员查询全部用户，租户管理员仅查询本租户用户。
+      operationId: listUsers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.UserView'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 查询可管理用户
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      description: 系统管理员创建任意受支持角色，租户管理员仅创建本租户普通用户。
+      operationId: createUser
+      parameters:
+      - description: 用户
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 创建用户
+      tags:
+      - User
+  /users/{id}:
+    delete:
+      description: 删除可管理用户并撤销其全部现有会话。
+      operationId: deleteUser
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 删除用户并撤销会话
+      tags:
+      - User
+  /users/{id}/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: 设置新密码并撤销目标用户的全部现有会话。
+      operationId: resetUserPassword
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 新密码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 重置用户密码并撤销会话
+      tags:
+      - User
+  /users/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: 禁用用户时同步撤销其全部会话。
+      operationId: setUserStatus
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 状态
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UserStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 设置用户状态
+      tags:
+      - User
 securityDefinitions:
-  BearerAuth:
-    in: header
-    name: Authorization
+  SessionCookie:
+    description: HttpOnly SameSite=Strict session cookie set by login and sent automatically
+      by browsers.
+    in: cookie
+    name: kubesentry_session
     type: apiKey
 swagger: "2.0"

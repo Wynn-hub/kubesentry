@@ -16,7 +16,7 @@ x-contract-boundaries:
     source: ../internal/console/openapi_bundle.json
     sourceOfTruth: Go handler and DTO Swag annotations
     generatedSwagger: ./swagger/swagger.yaml
-    routeCount: 50
+    routeCount: 64
   gateway:
     kind: protobuf
     source: ./proto/gateway/v1/gateway.proto

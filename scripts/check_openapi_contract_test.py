@@ -92,10 +92,10 @@ class ContractCheckerTest(unittest.TestCase):
             {"connections", "maxConnections", "transactions", "rollbacks", "cacheHitRatio", "databaseBytes", "poolInUse", "poolIdle", "poolWaitCount", "poolWaitSeconds"},
         )
 
-    def test_rejects_console_route_inventory_that_is_not_all_50_operations(self):
+    def test_rejects_console_route_inventory_that_is_not_all_64_operations(self):
         self.assert_contract_error(
             lambda: checker.check_console_route_inventory({"onlyOne"}),
-            "expected 50 console operations",
+            "expected 64 console operations",
         )
 
     def test_builds_stable_operation_inventory_with_parameters_and_responses(self):

@@ -14,6 +14,9 @@ import (
 // @Description 按集群、判决、策略、命名空间和资源条件分页检索准入事件。
 // @Tags AdmissionEvent
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "页码，从 1 开始。省略时为 1" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数。仅接受 10、20、50、100。省略时为 20" Enums(10,20,50,100) default(20)
 // @Param sortBy query string false "排序字段" Enums(occurredAt,createdAt,verdict) default(occurredAt)
@@ -66,6 +69,9 @@ func admissionListOptions(params dto.ListAdmissionEventsParams) dto.AdmissionEve
 // @Description 查询准入事件及其原始 metadata/spec 快照。
 // @Tags AdmissionEvent
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param id path dto.AdmissionEventPath true "准入事件数据库 ID"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.AdmissionEventDetailView}
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -93,6 +99,9 @@ func (h *Handler) GetAdmissionEvent(ctx context.Context, params dto.GetAdmission
 // @Description 按时间范围返回准入事件的 audit/deny 趋势数据。
 // @Tags AdmissionEvent
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param from query string true "查询起始时间" format(date-time)
 // @Param to query string true "查询结束时间" format(date-time)
 // @Success 200 {object} dto.SwagOptionalResponse{data=[]dto.AdmissionTrendItemView}
@@ -116,6 +125,9 @@ func (h *Handler) GetAdmissionEventTrend(ctx context.Context, params dto.GetAdmi
 // @Description 查询准入事件留存、重试、队列和存储策略配置。
 // @Tags AdmissionEvent
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.AdmissionSettingsView}
 // @Failure 500 {object} dto.SwagErrorResponse
 // @Failure 503 {object} dto.SwagErrorResponse
@@ -134,6 +146,9 @@ func (h *Handler) GetAdmissionEventSettings(ctx context.Context) (dto.GetAdmissi
 // @Tags AdmissionEvent
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param body body dto.AdmissionSettingsInput true "准入事件设置"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.AdmissionSettingsView}
 // @Failure 400 {object} dto.SwagErrorResponse

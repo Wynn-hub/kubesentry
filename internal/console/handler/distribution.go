@@ -13,6 +13,9 @@ import (
 // @Description 查询策略组到集群的分发配置。
 // @Tags Distribution
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "页码，从 1 开始" minimum(1) default(1)
 // @Param pageSize query int false "每页数量" Enums(10,20,50,100) default(20)
 // @Param sortBy query string false "排序字段" Enums(name)
@@ -34,6 +37,9 @@ func (h *Handler) ListDistributions(ctx context.Context, p dto.ListDistributions
 // @Tags Distribution
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param body body dto.DistributionInput true "策略分发"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.DistributionNameView}
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -52,6 +58,9 @@ func (h *Handler) CreateDistribution(ctx context.Context, input *dto.Distributio
 // @Description 查询指定策略分发的集群范围和策略组配置。
 // @Tags Distribution
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "策略分发名称"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.DistributionView}
 // @Failure 404 {object} dto.SwagErrorResponse
@@ -71,6 +80,9 @@ func (h *Handler) GetDistribution(ctx context.Context, p dto.GetDistributionPara
 // @Tags Distribution
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "策略分发名称"
 // @Param body body dto.DistributionInput true "策略分发"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.DistributionNameView}
@@ -91,6 +103,9 @@ func (h *Handler) UpdateDistribution(ctx context.Context, input *dto.Distributio
 // @Description 删除指定策略分发配置。
 // @Tags Distribution
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "策略分发名称"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 403 {object} dto.SwagErrorResponse

@@ -11,6 +11,9 @@ import (
 // @Description 从成员集群 OpenAPI schema 查询策略编辑器所需的资源字段树。
 // @Tags Schema
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param group query string false "API 组，核心组为空"
 // @Param version query string true "API 版本"
 // @Param resource query string true "资源复数名"

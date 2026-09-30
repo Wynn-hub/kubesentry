@@ -1,5 +1,5 @@
 {
-  "operationCount": 50,
+  "operationCount": 64,
   "operations": [
     {
       "method": "GET",
@@ -10,6 +10,12 @@
         "200": [
           "#/components/schemas/dto.AdmissionSettingsView",
           "#/components/schemas/dto.SwagOptionalResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -30,6 +36,12 @@
           "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
@@ -196,6 +208,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
@@ -233,6 +251,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
@@ -259,6 +283,12 @@
           "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
@@ -380,6 +410,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -411,6 +447,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -418,6 +460,46 @@
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "503": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "login",
+      "parameters": [],
+      "path": "/auth/login",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "429": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      },
+      "requestBody": [
+        "#/components/schemas/dto.LoginInput"
+      ]
+    },
+    {
+      "method": "POST",
+      "operationId": "logout",
+      "parameters": [],
+      "path": "/auth/logout",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
@@ -486,6 +568,12 @@
           "#/components/schemas/dto.ClusterPageView",
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
@@ -502,6 +590,12 @@
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
@@ -532,6 +626,9 @@
       "responses": {
         "200": [
           "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "403": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -566,6 +663,12 @@
           "#/components/schemas/dto.ClusterView",
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -592,6 +695,12 @@
         "200": [
           "#/components/schemas/dto.ClusterNameView",
           "#/components/schemas/dto.SwagSuccessResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -623,6 +732,12 @@
           "#/components/schemas/dto.ClusterInstallInput",
           "#/components/schemas/dto.SwagOptionalResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -650,6 +765,12 @@
           "#/components/schemas/dto.ClusterCommandView",
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -662,6 +783,44 @@
       },
       "requestBody": [
         "#/components/schemas/dto.ClusterTokenInput"
+      ]
+    },
+    {
+      "method": "PUT",
+      "operationId": "assignClusterTenant",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "path": "/clusters/{name}/tenant",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "404": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "409": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      },
+      "requestBody": [
+        "#/components/schemas/dto.ClusterTenantRequest"
       ]
     },
     {
@@ -682,6 +841,12 @@
         "200": [
           "#/components/schemas/dto.SwagSuccessResponse",
           "#/components/schemas/dto.UninstallTaskHTTPView"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -712,6 +877,12 @@
         "200": [
           "#/components/schemas/dto.SwagSuccessResponse",
           "#/components/schemas/dto.UninstallTaskHTTPView"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -748,6 +919,12 @@
         "200": [
           "#/components/schemas/dto.SwagSuccessResponse",
           "#/components/schemas/dto.UninstallTaskIDView"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -820,6 +997,12 @@
           "#/components/schemas/dto.DistributionPageView",
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
@@ -836,6 +1019,12 @@
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
@@ -866,6 +1055,9 @@
       "responses": {
         "200": [
           "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "403": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -900,6 +1092,12 @@
           "#/components/schemas/dto.DistributionView",
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -928,6 +1126,12 @@
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
@@ -1012,6 +1216,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
@@ -1028,6 +1238,12 @@
           "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
@@ -1059,6 +1275,12 @@
         "200": [
           "#/components/schemas/dto.SwagEmptyResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -1085,6 +1307,12 @@
         "200": [
           "#/components/schemas/dto.SwagExceptionDetail",
           "#/components/schemas/dto.SwagOptionalResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -1114,6 +1342,12 @@
           "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
@@ -1192,7 +1426,28 @@
           "#/components/schemas/dto.InstallRecordPageView",
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "operationId": "getCurrentUser",
+      "parameters": [],
+      "path": "/me",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.MeView",
+          "#/components/schemas/dto.SwagOptionalResponse"
+        ],
+        "401": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
@@ -1259,6 +1514,12 @@
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
@@ -1350,6 +1611,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -1410,6 +1677,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
@@ -1424,6 +1697,12 @@
         "200": [
           "#/components/schemas/dto.PlatformSettingsView",
           "#/components/schemas/dto.SwagSuccessResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -1441,6 +1720,12 @@
           "#/components/schemas/dto.SwagSuccessResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "500": [
@@ -1572,6 +1857,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
@@ -1588,6 +1879,12 @@
           "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
@@ -1614,6 +1911,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
@@ -1629,6 +1932,12 @@
           "#/components/schemas/dto.SwagEmptyResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
       },
@@ -1663,6 +1972,12 @@
         "200": [
           "#/components/schemas/dto.SwagEmptyResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -1693,6 +2008,12 @@
           "#/components/schemas/dto.SwagOptionalResponse",
           "#/components/schemas/dto.SwagPolicyDetail"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -1721,6 +2042,12 @@
           "#/components/schemas/dto.SwagOptionalResponse"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
@@ -1759,6 +2086,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -1794,6 +2127,12 @@
         "200": [
           "#/components/schemas/dto.SwagOptionalResponse",
           "#/components/schemas/dto.SwagPolicyVersionList"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
@@ -1871,6 +2210,12 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
@@ -1887,6 +2232,12 @@
           "#/components/schemas/dto.SwagPolicyGroupName"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "409": [
@@ -1918,6 +2269,9 @@
         "200": [
           "#/components/schemas/dto.SwagEmptyResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -1948,6 +2302,12 @@
           "#/components/schemas/dto.SwagOptionalResponse",
           "#/components/schemas/dto.SwagPolicyGroupDetail"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "404": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
@@ -1976,6 +2336,9 @@
           "#/components/schemas/dto.SwagPolicyGroupName"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "403": [
@@ -2015,6 +2378,12 @@
           "#/components/schemas/dto.SwagPolicyGroupEnabled"
         ],
         "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
         "404": [
@@ -2078,7 +2447,51 @@
         "400": [
           "#/components/schemas/dto.SwagErrorResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "502": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "setupAdmin",
+      "parameters": [],
+      "path": "/setup/admin",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "409": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "500": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      },
+      "requestBody": [
+        "#/components/schemas/dto.PasswordInput"
+      ]
+    },
+    {
+      "method": "GET",
+      "operationId": "getSetupStatus",
+      "parameters": [],
+      "path": "/setup/status",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SetupStatusView",
+          "#/components/schemas/dto.SwagOptionalResponse"
+        ],
+        "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
@@ -2093,11 +2506,247 @@
           "#/components/schemas/dto.SummaryView",
           "#/components/schemas/dto.SwagOptionalResponse"
         ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
         "500": [
           "#/components/schemas/dto.SwagErrorResponse"
         ]
       }
+    },
+    {
+      "method": "GET",
+      "operationId": "listTenants",
+      "parameters": [],
+      "path": "/tenants",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.TenantView"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "createTenant",
+      "parameters": [],
+      "path": "/tenants",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.TenantView"
+        ],
+        "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "409": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      },
+      "requestBody": [
+        "#/components/schemas/dto.CreateTenantRequest"
+      ]
+    },
+    {
+      "method": "PUT",
+      "operationId": "setTenantStatus",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "path": "/tenants/{id}/status",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "404": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      },
+      "requestBody": [
+        "#/components/schemas/dto.TenantStatusRequest"
+      ]
+    },
+    {
+      "method": "GET",
+      "operationId": "listUsers",
+      "parameters": [],
+      "path": "/users",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.UserView"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "createUser",
+      "parameters": [],
+      "path": "/users",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagOptionalResponse",
+          "#/components/schemas/dto.UserView"
+        ],
+        "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "409": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      },
+      "requestBody": [
+        "#/components/schemas/dto.CreateUserRequest"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "operationId": "deleteUser",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "path": "/users/{id}",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "404": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "409": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "operationId": "resetUserPassword",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "path": "/users/{id}/reset-password",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "404": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      },
+      "requestBody": [
+        "#/components/schemas/dto.ResetPasswordRequest"
+      ]
+    },
+    {
+      "method": "PUT",
+      "operationId": "setUserStatus",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "path": "/users/{id}/status",
+      "responses": {
+        "200": [
+          "#/components/schemas/dto.SwagEmptyResponse"
+        ],
+        "400": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "401": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "403": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "404": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ],
+        "409": [
+          "#/components/schemas/dto.SwagErrorResponse"
+        ]
+      },
+      "requestBody": [
+        "#/components/schemas/dto.UserStatusRequest"
+      ]
     }
   ],
-  "sha256": "eef706cc463207cd386245118f3de8244b25a025f13eb0d0c6efb7aac09ae045"
+  "sha256": "63e6f1d269bda46c605b1d516a767b7b9fe6e4cfecff90c8bca07fb364332aad"
 }

@@ -14,6 +14,9 @@ import (
 // @Description 查询平台已登记的集群及其在线状态和节点摘要。
 // @Tags Cluster
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "页码" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数" Enums(10,20,50,100) default(20)
 // @Param sortBy query string false "排序字段" Enums(name,phase,operatorVersion,lastHeartbeatAt,createdAt)
@@ -35,6 +38,9 @@ func (h *Handler) ListClusters(ctx context.Context, p dto.ListClustersParams) (d
 // @Tags Cluster
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param body body dto.ClusterCreateInput true "集群登记"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.ClusterCommandView}
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -54,6 +60,9 @@ func (h *Handler) CreateCluster(ctx context.Context, input *dto.ClusterCreateInp
 // @Description 查询指定集群的连接状态、版本和节点信息。
 // @Tags Cluster
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "集群名称"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.ClusterView}
 // @Failure 404 {object} dto.SwagErrorResponse
@@ -76,6 +85,9 @@ func (h *Handler) GetCluster(ctx context.Context, p dto.GetClusterParams) (dto.G
 // @Tags Cluster
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "集群名称"
 // @Param body body dto.ClusterLabelsInput true "集群标签"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.ClusterNameView}
@@ -94,6 +106,9 @@ func (h *Handler) UpdateCluster(ctx context.Context, req *dto.ClusterLabelsInput
 // @Description 删除已卸载的集群登记；在线集群不能删除。
 // @Tags Cluster
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "集群名称"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 403 {object} dto.SwagErrorResponse
@@ -114,6 +129,9 @@ func (h *Handler) DeleteCluster(ctx context.Context, p dto.DeleteClusterParams) 
 // @Tags Cluster
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "集群名称"
 // @Param body body dto.ClusterTokenInput true "安装参数"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.ClusterCommandView}
@@ -134,6 +152,9 @@ func (h *Handler) ReissueClusterToken(ctx context.Context, input *dto.ClusterTok
 // @Description 查询指定集群最近一次生成的非敏感安装参数。
 // @Tags Cluster
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "集群名称"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.ClusterInstallInput}
 // @Failure 404 {object} dto.SwagErrorResponse
@@ -155,6 +176,9 @@ func (h *Handler) GetLatestInstallParams(ctx context.Context, p dto.GetLatestIns
 // @Description 向在线集群下发卸载其成员组件的持久化任务。
 // @Tags Cluster
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "集群名称"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.UninstallTaskHTTPView}
 // @Failure 404 {object} dto.SwagErrorResponse
@@ -174,6 +198,9 @@ func (h *Handler) CreateUninstallTask(ctx context.Context, p dto.CreateUninstall
 // @Description 查询指定集群的全部卸载任务及失败原因。
 // @Tags Cluster
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "集群名称"
 // @Success 200 {object} dto.SwagSuccessResponse{data=[]dto.UninstallTaskHTTPView}
 // @Failure 404 {object} dto.SwagErrorResponse
@@ -196,6 +223,9 @@ func (h *Handler) ListUninstallTasks(ctx context.Context, p dto.ListUninstallTas
 // @Description 重新投递失败的集群卸载任务。
 // @Tags Cluster
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path string true "集群名称"
 // @Param taskID path dto.RetryUninstallTaskPath true "卸载任务 ID"
 // @Success 200 {object} dto.SwagSuccessResponse{data=dto.UninstallTaskIDView}
@@ -219,6 +249,9 @@ func (h *Handler) RetryUninstallTask(ctx context.Context, p dto.RetryUninstallTa
 // @Description 分页查询平台生成的集群安装参数记录。
 // @Tags Cluster
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "页码" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数" Enums(10,20,50,100) default(20)
 // @Param sortBy query string false "排序字段" Enums(clusterName,namespace,createdAt)

@@ -14,6 +14,9 @@ import (
 // @Description 按集群、组件、原因和状态检索准入事件链路异常。
 // @Tags LinkIncident
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "页码，从 1 开始。省略时为 1" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数。仅接受 10、20、50、100。省略时为 20" Enums(10,20,50,100) default(20)
 // @Param cluster query []string false "按集群名称筛选，逗号分隔" collectionFormat(csv)
@@ -61,6 +64,9 @@ func (h *Handler) ListAdmissionLinkIncidents(ctx context.Context, p dto.ListAdmi
 // @Description 查询单条准入事件链路异常及其样本事件。
 // @Tags LinkIncident
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param id path dto.AdmissionLinkIncidentPath true "准入链路异常记录 ID"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.IncidentView}
 // @Failure 400 {object} dto.SwagErrorResponse

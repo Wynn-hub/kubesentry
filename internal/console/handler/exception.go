@@ -13,6 +13,9 @@ import (
 // @Description 分页查询策略例外及其生效状态。
 // @Tags Exception
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param page query int false "页码，从 1 开始。省略时为 1" minimum(1) default(1)
 // @Param pageSize query int false "每页记录数。仅接受 10、20、50、100。省略时为 20" Enums(10,20,50,100) default(20)
 // @Param sortBy query string false "排序字段" Enums(name,phase,targetSummary,duration,expiresAt) default(name)
@@ -36,6 +39,9 @@ func (h *Handler) ListExceptions(ctx context.Context, p dto.ListExceptionsParams
 // @Description 查询策略例外的匹配条件、作用范围和过期时间。
 // @Tags Exception
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.ExceptionPath true "例外名称"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SwagExceptionDetail}
 // @Failure 404 {object} dto.SwagErrorResponse
@@ -58,6 +64,9 @@ func (h *Handler) GetException(ctx context.Context, p dto.GetExceptionParams) (d
 // @Tags Exception
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param body body dto.SwagExceptionInput true "策略例外"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.ExceptionNameView}
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -88,6 +97,9 @@ func (h *Handler) CreateException(ctx context.Context, input *dto.ExceptionInput
 // @Tags Exception
 // @Accept json
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.ExceptionPath true "例外名称"
 // @Param body body dto.SwagExceptionInput true "策略例外"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.ExceptionNameView}
@@ -129,6 +141,9 @@ func stringOr(value *string) string {
 // @Description 删除指定策略例外。
 // @Tags Exception
 // @Produce json
+// @Security SessionCookie
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Param name path dto.ExceptionPath true "例外名称"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 403 {object} dto.SwagErrorResponse
