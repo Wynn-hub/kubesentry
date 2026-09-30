@@ -31,13 +31,18 @@ type loginLimiterEntry struct {
 }
 
 type authHTTP struct {
-	service *service.AuthService
-	mu      sync.Mutex
-	limits  map[string]*loginLimiterEntry
+	service  *service.AuthService
+	lifetime time.Duration
+	secure   bool
+	mu       sync.Mutex
+	limits   map[string]*loginLimiterEntry
 }
 
-func newAuthHTTP(auth *service.AuthService) *authHTTP {
-	return &authHTTP{service: auth, limits: make(map[string]*loginLimiterEntry)}
+func newAuthHTTP(auth *service.AuthService, lifetime time.Duration, secure bool) *authHTTP {
+	if lifetime <= 0 {
+		lifetime = 24 * time.Hour
+	}
+	return &authHTTP{service: auth, lifetime: lifetime, secure: secure, limits: make(map[string]*loginLimiterEntry)}
 }
 
 func (a *authHTTP) setupStatus(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +89,7 @@ func (a *authHTTP) login(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, service.ErrInvalidCredentials.Error())
 		return
 	}
-	setSessionCookie(w, r, token, 24*time.Hour)
+	a.setSessionCookie(w, r, token, a.lifetime)
 	slog.Info("login succeeded", "username", username, "remote_ip", remoteIP(r), "trace_id", TraceIDFromContext(r.Context()))
 	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success"})
 }
@@ -93,7 +98,7 @@ func (a *authHTTP) logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(sessionCookieName); err == nil {
 		_ = a.service.Logout(r.Context(), cookie.Value)
 	}
-	setSessionCookie(w, r, "", -time.Hour)
+	a.setSessionCookie(w, r, "", -time.Hour)
 	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success"})
 }
 
@@ -165,8 +170,8 @@ func decodeAuthJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	return true
 }
 
-func setSessionCookie(w http.ResponseWriter, r *http.Request, value string, lifetime time.Duration) {
-	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: value, Path: "/", HttpOnly: true, Secure: r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https", SameSite: http.SameSiteStrictMode, MaxAge: int(lifetime.Seconds())})
+func (a *authHTTP) setSessionCookie(w http.ResponseWriter, r *http.Request, value string, lifetime time.Duration) {
+	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: value, Path: "/", HttpOnly: true, Secure: a.secure || r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https", SameSite: http.SameSiteStrictMode, MaxAge: int(lifetime.Seconds())})
 }
 
 func isSafeMethod(method string) bool {

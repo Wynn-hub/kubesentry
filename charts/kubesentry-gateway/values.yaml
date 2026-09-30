@@ -62,6 +62,11 @@ console:
     type: NodePort
     port: 8080
     nodePort: 30080
+  session:
+    absoluteDuration: 24h
+    idleDuration: 30m
+    # Set true when the Console is exposed through HTTPS. Keep false for local HTTP port-forwarding.
+    cookieSecure: false
   resources:
     requests:
       cpu: 50m

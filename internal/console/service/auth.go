@@ -36,6 +36,15 @@ func NewAuthService(repo repository.IdentityRepository) *AuthService {
 	return &AuthService{repo: repo, now: time.Now, absoluteDuration: 24 * time.Hour, idleDuration: 30 * time.Minute}
 }
 
+func (s *AuthService) SetDurations(absolute, idle time.Duration) {
+	if absolute > 0 {
+		s.absoluteDuration = absolute
+	}
+	if idle > 0 {
+		s.idleDuration = idle
+	}
+}
+
 func (s *AuthService) SetupRequired(ctx context.Context) (bool, error) {
 	admin, err := s.repo.GetUserByUsername(ctx, "admin")
 	return err == nil && admin.PasswordHash == "", err

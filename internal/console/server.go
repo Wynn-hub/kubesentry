@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/dto"
 	"github.com/Wynn-hub/kubesentry/internal/console/handler"
@@ -30,7 +31,10 @@ type Handlers struct {
 	// notifyChange in traceid.go) so its pushLoop wakes without waiting for
 	// the 60s resync fallback. nil when GATEWAY_ADDRESS wasn't configured at
 	// startup — every write handler must tolerate that (soft dependency).
-	Gateway gatewaypb.HubClient
+	Gateway                 gatewaypb.HubClient
+	SessionAbsoluteDuration time.Duration
+	SessionIdleDuration     time.Duration
+	SessionCookieSecure     bool
 
 	schemaCacheOnce sync.Once
 	schemaCacheMap  *sync.Map
@@ -75,9 +79,10 @@ func NewServer(h *Handlers, ready func() bool) (*Server, error) {
 func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Handler) http.Handler) (*Server, error) {
 	mux := http.NewServeMux()
 	svcs := service.New(h.Repos, h.notifier())
+	svcs.Auth.SetDurations(h.SessionAbsoluteDuration, h.SessionIdleDuration)
 	var auth *authHTTP
 	if h.Repos.Identity != nil {
-		auth = newAuthHTTP(svcs.Auth)
+		auth = newAuthHTTP(svcs.Auth, h.SessionAbsoluteDuration, h.SessionCookieSecure)
 		if protectedMiddleware == nil {
 			protectedMiddleware = auth.middleware
 		}

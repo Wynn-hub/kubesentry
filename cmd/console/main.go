@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"google.golang.org/grpc"
@@ -135,7 +136,27 @@ func main() {
 		return sqlDB.PingContext(pingCtx) == nil
 	}
 
-	h := &console.Handlers{Repos: repos, Discovery: disc, Gateway: gatewayClient}
+	sessionAbsolute, err := time.ParseDuration(envOrDefault("CONSOLE_SESSION_ABSOLUTE_DURATION", "24h"))
+	if err != nil || sessionAbsolute <= 0 {
+		slog.Error("invalid CONSOLE_SESSION_ABSOLUTE_DURATION")
+		os.Exit(1)
+	}
+	sessionIdle, err := time.ParseDuration(envOrDefault("CONSOLE_SESSION_IDLE_DURATION", "30m"))
+	if err != nil || sessionIdle <= 0 {
+		slog.Error("invalid CONSOLE_SESSION_IDLE_DURATION")
+		os.Exit(1)
+	}
+	if sessionIdle > sessionAbsolute {
+		slog.Error("CONSOLE_SESSION_IDLE_DURATION must not exceed CONSOLE_SESSION_ABSOLUTE_DURATION")
+		os.Exit(1)
+	}
+	cookieSecure, err := strconv.ParseBool(envOrDefault("CONSOLE_SESSION_COOKIE_SECURE", "false"))
+	if err != nil {
+		slog.Error("invalid CONSOLE_SESSION_COOKIE_SECURE")
+		os.Exit(1)
+	}
+
+	h := &console.Handlers{Repos: repos, Discovery: disc, Gateway: gatewayClient, SessionAbsoluteDuration: sessionAbsolute, SessionIdleDuration: sessionIdle, SessionCookieSecure: cookieSecure}
 	srv, err := console.NewServer(h, ready)
 	if err != nil {
 		slog.Error("build console server", "error", err)

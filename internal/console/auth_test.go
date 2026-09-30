@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Wynn-hub/kubesentry/internal/console/repository"
 )
@@ -34,7 +35,7 @@ func authRequest(t *testing.T, h http.Handler, method, path string, body any, co
 
 func TestAuthSetupLoginMeAndLogout(t *testing.T) {
 	repos := repository.New(newTestDB(t))
-	srv, err := NewServer(&Handlers{Repos: repos}, func() bool { return true })
+	srv, err := NewServer(&Handlers{Repos: repos, SessionAbsoluteDuration: 2 * time.Hour, SessionIdleDuration: time.Hour, SessionCookieSecure: true}, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +55,7 @@ func TestAuthSetupLoginMeAndLogout(t *testing.T) {
 		t.Fatalf("login = %d %s cookies=%v", login.Code, login.Body.String(), login.Result().Cookies())
 	}
 	cookie := login.Result().Cookies()[0]
-	if cookie.Name != sessionCookieName || !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode {
+	if cookie.Name != sessionCookieName || !cookie.HttpOnly || !cookie.Secure || cookie.MaxAge != 7200 || cookie.SameSite != http.SameSiteStrictMode {
 		t.Fatalf("session cookie = %+v", cookie)
 	}
 	if rec := authRequest(t, h, http.MethodGet, "/api/v1/me", nil, cookie, false); rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte(`"role":"system_admin"`)) {

@@ -6,14 +6,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"net/http/cookiejar"
 	"os/exec"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/Wynn-hub/kubesentry/test/e2e/helpers"
 )
 
-const consoleBase = "http://127.0.0.1:18080"
+const (
+	consoleBase          = "http://127.0.0.1:18080"
+	consoleAdminPassword = "kubesentry-e2e-admin-password"
+)
+
+var consoleClient = http.DefaultClient
 
 // startPortForward runs kubectl port-forward for the console service and
 // waits until /healthz answers. Callers must invoke the returned stop func.
@@ -32,6 +39,7 @@ func startPortForward(t *testing.T) func() {
 		if err == nil {
 			resp.Body.Close()
 			if resp.StatusCode == 200 {
+				authenticateConsole(t)
 				return stop
 			}
 		}
@@ -49,6 +57,10 @@ type apiEnvelope struct {
 }
 
 func consoleDo(t *testing.T, method, path string, body any) (int, apiEnvelope) {
+	return consoleRequest(t, consoleClient, method, path, body)
+}
+
+func consoleRequest(t *testing.T, client *http.Client, method, path string, body any) (int, apiEnvelope) {
 	t.Helper()
 	var buf bytes.Buffer
 	if body != nil {
@@ -61,7 +73,10 @@ func consoleDo(t *testing.T, method, path string, body any) (int, apiEnvelope) {
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	if method != http.MethodGet && method != http.MethodHead && method != http.MethodOptions {
+		req.Header.Set("X-KubeSentry-CSRF", "1")
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("%s %s: %v", method, path, err)
 	}
@@ -69,6 +84,87 @@ func consoleDo(t *testing.T, method, path string, body any) (int, apiEnvelope) {
 	var env apiEnvelope
 	_ = json.NewDecoder(resp.Body).Decode(&env)
 	return resp.StatusCode, env
+}
+
+func authenticateConsole(t *testing.T) {
+	t.Helper()
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Jar: jar}
+	code, env := consoleRequest(t, client, http.MethodGet, "/api/v1/setup/status", nil)
+	if code != http.StatusOK {
+		t.Fatalf("setup status: %d %+v", code, env)
+	}
+	var status struct {
+		Required bool `json:"required"`
+	}
+	if err := json.Unmarshal(env.Data, &status); err != nil {
+		t.Fatal(err)
+	}
+	if status.Required {
+		if code, env = consoleRequest(t, client, http.MethodPost, "/api/v1/setup/admin", map[string]string{"password": consoleAdminPassword}); code != http.StatusOK {
+			t.Fatalf("setup admin: %d %+v", code, env)
+		}
+	}
+	if code, env = consoleRequest(t, client, http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": consoleAdminPassword}); code != http.StatusOK {
+		t.Fatalf("login admin: %d %+v", code, env)
+	}
+	consoleClient = client
+}
+
+func loginConsole(t *testing.T, username, password string) *http.Client {
+	t.Helper()
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Jar: jar}
+	if code, env := consoleRequest(t, client, http.MethodPost, "/api/v1/auth/login", map[string]string{"username": username, "password": password}); code != http.StatusOK {
+		t.Fatalf("login %s: %d %+v", username, code, env)
+	}
+	return client
+}
+
+func TestT9_MultitenantAccess(t *testing.T) {
+	stop := startPortForward(t)
+	defer stop()
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	tenantName, username := "e2e-tenant-"+suffix, "e2e-viewer-"+suffix
+	code, env := consoleDo(t, http.MethodPost, "/api/v1/tenants", map[string]string{"name": tenantName})
+	if code != http.StatusOK {
+		t.Fatalf("create tenant: %d %+v", code, env)
+	}
+	var tenant struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(env.Data, &tenant); err != nil {
+		t.Fatal(err)
+	}
+	defer consoleDo(t, http.MethodPut, "/api/v1/tenants/"+strconv.FormatInt(tenant.ID, 10)+"/status", map[string]string{"status": "disabled"})
+	code, env = consoleDo(t, http.MethodPost, "/api/v1/users", map[string]any{"username": username, "password": consoleAdminPassword, "role": "viewer", "tenantId": tenant.ID})
+	if code != http.StatusOK {
+		t.Fatalf("create viewer: %d %+v", code, env)
+	}
+	var user struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(env.Data, &user); err != nil {
+		t.Fatal(err)
+	}
+	defer consoleDo(t, http.MethodDelete, "/api/v1/users/"+strconv.FormatInt(user.ID, 10), nil)
+	if code, env = consoleDo(t, http.MethodPut, "/api/v1/clusters/local/tenant", map[string]any{"tenantId": tenant.ID}); code != http.StatusOK {
+		t.Fatalf("assign cluster: %d %+v", code, env)
+	}
+	defer consoleDo(t, http.MethodPut, "/api/v1/clusters/local/tenant", map[string]any{})
+	viewer := loginConsole(t, username, consoleAdminPassword)
+	if code, env = consoleRequest(t, viewer, http.MethodGet, "/api/v1/clusters/local", nil); code != http.StatusOK {
+		t.Fatalf("viewer cluster read: %d %+v", code, env)
+	}
+	if code, _ = consoleRequest(t, viewer, http.MethodPost, "/api/v1/clusters", map[string]string{"name": "forbidden"}); code != http.StatusForbidden {
+		t.Fatalf("viewer cluster create = %d, want 403", code)
+	}
 }
 
 func TestT9_ConsoleListsBuiltinPolicies(t *testing.T) {

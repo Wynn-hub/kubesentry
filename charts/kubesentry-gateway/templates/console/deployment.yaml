@@ -72,6 +72,12 @@ spec:
                   fieldPath: metadata.name
             - name: CONSOLE_WEB_URL
               value: "http://127.0.0.1:{{ .Values.console.ports.web }}/"
+            - name: CONSOLE_SESSION_ABSOLUTE_DURATION
+              value: {{ .Values.console.session.absoluteDuration | quote }}
+            - name: CONSOLE_SESSION_IDLE_DURATION
+              value: {{ .Values.console.session.idleDuration | quote }}
+            - name: CONSOLE_SESSION_COOKIE_SECURE
+              value: {{ .Values.console.session.cookieSecure | quote }}
             - name: DATABASE_DSN
               valueFrom:
                 secretKeyRef:
