@@ -2,7 +2,7 @@ export default {
   auth: { loginTitle: '登录 KubeSentry', username: '用户名', password: '密码', confirmPassword: '确认密码', passwordMismatch: '两次输入的密码不一致', login: '登录', logout: '退出登录', setupTitle: '初始化管理员', setupHint: '首次部署需要为默认 admin 用户设置密码。', initialize: '完成初始化' },
   nav: {
     overview: '平台概览', policies: '策略', groups: '策略组', exceptions: '豁免', distributions: '策略下发',
-    clusters: '集群管理', tenants: '租户管理',
+    clusters: '集群管理', tenants: '租户管理', users: '用户管理',
     observability: '平台观测', events: '准入事件', audit: 'K8s 审计', alerts: '告警规则',
     groupPlatform: '平台', groupProtection: '策略防护', groupObservability: '审计与告警', groupSystem: '系统',
     apiDocs: 'API 文档',
@@ -11,7 +11,7 @@ export default {
   },
   common: {
     create: '新建', edit: '编辑', delete: '删除', save: '保存', cancel: '取消',
-    confirm: '确认', search: '搜索', actions: '操作', name: '名称', description: '描述',
+    confirm: '确认', search: '搜索', actions: '操作', name: '名称', description: '描述', status: '状态',
     refresh: '刷新', back: '返回', view: '查看', copy: '复制', enabled: '已启用', disabled: '未启用',
     deleteConfirm: '确定删除 {name} 吗？',
     conflictRefresh: '数据已变更，请刷新后重试',
@@ -22,6 +22,8 @@ export default {
     labelValuePlaceholder: '输入值回车添加，可添加多个',
     multiValueOrHint: '多个值之间是或（OR）关系，满足其中任意一个即算匹配',
   },
+  tenant: { title: '租户管理', subtitle: '创建租户并控制租户是否可用', createTitle: '新建租户' },
+  user: { title: '用户管理', subtitle: '管理权限范围内的用户', createTitle: '新建用户', role: '角色', tenant: '租户', tenantAdmin: '租户管理员', viewer: '普通用户', resetPassword: '重置密码' },
   phase: {
     Ready: '就绪', Invalid: '无效', Syncing: '同步中', Disabled: '已停用', Degraded: '降级',
     Active: '生效中', Expired: '已过期', Online: '在线', Offline: '离线', Registering: '注册中',
@@ -48,7 +50,7 @@ export default {
   },
   policy: {
     title: '策略', subtitle: '管理准入校验策略与 Rego 规则', source: '来源', mode: '生效模式', phase: '校验状态',
-    referencedBy: '被引用组', currentVersion: '当前版本', rego: 'Rego 源码',
+    referencedBy: '被引用组', currentVersion: '当前版本', rego: 'Rego 源码', owner: '所有者', systemOwner: '系统', tenantOwner: '租户', crossTenantLocked: '该策略已被其它租户引用，当前不可修改或删除。',
     match: '匹配规则', operations: '操作', resources: '资源',
     apiGroups: 'API 组', apiVersions: 'API 版本', resourceTypes: '资源类型', coreGroup: '核心组（core）',
     validate: '校验', validateOK: 'Rego 校验通过',
@@ -82,7 +84,7 @@ export default {
   },
   cluster: {
     title: '集群管理', subtitle: '管理已注册的成员集群',
-    name: '名称', phase: '状态', operatorVersion: 'Operator 版本',
+    name: '名称', phase: '状态', operatorVersion: 'Operator 版本', tenant: '所属租户', unassigned: '未分配',
     lastHeartbeatAt: '最后心跳', clusterUid: '集群 UID', labels: '标签',
     kubernetesVersion: 'Kubernetes 版本', apiServerAddress: 'API Server 地址',
     nodes: '节点数', nodesReadyOfTotal: '{ready} / {total} 就绪',

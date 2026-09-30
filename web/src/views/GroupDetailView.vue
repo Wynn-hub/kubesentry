@@ -3,7 +3,7 @@
     <PageHeader show-back :title="d.spec.displayName || d.name">
       <el-tag size="small" :type="d.source === 'builtin' ? 'info' : 'primary'">{{ d.source }}</el-tag>
       <PhaseTag :phase="d.status.phase" kind="group" />
-      <el-button @click="$router.push(`/policygroups/${d.name}/edit`)">{{ $t('common.edit') }}</el-button>
+      <el-button v-if="can('resource.write') && (d.source !== 'builtin' || can('platform.manage'))" @click="$router.push(`/policygroups/${d.name}/edit`)">{{ $t('common.edit') }}</el-button>
     </PageHeader>
 
     <el-descriptions :column="2" border style="margin-bottom: 16px">
@@ -69,6 +69,7 @@
 </template>
 
 <script setup lang="ts">
+import { can } from '../auth/session'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'

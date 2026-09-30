@@ -96,6 +96,11 @@ func (s *PolicyService) Get(ctx context.Context, name string) (*dto.PolicyView, 
 	}
 
 	detail := dto.PolicyToDetail(p, refs)
+	locked, err := s.referencedByOtherTenant(ctx, p)
+	if err != nil {
+		return nil, fmt.Errorf("check policy references: %w", err)
+	}
+	detail.CrossTenantLocked = locked
 	return &detail, nil
 }
 

@@ -364,6 +364,8 @@ definitions:
         type: string
       readyNodeCount:
         type: integer
+      tenantId:
+        type: integer
     required:
     - createdAt
     - kubernetesVersion
@@ -457,6 +459,8 @@ definitions:
         - Uninstalled
         type: string
       readyNodeCount:
+        type: integer
+      tenantId:
         type: integer
       updatedAt:
         format: date-time
@@ -1669,6 +1673,8 @@ definitions:
       createdAt:
         format: date-time
         type: string
+      crossTenantLocked:
+        type: boolean
       description:
         type: string
       enforcementMode:
@@ -1683,6 +1689,11 @@ definitions:
       match:
         $ref: '#/definitions/dto.PolicyMatchInput'
       name:
+        type: string
+      ownerType:
+        enum:
+        - system
+        - tenant
         type: string
       phase:
         enum:
@@ -1702,17 +1713,21 @@ definitions:
         - builtin
         - custom
         type: string
+      tenantId:
+        type: integer
       updatedAt:
         format: date-time
         type: string
     required:
     - annotations
     - createdAt
+    - crossTenantLocked
     - description
     - enforcementMode
     - labels
     - match
     - name
+    - ownerType
     - phase
     - referencedBy
     - rego
@@ -1892,6 +1907,12 @@ definitions:
       name:
         example: deny-privileged-pod
         type: string
+      ownerType:
+        enum:
+        - system
+        - tenant
+        example: system
+        type: string
       phase:
         enum:
         - Ready
@@ -1904,6 +1925,8 @@ definitions:
         - custom
         example: builtin
         type: string
+      tenantId:
+        type: integer
       updatedAt:
         example: "2026-08-03T11:20:45Z"
         format: date-time
@@ -1913,6 +1936,7 @@ definitions:
     - description
     - enforcementMode
     - name
+    - ownerType
     - phase
     - source
     - updatedAt

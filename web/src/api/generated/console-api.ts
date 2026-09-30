@@ -1107,6 +1107,7 @@ export interface components {
             /** @enum {string} */
             phase: "Registering" | "Online" | "Offline" | "Uninstalling" | "Uninstalled";
             readyNodeCount: number;
+            tenantId?: number;
         };
         "dto.ClusterLabelsInput": {
             labels: {
@@ -1146,6 +1147,7 @@ export interface components {
             /** @enum {string} */
             phase: "Registering" | "Online" | "Offline" | "Uninstalling" | "Uninstalled";
             readyNodeCount: number;
+            tenantId?: number;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -1590,6 +1592,7 @@ export interface components {
             compileError?: string;
             /** Format: date-time */
             createdAt: string;
+            crossTenantLocked: boolean;
             description: string;
             /** @enum {string} */
             enforcementMode: "enforce" | "audit";
@@ -1599,12 +1602,15 @@ export interface components {
             match: components["schemas"]["dto.PolicyMatchInput"];
             name: string;
             /** @enum {string} */
+            ownerType: "system" | "tenant";
+            /** @enum {string} */
             phase: "Ready" | "Invalid";
             referencedBy: string[];
             rego: string;
             resourceVersion: string;
             /** @enum {string} */
             source: "builtin" | "custom";
+            tenantId?: number;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -1691,6 +1697,11 @@ export interface components {
             /** @example deny-privileged-pod */
             name: string;
             /**
+             * @example system
+             * @enum {string}
+             */
+            ownerType: "system" | "tenant";
+            /**
              * @example Ready
              * @enum {string}
              */
@@ -1700,6 +1711,7 @@ export interface components {
              * @enum {string}
              */
             source: "builtin" | "custom";
+            tenantId?: number;
             /**
              * Format: date-time
              * @example 2026-08-03T11:20:45Z

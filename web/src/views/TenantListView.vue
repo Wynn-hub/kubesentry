@@ -1,0 +1,28 @@
+<template>
+  <PageHeader :title="$t('tenant.title')" :subtitle="$t('tenant.subtitle')">
+    <el-button type="primary" @click="dialog = true">{{ $t('common.create') }}</el-button>
+  </PageHeader>
+  <el-table v-loading="loading" :data="items">
+    <el-table-column prop="name" :label="$t('common.name')" />
+    <el-table-column prop="status" :label="$t('common.status')" width="140" />
+    <el-table-column :label="$t('common.actions')" width="150">
+      <template #default="{ row }"><el-switch :model-value="row.status === 'active'" @change="toggle(row)" /></template>
+    </el-table-column>
+  </el-table>
+  <el-dialog v-model="dialog" :title="$t('tenant.createTitle')" width="440px">
+    <el-form label-position="top" @submit.prevent="save"><el-form-item :label="$t('common.name')"><el-input v-model="name" autofocus /></el-form-item></el-form>
+    <template #footer><el-button @click="dialog = false">{{ $t('common.cancel') }}</el-button><el-button type="primary" :loading="saving" @click="save">{{ $t('common.create') }}</el-button></template>
+  </el-dialog>
+</template>
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import { createTenant, listTenants, setTenantStatus, type Tenant } from '../api/identity'
+import PageHeader from '../components/PageHeader.vue'
+const { t } = useI18n(), items = ref<Tenant[]>([]), loading = ref(false), saving = ref(false), dialog = ref(false), name = ref('')
+async function load() { loading.value = true; try { items.value = await listTenants() ?? [] } catch (e) { ElMessage.error((e as Error).message) } finally { loading.value = false } }
+async function save() { saving.value = true; try { await createTenant(name.value); dialog.value = false; name.value = ''; await load(); ElMessage.success(t('common.saved')) } catch (e) { ElMessage.error((e as Error).message) } finally { saving.value = false } }
+async function toggle(row: Tenant) { try { await setTenantStatus(row.id!, row.status === 'active' ? 'disabled' : 'active'); await load() } catch (e) { ElMessage.error((e as Error).message) } }
+onMounted(load)
+</script>

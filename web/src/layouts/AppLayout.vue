@@ -31,13 +31,14 @@
           </svg>
           {{ $t('nav.clusters') }}
         </el-menu-item>
-        <el-menu-item index="/tenants" class="nav-soon">
+        <el-menu-item v-if="can('platform.manage')" index="/tenants">
           <svg aria-hidden="true" class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="9" cy="8" r="3.5" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke-linecap="round" />
             <path d="M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.8-1.9-5.1-4.5-5.8" stroke-linecap="round" />
           </svg>
-          {{ $t('nav.tenants') }}<span class="soon-badge">{{ $t('nav.soon') }}</span>
+          {{ $t('nav.tenants') }}
         </el-menu-item>
+        <el-menu-item v-if="can('tenant.manage')" index="/users">{{ $t('nav.users') }}</el-menu-item>
 
         <div class="nav-group-title">{{ $t('nav.groupProtection') }}</div>
         <el-menu-item index="/policies">
@@ -118,7 +119,7 @@ import { useI18n } from 'vue-i18n'
 import { setLocale } from '../locales'
 import Logo from '../components/Logo.vue'
 import { useRouter } from 'vue-router'
-import { authState, signOut } from '../auth/session'
+import { authState, can, signOut } from '../auth/session'
 
 const { locale } = useI18n()
 const router = useRouter()

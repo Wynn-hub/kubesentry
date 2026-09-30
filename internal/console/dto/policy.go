@@ -235,6 +235,8 @@ type PolicyItem struct {
 	Description     string    `json:"description"`
 	CreatedAt       time.Time `json:"createdAt"`
 	UpdatedAt       time.Time `json:"updatedAt"`
+	OwnerType       string    `json:"ownerType" enums:"system,tenant"`
+	TenantID        *int64    `json:"tenantId,omitempty"`
 }
 
 type PolicyPageView struct {
@@ -245,20 +247,23 @@ type PolicyPageView struct {
 }
 
 type PolicyView struct {
-	Name            string               `json:"name"`
-	Source          string               `json:"source"`
-	Description     string               `json:"description"`
-	Labels          map[string]string    `json:"labels"`
-	Annotations     map[string]string    `json:"annotations"`
-	EnforcementMode string               `json:"enforcementMode"`
-	Match           v1alpha1.PolicyMatch `json:"match"`
-	Rego            string               `json:"rego"`
-	Phase           string               `json:"phase"`
-	CompileError    *string              `json:"compileError,omitempty"`
-	ReferencedBy    []string             `json:"referencedBy"`
-	ResourceVersion string               `json:"resourceVersion"`
-	CreatedAt       time.Time            `json:"createdAt"`
-	UpdatedAt       time.Time            `json:"updatedAt"`
+	Name              string               `json:"name"`
+	Source            string               `json:"source"`
+	Description       string               `json:"description"`
+	Labels            map[string]string    `json:"labels"`
+	Annotations       map[string]string    `json:"annotations"`
+	EnforcementMode   string               `json:"enforcementMode"`
+	Match             v1alpha1.PolicyMatch `json:"match"`
+	Rego              string               `json:"rego"`
+	Phase             string               `json:"phase"`
+	CompileError      *string              `json:"compileError,omitempty"`
+	ReferencedBy      []string             `json:"referencedBy"`
+	ResourceVersion   string               `json:"resourceVersion"`
+	CreatedAt         time.Time            `json:"createdAt"`
+	UpdatedAt         time.Time            `json:"updatedAt"`
+	OwnerType         string               `json:"ownerType" enums:"system,tenant"`
+	TenantID          *int64               `json:"tenantId,omitempty"`
+	CrossTenantLocked bool                 `json:"crossTenantLocked"`
 }
 
 type PolicyVersionItemView struct {
@@ -452,20 +457,23 @@ type SwagPolicyInput struct {
 
 // SwagPolicyDetail describes the stable policy detail JSON shape.
 type SwagPolicyDetail struct {
-	Name            string            `json:"name" binding:"required"`
-	Source          string            `json:"source" binding:"required" enums:"builtin,custom"`
-	Description     string            `json:"description" binding:"required"`
-	Labels          map[string]string `json:"labels" binding:"required"`
-	Annotations     map[string]string `json:"annotations" binding:"required"`
-	EnforcementMode string            `json:"enforcementMode" binding:"required" enums:"enforce,audit"`
-	Match           PolicyMatchInput  `json:"match" binding:"required"`
-	Rego            string            `json:"rego" binding:"required"`
-	Phase           string            `json:"phase" binding:"required" enums:"Ready,Invalid"`
-	CompileError    *string           `json:"compileError,omitempty"`
-	ReferencedBy    []string          `json:"referencedBy" binding:"required"`
-	ResourceVersion string            `json:"resourceVersion" binding:"required"`
-	CreatedAt       time.Time         `json:"createdAt" binding:"required" format:"date-time"`
-	UpdatedAt       time.Time         `json:"updatedAt" binding:"required" format:"date-time"`
+	Name              string            `json:"name" binding:"required"`
+	Source            string            `json:"source" binding:"required" enums:"builtin,custom"`
+	Description       string            `json:"description" binding:"required"`
+	Labels            map[string]string `json:"labels" binding:"required"`
+	Annotations       map[string]string `json:"annotations" binding:"required"`
+	EnforcementMode   string            `json:"enforcementMode" binding:"required" enums:"enforce,audit"`
+	Match             PolicyMatchInput  `json:"match" binding:"required"`
+	Rego              string            `json:"rego" binding:"required"`
+	Phase             string            `json:"phase" binding:"required" enums:"Ready,Invalid"`
+	CompileError      *string           `json:"compileError,omitempty"`
+	ReferencedBy      []string          `json:"referencedBy" binding:"required"`
+	ResourceVersion   string            `json:"resourceVersion" binding:"required"`
+	CreatedAt         time.Time         `json:"createdAt" binding:"required" format:"date-time"`
+	UpdatedAt         time.Time         `json:"updatedAt" binding:"required" format:"date-time"`
+	OwnerType         string            `json:"ownerType" binding:"required" enums:"system,tenant"`
+	TenantID          *int64            `json:"tenantId,omitempty"`
+	CrossTenantLocked bool              `json:"crossTenantLocked" binding:"required"`
 }
 
 type PolicyNameView struct {

@@ -1,6 +1,6 @@
 <template>
   <PageHeader :title="$t('cluster.title')" :subtitle="$t('cluster.subtitle')">
-    <el-button type="primary" @click="createDialogOpen = true">{{ $t('common.create') }}</el-button>
+    <el-button v-if="can('platform.manage')" type="primary" @click="createDialogOpen = true">{{ $t('common.create') }}</el-button>
   </PageHeader>
 
   <el-tabs v-model="activeTab">
@@ -41,7 +41,7 @@
         <el-table-column :label="$t('common.actions')" width="126" fixed="right" align="right" class-name="cluster-actions">
           <template #default="{ row }">
             <el-button link type="primary" @click="$router.push(`/clusters/${row.name}`)">{{ $t('common.view') }}</el-button>
-            <el-dropdown trigger="click" @command="(command: string) => onClusterAction(command, row)">
+            <el-dropdown v-if="can('platform.manage')" trigger="click" @command="(command: string) => onClusterAction(command, row)">
               <el-button link class="more-actions" :aria-label="$t('common.actions')">
                 <el-icon><MoreFilled /></el-icon>
               </el-button>
@@ -163,6 +163,7 @@ import InstallParamsForm from '../components/InstallParamsForm.vue'
 import PaginationBar from '../components/PaginationBar.vue'
 import { listStateParams, useRouteListState, type SortOrder } from '../composables/useRouteListState'
 import { useLatestRequest } from '../composables/useLatestRequest'
+import { can } from '../auth/session'
 
 const sortOrders = ['ascending', 'descending'] as const
 

@@ -49,4 +49,19 @@ describe('application navigation', () => {
 
     expect(router.currentRoute.value.fullPath).toBe('/system/api-docs')
   })
+
+  it('hides management navigation from viewers', async () => {
+    authState.status = 'authenticated'
+    authState.me = { id: 2, username: 'viewer', role: 'viewer', tenantId: 1 }
+    const target = document.createElement('div')
+    const app = createApp(AppLayout).use(router).use(i18n).use(ElementPlus)
+    unmount = app.unmount
+    app.mount(target)
+    await nextTick()
+
+    const labels = Array.from(target.querySelectorAll('.el-menu-item')).map(item => item.textContent?.trim())
+    expect(labels).not.toContain(i18n.global.t('nav.tenants'))
+    expect(labels).not.toContain(i18n.global.t('nav.users'))
+    expect(labels).toContain(i18n.global.t('nav.clusters'))
+  })
 })

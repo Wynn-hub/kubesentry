@@ -13,6 +13,7 @@ import (
 )
 
 func policyFixture() *dbrepo.Policy {
+	tenantID := int64(7)
 	return &dbrepo.Policy{
 		Base: model.Base{
 			ID:        42,
@@ -32,6 +33,8 @@ func policyFixture() *dbrepo.Policy {
 		CompileOK:   true,
 		Labels:      datatypes.NewJSONType(map[string]string{"kubesentry.io/builtin": "true"}),
 		Annotations: datatypes.NewJSONType(map[string]string{"team": "platform"}),
+		OwnerType:   "tenant",
+		TenantID:    &tenantID,
 	}
 }
 
@@ -48,6 +51,9 @@ func TestPolicyToListItem(t *testing.T) {
 	}
 	if item.Phase != "Ready" {
 		t.Fatalf("phase = %q, want Ready", item.Phase)
+	}
+	if item.OwnerType != "tenant" || item.TenantID == nil || *item.TenantID != 7 {
+		t.Fatalf("owner = %s/%v", item.OwnerType, item.TenantID)
 	}
 }
 

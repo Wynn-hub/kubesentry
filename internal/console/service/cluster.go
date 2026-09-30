@@ -46,7 +46,7 @@ func (s *ClusterService) List(ctx context.Context, page, pageSize int, sortBy, s
 	items := make([]dto.ClusterItem, 0, len(rows))
 	for i := range rows {
 		c := rows[i]
-		items = append(items, dto.ClusterItem{Name: c.Name, Phase: c.Phase, OperatorVersion: c.OperatorVersion, KubernetesVersion: c.KubernetesVersion, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, LastHeartbeatAt: c.LastHeartbeatAt, CreatedAt: c.CreatedAt})
+		items = append(items, dto.ClusterItem{Name: c.Name, Phase: c.Phase, OperatorVersion: c.OperatorVersion, KubernetesVersion: c.KubernetesVersion, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, LastHeartbeatAt: c.LastHeartbeatAt, CreatedAt: c.CreatedAt, TenantID: c.TenantID})
 	}
 	return &dto.ClusterPageView{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
 }
@@ -59,7 +59,7 @@ func (s *ClusterService) Get(ctx context.Context, name string) (*dto.ClusterView
 		}
 		return nil, fmt.Errorf("get cluster: %w", err)
 	}
-	return &dto.ClusterView{Name: c.Name, ClusterUID: c.ClusterUID, Phase: c.Phase, OperatorVersion: c.OperatorVersion, LastHeartbeatAt: c.LastHeartbeatAt, KubernetesVersion: c.KubernetesVersion, APIServerAddress: c.APIServerAddress, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, Labels: c.Labels.Data(), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}, nil
+	return &dto.ClusterView{Name: c.Name, ClusterUID: c.ClusterUID, Phase: c.Phase, OperatorVersion: c.OperatorVersion, LastHeartbeatAt: c.LastHeartbeatAt, KubernetesVersion: c.KubernetesVersion, APIServerAddress: c.APIServerAddress, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, Labels: c.Labels.Data(), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt, TenantID: c.TenantID}, nil
 }
 
 func (s *ClusterService) Create(ctx context.Context, req dto.ClusterCreateInput) (string, string, error) {

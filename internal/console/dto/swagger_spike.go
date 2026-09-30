@@ -22,6 +22,8 @@ type SwagPolicyListItem struct {
 	Description     string `json:"description" binding:"required" example:"Deny privileged containers"`
 	CreatedAt       string `json:"createdAt" binding:"required" format:"date-time" example:"2026-08-03T10:15:30Z"`
 	UpdatedAt       string `json:"updatedAt" binding:"required" format:"date-time" example:"2026-08-03T11:20:45Z"`
+	OwnerType       string `json:"ownerType" binding:"required" enums:"system,tenant" example:"system"`
+	TenantID        *int64 `json:"tenantId,omitempty"`
 }
 
 type SwagErrorResponse struct {

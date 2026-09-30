@@ -1,6 +1,6 @@
 <template>
   <PageHeader :title="$t('exception.title')" :subtitle="$t('exception.subtitle')">
-    <el-button type="primary" @click="$router.push('/exceptions/new')">
+    <el-button v-if="can('resource.write')" type="primary" @click="$router.push('/exceptions/new')">
       {{ $t('common.create') }}
     </el-button>
   </PageHeader>
@@ -24,9 +24,9 @@
       <template #default="{ row }">{{ row.expiresAt ? new Date(row.expiresAt).toLocaleString() : '-' }}</template>
     </el-table-column>
     <el-table-column :label="$t('exception.reason')" prop="reason" />
-    <el-table-column :label="$t('common.actions')" width="160">
+    <el-table-column v-if="can('resource.write')" :label="$t('common.actions')" width="160">
       <template #default="{ row }">
-        <el-button link type="primary" @click="$router.push(`/exceptions/${row.name}/edit`)">
+        <el-button v-if="row.name !== 'default-system-namespaces' || can('platform.manage')" link type="primary" @click="$router.push(`/exceptions/${row.name}/edit`)">
           {{ $t('common.edit') }}
         </el-button>
         <el-button v-if="row.name !== 'default-system-namespaces'" link type="danger" @click="onDelete(row.name)">{{ $t('common.delete') }}</el-button>
@@ -52,6 +52,7 @@ import PhaseTag from '../components/PhaseTag.vue'
 import PaginationBar from '../components/PaginationBar.vue'
 import { listStateParams, useRouteListState, type SortOrder } from '../composables/useRouteListState'
 import { useLatestRequest } from '../composables/useLatestRequest'
+import { can } from '../auth/session'
 
 const sortOrders = ['ascending', 'descending'] as const
 

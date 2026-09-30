@@ -31,6 +31,8 @@ export const updateClusterLabels = (name: string, labels: components['schemas'][
   extract<'updateCluster'>(apiClient.PUT('/clusters/{name}', { params: { path: { name } }, body: { labels } }))
 export const deleteCluster = (name: string) =>
   extract<'deleteCluster'>(apiClient.DELETE('/clusters/{name}', { params: { path: { name } } }))
+export const assignClusterTenant = (name: string, tenantId?: number) =>
+  extract<'assignClusterTenant'>(apiClient.PUT('/clusters/{name}/tenant', { params: { path: { name } }, body: { tenantId } }))
 export const reissueToken = (name: string, installParams: InstallParams) =>
   extract<'reissueClusterToken'>(apiClient.POST('/clusters/{name}/reissue-token', { params: { path: { name } }, body: { installParams } }))
 export const getLatestInstallParams = (name: string) =>

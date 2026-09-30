@@ -2,7 +2,7 @@ export default {
   auth: { loginTitle: 'Sign in to KubeSentry', username: 'Username', password: 'Password', confirmPassword: 'Confirm password', passwordMismatch: 'Passwords do not match', login: 'Sign in', logout: 'Sign out', setupTitle: 'Initialize administrator', setupHint: 'Set the password for the default admin user to finish first-time setup.', initialize: 'Finish setup' },
   nav: {
     overview: 'Overview', policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions', distributions: 'Distribution',
-    clusters: 'Clusters', tenants: 'Tenants',
+    clusters: 'Clusters', tenants: 'Tenants', users: 'Users',
     observability: 'Platform Observability', events: 'Admission Events', audit: 'K8s Audit', alerts: 'Alert Rules',
     groupPlatform: 'Platform', groupProtection: 'Policy Protection', groupObservability: 'Audit & Alerting', groupSystem: 'System',
     apiDocs: 'API Documentation',
@@ -11,7 +11,7 @@ export default {
   },
   common: {
     create: 'Create', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
-    confirm: 'Confirm', search: 'Search', actions: 'Actions', name: 'Name', description: 'Description',
+    confirm: 'Confirm', search: 'Search', actions: 'Actions', name: 'Name', description: 'Description', status: 'Status',
     refresh: 'Refresh', back: 'Back', view: 'View', copy: 'Copy', enabled: 'Enabled', disabled: 'Disabled',
     deleteConfirm: 'Delete {name}?',
     conflictRefresh: 'The object has been modified. Refresh and retry.',
@@ -22,6 +22,8 @@ export default {
     labelValuePlaceholder: 'Type a value and press Enter, multiple allowed',
     multiValueOrHint: 'Multiple values are combined with OR — matching any one is enough',
   },
+  tenant: { title: 'Tenants', subtitle: 'Create tenants and control their availability', createTitle: 'New Tenant' },
+  user: { title: 'Users', subtitle: 'Manage users within your scope', createTitle: 'New User', role: 'Role', tenant: 'Tenant', tenantAdmin: 'Tenant administrator', viewer: 'Viewer', resetPassword: 'Reset password' },
   phase: {
     Ready: 'Ready', Invalid: 'Invalid', Syncing: 'Syncing', Disabled: 'Disabled', Degraded: 'Degraded',
     Active: 'Active', Expired: 'Expired', Online: 'Online', Offline: 'Offline', Registering: 'Registering',
@@ -48,7 +50,7 @@ export default {
   },
   policy: {
     title: 'Policies', subtitle: 'Manage admission policies and Rego rules', source: 'Source', mode: 'Mode', phase: 'Validation Status',
-    referencedBy: 'Referenced By', currentVersion: 'Version', rego: 'Rego Source',
+    referencedBy: 'Referenced By', currentVersion: 'Version', rego: 'Rego Source', owner: 'Owner', systemOwner: 'System', tenantOwner: 'Tenant', crossTenantLocked: 'This policy is referenced by another tenant and cannot be changed or deleted.',
     match: 'Match Rules', operations: 'Operations', resources: 'Resources',
     apiGroups: 'API Groups', apiVersions: 'API Versions', resourceTypes: 'Resource Types', coreGroup: 'core',
     validate: 'Validate', validateOK: 'Rego compiles successfully',
@@ -82,7 +84,7 @@ export default {
   },
   cluster: {
     title: 'Clusters', subtitle: 'Manage registered member clusters',
-    name: 'Name', phase: 'Phase', operatorVersion: 'Operator Version',
+    name: 'Name', phase: 'Phase', operatorVersion: 'Operator Version', tenant: 'Tenant', unassigned: 'Unassigned',
     lastHeartbeatAt: 'Last Heartbeat', clusterUid: 'Cluster UID', labels: 'Labels',
     kubernetesVersion: 'Kubernetes Version', apiServerAddress: 'API Server Address',
     nodes: 'Nodes', nodesReadyOfTotal: '{ready} / {total} ready',

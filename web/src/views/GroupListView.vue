@@ -1,6 +1,6 @@
 <template>
   <PageHeader :title="$t('group.title')" :subtitle="$t('group.subtitle')">
-    <el-button type="primary" @click="$router.push('/policygroups/new')">
+    <el-button v-if="can('resource.write')" type="primary" @click="$router.push('/policygroups/new')">
       {{ $t('common.create') }}
     </el-button>
   </PageHeader>
@@ -22,7 +22,7 @@
       <template #default="{ row }">
         <el-switch
           :model-value="row.enabled"
-          :loading="toggling === row.name"
+          :loading="toggling === row.name" :disabled="!can('resource.write') || (row.source === 'builtin' && !can('platform.manage'))"
           @change="onToggleEnabled(row)"
         />
       </template>
@@ -31,12 +31,12 @@
       <template #default="{ row }"><PhaseTag :phase="row.phase" kind="group" /></template>
     </el-table-column>
     <el-table-column :label="$t('group.resolvedCount')" prop="resolvedCount" sortable="custom" :sort-orders="sortOrders" width="110" />
-    <el-table-column :label="$t('common.actions')" width="160">
+    <el-table-column v-if="can('resource.write')" :label="$t('common.actions')" width="160">
       <template #default="{ row }">
-        <el-button link type="primary" @click="$router.push(`/policygroups/${row.name}/edit`)">
+        <el-button v-if="row.source !== 'builtin' || can('platform.manage')" link type="primary" @click="$router.push(`/policygroups/${row.name}/edit`)">
           {{ $t('common.edit') }}
         </el-button>
-        <el-button v-if="row.name !== 'default'" link type="danger" @click="onDelete(row)">{{ $t('common.delete') }}</el-button>
+        <el-button v-if="row.source !== 'builtin' && row.name !== 'default'" link type="danger" @click="onDelete(row)">{{ $t('common.delete') }}</el-button>
       </template>
     </el-table-column>
   </el-table>
@@ -59,6 +59,7 @@ import PhaseTag from '../components/PhaseTag.vue'
 import PaginationBar from '../components/PaginationBar.vue'
 import { listStateParams, useRouteListState, type SortOrder } from '../composables/useRouteListState'
 import { useLatestRequest } from '../composables/useLatestRequest'
+import { can } from '../auth/session'
 
 const sortOrders = ['ascending', 'descending'] as const
 

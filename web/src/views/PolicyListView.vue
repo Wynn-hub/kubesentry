@@ -1,7 +1,7 @@
 <!-- web/src/views/PolicyListView.vue -->
 <template>
   <PageHeader :title="$t('policy.title')" :subtitle="$t('policy.subtitle')">
-    <el-button type="primary" @click="$router.push('/policies/new')">
+    <el-button v-if="can('resource.write')" type="primary" @click="$router.push('/policies/new')">
       {{ $t('common.create') }}
     </el-button>
   </PageHeader>
@@ -59,6 +59,7 @@
         <el-tag size="small" :type="row.source === 'builtin' ? 'info' : 'primary'">{{ $t(`policy.${row.source}`) }}</el-tag>
       </template>
     </el-table-column>
+    <el-table-column :label="$t('policy.owner')" width="120"><template #default="{ row }">{{ row.ownerType === 'system' ? $t('policy.systemOwner') : $t('policy.tenantOwner') }}</template></el-table-column>
     <el-table-column :label="$t('policy.mode')" prop="enforcementMode" sortable="custom" :sort-orders="sortOrders" width="115">
       <template #default="{ row }"><ModeTag :mode="row.enforcementMode" /></template>
     </el-table-column>
@@ -75,12 +76,12 @@
         {{ row.updatedAt ? new Date(row.updatedAt).toLocaleString() : '-' }}
       </template>
     </el-table-column>
-    <el-table-column :label="$t('common.actions')" width="130" fixed="right">
+    <el-table-column v-if="can('resource.write')" :label="$t('common.actions')" width="130" fixed="right">
       <template #default="{ row }">
-        <el-button link type="primary" @click="$router.push(`/policies/${row.name}/edit`)">
+        <el-button v-if="canEditPolicy(row)" link type="primary" @click="$router.push(`/policies/${row.name}/edit`)">
           {{ $t('common.edit') }}
         </el-button>
-        <el-button link type="danger" @click="onDelete(row)">{{ $t('common.delete') }}</el-button>
+        <el-button v-if="canEditPolicy(row)" link type="danger" @click="onDelete(row)">{{ $t('common.delete') }}</el-button>
       </template>
     </el-table-column>
   </el-table>
@@ -106,8 +107,10 @@ import PhaseTag from '../components/PhaseTag.vue'
 import PaginationBar from '../components/PaginationBar.vue'
 import { listStateParams, useRouteListState, type SortOrder } from '../composables/useRouteListState'
 import { useLatestRequest } from '../composables/useLatestRequest'
+import { authState, can } from '../auth/session'
 
 const KEYWORD_DEBOUNCE_MS = 300
+const canEditPolicy = (policy: PolicyListItem) => can('platform.manage') || (can('resource.write') && policy.ownerType === 'tenant' && policy.tenantId === authState.me?.tenantId)
 const sortOrders = ['ascending', 'descending'] as const
 
 const { t } = useI18n()

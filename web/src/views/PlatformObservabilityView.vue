@@ -1,7 +1,7 @@
 <template>
   <section v-loading="loading">
     <PageHeader :title="$t('platformObservability.title')" :subtitle="$t('platformObservability.subtitle')">
-      <el-button @click="openSettings"><el-icon><Setting /></el-icon>{{ $t('platformObservability.settings') }}</el-button>
+      <el-button v-if="can('platform.manage')" @click="openSettings"><el-icon><Setting /></el-icon>{{ $t('platformObservability.settings') }}</el-button>
       <el-button type="primary" plain @click="refresh"><el-icon><Refresh /></el-icon>{{ $t('common.refresh') }}</el-button>
     </PageHeader>
 
@@ -10,7 +10,7 @@
       class="disabled-state"
       :description="$t('platformObservability.disabledDescription')"
     >
-      <el-button type="primary" @click="openSettings">{{ $t('platformObservability.enableNow') }}</el-button>
+      <el-button v-if="can('platform.manage')" type="primary" @click="openSettings">{{ $t('platformObservability.enableNow') }}</el-button>
     </el-empty>
 
     <template v-else-if="overview">
@@ -134,6 +134,7 @@
 </template>
 
 <script setup lang="ts">
+import { can } from '../auth/session'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Setting } from '@element-plus/icons-vue'

@@ -55,6 +55,8 @@ func PolicyToListItem(p *dbrepo.Policy) PolicyItem {
 		Description:     p.Description,
 		CreatedAt:       p.CreatedAt,
 		UpdatedAt:       p.UpdatedAt,
+		OwnerType:       p.OwnerType,
+		TenantID:        p.TenantID,
 	}
 }
 
@@ -86,6 +88,8 @@ func PolicyToDetail(p *dbrepo.Policy, referencedBy []string) PolicyView {
 		ResourceVersion: PolicyResourceVersion(p),
 		CreatedAt:       p.CreatedAt,
 		UpdatedAt:       p.UpdatedAt,
+		OwnerType:       p.OwnerType,
+		TenantID:        p.TenantID,
 	}
 	if p.CompileError != "" {
 		d.CompileError = &p.CompileError

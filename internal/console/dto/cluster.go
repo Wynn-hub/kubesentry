@@ -288,6 +288,7 @@ type ClusterItem struct {
 	ReadyNodeCount    int        `json:"readyNodeCount" binding:"required"`
 	LastHeartbeatAt   *time.Time `json:"lastHeartbeatAt,omitempty" format:"date-time"`
 	CreatedAt         time.Time  `json:"createdAt" binding:"required" format:"date-time"`
+	TenantID          *int64     `json:"tenantId,omitempty"`
 }
 
 type ClusterView struct {
@@ -303,6 +304,7 @@ type ClusterView struct {
 	Labels            map[string]string `json:"labels" binding:"required"`
 	CreatedAt         time.Time         `json:"createdAt" binding:"required" format:"date-time"`
 	UpdatedAt         time.Time         `json:"updatedAt" binding:"required" format:"date-time"`
+	TenantID          *int64            `json:"tenantId,omitempty"`
 }
 
 type InstallRecordItemView struct {

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AppLayout from '../layouts/AppLayout.vue'
-import { authState, refreshAuth } from '../auth/session'
+import { authState, can, refreshAuth, type Capability } from '../auth/session'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -13,20 +13,21 @@ const router = createRouter({
       children: [
         { path: '', name: 'overview', component: () => import('../views/OverviewView.vue') },
         { path: 'policies', name: 'policies', component: () => import('../views/PolicyListView.vue') },
-        { path: 'policies/new', name: 'policy-new', component: () => import('../views/PolicyFormView.vue'), meta: { backFallback: { name: 'policies' } } },
+        { path: 'policies/new', name: 'policy-new', component: () => import('../views/PolicyFormView.vue'), meta: { capability: 'resource.write', backFallback: { name: 'policies' } } },
         { path: 'policies/:name', name: 'policy-detail', component: () => import('../views/PolicyDetailView.vue'), meta: { backFallback: { name: 'policies' } } },
-        { path: 'policies/:name/edit', name: 'policy-edit', component: () => import('../views/PolicyFormView.vue'), meta: { backFallback: { name: 'policy-detail', inheritParams: ['name'], fallbackName: 'policies' } } },
+        { path: 'policies/:name/edit', name: 'policy-edit', component: () => import('../views/PolicyFormView.vue'), meta: { capability: 'resource.write', backFallback: { name: 'policy-detail', inheritParams: ['name'], fallbackName: 'policies' } } },
         { path: 'policygroups', name: 'groups', component: () => import('../views/GroupListView.vue') },
-        { path: 'policygroups/new', name: 'group-new', component: () => import('../views/GroupFormView.vue'), meta: { backFallback: { name: 'groups' } } },
+        { path: 'policygroups/new', name: 'group-new', component: () => import('../views/GroupFormView.vue'), meta: { capability: 'resource.write', backFallback: { name: 'groups' } } },
         { path: 'policygroups/:name', name: 'group-detail', component: () => import('../views/GroupDetailView.vue'), meta: { backFallback: { name: 'groups' } } },
-        { path: 'policygroups/:name/edit', name: 'group-edit', component: () => import('../views/GroupFormView.vue'), meta: { backFallback: { name: 'group-detail', inheritParams: ['name'], fallbackName: 'groups' } } },
+        { path: 'policygroups/:name/edit', name: 'group-edit', component: () => import('../views/GroupFormView.vue'), meta: { capability: 'resource.write', backFallback: { name: 'group-detail', inheritParams: ['name'], fallbackName: 'groups' } } },
         { path: 'exceptions', name: 'exceptions', component: () => import('../views/ExceptionListView.vue') },
-        { path: 'exceptions/new', name: 'exception-new', component: () => import('../views/ExceptionFormView.vue'), meta: { backFallback: { name: 'exceptions' } } },
-        { path: 'exceptions/:name/edit', name: 'exception-edit', component: () => import('../views/ExceptionFormView.vue'), meta: { backFallback: { name: 'exceptions' } } },
+        { path: 'exceptions/new', name: 'exception-new', component: () => import('../views/ExceptionFormView.vue'), meta: { capability: 'resource.write', backFallback: { name: 'exceptions' } } },
+        { path: 'exceptions/:name/edit', name: 'exception-edit', component: () => import('../views/ExceptionFormView.vue'), meta: { capability: 'resource.write', backFallback: { name: 'exceptions' } } },
         { path: 'clusters', name: 'clusters', component: () => import('../views/ClusterListView.vue') },
         { path: 'clusters/:name', name: 'cluster-detail', component: () => import('../views/ClusterDetailView.vue'), meta: { backFallback: { name: 'clusters' } } },
         { path: 'system/api-docs', name: 'api-docs', component: () => import('../views/ApiDocsView.vue') },
-        { path: 'tenants', name: 'tenants', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'tenants', backFallback: { name: 'overview' } } },
+        { path: 'tenants', name: 'tenants', component: () => import('../views/TenantListView.vue'), meta: { capability: 'platform.manage' } },
+        { path: 'users', name: 'users', component: () => import('../views/UserListView.vue'), meta: { capability: 'tenant.manage' } },
         { path: 'events', name: 'events', component: () => import('../views/AdmissionEventsView.vue') },
         { path: 'observability', name: 'observability', component: () => import('../views/PlatformObservabilityView.vue') },
         { path: 'audit', name: 'audit', component: () => import('../views/ComingSoonView.vue'), meta: { feature: 'audit', backFallback: { name: 'overview' } } },
@@ -41,6 +42,8 @@ router.beforeEach(async (to) => {
   if (authState.status === 'setup' && to.name !== 'setup') return { name: 'setup' }
   if (authState.status === 'anonymous' && to.name !== 'login') return { name: 'login', query: { redirect: to.fullPath } }
   if (authState.status === 'authenticated' && (to.name === 'login' || to.name === 'setup')) return { name: 'overview' }
+  const capability = to.meta.capability as Capability | undefined
+  if (authState.status === 'authenticated' && capability && !can(capability)) return { name: 'overview' }
 })
 
 export default router

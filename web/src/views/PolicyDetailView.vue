@@ -3,7 +3,7 @@
     <PageHeader show-back :title="d.name">
       <el-tag size="small" :type="d.source === 'builtin' ? 'info' : 'primary'">{{ d.source }}</el-tag>
       <PhaseTag :phase="d.phase" kind="policy" />
-      <el-button @click="$router.push(`/policies/${d.name}/edit`)">{{ $t('common.edit') }}</el-button>
+      <el-button v-if="editable" @click="$router.push(`/policies/${d.name}/edit`)">{{ $t('common.edit') }}</el-button>
     </PageHeader>
 
     <el-tabs v-model="activeTab">
@@ -12,11 +12,13 @@
           <el-descriptions-item :label="$t('common.description')">{{ d.description }}</el-descriptions-item>
           <el-descriptions-item :label="$t('policy.mode')"><ModeTag :mode="d.enforcementMode" /></el-descriptions-item>
           <el-descriptions-item :label="$t('policy.referencedBy')">{{ (d.referencedBy ?? []).join(', ') }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('policy.owner')">{{ d.ownerType === 'system' ? $t('policy.systemOwner') : $t('policy.tenantOwner') }}</el-descriptions-item>
           <el-descriptions-item :label="$t('policy.operations')">{{ d.match.operations.join(', ') }}</el-descriptions-item>
           <el-descriptions-item :label="$t('policy.resources')">
             {{ d.match.resources.map((r) => r.resources.join('/')).join('; ') }}
           </el-descriptions-item>
         </el-descriptions>
+        <el-alert v-if="d.crossTenantLocked" :title="$t('policy.crossTenantLocked')" type="warning" :closable="false" style="margin-top: 12px" />
         <el-alert v-if="d.compileError" :title="d.compileError" type="error" :closable="false" style="margin-top: 12px" />
       </el-tab-pane>
 
@@ -43,7 +45,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { authState, can } from '../auth/session'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -56,6 +59,7 @@ import PageHeader from '../components/PageHeader.vue'
 const route = useRoute()
 const { t } = useI18n()
 const d = ref<PolicyDetail>()
+const editable = computed(() => !!d.value && !d.value.crossTenantLocked && (can('platform.manage') || (d.value.ownerType === 'tenant' && d.value.tenantId === authState.me?.tenantId)))
 const activeTab = ref(route.query.tab === 'versions' ? 'versions' : 'overview')
 
 async function copyRego() {

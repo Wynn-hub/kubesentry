@@ -24,4 +24,16 @@ describe('session state', () => {
     expect(authState.status).toBe('authenticated')
     expect(can('platform.manage')).toBe(true)
   })
+
+  it.each([
+    ['system_admin', true, true, true],
+    ['tenant_admin', false, true, true],
+    ['viewer', false, false, false],
+  ] as const)('maps %s to scoped capabilities', (role, platform, tenant, write) => {
+    authState.me = { id: 1, username: role, role }
+    expect(can('platform.manage')).toBe(platform)
+    expect(can('tenant.manage')).toBe(tenant)
+    expect(can('resource.write')).toBe(write)
+    expect(can('resource.read')).toBe(true)
+  })
 })
