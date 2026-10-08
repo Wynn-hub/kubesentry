@@ -34,15 +34,18 @@ func (r *IdentityRepo) ListTenants(ctx context.Context) ([]Tenant, error) {
 	return tenants, err
 }
 
-func (r *IdentityRepo) UpdateTenantStatus(ctx context.Context, id int64, status UserStatus) error {
-	result := r.db.WithContext(ctx).Model(&Tenant{}).Where("id = ?", id).Update("status", status)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+func (r *IdentityRepo) SetTenantStatusAndRevoke(ctx context.Context, id int64, status UserStatus, at time.Time) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&Tenant{}).Where("id = ?", id).Updates(map[string]any{"status": status, "updated_at": at})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		users := tx.Model(&User{}).Select("id").Where("tenant_id = ?", id)
+		return tx.Model(&Session{}).Where("user_id IN (?) AND revoked_at IS NULL", users).Update("revoked_at", at).Error
+	})
 }
 
 func (r *IdentityRepo) CreateUser(ctx context.Context, user *User) error {

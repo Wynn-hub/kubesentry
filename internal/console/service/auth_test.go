@@ -13,10 +13,11 @@ import (
 )
 
 type authRepoFake struct {
-	mu       sync.Mutex
-	admin    dbrepo.User
-	tenant   *dbrepo.Tenant
-	sessions map[string]*dbrepo.Session
+	mu                    sync.Mutex
+	admin                 dbrepo.User
+	tenant                *dbrepo.Tenant
+	sessions              map[string]*dbrepo.Session
+	tenantSessionsRevoked bool
 }
 
 func newAuthRepoFake(t *testing.T, password string) *authRepoFake {
@@ -43,18 +44,22 @@ func (f *authRepoFake) GetUser(context.Context, int64) (*dbrepo.User, error) { r
 func (f *authRepoFake) ListUsers(context.Context) ([]dbrepo.User, error) {
 	return []dbrepo.User{f.admin}, nil
 }
+
 func (f *authRepoFake) ListUsersByTenant(context.Context, int64) ([]dbrepo.User, error) {
 	return nil, nil
 }
 func (f *authRepoFake) ListTenants(context.Context) ([]dbrepo.Tenant, error) { return nil, nil }
 func (f *authRepoFake) CreateTenant(context.Context, *dbrepo.Tenant) error   { return nil }
-func (f *authRepoFake) UpdateTenantStatus(context.Context, int64, dbrepo.UserStatus) error {
+
+func (f *authRepoFake) SetTenantStatusAndRevoke(context.Context, int64, dbrepo.UserStatus, time.Time) error {
+	f.tenantSessionsRevoked = true
 	return nil
 }
 func (f *authRepoFake) CreateUser(context.Context, *dbrepo.User) error { return nil }
 func (f *authRepoFake) SetUserStatusAndRevoke(context.Context, int64, dbrepo.UserStatus, time.Time) error {
 	return nil
 }
+
 func (f *authRepoFake) SetUserPasswordAndRevoke(context.Context, int64, string, time.Time) error {
 	return nil
 }
@@ -204,5 +209,16 @@ func TestAuthPasswordChangeRevokesSessions(t *testing.T) {
 	}
 	if _, err := svc.Authenticate(t.Context(), token); !errors.Is(err, ErrAuthentication) {
 		t.Fatalf("old session error = %v", err)
+	}
+}
+
+func TestTenantStatusChangeRevokesSessions(t *testing.T) {
+	repo := newAuthRepoFake(t, "correct horse battery staple")
+	svc := NewIdentityService(repo)
+	if err := svc.SetTenantStatus(t.Context(), dbrepo.Principal{Role: dbrepo.RoleSystemAdmin}, 7, dbrepo.UserStatusDisabled); err != nil {
+		t.Fatal(err)
+	}
+	if !repo.tenantSessionsRevoked {
+		t.Fatal("tenant sessions were not revoked")
 	}
 }

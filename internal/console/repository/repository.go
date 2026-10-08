@@ -100,7 +100,7 @@ type IdentityRepository interface {
 	GetTenant(context.Context, int64) (*dbrepo.Tenant, error)
 	ListTenants(context.Context) ([]dbrepo.Tenant, error)
 	CreateTenant(context.Context, *dbrepo.Tenant) error
-	UpdateTenantStatus(context.Context, int64, dbrepo.UserStatus) error
+	SetTenantStatusAndRevoke(context.Context, int64, dbrepo.UserStatus, time.Time) error
 	CreateUser(context.Context, *dbrepo.User) error
 	InitializeAdmin(context.Context, string, time.Time) (bool, error)
 	CreateSession(context.Context, *dbrepo.Session) error

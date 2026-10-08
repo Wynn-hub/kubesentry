@@ -21,7 +21,7 @@ func TestIdentityTenantAndUserCRUD(t *testing.T) {
 	if got, err := repo.GetTenant(ctx, tenant.ID); err != nil || got.Name != tenant.Name {
 		t.Fatalf("GetTenant() = %+v, %v", got, err)
 	}
-	if err := repo.UpdateTenantStatus(ctx, tenant.ID, repository.UserStatusDisabled); err != nil {
+	if err := repo.SetTenantStatusAndRevoke(ctx, tenant.ID, repository.UserStatusDisabled, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := repo.ListTenants(ctx); err != nil || len(got) != 1 || got[0].Status != repository.UserStatusDisabled {

@@ -80,7 +80,7 @@ func (s *IdentityService) SetTenantStatus(ctx context.Context, actor dbrepo.Prin
 	if !validStatus(status) {
 		return ErrInvalidIdentity
 	}
-	return s.repo.UpdateTenantStatus(ctx, tenantID, status)
+	return s.repo.SetTenantStatusAndRevoke(ctx, tenantID, status, s.now())
 }
 
 func (s *IdentityService) ListUsers(ctx context.Context, actor dbrepo.Principal) ([]dto.UserView, error) {
