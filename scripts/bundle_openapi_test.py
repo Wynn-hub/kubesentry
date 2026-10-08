@@ -26,7 +26,7 @@ class BundleOpenAPITest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             document = json.loads(output.read_text())
             self.assertEqual(document["openapi"], "3.0.0")
-            self.assertEqual(operation_count(document), 64)
+            self.assertEqual(operation_count(document), 73)
             cookie = document["components"]["securitySchemes"]["SessionCookie"]
             self.assertEqual(cookie, {"type": "apiKey", "in": "cookie", "name": "kubesentry_session", "description": "HttpOnly SameSite=Strict session cookie set by login and sent automatically by browsers."})
             self.assert_auth_contract(document)

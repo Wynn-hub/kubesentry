@@ -16,7 +16,6 @@
   <el-dialog v-model="dialog" :title="$t('user.createTitle')" width="460px">
     <el-form label-position="top" @submit.prevent="save">
       <el-form-item :label="$t('auth.username')"><el-input v-model="form.username" autofocus /></el-form-item>
-      <el-form-item :label="$t('auth.password')"><el-input v-model="form.password" type="password" show-password /></el-form-item>
       <el-form-item v-if="systemAdmin" :label="$t('user.role')"><el-select v-model="form.role"><el-option value="tenant_admin" :label="$t('user.tenantAdmin')" /><el-option value="viewer" :label="$t('user.viewer')" /></el-select></el-form-item>
       <el-form-item v-if="systemAdmin" :label="$t('user.tenant')"><el-select v-model="form.tenantId"><el-option v-for="tenant in activeTenants" :key="tenant.id" :value="tenant.id!" :label="tenant.name" /></el-select></el-form-item>
     </el-form>
@@ -33,11 +32,11 @@ import { authState } from '../auth/session'
 import PageHeader from '../components/PageHeader.vue'
 const { t } = useI18n(), items = ref<User[]>([]), tenants = ref<Tenant[]>([]), loading = ref(false), saving = ref(false), dialog = ref(false), resetDialog = ref(false), newPassword = ref(''), selected = ref<User>()
 const systemAdmin = computed(() => authState.me?.role === 'system_admin'), activeTenants = computed(() => tenants.value.filter(t => t.status === 'active'))
-const form = reactive({ username: '', password: '', role: 'viewer' as 'tenant_admin' | 'viewer', tenantId: undefined as string | undefined })
+const form = reactive({ username: '', role: 'viewer' as 'tenant_admin' | 'viewer', tenantId: undefined as string | undefined })
 const tenantName = (id?: string) => tenants.value.find(t => t.id === id)?.name ?? '-'
 const canManage = (user: User) => systemAdmin.value || user.role === 'viewer'
 async function load() { loading.value = true; try { items.value = await listUsers() ?? []; if (systemAdmin.value) tenants.value = await listTenants() ?? [] } catch (e) { ElMessage.error((e as Error).message) } finally { loading.value = false } }
-async function save() { saving.value = true; try { await createUser({ username: form.username, password: form.password, role: systemAdmin.value ? form.role : 'viewer', tenantId: systemAdmin.value ? form.tenantId : authState.me?.tenantId }); dialog.value = false; Object.assign(form, { username: '', password: '', role: 'viewer', tenantId: undefined }); await load() } catch (e) { ElMessage.error((e as Error).message) } finally { saving.value = false } }
+async function save() { saving.value = true; try { await createUser({ username: form.username, role: systemAdmin.value ? form.role : 'viewer', tenantId: systemAdmin.value ? form.tenantId : authState.me?.tenantId }); dialog.value = false; Object.assign(form, { username: '', role: 'viewer', tenantId: undefined }); await load() } catch (e) { ElMessage.error((e as Error).message) } finally { saving.value = false } }
 async function toggle(row: User) { try { await setUserStatus(row.id!, row.status === 'active' ? 'disabled' : 'active'); await load() } catch (e) { ElMessage.error((e as Error).message) } }
 function openReset(row: User) { selected.value = row; newPassword.value = ''; resetDialog.value = true }
 async function resetPassword() { try { await resetUserPassword(selected.value!.id!, newPassword.value); resetDialog.value = false } catch (e) { ElMessage.error((e as Error).message) } }

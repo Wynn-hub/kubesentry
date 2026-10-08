@@ -11,7 +11,7 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONSOLE_OPERATION_COUNT = 64
+CONSOLE_OPERATION_COUNT = 73
 GATEWAY_METHODS = frozenset({"Register", "Sync", "Connect", "NotifyChange", "Dispatch"})
 CRD_NAMES = frozenset({
     "policies.kubesentry.io",

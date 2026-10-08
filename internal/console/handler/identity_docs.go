@@ -48,6 +48,7 @@ func login() {}
 // activate documents POST /auth/activate.
 // @ID activateUser
 // @Summary 激活用户并设置初始密码
+// @Description 使用一次性激活码为未激活用户设置初始密码。
 // @Tags Auth
 // @Accept json
 // @Produce json
@@ -60,6 +61,7 @@ func activate() {}
 // changePassword documents POST /auth/change-password.
 // @ID changePassword
 // @Summary 修改当前用户密码
+// @Description 修改当前用户密码并保留当前会话、撤销其它会话。
 // @Tags Auth
 // @Accept json
 // @Produce json
@@ -195,63 +197,87 @@ func createUser() {}
 // regenerateUserActivation documents POST /users/{id}/activation.
 // @ID regenerateUserActivation
 // @Summary 重新生成一次性激活码
+// @Description 为未激活用户废弃旧激活码并返回新的单次明文激活码。
 // @Tags User
 // @Produce json
 // @Security SessionCookie
 // @Param id path string true "用户 ID"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.ActivationResult}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
 // @Router /users/{id}/activation [post]
 func regenerateUserActivation() {}
 
 // unlockUser documents POST /users/{id}/unlock.
 // @ID unlockUser
 // @Summary 解锁用户
+// @Description 清除目标用户的失败次数和临时锁定状态。
 // @Tags User
+// @Produce json
 // @Security SessionCookie
 // @Param id path string true "用户 ID"
 // @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 403 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
 // @Router /users/{id}/unlock [post]
 func unlockUser() {}
 
 // forceLogoutUser documents POST /users/{id}/logout.
 // @ID forceLogoutUser
 // @Summary 强制用户下线
+// @Description 撤销目标用户的全部有效会话。
 // @Tags User
+// @Produce json
 // @Security SessionCookie
 // @Param id path string true "用户 ID"
 // @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 403 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
 // @Router /users/{id}/logout [post]
 func forceLogoutUser() {}
 
 // forceUserPasswordChange documents POST /users/{id}/force-password-change.
 // @ID forceUserPasswordChange
 // @Summary 要求用户下次操作前修改密码
+// @Description 将目标用户会话限制为只能查看本人、修改密码或退出。
 // @Tags User
+// @Produce json
 // @Security SessionCookie
 // @Param id path string true "用户 ID"
 // @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
 // @Router /users/{id}/force-password-change [post]
 func forceUserPasswordChange() {}
 
 // getSecuritySettings documents GET /security-settings.
 // @ID getSecuritySettings
 // @Summary 查询身份安全设置
+// @Description 系统管理员读取全局身份、密码与会话安全策略。
 // @Tags User
 // @Produce json
 // @Security SessionCookie
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SecuritySettingsView}
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Router /security-settings [get]
 func getSecuritySettings() {}
 
 // updateSecuritySettings documents PUT /security-settings.
 // @ID updateSecuritySettings
 // @Summary 更新身份安全设置
+// @Description 系统管理员更新全局身份、密码与会话安全策略。
 // @Tags User
 // @Accept json
 // @Produce json
 // @Security SessionCookie
 // @Param body body dto.SecuritySettingsInput true "安全设置"
 // @Success 200 {object} dto.SwagOptionalResponse{data=dto.SecuritySettingsView}
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 401 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
 // @Router /security-settings [put]
 func updateSecuritySettings() {}
 

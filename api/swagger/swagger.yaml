@@ -1,5 +1,19 @@
 basePath: /api/v1
 definitions:
+  dto.ActivateInput:
+    properties:
+      code:
+        type: string
+      password:
+        type: string
+    type: object
+  dto.ActivationResult:
+    properties:
+      activationCode:
+        type: string
+      activationExpiresAt:
+        type: string
+    type: object
   dto.AdmissionEventDetailView:
     properties:
       apiGroup:
@@ -274,6 +288,11 @@ definitions:
     - count
     - verdict
     type: object
+  dto.ChangePasswordInput:
+    properties:
+      password:
+        type: string
+    type: object
   dto.ClusterCommandView:
     properties:
       command:
@@ -488,10 +507,9 @@ definitions:
     type: object
   dto.CreateUserRequest:
     properties:
-      password:
-        type: string
       role:
         enum:
+        - system_admin
         - tenant_admin
         - viewer
         type: string
@@ -500,6 +518,15 @@ definitions:
         type: string
       username:
         type: string
+    type: object
+  dto.CreateUserResult:
+    properties:
+      activationCode:
+        type: string
+      activationExpiresAt:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserView'
     type: object
   dto.DistributionClusters:
     properties:
@@ -997,6 +1024,12 @@ definitions:
       id:
         example: ""
         type: string
+      lastLoginAt:
+        type: string
+      mustChangePassword:
+        type: boolean
+      passwordExpiresAt:
+        type: string
       role:
         enum:
         - system_admin
@@ -1488,6 +1521,48 @@ definitions:
     properties:
       password:
         type: string
+    type: object
+  dto.SecuritySettingsInput:
+    properties:
+      activationLifetimeHours:
+        type: integer
+      allowConcurrentSessions:
+        type: boolean
+      lockoutDurationMinutes:
+        type: integer
+      maxFailedLoginAttempts:
+        type: integer
+      passwordHistoryCount:
+        type: integer
+      passwordLifetimeDays:
+        type: integer
+      passwordMinLength:
+        type: integer
+      sessionAbsoluteMinutes:
+        type: integer
+      sessionIdleMinutes:
+        type: integer
+    type: object
+  dto.SecuritySettingsView:
+    properties:
+      activationLifetimeHours:
+        type: integer
+      allowConcurrentSessions:
+        type: boolean
+      lockoutDurationMinutes:
+        type: integer
+      maxFailedLoginAttempts:
+        type: integer
+      passwordHistoryCount:
+        type: integer
+      passwordLifetimeDays:
+        type: integer
+      passwordMinLength:
+        type: integer
+      sessionAbsoluteMinutes:
+        type: integer
+      sessionIdleMinutes:
+        type: integer
     type: object
   dto.SetupStatusView:
     properties:
@@ -2098,6 +2173,15 @@ definitions:
     required:
     - rego
     type: object
+  dto.TenantClustersInput:
+    properties:
+      allowTransfer:
+        type: boolean
+      clusterNames:
+        items:
+          type: string
+        type: array
+    type: object
   dto.TenantStatusRequest:
     properties:
       status:
@@ -2163,8 +2247,22 @@ definitions:
     type: object
   dto.UserView:
     properties:
+      activated:
+        type: boolean
+      failedLoginCount:
+        type: integer
       id:
         example: ""
+        type: string
+      lastLoginAt:
+        type: string
+      lastLoginIp:
+        type: string
+      lockedUntil:
+        type: string
+      mustChangePassword:
+        type: boolean
+      passwordChangedAt:
         type: string
       role:
         enum:
@@ -2179,6 +2277,8 @@ definitions:
         type: string
       tenantId:
         example: ""
+        type: string
+      tenantName:
         type: string
       username:
         type: string
@@ -2651,6 +2751,66 @@ paths:
       summary: 查询准入链路异常详情
       tags:
       - LinkIncident
+  /auth/activate:
+    post:
+      consumes:
+      - application/json
+      description: 使用一次性激活码为未激活用户设置初始密码。
+      operationId: activateUser
+      parameters:
+      - description: 激活信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ActivateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      summary: 激活用户并设置初始密码
+      tags:
+      - Auth
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: 修改当前用户密码并保留当前会话、撤销其它会话。
+      operationId: changePassword
+      parameters:
+      - description: 新密码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChangePasswordInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 修改当前用户密码
+      tags:
+      - Auth
   /auth/login:
     post:
       consumes:
@@ -5018,6 +5178,76 @@ paths:
       summary: 获取 Kubernetes 资源字段树
       tags:
       - Schema
+  /security-settings:
+    get:
+      description: 系统管理员读取全局身份、密码与会话安全策略。
+      operationId: getSecuritySettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SecuritySettingsView'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 查询身份安全设置
+      tags:
+      - User
+    put:
+      consumes:
+      - application/json
+      description: 系统管理员更新全局身份、密码与会话安全策略。
+      operationId: updateSecuritySettings
+      parameters:
+      - description: 安全设置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SecuritySettingsInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SecuritySettingsView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 更新身份安全设置
+      tags:
+      - User
   /setup/admin:
     post:
       consumes:
@@ -5185,6 +5415,52 @@ paths:
       summary: 创建租户
       tags:
       - Tenant
+  /tenants/{id}/clusters:
+    put:
+      consumes:
+      - application/json
+      description: 原子替换租户集群集合；跨租户转移必须显式确认。
+      operationId: syncTenantClusters
+      parameters:
+      - description: 租户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 集群集合
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TenantClustersInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 设置租户的集群归属
+      tags:
+      - Tenant
   /tenants/{id}/status:
     put:
       consumes:
@@ -5284,7 +5560,7 @@ paths:
             - $ref: '#/definitions/dto.SwagOptionalResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/dto.UserView'
+                  $ref: '#/definitions/dto.CreateUserResult'
               type: object
         "400":
           description: Bad Request
@@ -5343,6 +5619,109 @@ paths:
       security:
       - SessionCookie: []
       summary: 删除用户并撤销会话
+      tags:
+      - User
+  /users/{id}/activation:
+    post:
+      description: 为未激活用户废弃旧激活码并返回新的单次明文激活码。
+      operationId: regenerateUserActivation
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SwagOptionalResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ActivationResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 重新生成一次性激活码
+      tags:
+      - User
+  /users/{id}/force-password-change:
+    post:
+      description: 将目标用户会话限制为只能查看本人、修改密码或退出。
+      operationId: forceUserPasswordChange
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 要求用户下次操作前修改密码
+      tags:
+      - User
+  /users/{id}/logout:
+    post:
+      description: 撤销目标用户的全部有效会话。
+      operationId: forceLogoutUser
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 强制用户下线
       tags:
       - User
   /users/{id}/reset-password:
@@ -5439,6 +5818,36 @@ paths:
       security:
       - SessionCookie: []
       summary: 设置用户状态
+      tags:
+      - User
+  /users/{id}/unlock:
+    post:
+      description: 清除目标用户的失败次数和临时锁定状态。
+      operationId: unlockUser
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SwagEmptyResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.SwagErrorResponse'
+      security:
+      - SessionCookie: []
+      summary: 解锁用户
       tags:
       - User
 securityDefinitions:
