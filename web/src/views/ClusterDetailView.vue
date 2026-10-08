@@ -26,10 +26,10 @@
       </el-descriptions-item>
       <el-descriptions-item :label="$t('cluster.createdAt')">{{ new Date(d.createdAt).toLocaleString() }}</el-descriptions-item>
       <el-descriptions-item :label="$t('cluster.updatedAt')" :span="2">{{ new Date(d.updatedAt).toLocaleString() }}</el-descriptions-item>
-      <el-descriptions-item v-if="can('platform.manage')" :label="$t('cluster.tenant')" :span="2">
-        <el-select :model-value="d.tenantId" clearable :placeholder="$t('cluster.unassigned')" @change="onTenantChange">
+      <el-descriptions-item :label="$t('cluster.tenant')" :span="2">
+        <el-select v-if="can('platform.manage')" :model-value="d.tenantId" clearable :placeholder="$t('cluster.unassigned')" @change="onTenantChange">
           <el-option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id!" :label="tenant.name" />
-        </el-select>
+        </el-select><span v-if="!can('platform.manage')">{{ tenantName(d.tenantId) }}</span>
       </el-descriptions-item>
     </el-descriptions>
 
@@ -101,6 +101,7 @@ const d = ref<ClusterDetail>()
 const labelsDraft = ref<Record<string, string>>({})
 const uninstallTasks = ref<UninstallTask[]>([])
 const tenants = ref<Tenant[]>([])
+const tenantName = (id?: string) => id ? tenants.value.find(tenant => tenant.id === id)?.name ?? id : t('cluster.unassigned')
 let refreshTimer: ReturnType<typeof setInterval> | undefined
 
 async function load() {

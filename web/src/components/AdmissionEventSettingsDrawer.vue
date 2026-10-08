@@ -1,6 +1,7 @@
 <template>
   <el-drawer v-model="open" :title="$t('admissionEvent.settingsTitle')" size="min(920px, 92vw)">
-    <el-form v-if="settings" label-position="top">
+    <el-form v-if="settings" label-position="top" :disabled="readonly">
+      <el-alert v-if="readonly" type="info" :closable="false" :title="$t('admissionEvent.readonlyHint')" class="readonly-hint" />
       <h3 class="section-title">{{ $t('admissionEvent.deliverySettings') }}</h3>
       <div class="settings-grid">
         <el-form-item :label="$t('admissionEvent.retryEnabled')">
@@ -36,7 +37,7 @@
           <h3 class="section-title">{{ $t('admissionEvent.storageRules') }}</h3>
           <div class="muted">{{ $t('admissionEvent.ruleOrderHint') }}</div>
         </div>
-        <el-button type="primary" plain @click="addStorageRule">{{ $t('admissionEvent.addRule') }}</el-button>
+        <el-button v-if="!readonly" type="primary" plain @click="addStorageRule">{{ $t('admissionEvent.addRule') }}</el-button>
       </div>
 
       <el-empty v-if="settings.storagePolicies.length === 0" :description="$t('admissionEvent.noRules')" :image-size="72" />
@@ -93,7 +94,7 @@
       </el-card>
 
       <el-alert type="info" :closable="false" :title="$t('admissionEvent.settingsHint')" />
-      <el-button type="primary" class="save" :loading="saving" @click="saveSettings">{{ $t('common.save') }}</el-button>
+      <el-button v-if="!readonly" type="primary" class="save" :loading="saving" @click="saveSettings">{{ $t('common.save') }}</el-button>
     </el-form>
   </el-drawer>
 </template>
@@ -109,6 +110,7 @@ import ResourceGVRSelect from './ResourceGVRSelect.vue'
 import TagInput from './TagInput.vue'
 
 const emit = defineEmits<{ saved: [settings: AdmissionSettings] }>()
+defineProps<{ readonly?: boolean }>()
 const { t } = useI18n()
 const open = ref(false)
 const saving = ref(false)
@@ -181,7 +183,7 @@ defineExpose({ open: show })
 </script>
 
 <style scoped>
-.save{margin-top:24px}
+.save{margin-top:24px}.readonly-hint{margin-bottom:16px}
 .section-title{margin:0 0 12px}
 .settings-grid,.rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
 .rules-heading{display:flex;align-items:flex-start;justify-content:space-between;margin:16px 0 12px}

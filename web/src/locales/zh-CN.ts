@@ -22,8 +22,8 @@ export default {
     labelValuePlaceholder: '输入值回车添加，可添加多个',
     multiValueOrHint: '多个值之间是或（OR）关系，满足其中任意一个即算匹配',
   },
-  tenant: { title: '租户管理', subtitle: '创建租户并控制租户是否可用', createTitle: '新建租户' },
-  user: { title: '用户管理', subtitle: '管理权限范围内的用户', createTitle: '新建用户', role: '角色', tenant: '租户', tenantAdmin: '租户管理员', viewer: '普通用户', resetPassword: '重置密码' },
+  tenant: { title: '租户管理', subtitle: '创建租户并控制租户是否可用', createTitle: '新建租户', manageClusters: '分配集群', assignClusters: '为 {name} 分配集群', transferWarning: '以下集群将从原租户转移：{names}' },
+  user: { title: '用户管理', subtitle: '管理权限范围内的用户', createTitle: '新建用户', role: '角色', tenant: '租户', tenantAdmin: '租户管理员', viewer: '普通用户', resetPassword: '重置密码', securitySettings: '用户安全设置', passwordLifetimeDays: '密码有效期（天，0 为永不过期）', passwordMinLength: '密码最小长度', passwordHistoryCount: '禁止重复最近密码数', activationLifetimeHours: '激活码有效期（小时）', maxFailedLoginAttempts: '最大登录失败次数', lockoutDurationMinutes: '锁定时长（分钟）', sessionIdleMinutes: '会话空闲时限（分钟）', sessionAbsoluteMinutes: '会话最长时限（分钟）', allowConcurrentSessions: '允许同一用户同时登录', passwordLifetimeHint: '密码有效期为 0 时永不过期；关闭并发登录后，新登录会使旧会话失效。', statuses: { active: '启用', disabled: '停用' }, activationState: '激活状态', activated: '已激活', pendingActivation: '待激活', lastLogin: '上次登录', enable: '启用用户', disable: '停用用户', unlock: '解除锁定', forceLogout: '强制下线', forcePasswordChange: '强制修改密码', regenerateActivation: '重新生成激活码', activationCreated: '一次性激活信息', activationOnceHint: '激活信息仅显示一次，请立即安全地交给用户。', activationLink: '激活链接', requiredFields: '请填写用户名、角色和租户', copied: '已复制' },
   phase: {
     Ready: '就绪', Invalid: '无效', Syncing: '同步中', Disabled: '已停用', Degraded: '降级',
     Active: '生效中', Expired: '已过期', Online: '在线', Offline: '离线', Registering: '注册中',
@@ -84,7 +84,7 @@ export default {
   },
   cluster: {
     title: '集群管理', subtitle: '管理已注册的成员集群',
-    name: '名称', phase: '状态', operatorVersion: 'Operator 版本', tenant: '所属租户', unassigned: '未分配',
+    name: '名称', phase: '状态', operatorVersion: 'Operator 版本', tenant: '所属租户', unassigned: '未分配', bindTenant: '绑定租户', assignTenant: '为 {name} 绑定租户',
     lastHeartbeatAt: '最后心跳', clusterUid: '集群 UID', labels: '标签',
     kubernetesVersion: 'Kubernetes 版本', apiServerAddress: 'API Server 地址',
     nodes: '节点数', nodesReadyOfTotal: '{ready} / {total} 就绪',
@@ -142,7 +142,7 @@ export default {
     last15m: '最近 15 分钟', last1h: '最近 1 小时', last6h: '最近 6 小时',
     last24h: '最近 24 小时', last7d: '最近 7 天', last30d: '最近 30 天', customRange: '自定义范围',
     violations: '违规信息', none: '无', specSnapshot: '完整资源 Spec', metadataSnapshot: '资源元数据',
-    storageSettings: '存储设置', settingsTitle: '事件存储策略',
+    storageSettings: '存储设置', settingsTitle: '事件存储策略', readonlyHint: '当前账号只有查看权限，只有系统管理员可以修改这些设置。',
     defaultRetentionDays: '默认保存天数',
 	incidentRetentionDays: '链路事故保存天数',
     deliverySettings: '传输控制', retryEnabled: '失败后重试',

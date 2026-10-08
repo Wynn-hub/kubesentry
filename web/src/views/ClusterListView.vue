@@ -30,6 +30,7 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
+        <el-table-column :label="$t('cluster.tenant')" width="150"><template #default="{ row }">{{ tenantName(row.tenantId) }}</template></el-table-column>
         <el-table-column :label="$t('cluster.lastHeartbeatAt')" prop="lastHeartbeatAt" sortable="custom" :sort-orders="sortOrders" width="175">
           <template #default="{ row }">
             {{ row.lastHeartbeatAt ? relTime(row.lastHeartbeatAt, locale) : $t('cluster.neverHeartbeat') }}
@@ -47,6 +48,7 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
+                  <el-dropdown-item command="tenant">{{ $t('cluster.bindTenant') }}</el-dropdown-item>
                   <el-dropdown-item v-if="row.phase === 'Online'" command="uninstall" class="warning-action">
                     {{ $t('cluster.uninstall') }}
                   </el-dropdown-item>
@@ -143,6 +145,7 @@
       </template>
     </template>
   </el-dialog>
+  <ClusterTenantDialog ref="tenantDialog" @saved="loadClusters" />
 </template>
 
 <script setup lang="ts">
@@ -164,6 +167,8 @@ import PaginationBar from '../components/PaginationBar.vue'
 import { listStateParams, useRouteListState, type SortOrder } from '../composables/useRouteListState'
 import { useLatestRequest } from '../composables/useLatestRequest'
 import { can } from '../auth/session'
+import { listTenants, type Tenant } from '../api/identity'
+import ClusterTenantDialog from '../components/ClusterTenantDialog.vue'
 
 const sortOrders = ['ascending', 'descending'] as const
 
@@ -188,6 +193,9 @@ watch(
 )
 
 const items = ref<ClusterListItem[]>([])
+const tenants = ref<Tenant[]>([])
+const tenantDialog = ref<{ open: (cluster: ClusterListItem) => void }>()
+const tenantName = (id?: string) => id ? tenants.value.find(tenant => tenant.id === id)?.name ?? id : t('cluster.unassigned')
 const clustersTotal = ref(0)
 const { loading: clustersLoading, run: runLatestClusters } = useLatestRequest()
 const clustersRouteList = useRouteListState({
@@ -225,6 +233,7 @@ watch(clustersParams, loadClusters, { immediate: true })
 // away from the cluster management view.
 let clusterRefreshTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
+  if (can('platform.manage')) void listTenants().then(result => { tenants.value = result })
   clusterRefreshTimer = setInterval(() => { void loadClusters() }, 5000)
 })
 onBeforeUnmount(() => {
@@ -318,6 +327,7 @@ async function onUninstall(row: ClusterListItem) {
 }
 
 function onClusterAction(command: string, row: ClusterListItem) {
+  if (command === 'tenant') tenantDialog.value?.open(row)
   if (command === 'uninstall') void onUninstall(row)
   if (command === 'delete' && row.phase !== 'Online') void onDelete(row)
 }

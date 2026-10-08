@@ -22,8 +22,8 @@ export default {
     labelValuePlaceholder: 'Type a value and press Enter, multiple allowed',
     multiValueOrHint: 'Multiple values are combined with OR — matching any one is enough',
   },
-  tenant: { title: 'Tenants', subtitle: 'Create tenants and control their availability', createTitle: 'New Tenant' },
-  user: { title: 'Users', subtitle: 'Manage users within your scope', createTitle: 'New User', role: 'Role', tenant: 'Tenant', tenantAdmin: 'Tenant administrator', viewer: 'Viewer', resetPassword: 'Reset password' },
+  tenant: { title: 'Tenants', subtitle: 'Create tenants and control their availability', createTitle: 'New Tenant', manageClusters: 'Assign clusters', assignClusters: 'Assign clusters to {name}', transferWarning: 'These clusters will be transferred from another tenant: {names}' },
+  user: { title: 'Users', subtitle: 'Manage users within your scope', createTitle: 'New User', role: 'Role', tenant: 'Tenant', tenantAdmin: 'Tenant administrator', viewer: 'Viewer', resetPassword: 'Reset password', securitySettings: 'User security settings', passwordLifetimeDays: 'Password lifetime (days, 0 never expires)', passwordMinLength: 'Minimum password length', passwordHistoryCount: 'Password history count', activationLifetimeHours: 'Activation lifetime (hours)', maxFailedLoginAttempts: 'Maximum failed logins', lockoutDurationMinutes: 'Lockout duration (minutes)', sessionIdleMinutes: 'Session idle timeout (minutes)', sessionAbsoluteMinutes: 'Maximum session duration (minutes)', allowConcurrentSessions: 'Allow concurrent sessions', passwordLifetimeHint: 'Set password lifetime to 0 for no expiry. When concurrent sessions are disabled, a new login invalidates the previous session.', statuses: { active: 'Enabled', disabled: 'Disabled' }, activationState: 'Activation', activated: 'Activated', pendingActivation: 'Pending', lastLogin: 'Last login', enable: 'Enable user', disable: 'Disable user', unlock: 'Unlock', forceLogout: 'Force sign out', forcePasswordChange: 'Require password change', regenerateActivation: 'Regenerate activation', activationCreated: 'One-time activation details', activationOnceHint: 'These activation details are shown once. Give them to the user through a secure channel now.', activationLink: 'Activation link', requiredFields: 'Username, role, and tenant are required', copied: 'Copied' },
   phase: {
     Ready: 'Ready', Invalid: 'Invalid', Syncing: 'Syncing', Disabled: 'Disabled', Degraded: 'Degraded',
     Active: 'Active', Expired: 'Expired', Online: 'Online', Offline: 'Offline', Registering: 'Registering',
@@ -84,7 +84,7 @@ export default {
   },
   cluster: {
     title: 'Clusters', subtitle: 'Manage registered member clusters',
-    name: 'Name', phase: 'Phase', operatorVersion: 'Operator Version', tenant: 'Tenant', unassigned: 'Unassigned',
+    name: 'Name', phase: 'Phase', operatorVersion: 'Operator Version', tenant: 'Tenant', unassigned: 'Unassigned', bindTenant: 'Assign tenant', assignTenant: 'Assign tenant to {name}',
     lastHeartbeatAt: 'Last Heartbeat', clusterUid: 'Cluster UID', labels: 'Labels',
     kubernetesVersion: 'Kubernetes Version', apiServerAddress: 'API Server Address',
     nodes: 'Nodes', nodesReadyOfTotal: '{ready} / {total} ready',
@@ -142,7 +142,7 @@ export default {
     last15m: 'Last 15 minutes', last1h: 'Last 1 hour', last6h: 'Last 6 hours',
     last24h: 'Last 24 hours', last7d: 'Last 7 days', last30d: 'Last 30 days', customRange: 'Custom range',
     violations: 'Violations', none: 'None', specSnapshot: 'Full Resource Spec', metadataSnapshot: 'Resource Metadata',
-    storageSettings: 'Storage Settings', settingsTitle: 'Event Storage Policy',
+    storageSettings: 'Storage Settings', settingsTitle: 'Event Storage Policy', readonlyHint: 'This account has read-only access. Only system administrators can change these settings.',
     defaultRetentionDays: 'Default Retention Days',
 	incidentRetentionDays: 'Link Incident Retention Days',
     deliverySettings: 'Delivery Control', retryEnabled: 'Retry Failed Delivery',

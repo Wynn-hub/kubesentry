@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import routerSource from '../../router/index.ts?raw'
 import { eventDetailTarget, resolveEventsTab } from '../admissionEventsTabs'
+import admissionSettings from '../../components/AdmissionEventSettingsDrawer.vue?raw'
 
 describe('admission events tab routing', () => {
   // The incident drawer's sample links pointed at '/admission-events', a path no
@@ -19,5 +20,12 @@ describe('admission events tab routing', () => {
     expect(resolveEventsTab('events')).toBe('events')
     expect(resolveEventsTab(undefined)).toBe('events')
     expect(resolveEventsTab(['health'])).toBe('events')
+  })
+})
+
+describe('admission settings permissions', () => {
+  it('keeps settings visible but removes mutations in read-only mode', () => {
+    expect(admissionSettings).toContain(':disabled="readonly"')
+    expect(admissionSettings).toContain('v-if="!readonly" type="primary" class="save"')
   })
 })

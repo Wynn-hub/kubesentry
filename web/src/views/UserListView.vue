@@ -1,45 +1,25 @@
 <template>
-  <PageHeader :title="$t('user.title')" :subtitle="$t('user.subtitle')"><el-button type="primary" @click="dialog = true">{{ $t('common.create') }}</el-button></PageHeader>
+  <PageHeader :title="$t('user.title')" :subtitle="$t('user.subtitle')"><el-button v-if="systemAdmin" @click="settings?.open()">{{ $t('user.securitySettings') }}</el-button><el-button type="primary" @click="dialog=true">{{ $t('common.create') }}</el-button></PageHeader>
   <el-table v-loading="loading" :data="items">
-    <el-table-column prop="username" :label="$t('auth.username')" />
-    <el-table-column prop="role" :label="$t('user.role')" width="150" />
-    <el-table-column prop="tenantId" :label="$t('user.tenant')" width="120"><template #default="{ row }">{{ tenantName(row.tenantId) }}</template></el-table-column>
-    <el-table-column prop="status" :label="$t('common.status')" width="110" />
-    <el-table-column :label="$t('common.actions')" width="250"><template #default="{ row }">
-      <template v-if="canManage(row)">
-        <el-switch :model-value="row.status === 'active'" @change="toggle(row)" />
-        <el-button link @click="openReset(row)">{{ $t('user.resetPassword') }}</el-button>
-        <el-button v-if="row.username !== 'admin'" link type="danger" @click="remove(row)">{{ $t('common.delete') }}</el-button>
-      </template>
-    </template></el-table-column>
+    <el-table-column prop="username" :label="$t('auth.username')" min-width="140" />
+    <el-table-column :label="$t('user.role')" width="150"><template #default="{row}"><el-tag effect="plain">{{ $t(`auth.roles.${row.role}`) }}</el-tag></template></el-table-column>
+    <el-table-column :label="$t('user.tenant')" min-width="130"><template #default="{row}">{{ row.tenantName || tenantName(row.tenantId) }}</template></el-table-column>
+    <el-table-column :label="$t('common.status')" width="120"><template #default="{row}"><el-tag :type="row.status==='active'?'success':'info'">{{ $t(`user.statuses.${row.status}`) }}</el-tag></template></el-table-column>
+    <el-table-column :label="$t('user.activationState')" width="130"><template #default="{row}">{{ $t(row.activated?'user.activated':'user.pendingActivation') }}</template></el-table-column>
+    <el-table-column :label="$t('user.lastLogin')" min-width="190"><template #default="{row}"><div>{{ formatDate(row.lastLoginAt) }}</div><small>{{ row.lastLoginIp || '-' }}</small></template></el-table-column>
+    <el-table-column :label="$t('common.actions')" width="160" fixed="right"><template #default="{row}"><el-dropdown v-if="canManage(row)" @command="(c:string)=>action(c,row)"><el-button link type="primary">{{ $t('common.actions') }}</el-button><template #dropdown><el-dropdown-menu>
+      <el-dropdown-item :command="row.status==='active'?'disable':'enable'">{{ $t(row.status==='active'?'user.disable':'user.enable') }}</el-dropdown-item><el-dropdown-item v-if="row.lockedUntil" command="unlock">{{ $t('user.unlock') }}</el-dropdown-item><el-dropdown-item v-if="row.activated" command="logout">{{ $t('user.forceLogout') }}</el-dropdown-item><el-dropdown-item v-if="row.activated" command="forcePassword">{{ $t('user.forcePasswordChange') }}</el-dropdown-item><el-dropdown-item v-else command="activation">{{ $t('user.regenerateActivation') }}</el-dropdown-item><el-dropdown-item v-if="row.username!=='admin'" command="delete" divided>{{ $t('common.delete') }}</el-dropdown-item>
+    </el-dropdown-menu></template></el-dropdown></template></el-table-column>
   </el-table>
-  <el-dialog v-model="dialog" :title="$t('user.createTitle')" width="460px">
-    <el-form label-position="top" @submit.prevent="save">
-      <el-form-item :label="$t('auth.username')"><el-input v-model="form.username" autofocus /></el-form-item>
-      <el-form-item v-if="systemAdmin" :label="$t('user.role')"><el-select v-model="form.role"><el-option value="tenant_admin" :label="$t('user.tenantAdmin')" /><el-option value="viewer" :label="$t('user.viewer')" /></el-select></el-form-item>
-      <el-form-item v-if="systemAdmin" :label="$t('user.tenant')"><el-select v-model="form.tenantId"><el-option v-for="tenant in activeTenants" :key="tenant.id" :value="tenant.id!" :label="tenant.name" /></el-select></el-form-item>
-    </el-form>
-    <template #footer><el-button @click="dialog = false">{{ $t('common.cancel') }}</el-button><el-button type="primary" :loading="saving" @click="save">{{ $t('common.create') }}</el-button></template>
-  </el-dialog>
-  <el-dialog v-model="resetDialog" :title="$t('user.resetPassword')" width="420px"><el-input v-model="newPassword" type="password" show-password /><template #footer><el-button @click="resetDialog = false">{{ $t('common.cancel') }}</el-button><el-button type="primary" @click="resetPassword">{{ $t('common.confirm') }}</el-button></template></el-dialog>
+  <el-dialog v-model="dialog" :title="$t('user.createTitle')" width="460px"><el-form label-position="top" @submit.prevent="save"><el-form-item :label="$t('auth.username')"><el-input v-model="form.username" autofocus /></el-form-item><el-form-item v-if="systemAdmin" :label="$t('user.role')"><el-select v-model="form.role" @change="onRoleChange"><el-option value="system_admin" :label="$t('auth.roles.system_admin')"/><el-option value="tenant_admin" :label="$t('auth.roles.tenant_admin')"/><el-option value="viewer" :label="$t('auth.roles.viewer')"/></el-select></el-form-item><el-form-item v-if="systemAdmin && form.role!=='system_admin'" :label="$t('user.tenant')"><el-select v-model="form.tenantId"><el-option v-for="tenant in activeTenants" :key="tenant.id" :value="tenant.id!" :label="tenant.name" /></el-select></el-form-item></el-form><template #footer><el-button @click="dialog=false">{{ $t('common.cancel') }}</el-button><el-button type="primary" :loading="saving" @click="save">{{ $t('common.create') }}</el-button></template></el-dialog>
+  <el-dialog v-model="activationDialog" :title="$t('user.activationCreated')" width="560px"><el-alert type="warning" :closable="false" :title="$t('user.activationOnceHint')"/><el-form label-position="top" class="activation"><el-form-item :label="$t('auth.activationCode')"><el-input :model-value="activationCode" readonly><template #append><el-button @click="copy(activationCode)">{{ $t('common.copy') }}</el-button></template></el-input></el-form-item><el-form-item :label="$t('user.activationLink')"><el-input :model-value="activationLink" readonly><template #append><el-button @click="copy(activationLink)">{{ $t('common.copy') }}</el-button></template></el-input></el-form-item></el-form></el-dialog>
+  <SecuritySettingsDrawer ref="settings" />
 </template>
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { useI18n } from 'vue-i18n'
-import { createUser, deleteUser, listTenants, listUsers, resetUserPassword, setUserStatus, type Tenant, type User } from '../api/identity'
-import { authState } from '../auth/session'
-import PageHeader from '../components/PageHeader.vue'
-const { t } = useI18n(), items = ref<User[]>([]), tenants = ref<Tenant[]>([]), loading = ref(false), saving = ref(false), dialog = ref(false), resetDialog = ref(false), newPassword = ref(''), selected = ref<User>()
-const systemAdmin = computed(() => authState.me?.role === 'system_admin'), activeTenants = computed(() => tenants.value.filter(t => t.status === 'active'))
-const form = reactive({ username: '', role: 'viewer' as 'tenant_admin' | 'viewer', tenantId: undefined as string | undefined })
-const tenantName = (id?: string) => tenants.value.find(t => t.id === id)?.name ?? '-'
-const canManage = (user: User) => systemAdmin.value || user.role === 'viewer'
-async function load() { loading.value = true; try { items.value = await listUsers() ?? []; if (systemAdmin.value) tenants.value = await listTenants() ?? [] } catch (e) { ElMessage.error((e as Error).message) } finally { loading.value = false } }
-async function save() { saving.value = true; try { await createUser({ username: form.username, role: systemAdmin.value ? form.role : 'viewer', tenantId: systemAdmin.value ? form.tenantId : authState.me?.tenantId }); dialog.value = false; Object.assign(form, { username: '', role: 'viewer', tenantId: undefined }); await load() } catch (e) { ElMessage.error((e as Error).message) } finally { saving.value = false } }
-async function toggle(row: User) { try { await setUserStatus(row.id!, row.status === 'active' ? 'disabled' : 'active'); await load() } catch (e) { ElMessage.error((e as Error).message) } }
-function openReset(row: User) { selected.value = row; newPassword.value = ''; resetDialog.value = true }
-async function resetPassword() { try { await resetUserPassword(selected.value!.id!, newPassword.value); resetDialog.value = false } catch (e) { ElMessage.error((e as Error).message) } }
-async function remove(row: User) { try { await ElMessageBox.confirm(t('common.deleteConfirm', { name: row.username })); await deleteUser(row.id!); await load() } catch (e) { if (e !== 'cancel') ElMessage.error((e as Error).message) } }
-onMounted(load)
+import{computed,onMounted,reactive,ref}from'vue';import{ElMessage,ElMessageBox}from'element-plus';import{useI18n}from'vue-i18n';import{createUser,deleteUser,forceLogoutUser,forceUserPasswordChange,listTenants,listUsers,regenerateUserActivation,setUserStatus,unlockUser,type Tenant,type User}from'../api/identity';import{authState}from'../auth/session';import PageHeader from'../components/PageHeader.vue';import SecuritySettingsDrawer from'../components/SecuritySettingsDrawer.vue'
+const{t}=useI18n(),items=ref<User[]>([]),tenants=ref<Tenant[]>([]),loading=ref(false),saving=ref(false),dialog=ref(false),activationDialog=ref(false),activationCode=ref(''),settings=ref<{open:()=>void}>();const systemAdmin=computed(()=>authState.me?.role==='system_admin'),activeTenants=computed(()=>tenants.value.filter(x=>x.status==='active'));const form=reactive({username:'',role:'viewer' as 'system_admin'|'tenant_admin'|'viewer',tenantId:undefined as string|undefined});const activationLink=computed(()=>`${location.origin}/activate?code=${encodeURIComponent(activationCode.value)}`);const tenantName=(id?:string)=>tenants.value.find(x=>x.id===id)?.name??'-',formatDate=(v?:string)=>v?new Date(v).toLocaleString():'-',canManage=(u:User)=>systemAdmin.value||u.role==='viewer'
+async function load(){loading.value=true;try{items.value=await listUsers();if(systemAdmin.value)tenants.value=await listTenants()}catch(e){ElMessage.error((e as Error).message)}finally{loading.value=false}}function onRoleChange(){if(form.role==='system_admin')form.tenantId=undefined}function showActivation(code?:string){if(!code)return;activationCode.value=code;activationDialog.value=true}
+async function save(){if(!form.username||(systemAdmin.value&&form.role!=='system_admin'&&!form.tenantId)){ElMessage.warning(t('user.requiredFields'));return}saving.value=true;try{const result=await createUser({username:form.username,role:systemAdmin.value?form.role:'viewer',tenantId:systemAdmin.value?form.tenantId:authState.me?.tenantId});dialog.value=false;showActivation(result.activationCode);Object.assign(form,{username:'',role:'viewer',tenantId:undefined});await load()}catch(e){ElMessage.error((e as Error).message)}finally{saving.value=false}}
+async function action(c:string,row:User){try{if(c==='delete'){await ElMessageBox.confirm(t('common.deleteConfirm',{name:row.username}));await deleteUser(row.id!)}else if(c==='enable'||c==='disable')await setUserStatus(row.id!,c==='enable'?'active':'disabled');else if(c==='unlock')await unlockUser(row.id!);else if(c==='logout')await forceLogoutUser(row.id!);else if(c==='forcePassword')await forceUserPasswordChange(row.id!);else if(c==='activation'){const r=await regenerateUserActivation(row.id!);showActivation(r.activationCode)}await load();if(c!=='activation')ElMessage.success(t('common.saved'))}catch(e){if(e!=='cancel'&&e!=='close')ElMessage.error((e as Error).message)}}async function copy(v:string){await navigator.clipboard.writeText(v);ElMessage.success(t('user.copied'))}onMounted(load)
 </script>
+<style scoped>.activation{margin-top:16px}small{color:var(--el-text-color-secondary)}</style>

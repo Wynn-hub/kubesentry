@@ -21,7 +21,7 @@
         </template>
       </el-tab-pane>
     </el-tabs>
-    <AdmissionEventSettingsDrawer ref="settingsDrawer" @saved="settings = $event" />
+    <AdmissionEventSettingsDrawer ref="settingsDrawer" :readonly="!can('platform.manage')" @saved="settings = $event" />
   </section>
 </template>
 
@@ -36,6 +36,7 @@ import AdmissionEventListView from './AdmissionEventListView.vue'
 import AdmissionObservabilityView from './AdmissionObservabilityView.vue'
 import { getAdmissionSettings, type AdmissionSettings } from '../api/admissionEvent'
 import { resolveEventsTab, type AdmissionEventsTab } from './admissionEventsTabs'
+import { can } from '../auth/session'
 
 const route = useRoute()
 const router = useRouter()
