@@ -23,6 +23,8 @@ data:
         location /api/ {
             proxy_pass http://127.0.0.1:{{ .Values.console.ports.api }}/api/;
             proxy_set_header X-Request-Id $request_id;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Forwarded-Proto $scheme;
         }
 
         location /healthz {
