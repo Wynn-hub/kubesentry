@@ -236,7 +236,7 @@ type PolicyItem struct {
 	CreatedAt       time.Time `json:"createdAt"`
 	UpdatedAt       time.Time `json:"updatedAt"`
 	OwnerType       string    `json:"ownerType" enums:"system,tenant"`
-	TenantID        *int64    `json:"tenantId,omitempty"`
+	TenantID        *int64    `json:"tenantId,omitempty,string" swaggertype:"string"`
 }
 
 type PolicyPageView struct {
@@ -262,7 +262,7 @@ type PolicyView struct {
 	CreatedAt         time.Time            `json:"createdAt"`
 	UpdatedAt         time.Time            `json:"updatedAt"`
 	OwnerType         string               `json:"ownerType" enums:"system,tenant"`
-	TenantID          *int64               `json:"tenantId,omitempty"`
+	TenantID          *int64               `json:"tenantId,omitempty,string" swaggertype:"string"`
 	CrossTenantLocked bool                 `json:"crossTenantLocked"`
 }
 
@@ -472,7 +472,7 @@ type SwagPolicyDetail struct {
 	CreatedAt         time.Time         `json:"createdAt" binding:"required" format:"date-time"`
 	UpdatedAt         time.Time         `json:"updatedAt" binding:"required" format:"date-time"`
 	OwnerType         string            `json:"ownerType" binding:"required" enums:"system,tenant"`
-	TenantID          *int64            `json:"tenantId,omitempty"`
+	TenantID          *int64            `json:"tenantId,omitempty,string" swaggertype:"string"`
 	CrossTenantLocked bool              `json:"crossTenantLocked" binding:"required"`
 }
 

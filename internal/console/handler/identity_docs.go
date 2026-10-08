@@ -108,7 +108,7 @@ func createTenant() {}
 // @Accept json
 // @Produce json
 // @Security SessionCookie
-// @Param id path int true "租户 ID"
+// @Param id path string true "租户 ID"
 // @Param body body dto.TenantStatusRequest true "状态"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -156,7 +156,7 @@ func createUser() {}
 // @Accept json
 // @Produce json
 // @Security SessionCookie
-// @Param id path int true "用户 ID"
+// @Param id path string true "用户 ID"
 // @Param body body dto.UserStatusRequest true "状态"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -175,7 +175,7 @@ func setUserStatus() {}
 // @Accept json
 // @Produce json
 // @Security SessionCookie
-// @Param id path int true "用户 ID"
+// @Param id path string true "用户 ID"
 // @Param body body dto.ResetPasswordRequest true "新密码"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 400 {object} dto.SwagErrorResponse
@@ -192,7 +192,7 @@ func resetUserPassword() {}
 // @Tags User
 // @Produce json
 // @Security SessionCookie
-// @Param id path int true "用户 ID"
+// @Param id path string true "用户 ID"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 401 {object} dto.SwagErrorResponse
 // @Failure 403 {object} dto.SwagErrorResponse

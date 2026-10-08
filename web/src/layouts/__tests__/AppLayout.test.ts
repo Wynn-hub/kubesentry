@@ -23,7 +23,7 @@ describe('application navigation', () => {
 
   it('navigates to the API documentation center from the AppLayout menu', async () => {
     authState.status = 'authenticated'
-    authState.me = { id: 1, username: 'admin', role: 'system_admin' }
+    authState.me = { id: '1', username: 'admin', role: 'system_admin' }
     await router.push('/')
     await router.isReady()
     const target = document.createElement('div')
@@ -52,7 +52,7 @@ describe('application navigation', () => {
 
   it('hides management navigation from viewers', async () => {
     authState.status = 'authenticated'
-    authState.me = { id: 2, username: 'viewer', role: 'viewer', tenantId: 1 }
+    authState.me = { id: '2', username: 'viewer', role: 'viewer', tenantId: '1' }
     const target = document.createElement('div')
     const app = createApp(AppLayout).use(router).use(i18n).use(ElementPlus)
     unmount = app.unmount

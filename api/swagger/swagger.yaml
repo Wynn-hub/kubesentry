@@ -365,7 +365,8 @@ definitions:
       readyNodeCount:
         type: integer
       tenantId:
-        type: integer
+        example: ""
+        type: string
     required:
     - createdAt
     - kubernetesVersion
@@ -417,7 +418,8 @@ definitions:
   dto.ClusterTenantRequest:
     properties:
       tenantId:
-        type: integer
+        example: ""
+        type: string
     type: object
   dto.ClusterTokenInput:
     properties:
@@ -461,7 +463,8 @@ definitions:
       readyNodeCount:
         type: integer
       tenantId:
-        type: integer
+        example: ""
+        type: string
       updatedAt:
         format: date-time
         type: string
@@ -493,7 +496,8 @@ definitions:
         - viewer
         type: string
       tenantId:
-        type: integer
+        example: ""
+        type: string
       username:
         type: string
     type: object
@@ -991,7 +995,8 @@ definitions:
   dto.MeView:
     properties:
       id:
-        type: integer
+        example: ""
+        type: string
       role:
         enum:
         - system_admin
@@ -999,7 +1004,8 @@ definitions:
         - viewer
         type: string
       tenantId:
-        type: integer
+        example: ""
+        type: string
       username:
         type: string
     type: object
@@ -1714,7 +1720,8 @@ definitions:
         - custom
         type: string
       tenantId:
-        type: integer
+        example: ""
+        type: string
       updatedAt:
         format: date-time
         type: string
@@ -1926,7 +1933,8 @@ definitions:
         example: builtin
         type: string
       tenantId:
-        type: integer
+        example: ""
+        type: string
       updatedAt:
         example: "2026-08-03T11:20:45Z"
         format: date-time
@@ -2101,7 +2109,8 @@ definitions:
   dto.TenantView:
     properties:
       id:
-        type: integer
+        example: ""
+        type: string
       name:
         type: string
       status:
@@ -2155,7 +2164,8 @@ definitions:
   dto.UserView:
     properties:
       id:
-        type: integer
+        example: ""
+        type: string
       role:
         enum:
         - system_admin
@@ -2168,7 +2178,8 @@ definitions:
         - disabled
         type: string
       tenantId:
-        type: integer
+        example: ""
+        type: string
       username:
         type: string
     type: object
@@ -5185,7 +5196,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: 状态
         in: body
         name: body
@@ -5305,7 +5316,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -5345,7 +5356,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: 新密码
         in: body
         name: body
@@ -5391,7 +5402,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: 状态
         in: body
         name: body

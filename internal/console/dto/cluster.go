@@ -288,7 +288,7 @@ type ClusterItem struct {
 	ReadyNodeCount    int        `json:"readyNodeCount" binding:"required"`
 	LastHeartbeatAt   *time.Time `json:"lastHeartbeatAt,omitempty" format:"date-time"`
 	CreatedAt         time.Time  `json:"createdAt" binding:"required" format:"date-time"`
-	TenantID          *int64     `json:"tenantId,omitempty"`
+	TenantID          *int64     `json:"tenantId,omitempty,string" swaggertype:"string"`
 }
 
 type ClusterView struct {
@@ -304,7 +304,7 @@ type ClusterView struct {
 	Labels            map[string]string `json:"labels" binding:"required"`
 	CreatedAt         time.Time         `json:"createdAt" binding:"required" format:"date-time"`
 	UpdatedAt         time.Time         `json:"updatedAt" binding:"required" format:"date-time"`
-	TenantID          *int64            `json:"tenantId,omitempty"`
+	TenantID          *int64            `json:"tenantId,omitempty,string" swaggertype:"string"`
 }
 
 type InstallRecordItemView struct {
@@ -320,7 +320,7 @@ type InstallRecordItemView struct {
 }
 
 type UninstallTaskView struct {
-	ID          int64      `json:"id"`
+	ID          int64      `json:"id,string" swaggertype:"string"`
 	Status      string     `json:"status"`
 	Error       string     `json:"error,omitempty"`
 	RequestedAt time.Time  `json:"requestedAt"`

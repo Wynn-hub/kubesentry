@@ -1107,7 +1107,8 @@ export interface components {
             /** @enum {string} */
             phase: "Registering" | "Online" | "Offline" | "Uninstalling" | "Uninstalled";
             readyNodeCount: number;
-            tenantId?: number;
+            /** @example  */
+            tenantId?: string;
         };
         "dto.ClusterLabelsInput": {
             labels: {
@@ -1125,7 +1126,8 @@ export interface components {
             total: number;
         };
         "dto.ClusterTenantRequest": {
-            tenantId?: number;
+            /** @example  */
+            tenantId?: string;
         };
         "dto.ClusterTokenInput": {
             installParams: components["schemas"]["dto.ClusterInstallInput"];
@@ -1147,7 +1149,8 @@ export interface components {
             /** @enum {string} */
             phase: "Registering" | "Online" | "Offline" | "Uninstalling" | "Uninstalled";
             readyNodeCount: number;
-            tenantId?: number;
+            /** @example  */
+            tenantId?: string;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -1158,7 +1161,8 @@ export interface components {
             password?: string;
             /** @enum {string} */
             role?: "tenant_admin" | "viewer";
-            tenantId?: number;
+            /** @example  */
+            tenantId?: string;
             username?: string;
         };
         "dto.DistributionClusters": {
@@ -1340,10 +1344,12 @@ export interface components {
             resources: string[];
         };
         "dto.MeView": {
-            id?: number;
+            /** @example  */
+            id?: string;
             /** @enum {string} */
             role?: "system_admin" | "tenant_admin" | "viewer";
-            tenantId?: number;
+            /** @example  */
+            tenantId?: string;
             username?: string;
         };
         "dto.PasswordInput": {
@@ -1610,7 +1616,8 @@ export interface components {
             resourceVersion: string;
             /** @enum {string} */
             source: "builtin" | "custom";
-            tenantId?: number;
+            /** @example  */
+            tenantId?: string;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -1711,7 +1718,8 @@ export interface components {
              * @enum {string}
              */
             source: "builtin" | "custom";
-            tenantId?: number;
+            /** @example  */
+            tenantId?: string;
             /**
              * Format: date-time
              * @example 2026-08-03T11:20:45Z
@@ -1780,7 +1788,8 @@ export interface components {
             status?: "active" | "disabled";
         };
         "dto.TenantView": {
-            id?: number;
+            /** @example  */
+            id?: string;
             name?: string;
             /** @enum {string} */
             status?: "active" | "disabled";
@@ -1803,12 +1812,14 @@ export interface components {
             status?: "active" | "disabled";
         };
         "dto.UserView": {
-            id?: number;
+            /** @example  */
+            id?: string;
             /** @enum {string} */
             role?: "system_admin" | "tenant_admin" | "viewer";
             /** @enum {string} */
             status?: "active" | "disabled";
-            tenantId?: number;
+            /** @example  */
+            tenantId?: string;
             username?: string;
         };
     };
@@ -5605,7 +5616,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 租户 ID */
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -5772,7 +5783,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 用户 ID */
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -5831,7 +5842,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 用户 ID */
-                id: number;
+                id: string;
             };
             cookie?: never;
         };
@@ -5895,7 +5906,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description 用户 ID */
-                id: number;
+                id: string;
             };
             cookie?: never;
         };

@@ -551,7 +551,8 @@
                         "type": "integer"
                     },
                     "tenantId": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -625,7 +626,8 @@
             "dto.ClusterTenantRequest": {
                 "properties": {
                     "tenantId": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -689,7 +691,8 @@
                         "type": "integer"
                     },
                     "tenantId": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     },
                     "updatedAt": {
                         "format": "date-time",
@@ -732,7 +735,8 @@
                         "type": "string"
                     },
                     "tenantId": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     },
                     "username": {
                         "type": "string"
@@ -1441,7 +1445,8 @@
             "dto.MeView": {
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     },
                     "role": {
                         "enum": [
@@ -1452,7 +1457,8 @@
                         "type": "string"
                     },
                     "tenantId": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     },
                     "username": {
                         "type": "string"
@@ -2465,7 +2471,8 @@
                         "type": "string"
                     },
                     "tenantId": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     },
                     "updatedAt": {
                         "format": "date-time",
@@ -2763,7 +2770,8 @@
                         "type": "string"
                     },
                     "tenantId": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     },
                     "updatedAt": {
                         "example": "2026-08-03T11:20:45Z",
@@ -3012,7 +3020,8 @@
             "dto.TenantView": {
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     },
                     "name": {
                         "type": "string"
@@ -3089,7 +3098,8 @@
             "dto.UserView": {
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     },
                     "role": {
                         "enum": [
@@ -3107,7 +3117,8 @@
                         "type": "string"
                     },
                     "tenantId": {
-                        "type": "integer"
+                        "example": "",
+                        "type": "string"
                     },
                     "username": {
                         "type": "string"
@@ -9016,7 +9027,7 @@
                         "name": "id",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -9255,7 +9266,7 @@
                         "name": "id",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -9333,7 +9344,7 @@
                         "name": "id",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -9422,7 +9433,7 @@
                         "name": "id",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],

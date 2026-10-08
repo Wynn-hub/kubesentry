@@ -122,7 +122,7 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => { if (refreshTimer) clearInterval(refreshTimer) })
 
-async function onTenantChange(tenantId?: number) {
+async function onTenantChange(tenantId?: string) {
   if (!d.value) return
   try { await assignClusterTenant(d.value.name, tenantId); await load() }
   catch (e) { ElMessage.error((e as Error).message) }

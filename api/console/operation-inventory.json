@@ -2571,7 +2571,7 @@
           "name": "id",
           "required": true,
           "schema": {
-            "type": "integer"
+            "type": "string"
           }
         }
       ],
@@ -2651,7 +2651,7 @@
           "name": "id",
           "required": true,
           "schema": {
-            "type": "integer"
+            "type": "string"
           }
         }
       ],
@@ -2683,7 +2683,7 @@
           "name": "id",
           "required": true,
           "schema": {
-            "type": "integer"
+            "type": "string"
           }
         }
       ],
@@ -2718,7 +2718,7 @@
           "name": "id",
           "required": true,
           "schema": {
-            "type": "integer"
+            "type": "string"
           }
         }
       ],
@@ -2748,5 +2748,5 @@
       ]
     }
   ],
-  "sha256": "63e6f1d269bda46c605b1d516a767b7b9fe6e4cfecff90c8bca07fb364332aad"
+  "sha256": "6a89c870fd8b65c6df838784cf8e6f44d653ee852da8b1398f883301888bc0d9"
 }

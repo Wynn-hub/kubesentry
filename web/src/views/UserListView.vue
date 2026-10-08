@@ -33,8 +33,8 @@ import { authState } from '../auth/session'
 import PageHeader from '../components/PageHeader.vue'
 const { t } = useI18n(), items = ref<User[]>([]), tenants = ref<Tenant[]>([]), loading = ref(false), saving = ref(false), dialog = ref(false), resetDialog = ref(false), newPassword = ref(''), selected = ref<User>()
 const systemAdmin = computed(() => authState.me?.role === 'system_admin'), activeTenants = computed(() => tenants.value.filter(t => t.status === 'active'))
-const form = reactive({ username: '', password: '', role: 'viewer' as 'tenant_admin' | 'viewer', tenantId: undefined as number | undefined })
-const tenantName = (id?: number) => tenants.value.find(t => t.id === id)?.name ?? '-'
+const form = reactive({ username: '', password: '', role: 'viewer' as 'tenant_admin' | 'viewer', tenantId: undefined as string | undefined })
+const tenantName = (id?: string) => tenants.value.find(t => t.id === id)?.name ?? '-'
 const canManage = (user: User) => systemAdmin.value || user.role === 'viewer'
 async function load() { loading.value = true; try { items.value = await listUsers() ?? []; if (systemAdmin.value) tenants.value = await listTenants() ?? [] } catch (e) { ElMessage.error((e as Error).message) } finally { loading.value = false } }
 async function save() { saving.value = true; try { await createUser({ username: form.username, password: form.password, role: systemAdmin.value ? form.role : 'viewer', tenantId: systemAdmin.value ? form.tenantId : authState.me?.tenantId }); dialog.value = false; Object.assign(form, { username: '', password: '', role: 'viewer', tenantId: undefined }); await load() } catch (e) { ElMessage.error((e as Error).message) } finally { saving.value = false } }

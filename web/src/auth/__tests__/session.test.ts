@@ -19,7 +19,7 @@ describe('session state', () => {
 
   it('loads the authenticated principal and capabilities', async () => {
     vi.mocked(getSetupStatus).mockResolvedValue({ required: false })
-    vi.mocked(getMe).mockResolvedValue({ id: 1, username: 'admin', role: 'system_admin' })
+    vi.mocked(getMe).mockResolvedValue({ id: '1', username: 'admin', role: 'system_admin' })
     await refreshAuth()
     expect(authState.status).toBe('authenticated')
     expect(can('platform.manage')).toBe(true)
@@ -30,7 +30,7 @@ describe('session state', () => {
     ['tenant_admin', false, true, true],
     ['viewer', false, false, false],
   ] as const)('maps %s to scoped capabilities', (role, platform, tenant, write) => {
-    authState.me = { id: 1, username: role, role }
+    authState.me = { id: '1', username: role, role }
     expect(can('platform.manage')).toBe(platform)
     expect(can('tenant.manage')).toBe(tenant)
     expect(can('resource.write')).toBe(write)
