@@ -83,15 +83,67 @@ func (a *authHTTP) login(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusTooManyRequests, "too many login attempts")
 		return
 	}
-	token, _, err := a.service.Login(r.Context(), username, input.Password)
+	token, _, err := a.service.Login(r.Context(), username, input.Password, remoteIP(r))
 	if err != nil {
 		slog.Warn("login failed", "username", username, "remote_ip", remoteIP(r), "trace_id", TraceIDFromContext(r.Context()))
+		if errors.Is(err, service.ErrAccountLocked) {
+			writeCodedErr(w, http.StatusLocked, "ACCOUNT_LOCKED", err.Error())
+			return
+		}
 		writeErr(w, http.StatusUnauthorized, service.ErrInvalidCredentials.Error())
 		return
 	}
-	a.setSessionCookie(w, r, token, a.lifetime)
+	a.setSessionCookie(w, r, token, a.service.SessionAbsoluteDuration(r.Context()))
 	slog.Info("login succeeded", "username", username, "remote_ip", remoteIP(r), "trace_id", TraceIDFromContext(r.Context()))
 	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success"})
+}
+
+func (a *authHTTP) activate(w http.ResponseWriter, r *http.Request) {
+	var input dto.ActivateInput
+	if !decodeAuthJSON(w, r, &input) {
+		return
+	}
+	err := a.service.Activate(r.Context(), input.Code, input.Password)
+	switch {
+	case errors.Is(err, service.ErrInvalidPassword):
+		writeErr(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, service.ErrActivationInvalid):
+		writeCodedErr(w, http.StatusBadRequest, "ACTIVATION_INVALID", err.Error())
+	case err != nil:
+		writeErr(w, http.StatusInternalServerError, "request failed")
+	default:
+		writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success"})
+	}
+}
+
+func (a *authHTTP) changePassword(w http.ResponseWriter, r *http.Request) {
+	principal, ok := PrincipalFromContext(r.Context())
+	if !ok {
+		writeCodedErr(w, http.StatusUnauthorized, "SESSION_INVALID", "authentication required")
+		return
+	}
+	var input dto.ChangePasswordInput
+	if !decodeAuthJSON(w, r, &input) {
+		return
+	}
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil {
+		writeCodedErr(w, http.StatusUnauthorized, "SESSION_INVALID", "authentication required")
+		return
+	}
+	err = a.service.ChangePassword(r.Context(), principal, cookie.Value, input.Password)
+	switch {
+	case errors.Is(err, service.ErrInvalidPassword):
+		writeErr(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, service.ErrPasswordReused):
+		writeCodedErr(w, http.StatusConflict, "PASSWORD_REUSED", err.Error())
+	case errors.Is(err, service.ErrAuthentication):
+		writeCodedErr(w, http.StatusUnauthorized, "SESSION_INVALID", "authentication required")
+	case err != nil:
+		writeErr(w, http.StatusInternalServerError, "request failed")
+	default:
+		writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success"})
+	}
 }
 
 func (a *authHTTP) logout(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +160,7 @@ func (a *authHTTP) me(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
-	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success", Data: dto.MeView{ID: p.UserID, Username: p.Username, Role: p.Role, TenantID: p.TenantID}})
+	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success", Data: dto.MeView{ID: p.UserID, Username: p.Username, Role: p.Role, TenantID: p.TenantID, LastLoginAt: p.LastLoginAt, PasswordExpiresAt: p.PasswordExpiresAt, MustChangePassword: p.MustChangePassword}})
 }
 
 func (a *authHTTP) middleware(next http.Handler) http.Handler {
@@ -120,7 +172,7 @@ func (a *authHTTP) middleware(next http.Handler) http.Handler {
 		}
 		principal, err := a.service.Authenticate(r.Context(), cookie.Value)
 		if err != nil {
-			writeErr(w, http.StatusUnauthorized, "authentication required")
+			writeCodedErr(w, http.StatusUnauthorized, "SESSION_INVALID", "authentication required")
 			return
 		}
 		if !isSafeMethod(r.Method) && (r.Header.Get("X-KubeSentry-CSRF") != "1" || !sameOrigin(r)) {
@@ -131,8 +183,22 @@ func (a *authHTTP) middleware(next http.Handler) http.Handler {
 			writeErr(w, http.StatusForbidden, "forbidden")
 			return
 		}
+		if principal.MustChangePassword && !restrictedSessionRoute(r) {
+			writeCodedErr(w, http.StatusForbidden, "PASSWORD_CHANGE_REQUIRED", "password change required")
+			return
+		}
 		next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), principal)))
 	})
+}
+
+func restrictedSessionRoute(r *http.Request) bool {
+	if r.URL.Path == "/api/v1/me" && r.Method == http.MethodGet {
+		return true
+	}
+	if r.URL.Path == "/api/v1/auth/change-password" && r.Method == http.MethodPost {
+		return true
+	}
+	return r.URL.Path == "/api/v1/auth/logout" && r.Method == http.MethodPost
 }
 
 func (a *authHTTP) allowLogin(key string) bool {

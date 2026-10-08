@@ -55,7 +55,7 @@ func TestAuthSetupLoginMeAndLogout(t *testing.T) {
 		t.Fatalf("login = %d %s cookies=%v", login.Code, login.Body.String(), login.Result().Cookies())
 	}
 	cookie := login.Result().Cookies()[0]
-	if cookie.Name != sessionCookieName || !cookie.HttpOnly || !cookie.Secure || cookie.MaxAge != 7200 || cookie.SameSite != http.SameSiteStrictMode {
+	if cookie.Name != sessionCookieName || !cookie.HttpOnly || !cookie.Secure || cookie.MaxAge != 8*60*60 || cookie.SameSite != http.SameSiteStrictMode {
 		t.Fatalf("session cookie = %+v", cookie)
 	}
 	if rec := authRequest(t, h, http.MethodGet, "/api/v1/me", nil, cookie, false); rec.Code != http.StatusOK || !bytes.Contains(rec.Body.Bytes(), []byte(`"role":"system_admin"`)) {
@@ -86,5 +86,25 @@ func TestProtectedRouteRejectsMissingSessionAndSelfReportedHeaders(t *testing.T)
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("protected route = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRestrictedSessionRouteAllowlist(t *testing.T) {
+	tests := []struct {
+		method string
+		path   string
+		want   bool
+	}{
+		{http.MethodGet, "/api/v1/me", true},
+		{http.MethodPost, "/api/v1/auth/change-password", true},
+		{http.MethodPost, "/api/v1/auth/logout", true},
+		{http.MethodGet, "/api/v1/users", false},
+		{http.MethodPost, "/api/v1/auth/login", false},
+	}
+	for _, tt := range tests {
+		req := httptest.NewRequest(tt.method, tt.path, nil)
+		if got := restrictedSessionRoute(req); got != tt.want {
+			t.Errorf("restrictedSessionRoute(%s %s) = %v, want %v", tt.method, tt.path, got, tt.want)
+		}
 	}
 }

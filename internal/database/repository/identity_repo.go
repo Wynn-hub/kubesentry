@@ -133,12 +133,16 @@ func (r *IdentityRepo) RecordLoginFailure(ctx context.Context, userID int64, max
 
 func (r *IdentityRepo) LoginSucceeded(ctx context.Context, userID int64, session *Session, at time.Time, remoteIP string, allowConcurrent bool) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var user User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
+			return err
+		}
 		if !allowConcurrent {
 			if err := tx.Model(&Session{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", at).Error; err != nil {
 				return err
 			}
 		}
-		if err := tx.Model(&User{}).Where("id = ?", userID).Updates(map[string]any{"last_login_at": at, "last_login_ip": remoteIP, "failed_login_count": 0, "locked_until": nil, "updated_at": at}).Error; err != nil {
+		if err := tx.Model(&user).Updates(map[string]any{"last_login_at": at, "last_login_ip": remoteIP, "failed_login_count": 0, "locked_until": nil, "updated_at": at}).Error; err != nil {
 			return err
 		}
 		session.UserID = userID
@@ -216,10 +220,29 @@ func (r *IdentityRepo) UpdateUser(ctx context.Context, user *User) error {
 }
 
 func (r *IdentityRepo) InitializeAdmin(ctx context.Context, passwordHash string, at time.Time) (bool, error) {
-	result := r.db.WithContext(ctx).Model(&User{}).
-		Where("username = ? AND role = ? AND password_hash = ''", "admin", RoleSystemAdmin).
-		Updates(map[string]any{"password_hash": passwordHash, "updated_at": at})
-	return result.RowsAffected == 1, result.Error
+	initialized := false
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var admin User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("username = ? AND role = ?", "admin", RoleSystemAdmin).First(&admin).Error; err != nil {
+			return err
+		}
+		if admin.PasswordHash != "" {
+			return nil
+		}
+		result := tx.Model(&admin).Where("password_hash = ''").Updates(map[string]any{"password_hash": passwordHash, "password_changed_at": at, "updated_at": at})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return nil
+		}
+		if err := tx.Create(&PasswordHistory{UserID: admin.ID, PasswordHash: passwordHash}).Error; err != nil {
+			return err
+		}
+		initialized = true
+		return nil
+	})
+	return initialized, err
 }
 
 func (r *IdentityRepo) CreateSession(ctx context.Context, session *Session) error {

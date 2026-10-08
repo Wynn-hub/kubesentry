@@ -20,19 +20,22 @@ const MinimumPasswordLength = 12
 
 var (
 	ErrInvalidCredentials = errors.New("invalid username or password")
-	ErrInvalidPassword    = errors.New("password must be at least 12 characters")
+	ErrInvalidPassword    = errors.New("password does not meet the minimum length requirement")
 	ErrAlreadyInitialized = errors.New("administrator password is already initialized")
 	ErrAuthentication     = errors.New("authentication required")
+	ErrActivationInvalid  = errors.New("activation code is invalid or expired")
+	ErrAccountLocked      = errors.New("account is temporarily locked")
+	ErrPasswordReused     = errors.New("password was used recently")
 )
 
 type AuthService struct {
-	repo             repository.IdentityRepository
+	repo             repository.IdentitySecurityRepository
 	now              func() time.Time
 	absoluteDuration time.Duration
 	idleDuration     time.Duration
 }
 
-func NewAuthService(repo repository.IdentityRepository) *AuthService {
+func NewAuthService(repo repository.IdentitySecurityRepository) *AuthService {
 	return &AuthService{repo: repo, now: time.Now, absoluteDuration: 24 * time.Hour, idleDuration: 30 * time.Minute}
 }
 
@@ -45,14 +48,26 @@ func (s *AuthService) SetDurations(absolute, idle time.Duration) {
 	}
 }
 
+func (s *AuthService) SessionAbsoluteDuration(ctx context.Context) time.Duration {
+	settings, err := s.securitySettings(ctx)
+	if err == nil && settings.SessionAbsoluteMinutes > 0 {
+		return time.Duration(settings.SessionAbsoluteMinutes) * time.Minute
+	}
+	return s.absoluteDuration
+}
+
 func (s *AuthService) SetupRequired(ctx context.Context) (bool, error) {
 	admin, err := s.repo.GetUserByUsername(ctx, "admin")
 	return err == nil && admin.PasswordHash == "", err
 }
 
 func (s *AuthService) InitializeAdmin(ctx context.Context, password string) error {
-	if len(password) < MinimumPasswordLength {
-		return ErrInvalidPassword
+	settings, err := s.securitySettings(ctx)
+	if err != nil {
+		return err
+	}
+	if err := validatePasswordLength(password, settings); err != nil {
+		return err
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -68,9 +83,21 @@ func (s *AuthService) InitializeAdmin(ctx context.Context, password string) erro
 	return nil
 }
 
-func (s *AuthService) Login(ctx context.Context, username, password string) (string, *dbrepo.User, error) {
+func (s *AuthService) Login(ctx context.Context, username, password string, remoteIPs ...string) (string, *dbrepo.User, error) {
 	user, err := s.repo.GetUserByUsername(ctx, strings.ToLower(strings.TrimSpace(username)))
-	if err != nil || user.Status != dbrepo.UserStatusActive || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
+	if err != nil || user.Status != dbrepo.UserStatusActive || user.PasswordHash == "" {
+		return "", nil, ErrInvalidCredentials
+	}
+	now := s.now()
+	if user.LockedUntil != nil && user.LockedUntil.After(now) {
+		return "", nil, ErrAccountLocked
+	}
+	settings, err := s.securitySettings(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
+		_ = s.repo.RecordLoginFailure(ctx, user.ID, settings.MaxFailedLoginAttempts, settings.LockoutDurationMinutes, now)
 		return "", nil, ErrInvalidCredentials
 	}
 	if user.TenantID != nil {
@@ -83,17 +110,36 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 	if err != nil {
 		return "", nil, err
 	}
-	now := s.now()
-	if err := s.repo.CreateSession(ctx, &dbrepo.Session{UserID: user.ID, TokenHash: tokenHash, ExpiresAt: now.Add(s.absoluteDuration), LastSeenAt: now}); err != nil {
+	absoluteDuration := time.Duration(settings.SessionAbsoluteMinutes) * time.Minute
+	if absoluteDuration <= 0 {
+		absoluteDuration = s.absoluteDuration
+	}
+	remoteIP := ""
+	if len(remoteIPs) > 0 {
+		remoteIP = remoteIPs[0]
+	}
+	if err := s.repo.LoginSucceeded(ctx, user.ID, &dbrepo.Session{UserID: user.ID, TokenHash: tokenHash, ExpiresAt: now.Add(absoluteDuration), LastSeenAt: now}, now, remoteIP, settings.AllowConcurrentSessions); err != nil {
 		return "", nil, err
 	}
+	user.LastLoginAt = &now
+	user.LastLoginIP = remoteIP
+	user.FailedLoginCount = 0
+	user.LockedUntil = nil
 	return token, user, nil
 }
 
 func (s *AuthService) Authenticate(ctx context.Context, token string) (dbrepo.Principal, error) {
 	now := s.now()
 	session, user, _, err := s.repo.GetActiveSession(ctx, hashSessionToken(token), now)
-	if err != nil || now.Sub(session.LastSeenAt) > s.idleDuration {
+	settings, settingsErr := s.securitySettings(ctx)
+	if settingsErr != nil {
+		return dbrepo.Principal{}, settingsErr
+	}
+	idleDuration := time.Duration(settings.SessionIdleMinutes) * time.Minute
+	if idleDuration <= 0 {
+		idleDuration = s.idleDuration
+	}
+	if err != nil || now.Sub(session.LastSeenAt) > idleDuration {
 		if err == nil {
 			_ = s.repo.RevokeSession(ctx, session.ID, now)
 		}
@@ -102,7 +148,11 @@ func (s *AuthService) Authenticate(ctx context.Context, token string) (dbrepo.Pr
 	if err := s.repo.TouchSession(ctx, session.ID, now); err != nil {
 		return dbrepo.Principal{}, err
 	}
-	return dbrepo.Principal{UserID: user.ID, Username: user.Username, Role: user.Role, TenantID: user.TenantID}, nil
+	expiresAt, forced := passwordExpiry(user, settings)
+	if expiresAt != nil && !expiresAt.After(now) {
+		forced = true
+	}
+	return dbrepo.Principal{UserID: user.ID, Username: user.Username, Role: user.Role, TenantID: user.TenantID, LastLoginAt: user.LastLoginAt, PasswordExpiresAt: expiresAt, MustChangePassword: forced}, nil
 }
 
 func (s *AuthService) Logout(ctx context.Context, token string) error {
@@ -113,23 +163,61 @@ func (s *AuthService) Logout(ctx context.Context, token string) error {
 	return s.repo.RevokeSession(ctx, session.ID, s.now())
 }
 
-func (s *AuthService) ChangePassword(ctx context.Context, username, password string) error {
-	if len(password) < MinimumPasswordLength {
-		return ErrInvalidPassword
-	}
-	user, err := s.repo.GetUserByUsername(ctx, username)
+func (s *AuthService) Activate(ctx context.Context, code, password string) error {
+	settings, err := s.securitySettings(ctx)
 	if err != nil {
 		return err
+	}
+	if err := validatePasswordLength(password, settings); err != nil {
+		return err
+	}
+	tokenHash := hashSessionToken(code)
+	token, err := s.repo.GetActivationToken(ctx, tokenHash)
+	if err != nil || !token.ExpiresAt.After(s.now()) {
+		return ErrActivationInvalid
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-	user.PasswordHash = string(hash)
-	if err := s.repo.UpdateUser(ctx, user); err != nil {
+	if err := s.repo.ActivateUser(ctx, token.UserID, tokenHash, string(hash), s.now()); err != nil {
+		return ErrActivationInvalid
+	}
+	return nil
+}
+
+func (s *AuthService) ChangePassword(ctx context.Context, principal dbrepo.Principal, sessionToken, password string) error {
+	settings, err := s.securitySettings(ctx)
+	if err != nil {
 		return err
 	}
-	return s.repo.RevokeUserSessions(ctx, user.ID)
+	if err := validatePasswordLength(password, settings); err != nil {
+		return err
+	}
+	user, err := s.repo.GetUser(ctx, principal.UserID)
+	if err != nil {
+		return err
+	}
+	hashes, err := s.repo.ListPasswordHashes(ctx, user.ID, settings.PasswordHistoryCount)
+	if err != nil {
+		return err
+	}
+	if passwordWasUsed(password, append(hashes, user.PasswordHash)) {
+		return ErrPasswordReused
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	var keepSessionID *int64
+	if sessionToken != "" {
+		session, _, _, sessionErr := s.repo.GetActiveSession(ctx, hashSessionToken(sessionToken), s.now())
+		if sessionErr != nil || session.UserID != user.ID {
+			return ErrAuthentication
+		}
+		keepSessionID = &session.ID
+	}
+	return s.repo.ChangePassword(ctx, user.ID, string(hash), keepSessionID, s.now())
 }
 
 func newSessionToken() (string, string, error) {

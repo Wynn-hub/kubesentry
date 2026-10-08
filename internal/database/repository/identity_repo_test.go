@@ -148,3 +148,38 @@ func TestIdentityLoginSucceededReplacesExistingSession(t *testing.T) {
 		t.Fatalf("second session error = %v", err)
 	}
 }
+
+func TestIdentityConcurrentLoginLeavesOneActiveSession(t *testing.T) {
+	db := newTestDB(t)
+	repo := repository.NewIdentityRepo(db)
+	ctx := t.Context()
+	now := time.Now().UTC()
+	admin, err := repo.GetUserByUsername(ctx, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	for _, token := range []string{"concurrent-first", "concurrent-second"} {
+		token := token
+		go func() {
+			<-start
+			errs <- repo.LoginSucceeded(ctx, admin.ID, &repository.Session{TokenHash: token, ExpiresAt: now.Add(time.Hour), LastSeenAt: now}, now, "127.0.0.1", false)
+		}()
+	}
+	close(start)
+	for range 2 {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+	active := 0
+	for _, token := range []string{"concurrent-first", "concurrent-second"} {
+		if _, _, _, err := repo.GetActiveSession(ctx, token, now); err == nil {
+			active++
+		}
+	}
+	if active != 1 {
+		t.Fatalf("active concurrent sessions = %d, want 1", active)
+	}
+}

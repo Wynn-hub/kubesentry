@@ -15,10 +15,11 @@ import (
 // to keep in sync. Future finer-grained codes increment within a band
 // (40001, 40002) without touching this mapping.
 type Envelope struct {
-	Code    int      `json:"code"`
-	Message string   `json:"message"`
-	Data    any      `json:"data,omitempty"`
-	Details []string `json:"details,omitempty"`
+	Code      int      `json:"code"`
+	Message   string   `json:"message"`
+	Data      any      `json:"data,omitempty"`
+	Details   []string `json:"details,omitempty"`
+	ErrorCode string   `json:"errorCode,omitempty"`
 }
 
 // codeForStatus derives the envelope code from an HTTP status. 200 maps to 0
@@ -33,6 +34,10 @@ func codeForStatus(status int) int {
 
 func writeErr(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, Envelope{Code: codeForStatus(status), Message: msg})
+}
+
+func writeCodedErr(w http.ResponseWriter, status int, code, msg string) {
+	writeJSON(w, status, Envelope{Code: codeForStatus(status), Message: msg, ErrorCode: code})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

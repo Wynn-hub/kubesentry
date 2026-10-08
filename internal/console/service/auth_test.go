@@ -18,6 +18,10 @@ type authRepoFake struct {
 	tenant                *dbrepo.Tenant
 	sessions              map[string]*dbrepo.Session
 	tenantSessionsRevoked bool
+	settings              dbrepo.SecuritySettings
+	activation            *dbrepo.UserActivationToken
+	passwordHashes        []string
+	lastLoginIP           string
 }
 
 func newAuthRepoFake(t *testing.T, password string) *authRepoFake {
@@ -30,7 +34,13 @@ func newAuthRepoFake(t *testing.T, password string) *authRepoFake {
 		}
 		hash = string(value)
 	}
-	return &authRepoFake{admin: dbrepo.User{Username: "admin", PasswordHash: hash, Role: dbrepo.RoleSystemAdmin, Status: dbrepo.UserStatusActive}, sessions: map[string]*dbrepo.Session{}}
+	f := &authRepoFake{
+		admin:    dbrepo.User{Username: "admin", PasswordHash: hash, Role: dbrepo.RoleSystemAdmin, Status: dbrepo.UserStatusActive},
+		sessions: map[string]*dbrepo.Session{},
+		settings: dbrepo.SecuritySettings{ActivationLifetimeHours: 24, PasswordMinLength: 12, PasswordHistoryCount: 5, MaxFailedLoginAttempts: 5, LockoutDurationMinutes: 15, SessionIdleMinutes: 30, SessionAbsoluteMinutes: 480},
+	}
+	f.admin.ID = 1
+	return f
 }
 
 func (f *authRepoFake) GetUserByUsername(_ context.Context, username string) (*dbrepo.User, error) {
@@ -131,6 +141,96 @@ func (f *authRepoFake) RevokeUserSessions(_ context.Context, _ int64) error {
 	return nil
 }
 
+func (f *authRepoFake) CreateUserWithActivation(context.Context, *dbrepo.User, *dbrepo.UserActivationToken) error {
+	return nil
+}
+
+func (f *authRepoFake) ReplaceActivationToken(context.Context, int64, *dbrepo.UserActivationToken, time.Time) error {
+	return nil
+}
+
+func (f *authRepoFake) GetActivationToken(_ context.Context, hash string) (*dbrepo.UserActivationToken, error) {
+	if f.activation == nil || f.activation.TokenHash != hash || f.activation.UsedAt != nil {
+		return nil, errors.New("not found")
+	}
+	token := *f.activation
+	return &token, nil
+}
+
+func (f *authRepoFake) ActivateUser(_ context.Context, userID int64, tokenHash, passwordHash string, at time.Time) error {
+	if f.activation == nil || f.activation.UserID != userID || f.activation.TokenHash != tokenHash || f.activation.UsedAt != nil || !f.activation.ExpiresAt.After(at) || f.admin.PasswordHash != "" {
+		return errors.New("invalid activation")
+	}
+	f.admin.PasswordHash = passwordHash
+	f.admin.PasswordChangedAt = &at
+	f.admin.MustChangePassword = false
+	f.activation.UsedAt = &at
+	f.passwordHashes = append([]string{passwordHash}, f.passwordHashes...)
+	return nil
+}
+
+func (f *authRepoFake) ListPasswordHashes(_ context.Context, _ int64, limit int) ([]string, error) {
+	if limit > len(f.passwordHashes) {
+		limit = len(f.passwordHashes)
+	}
+	return append([]string(nil), f.passwordHashes[:limit]...), nil
+}
+
+func (f *authRepoFake) RecordLoginFailure(_ context.Context, _ int64, maxAttempts, lockoutMinutes int, at time.Time) error {
+	f.admin.FailedLoginCount++
+	if f.admin.FailedLoginCount >= maxAttempts {
+		locked := at.Add(time.Duration(lockoutMinutes) * time.Minute)
+		f.admin.LockedUntil = &locked
+	}
+	return nil
+}
+
+func (f *authRepoFake) LoginSucceeded(_ context.Context, userID int64, session *dbrepo.Session, at time.Time, remoteIP string, allowConcurrent bool) error {
+	if !allowConcurrent {
+		_ = f.RevokeUserSessions(context.Background(), userID)
+	}
+	f.admin.LastLoginAt = &at
+	f.admin.LastLoginIP = remoteIP
+	f.admin.FailedLoginCount = 0
+	f.admin.LockedUntil = nil
+	f.lastLoginIP = remoteIP
+	return f.CreateSession(context.Background(), session)
+}
+
+func (f *authRepoFake) ChangePassword(_ context.Context, _ int64, passwordHash string, keepSessionID *int64, at time.Time) error {
+	f.admin.PasswordHash = passwordHash
+	f.admin.PasswordChangedAt = &at
+	f.admin.MustChangePassword = false
+	f.passwordHashes = append([]string{passwordHash}, f.passwordHashes...)
+	for _, session := range f.sessions {
+		if keepSessionID == nil || session.ID != *keepSessionID {
+			session.RevokedAt = &at
+		}
+	}
+	return nil
+}
+
+func (f *authRepoFake) GetSecuritySettings(context.Context) (*dbrepo.SecuritySettings, error) {
+	settings := f.settings
+	return &settings, nil
+}
+
+func (f *authRepoFake) UpdateSecuritySettings(_ context.Context, settings *dbrepo.SecuritySettings) error {
+	f.settings = *settings
+	return nil
+}
+
+func (f *authRepoFake) UnlockUser(context.Context, int64, time.Time) error {
+	f.admin.FailedLoginCount = 0
+	f.admin.LockedUntil = nil
+	return nil
+}
+
+func (f *authRepoFake) RequirePasswordChange(context.Context, int64, time.Time) error {
+	f.admin.MustChangePassword = true
+	return nil
+}
+
 func TestInitializeAdminValidationAndRace(t *testing.T) {
 	repo := newAuthRepoFake(t, "")
 	svc := NewAuthService(repo)
@@ -197,18 +297,115 @@ func TestAuthRejectsDisabledUserAndTenant(t *testing.T) {
 	}
 }
 
-func TestAuthPasswordChangeRevokesSessions(t *testing.T) {
+func TestAuthPasswordChangeKeepsCurrentSession(t *testing.T) {
 	repo := newAuthRepoFake(t, "correct horse battery staple")
 	svc := NewAuthService(repo)
 	token, _, err := svc.Login(t.Context(), "admin", "correct horse battery staple")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.ChangePassword(t.Context(), "admin", "another secure password"); err != nil {
+	principal, err := svc.Authenticate(t.Context(), token)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Authenticate(t.Context(), token); !errors.Is(err, ErrAuthentication) {
+	if err := svc.ChangePassword(t.Context(), principal, token, "another secure password"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Authenticate(t.Context(), token); err != nil {
+		t.Fatalf("current session error = %v", err)
+	}
+}
+
+func TestAuthActivationHonorsExpiryAndConsumesCode(t *testing.T) {
+	repo := newAuthRepoFake(t, "")
+	now := time.Now().UTC()
+	code := "one-time-activation-code"
+	repo.activation = &dbrepo.UserActivationToken{UserID: repo.admin.ID, TokenHash: hashSessionToken(code), ExpiresAt: now.Add(time.Hour)}
+	svc := NewAuthService(repo)
+	svc.now = func() time.Time { return now }
+
+	if err := svc.Activate(t.Context(), code, "correct horse battery staple"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Activate(t.Context(), code, "another secure password"); !errors.Is(err, ErrActivationInvalid) {
+		t.Fatalf("reused activation error = %v", err)
+	}
+
+	repo.admin.PasswordHash = ""
+	repo.activation = &dbrepo.UserActivationToken{UserID: repo.admin.ID, TokenHash: hashSessionToken("expired"), ExpiresAt: now.Add(-time.Minute)}
+	if err := svc.Activate(t.Context(), "expired", "correct horse battery staple"); !errors.Is(err, ErrActivationInvalid) {
+		t.Fatalf("expired activation error = %v", err)
+	}
+}
+
+func TestAuthLockoutAndSuccessfulLoginMetadata(t *testing.T) {
+	repo := newAuthRepoFake(t, "correct horse battery staple")
+	repo.settings.MaxFailedLoginAttempts = 2
+	svc := NewAuthService(repo)
+	now := time.Now().UTC()
+	svc.now = func() time.Time { return now }
+
+	for range 2 {
+		_, _, _ = svc.Login(t.Context(), "admin", "wrong", "192.0.2.10")
+	}
+	if _, _, err := svc.Login(t.Context(), "admin", "correct horse battery staple", "192.0.2.10"); !errors.Is(err, ErrAccountLocked) {
+		t.Fatalf("locked login error = %v", err)
+	}
+	now = now.Add(16 * time.Minute)
+	if _, _, err := svc.Login(t.Context(), "admin", "correct horse battery staple", "192.0.2.10"); err != nil {
+		t.Fatal(err)
+	}
+	if repo.lastLoginIP != "192.0.2.10" || repo.admin.FailedLoginCount != 0 {
+		t.Fatalf("login metadata = ip %q failures %d", repo.lastLoginIP, repo.admin.FailedLoginCount)
+	}
+}
+
+func TestAuthSingleSessionAndConcurrentSessionSettings(t *testing.T) {
+	repo := newAuthRepoFake(t, "correct horse battery staple")
+	svc := NewAuthService(repo)
+	token1, _, err := svc.Login(t.Context(), "admin", "correct horse battery staple", "192.0.2.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = svc.Login(t.Context(), "admin", "correct horse battery staple", "192.0.2.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Authenticate(t.Context(), token1); !errors.Is(err, ErrAuthentication) {
 		t.Fatalf("old session error = %v", err)
+	}
+
+	repo.settings.AllowConcurrentSessions = true
+	token3, _, _ := svc.Login(t.Context(), "admin", "correct horse battery staple", "192.0.2.3")
+	_, _, _ = svc.Login(t.Context(), "admin", "correct horse battery staple", "192.0.2.4")
+	if _, err := svc.Authenticate(t.Context(), token3); err != nil {
+		t.Fatalf("concurrent session rejected: %v", err)
+	}
+}
+
+func TestPasswordPolicyHistoryAndExpiry(t *testing.T) {
+	repo := newAuthRepoFake(t, "correct horse battery staple")
+	repo.settings.PasswordLifetimeDays = 30
+	repo.settings.PasswordHistoryCount = 5
+	now := time.Now().UTC()
+	changed := now.Add(-31 * 24 * time.Hour)
+	repo.admin.PasswordChangedAt = &changed
+	repo.passwordHashes = []string{repo.admin.PasswordHash}
+	svc := NewAuthService(repo)
+	svc.now = func() time.Time { return now }
+	token, _, err := svc.Login(t.Context(), "admin", "correct horse battery staple", "192.0.2.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal, err := svc.Authenticate(t.Context(), token)
+	if err != nil || !principal.MustChangePassword || principal.PasswordExpiresAt == nil {
+		t.Fatalf("expired principal = %+v, %v", principal, err)
+	}
+	if err := svc.ChangePassword(t.Context(), principal, token, "correct horse battery staple"); !errors.Is(err, ErrPasswordReused) {
+		t.Fatalf("reused password error = %v", err)
+	}
+	if err := svc.ChangePassword(t.Context(), principal, token, "another secure password"); err != nil {
+		t.Fatal(err)
 	}
 }
 

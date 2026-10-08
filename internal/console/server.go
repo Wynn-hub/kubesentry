@@ -106,7 +106,9 @@ func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Han
 		public.HandleFunc("GET /api/v1/setup/status", auth.setupStatus)
 		public.HandleFunc("POST /api/v1/setup/admin", auth.setupAdmin)
 		public.HandleFunc("POST /api/v1/auth/login", auth.login)
+		public.HandleFunc("POST /api/v1/auth/activate", auth.activate)
 		protected.HandleFunc("POST /api/v1/auth/logout", auth.logout)
+		protected.HandleFunc("POST /api/v1/auth/change-password", auth.changePassword)
 		protected.HandleFunc("GET /api/v1/me", auth.me)
 		identity := identityHTTP{service: svcs.Identity}
 		protected.HandleFunc("GET /api/v1/tenants", identity.listTenants)
