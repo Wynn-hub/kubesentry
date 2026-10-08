@@ -264,6 +264,13 @@ func (s *PolicyGroupService) List(ctx context.Context, page, size int, sortBy, o
 }
 
 func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupInput) error {
+	if s.repos.Groups != nil {
+		return s.repos.Groups.WithPolicyReferenceLock(ctx, func() error { return s.create(ctx, req) })
+	}
+	return s.create(ctx, req)
+}
+
+func (s *PolicyGroupService) create(ctx context.Context, req *dto.PolicyGroupInput) error {
 	if err := requireEditor(ctx); err != nil {
 		return err
 	}
@@ -312,6 +319,13 @@ func (s *PolicyGroupService) Create(ctx context.Context, req *dto.PolicyGroupInp
 }
 
 func (s *PolicyGroupService) Update(ctx context.Context, name string, req *dto.PolicyGroupInput) error {
+	if s.repos.Groups != nil {
+		return s.repos.Groups.WithPolicyReferenceLock(ctx, func() error { return s.update(ctx, name, req) })
+	}
+	return s.update(ctx, name, req)
+}
+
+func (s *PolicyGroupService) update(ctx context.Context, name string, req *dto.PolicyGroupInput) error {
 	for _, excluded := range req.Policies.Exclude {
 		if strings.TrimSpace(excluded) == "" {
 			return &ValidationError{Msg: "excluded policy name must not be empty"}

@@ -17,6 +17,7 @@ import (
 // down into dbrepo (CreateWithVersion/UpdateWithVersion) so the service layer
 // never holds a concrete *dbrepo.PolicyRepo.
 type PolicyRepository interface {
+	WithPolicyReferenceLock(ctx context.Context, fn func() error) error
 	ListPage(ctx context.Context, opts dbrepo.PolicyPageOptions) ([]dbrepo.Policy, int64, error)
 	List(ctx context.Context) ([]dbrepo.Policy, error)
 	GetByName(ctx context.Context, name string) (*dbrepo.Policy, error)

@@ -26,6 +26,12 @@ type fakePolicyRepo struct {
 	// forceConflict makes UpdateWithVersion fail the compare-and-swap the way
 	// a concurrent writer would, so the CAS error path is reachable in tests.
 	forceConflict bool
+	lockCalls     int
+}
+
+func (f *fakePolicyRepo) WithPolicyReferenceLock(_ context.Context, fn func() error) error {
+	f.lockCalls++
+	return fn()
 }
 
 func newFakePolicyRepo() *fakePolicyRepo {
@@ -182,6 +188,20 @@ func TestCreateNotifiesAndStoresVersion(t *testing.T) {
 	}
 	if len(repo.versions) != 1 {
 		t.Fatalf("no version snapshot stored: %v", repo.versions)
+	}
+}
+
+func TestPolicyMutationUsesReferenceLock(t *testing.T) {
+	repo := newFakePolicyRepo()
+	s := NewPolicyService(repo, &fakeGroupRepo{}, nil)
+	if err := s.Create(context.Background(), policyRequestFixture()); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Update(context.Background(), "test-policy", policyRequestFixture()); err != nil {
+		t.Fatal(err)
+	}
+	if repo.lockCalls != 1 {
+		t.Fatalf("reference lock calls = %d, want 1", repo.lockCalls)
 	}
 }
 

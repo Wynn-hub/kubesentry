@@ -159,6 +159,10 @@ func policyMatch(input dto.PolicyMatchInput) v1alpha1.PolicyMatch {
 }
 
 func (s *PolicyService) Update(ctx context.Context, name string, req *dto.PolicyInput) error {
+	return s.policies.WithPolicyReferenceLock(ctx, func() error { return s.update(ctx, name, req) })
+}
+
+func (s *PolicyService) update(ctx context.Context, name string, req *dto.PolicyInput) error {
 	if err := s.validatePolicyRequest(req, false); err != nil {
 		return err
 	}
@@ -257,6 +261,10 @@ func (s *PolicyService) ValidateRego(ctx context.Context, rego string) error {
 }
 
 func (s *PolicyService) Delete(ctx context.Context, name string, _ bool) error {
+	return s.policies.WithPolicyReferenceLock(ctx, func() error { return s.delete(ctx, name) })
+}
+
+func (s *PolicyService) delete(ctx context.Context, name string) error {
 	p, err := s.policies.GetByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -332,6 +340,12 @@ func (s *PolicyService) ListVersions(ctx context.Context, name string) (*dto.Pol
 }
 
 func (s *PolicyService) Rollback(ctx context.Context, name string, direction string) (*dto.PolicyRollbackView, error) {
+	var result *dto.PolicyRollbackView
+	err := s.policies.WithPolicyReferenceLock(ctx, func() (err error) { result, err = s.rollback(ctx, name, direction); return err })
+	return result, err
+}
+
+func (s *PolicyService) rollback(ctx context.Context, name string, direction string) (*dto.PolicyRollbackView, error) {
 	if direction != "prev" && direction != "next" {
 		return nil, &ValidationError{Msg: `direction must be "prev" or "next"`}
 	}
