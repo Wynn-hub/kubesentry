@@ -46,3 +46,9 @@ export function can(capability: Capability) {
   if (capability === 'tenant.manage') return role === 'system_admin' || role === 'tenant_admin'
   return role !== 'viewer'
 }
+
+export function avatarInitials(username?: string) {
+  const value = username?.trim()
+  if (!value) return '?'
+  return value.slice(0, 2).toUpperCase()
+}

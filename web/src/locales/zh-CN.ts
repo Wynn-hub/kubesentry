@@ -1,5 +1,5 @@
 export default {
-  auth: { loginTitle: '登录 KubeSentry', username: '用户名', password: '密码', confirmPassword: '确认密码', passwordMismatch: '两次输入的密码不一致', login: '登录', logout: '退出登录', setupTitle: '初始化管理员', setupHint: '首次部署需要为默认 admin 用户设置密码。', initialize: '完成初始化' },
+  auth: { loginTitle: '登录 KubeSentry', loginHint: '使用平台账号进入云原生安全控制中心。', username: '用户名', password: '密码', confirmPassword: '确认密码', passwordMismatch: '两次输入的密码不一致', login: '登录', logout: '退出登录', setupTitle: '初始化管理员', setupHint: '首次部署需要为默认 admin 用户设置密码。', initialize: '完成初始化', brandTitle: '让集群准入安全清晰可控', brandDescription: '集中管理策略、租户与集群，在一个控制面中持续观察并保护每一次 Kubernetes 准入请求。', activateTitle: '激活账号', activateHint: '输入管理员提供的一次性激活码，并设置你的登录密码。', activationCode: '激活码', activate: '激活并登录', changePasswordTitle: '修改密码', changePasswordHint: '设置一个新的安全密码。', changeRequiredHint: '当前密码已过期或管理员要求修改，完成后可继续使用平台。', changePassword: '修改密码', passwordChangeRequired: '需要修改密码', profile: '用户资料', lastLogin: '上次登录', roles: { system_admin: '系统管理员', tenant_admin: '租户管理员', viewer: '普通用户' } },
   nav: {
     overview: '平台概览', policies: '策略', groups: '策略组', exceptions: '豁免', distributions: '策略下发',
     clusters: '集群管理', tenants: '租户管理', users: '用户管理',

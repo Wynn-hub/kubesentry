@@ -7,6 +7,8 @@ const router = createRouter({
   routes: [
     { path: '/setup', name: 'setup', component: () => import('../views/SetupAdminView.vue') },
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
+    { path: '/activate', name: 'activate', component: () => import('../views/ActivateUserView.vue') },
+    { path: '/change-password', name: 'change-password', component: () => import('../views/ChangePasswordView.vue') },
     {
       path: '/',
       component: AppLayout,
@@ -40,8 +42,11 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (authState.status === 'unknown') await refreshAuth()
   if (authState.status === 'setup' && to.name !== 'setup') return { name: 'setup' }
-  if (authState.status === 'anonymous' && to.name !== 'login') return { name: 'login', query: { redirect: to.fullPath } }
-  if (authState.status === 'authenticated' && (to.name === 'login' || to.name === 'setup')) return { name: 'overview' }
+  const anonymousRoute = to.name === 'login' || to.name === 'activate'
+  if (authState.status === 'anonymous' && !anonymousRoute) return { name: 'login', query: { redirect: to.fullPath } }
+  if (authState.status === 'authenticated' && authState.me?.mustChangePassword && to.name !== 'change-password') return { name: 'change-password' }
+  if (authState.status === 'authenticated' && !authState.me?.mustChangePassword && to.name === 'change-password') return { name: 'overview' }
+  if (authState.status === 'authenticated' && (to.name === 'login' || to.name === 'setup' || to.name === 'activate')) return { name: 'overview' }
   const capability = to.meta.capability as Capability | undefined
   if (authState.status === 'authenticated' && capability && !can(capability)) return { name: 'overview' }
 })

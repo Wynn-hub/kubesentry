@@ -106,8 +106,10 @@
           <el-option label="中文" value="zh-CN" />
           <el-option label="English" value="en-US" />
         </el-select>
-        <span class="current-user">{{ authState.me?.username }}</span>
-        <el-button text @click="onLogout">{{ $t('auth.logout') }}</el-button>
+        <el-dropdown trigger="click" popper-class="profile-dropdown">
+          <button class="profile-trigger" :aria-label="$t('auth.profile')"><span class="avatar">{{ avatarInitials(authState.me?.username) }}</span><span class="current-user">{{ authState.me?.username }}</span><span aria-hidden="true">⌄</span></button>
+          <template #dropdown><el-dropdown-menu><div class="profile-card"><strong>{{ authState.me?.username }}</strong><span>{{ roleLabel }}</span><span v-if="authState.me?.tenantId">{{ $t('user.tenant') }} · {{ authState.me.tenantId }}</span><span v-if="authState.me?.lastLoginAt">{{ $t('auth.lastLogin') }} · {{ formatDate(authState.me.lastLoginAt) }}</span><el-alert v-if="authState.me?.mustChangePassword" :title="$t('auth.passwordChangeRequired')" type="warning" :closable="false" show-icon /></div><el-dropdown-item divided @click="$router.push({name:'change-password'})">{{ $t('auth.changePassword') }}</el-dropdown-item><el-dropdown-item @click="onLogout">{{ $t('auth.logout') }}</el-dropdown-item></el-dropdown-menu></template>
+        </el-dropdown>
       </el-header>
       <el-main class="shell-content"><router-view /></el-main>
     </el-container>
@@ -119,12 +121,15 @@ import { useI18n } from 'vue-i18n'
 import { setLocale } from '../locales'
 import Logo from '../components/Logo.vue'
 import { useRouter } from 'vue-router'
-import { authState, can, signOut } from '../auth/session'
+import { authState, avatarInitials, can, signOut } from '../auth/session'
+import { computed } from 'vue'
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const router = useRouter()
 const onLocale = (l: 'zh-CN' | 'en-US') => setLocale(l)
 const onLogout = async () => { await signOut(); await router.push({ name: 'login' }) }
+const roleLabel = computed(() => t(`auth.roles.${authState.me?.role ?? 'viewer'}`))
+const formatDate = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 </script>
 
 <style scoped>
@@ -240,7 +245,7 @@ const onLogout = async () => { await signOut(); await router.push({ name: 'login
   border-bottom: 1px solid var(--ink-700);
   background: var(--ink-900);
 }
-.current-user { margin-left: 12px; color: var(--steel-300); font-size: 13px; }
+.profile-trigger{margin-left:12px;display:flex;align-items:center;gap:9px;border:0;background:transparent;color:var(--steel-300);cursor:pointer}.profile-trigger:focus-visible{outline:2px solid var(--accent-scan);outline-offset:3px}.avatar{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:linear-gradient(145deg,var(--accent-scan),#228f84);color:var(--ink-950);font:700 12px var(--font-mono)}.current-user{font-size:13px}.profile-card{display:flex;flex-direction:column;gap:6px;min-width:250px;padding:12px 16px;color:var(--steel-300);font-size:12px}.profile-card strong{color:var(--paper-050);font-size:14px}.profile-card :deep(.el-alert){margin-top:6px}
 
 .shell-content {
   background:

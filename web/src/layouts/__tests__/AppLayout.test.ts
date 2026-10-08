@@ -64,4 +64,16 @@ describe('application navigation', () => {
     expect(labels).not.toContain(i18n.global.t('nav.users'))
     expect(labels).toContain(i18n.global.t('nav.clusters'))
   })
+
+  it('shows the signed-in user as an avatar menu', async () => {
+	 authState.status = 'authenticated'
+	 authState.me = { id: '1', username: 'admin', role: 'system_admin', lastLoginAt: '2026-10-08T01:00:00Z' }
+	 const target = document.createElement('div')
+	 const app = createApp(AppLayout).use(router).use(i18n).use(ElementPlus)
+	 unmount = app.unmount
+	 app.mount(target)
+	 await nextTick()
+	 expect(target.querySelector('.avatar')?.textContent).toBe('AD')
+	 expect(target.querySelector('.profile-trigger')?.textContent).toContain('admin')
+  })
 })
