@@ -14,8 +14,25 @@ import (
 )
 
 type identityHTTP struct {
-	service  *service.IdentityService
-	security *service.SecuritySettingsService
+	service       *service.IdentityService
+	security      *service.SecuritySettingsService
+	tenantCluster *service.TenantClusterService
+}
+
+func (h identityHTTP) syncTenantClusters(w http.ResponseWriter, r *http.Request) {
+	id, ok := identityPathID(w, r)
+	if !ok {
+		return
+	}
+	var input dto.TenantClustersInput
+	if !decodeAuthJSON(w, r, &input) {
+		return
+	}
+	if err := h.tenantCluster.Sync(r.Context(), requestPrincipal(r), id, input); err != nil {
+		writeIdentityError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success"})
 }
 
 func (h identityHTTP) listTenants(w http.ResponseWriter, r *http.Request) {

@@ -62,3 +62,8 @@ type UserView struct {
 type ClusterTenantRequest struct {
 	TenantID *int64 `json:"tenantId,string" swaggertype:"string"`
 }
+
+type TenantClustersInput struct {
+	ClusterNames  []string `json:"clusterNames"`
+	AllowTransfer bool     `json:"allowTransfer"`
+}

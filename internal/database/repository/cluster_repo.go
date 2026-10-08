@@ -221,6 +221,58 @@ func (r *ClusterRepo) AssignTenant(ctx context.Context, id int64, tenantID *int6
 	})
 }
 
+func (r *ClusterRepo) SyncTenantClusters(ctx context.Context, tenantID int64, names []string, allowTransfer bool) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", int64(2081000000000000002)).Error; err != nil {
+			return err
+		}
+		var tenant Tenant
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&tenant, tenantID).Error; err != nil {
+			return err
+		}
+		if tenant.Status != UserStatusActive {
+			return ErrInactiveTenant
+		}
+		var clusters []Cluster
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Order("name ASC").Find(&clusters).Error; err != nil {
+			return err
+		}
+		desired := make(map[string]struct{}, len(names))
+		for _, name := range names {
+			desired[name] = struct{}{}
+		}
+		found := make(map[string]struct{}, len(names))
+		for _, cluster := range clusters {
+			if _, ok := desired[cluster.Name]; !ok {
+				continue
+			}
+			found[cluster.Name] = struct{}{}
+			if cluster.TenantID != nil && *cluster.TenantID != tenantID && !allowTransfer {
+				return ErrClusterTenantTransferRequired
+			}
+		}
+		if len(found) != len(desired) {
+			return ErrClusterNotFound
+		}
+		for i := range clusters {
+			cluster := &clusters[i]
+			_, selected := desired[cluster.Name]
+			owned := cluster.TenantID != nil && *cluster.TenantID == tenantID
+			if selected && !owned {
+				if err := tx.Model(cluster).Update("tenant_id", tenantID).Error; err != nil {
+					return err
+				}
+			}
+			if !selected && owned {
+				if err := tx.Model(cluster).Update("tenant_id", nil).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
+
 func distributionTargetsCluster(distribution PolicyDistribution, cluster Cluster) bool {
 	for _, name := range distribution.Spec.Data().Clusters.ByName {
 		if name == cluster.Name {

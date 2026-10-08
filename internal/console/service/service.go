@@ -26,6 +26,7 @@ type Services struct {
 	Auth             *AuthService
 	Identity         *IdentityService
 	SecuritySettings *SecuritySettingsService
+	TenantCluster    *TenantClusterService
 }
 
 // New wires every service from the repository bundle and an optional Notifier.
@@ -45,5 +46,6 @@ func New(repos repository.Repositories, notifier Notifier) Services {
 		Auth:             NewAuthService(repos.Identity),
 		Identity:         NewIdentityService(repos.Identity),
 		SecuritySettings: NewSecuritySettingsService(repos.Identity),
+		TenantCluster:    NewTenantClusterService(repos.Clusters),
 	}
 }

@@ -52,7 +52,20 @@ func TestClusterScopePlatformAuthAndAdmissionScope(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if rec := authRequest(t, h, http.MethodPut, "/api/v1/tenants/"+itoa(first.ID)+"/clusters", dto.TenantClustersInput{ClusterNames: []string{"cluster-a", "unassigned"}}, adminCookie, true); rec.Code != http.StatusOK {
+		t.Fatalf("sync tenant clusters = %d %s", rec.Code, rec.Body.String())
+	}
+	assigned, err := repos.Clusters.GetByName(t.Context(), "unassigned")
+	if err != nil || assigned.TenantID == nil || *assigned.TenantID != first.ID {
+		t.Fatalf("synced cluster = %+v, %v", assigned, err)
+	}
+	if rec := authRequest(t, h, http.MethodPut, "/api/v1/tenants/"+itoa(first.ID)+"/clusters", dto.TenantClustersInput{ClusterNames: []string{"cluster-a"}}, adminCookie, true); rec.Code != http.StatusOK {
+		t.Fatalf("restore tenant clusters = %d %s", rec.Code, rec.Body.String())
+	}
 	viewerCookie := loginCookie(t, h, "cluster-viewer", password)
+	if rec := authRequest(t, h, http.MethodPut, "/api/v1/tenants/"+itoa(first.ID)+"/clusters", dto.TenantClustersInput{ClusterNames: []string{"cluster-a"}}, viewerCookie, true); rec.Code != http.StatusForbidden {
+		t.Fatalf("viewer tenant cluster sync = %d %s", rec.Code, rec.Body.String())
+	}
 
 	list := authRequest(t, h, http.MethodGet, "/api/v1/clusters", nil, viewerCookie, false)
 	page := responseData[dto.ClusterPageView](t, list.Body.Bytes())

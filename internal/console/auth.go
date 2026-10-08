@@ -252,6 +252,9 @@ func systemAdminOnlyRoute(r *http.Request) bool {
 	if path == "/api/v1/security-settings" {
 		return true
 	}
+	if strings.HasPrefix(path, "/api/v1/tenants/") && strings.HasSuffix(path, "/clusters") {
+		return true
+	}
 	if path == "/api/v1/admission-event-settings" {
 		return r.Method != http.MethodGet
 	}

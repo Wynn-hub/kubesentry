@@ -110,10 +110,11 @@ func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Han
 		protected.HandleFunc("POST /api/v1/auth/logout", auth.logout)
 		protected.HandleFunc("POST /api/v1/auth/change-password", auth.changePassword)
 		protected.HandleFunc("GET /api/v1/me", auth.me)
-		identity := identityHTTP{service: svcs.Identity, security: svcs.SecuritySettings}
+		identity := identityHTTP{service: svcs.Identity, security: svcs.SecuritySettings, tenantCluster: svcs.TenantCluster}
 		protected.HandleFunc("GET /api/v1/tenants", identity.listTenants)
 		protected.HandleFunc("POST /api/v1/tenants", identity.createTenant)
 		protected.HandleFunc("PUT /api/v1/tenants/{id}/status", identity.setTenantStatus)
+		protected.HandleFunc("PUT /api/v1/tenants/{id}/clusters", identity.syncTenantClusters)
 		protected.HandleFunc("GET /api/v1/users", identity.listUsers)
 		protected.HandleFunc("POST /api/v1/users", identity.createUser)
 		protected.HandleFunc("PUT /api/v1/users/{id}/status", identity.setUserStatus)

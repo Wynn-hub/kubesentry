@@ -32,6 +32,7 @@ type ClusterRepository interface {
 	UpdatePhase(context.Context, int64, string) error
 	Delete(context.Context, int64) error
 	AssignTenant(context.Context, int64, *int64) error
+	SyncTenantClusters(context.Context, int64, []string, bool) error
 }
 
 // PlatformClusterRepository is the read-only cluster view needed by platform

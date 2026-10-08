@@ -144,6 +144,24 @@ func createTenant() {}
 // @Router /tenants/{id}/status [put]
 func setTenantStatus() {}
 
+// syncTenantClusters documents PUT /tenants/{id}/clusters.
+// @ID syncTenantClusters
+// @Summary 设置租户的集群归属
+// @Description 原子替换租户集群集合；跨租户转移必须显式确认。
+// @Tags Tenant
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path string true "租户 ID"
+// @Param body body dto.TenantClustersInput true "集群集合"
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 403 {object} dto.SwagErrorResponse
+// @Failure 404 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Router /tenants/{id}/clusters [put]
+func syncTenantClusters() {}
+
 // listUsers documents GET /users.
 // @ID listUsers
 // @Summary 查询可管理用户

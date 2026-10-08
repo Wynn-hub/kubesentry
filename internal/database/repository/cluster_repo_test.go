@@ -2,11 +2,66 @@ package repository_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
+
+func TestClusterRepoSyncTenantClusters(t *testing.T) {
+	db := newTestDB(t)
+	repo := dbrepo.NewClusterRepo(db)
+	identity := dbrepo.NewIdentityRepo(db)
+	ctx := context.Background()
+	first := &dbrepo.Tenant{Name: "sync-first", Status: dbrepo.UserStatusActive}
+	second := &dbrepo.Tenant{Name: "sync-second", Status: dbrepo.UserStatusActive}
+	if err := identity.CreateTenant(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	if err := identity.CreateTenant(ctx, second); err != nil {
+		t.Fatal(err)
+	}
+	clusters := []*dbrepo.Cluster{{Name: "sync-a"}, {Name: "sync-b", TenantID: &first.ID}, {Name: "sync-c", TenantID: &second.ID}}
+	for _, cluster := range clusters {
+		if err := repo.Create(ctx, cluster); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := repo.SyncTenantClusters(ctx, first.ID, []string{"sync-a"}, false); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := repo.GetByName(ctx, "sync-a")
+	b, _ := repo.GetByName(ctx, "sync-b")
+	if a.TenantID == nil || *a.TenantID != first.ID || b.TenantID != nil {
+		t.Fatalf("add/remove result: a=%+v b=%+v", a.TenantID, b.TenantID)
+	}
+	if err := repo.SyncTenantClusters(ctx, first.ID, []string{"sync-c"}, false); !errors.Is(err, dbrepo.ErrClusterTenantTransferRequired) {
+		t.Fatalf("transfer error = %v", err)
+	}
+	if err := repo.SyncTenantClusters(ctx, first.ID, []string{"sync-c", "missing"}, true); !errors.Is(err, dbrepo.ErrClusterNotFound) {
+		t.Fatalf("missing error = %v", err)
+	}
+	c, _ := repo.GetByName(ctx, "sync-c")
+	if c.TenantID == nil || *c.TenantID != second.ID {
+		t.Fatalf("unknown-name transaction was not rolled back: %+v", c.TenantID)
+	}
+	if err := repo.SyncTenantClusters(ctx, first.ID, []string{"sync-c"}, true); err != nil {
+		t.Fatal(err)
+	}
+	c, _ = repo.GetByName(ctx, "sync-c")
+	if c.TenantID == nil || *c.TenantID != first.ID {
+		t.Fatalf("transfer result = %+v", c.TenantID)
+	}
+
+	if err := identity.SetTenantStatusAndRevoke(ctx, first.ID, dbrepo.UserStatusDisabled, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SyncTenantClusters(ctx, first.ID, nil, true); !errors.Is(err, dbrepo.ErrInactiveTenant) {
+		t.Fatalf("inactive tenant error = %v", err)
+	}
+}
 
 func TestClusterRepoCreateAndGetByName(t *testing.T) {
 	db := newTestDB(t)
