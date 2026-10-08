@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 import dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 
 type CreateTenantRequest struct {
@@ -18,9 +20,19 @@ type TenantView struct {
 
 type CreateUserRequest struct {
 	Username string      `json:"username"`
-	Password string      `json:"password"`
-	Role     dbrepo.Role `json:"role" swaggertype:"string" enums:"tenant_admin,viewer"`
+	Role     dbrepo.Role `json:"role" swaggertype:"string" enums:"system_admin,tenant_admin,viewer"`
 	TenantID *int64      `json:"tenantId,omitempty,string" swaggertype:"string"`
+}
+
+type CreateUserResult struct {
+	User                UserView  `json:"user"`
+	ActivationCode      string    `json:"activationCode"`
+	ActivationExpiresAt time.Time `json:"activationExpiresAt"`
+}
+
+type ActivationResult struct {
+	ActivationCode      string    `json:"activationCode"`
+	ActivationExpiresAt time.Time `json:"activationExpiresAt"`
 }
 
 type UserStatusRequest struct {
@@ -32,11 +44,19 @@ type ResetPasswordRequest struct {
 }
 
 type UserView struct {
-	ID       int64             `json:"id,string" swaggertype:"string"`
-	Username string            `json:"username"`
-	Role     dbrepo.Role       `json:"role" swaggertype:"string" enums:"system_admin,tenant_admin,viewer"`
-	Status   dbrepo.UserStatus `json:"status" swaggertype:"string" enums:"active,disabled"`
-	TenantID *int64            `json:"tenantId,omitempty,string" swaggertype:"string"`
+	ID                 int64             `json:"id,string" swaggertype:"string"`
+	Username           string            `json:"username"`
+	Role               dbrepo.Role       `json:"role" swaggertype:"string" enums:"system_admin,tenant_admin,viewer"`
+	Status             dbrepo.UserStatus `json:"status" swaggertype:"string" enums:"active,disabled"`
+	TenantID           *int64            `json:"tenantId,omitempty,string" swaggertype:"string"`
+	TenantName         string            `json:"tenantName,omitempty"`
+	LastLoginAt        *time.Time        `json:"lastLoginAt,omitempty"`
+	LastLoginIP        string            `json:"lastLoginIp,omitempty"`
+	PasswordChangedAt  *time.Time        `json:"passwordChangedAt,omitempty"`
+	MustChangePassword bool              `json:"mustChangePassword"`
+	FailedLoginCount   int               `json:"failedLoginCount"`
+	LockedUntil        *time.Time        `json:"lockedUntil,omitempty"`
+	Activated          bool              `json:"activated"`
 }
 
 type ClusterTenantRequest struct {

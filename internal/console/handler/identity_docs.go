@@ -45,6 +45,32 @@ func setupAdmin() {}
 // @Router /auth/login [post]
 func login() {}
 
+// activate documents POST /auth/activate.
+// @ID activateUser
+// @Summary 激活用户并设置初始密码
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body dto.ActivateInput true "激活信息"
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Router /auth/activate [post]
+func activate() {}
+
+// changePassword documents POST /auth/change-password.
+// @ID changePassword
+// @Summary 修改当前用户密码
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body dto.ChangePasswordInput true "新密码"
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Failure 400 {object} dto.SwagErrorResponse
+// @Failure 409 {object} dto.SwagErrorResponse
+// @Router /auth/change-password [post]
+func changePassword() {}
+
 // logout documents POST /auth/logout.
 // @ID logout
 // @Summary 注销当前会话
@@ -140,13 +166,76 @@ func listUsers() {}
 // @Produce json
 // @Security SessionCookie
 // @Param body body dto.CreateUserRequest true "用户"
-// @Success 200 {object} dto.SwagOptionalResponse{data=dto.UserView}
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.CreateUserResult}
 // @Failure 400 {object} dto.SwagErrorResponse
 // @Failure 401 {object} dto.SwagErrorResponse
 // @Failure 403 {object} dto.SwagErrorResponse
 // @Failure 409 {object} dto.SwagErrorResponse
 // @Router /users [post]
 func createUser() {}
+
+// regenerateUserActivation documents POST /users/{id}/activation.
+// @ID regenerateUserActivation
+// @Summary 重新生成一次性激活码
+// @Tags User
+// @Produce json
+// @Security SessionCookie
+// @Param id path string true "用户 ID"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.ActivationResult}
+// @Router /users/{id}/activation [post]
+func regenerateUserActivation() {}
+
+// unlockUser documents POST /users/{id}/unlock.
+// @ID unlockUser
+// @Summary 解锁用户
+// @Tags User
+// @Security SessionCookie
+// @Param id path string true "用户 ID"
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Router /users/{id}/unlock [post]
+func unlockUser() {}
+
+// forceLogoutUser documents POST /users/{id}/logout.
+// @ID forceLogoutUser
+// @Summary 强制用户下线
+// @Tags User
+// @Security SessionCookie
+// @Param id path string true "用户 ID"
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Router /users/{id}/logout [post]
+func forceLogoutUser() {}
+
+// forceUserPasswordChange documents POST /users/{id}/force-password-change.
+// @ID forceUserPasswordChange
+// @Summary 要求用户下次操作前修改密码
+// @Tags User
+// @Security SessionCookie
+// @Param id path string true "用户 ID"
+// @Success 200 {object} dto.SwagEmptyResponse
+// @Router /users/{id}/force-password-change [post]
+func forceUserPasswordChange() {}
+
+// getSecuritySettings documents GET /security-settings.
+// @ID getSecuritySettings
+// @Summary 查询身份安全设置
+// @Tags User
+// @Produce json
+// @Security SessionCookie
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SecuritySettingsView}
+// @Router /security-settings [get]
+func getSecuritySettings() {}
+
+// updateSecuritySettings documents PUT /security-settings.
+// @ID updateSecuritySettings
+// @Summary 更新身份安全设置
+// @Tags User
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body dto.SecuritySettingsInput true "安全设置"
+// @Success 200 {object} dto.SwagOptionalResponse{data=dto.SecuritySettingsView}
+// @Router /security-settings [put]
+func updateSecuritySettings() {}
 
 // setUserStatus documents PUT /users/{id}/status.
 // @ID setUserStatus

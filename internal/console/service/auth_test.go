@@ -22,6 +22,8 @@ type authRepoFake struct {
 	activation            *dbrepo.UserActivationToken
 	passwordHashes        []string
 	lastLoginIP           string
+	createdUser           *dbrepo.User
+	createdActivation     *dbrepo.UserActivationToken
 }
 
 func newAuthRepoFake(t *testing.T, password string) *authRepoFake {
@@ -50,7 +52,19 @@ func (f *authRepoFake) GetUserByUsername(_ context.Context, username string) (*d
 	user := f.admin
 	return &user, nil
 }
-func (f *authRepoFake) GetUser(context.Context, int64) (*dbrepo.User, error) { return &f.admin, nil }
+
+func (f *authRepoFake) GetUser(_ context.Context, id int64) (*dbrepo.User, error) {
+	if f.createdUser != nil && f.createdUser.ID == id {
+		user := *f.createdUser
+		return &user, nil
+	}
+	if f.admin.ID == id {
+		user := f.admin
+		return &user, nil
+	}
+	return nil, errors.New("not found")
+}
+
 func (f *authRepoFake) ListUsers(context.Context) ([]dbrepo.User, error) {
 	return []dbrepo.User{f.admin}, nil
 }
@@ -76,6 +90,9 @@ func (f *authRepoFake) SetUserPasswordAndRevoke(context.Context, int64, string, 
 func (f *authRepoFake) DeleteUserAndRevoke(context.Context, int64, time.Time) error { return nil }
 
 func (f *authRepoFake) GetTenant(context.Context, int64) (*dbrepo.Tenant, error) {
+	if f.tenant == nil {
+		return &dbrepo.Tenant{Name: "tenant", Status: dbrepo.UserStatusActive}, nil
+	}
 	return f.tenant, nil
 }
 
@@ -141,7 +158,11 @@ func (f *authRepoFake) RevokeUserSessions(_ context.Context, _ int64) error {
 	return nil
 }
 
-func (f *authRepoFake) CreateUserWithActivation(context.Context, *dbrepo.User, *dbrepo.UserActivationToken) error {
+func (f *authRepoFake) CreateUserWithActivation(_ context.Context, user *dbrepo.User, token *dbrepo.UserActivationToken) error {
+	user.ID = 2
+	token.UserID = user.ID
+	userCopy, tokenCopy := *user, *token
+	f.createdUser, f.createdActivation = &userCopy, &tokenCopy
 	return nil
 }
 

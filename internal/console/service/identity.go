@@ -22,11 +22,11 @@ var (
 )
 
 type IdentityService struct {
-	repo repository.IdentityRepository
+	repo repository.IdentitySecurityRepository
 	now  func() time.Time
 }
 
-func NewIdentityService(repo repository.IdentityRepository) *IdentityService {
+func NewIdentityService(repo repository.IdentitySecurityRepository) *IdentityService {
 	return &IdentityService{repo: repo, now: time.Now}
 }
 
@@ -102,14 +102,20 @@ func (s *IdentityService) ListUsers(ctx context.Context, actor dbrepo.Principal)
 	}
 	out := make([]dto.UserView, 0, len(users))
 	for _, user := range users {
-		out = append(out, userView(user))
+		view := userView(user)
+		if user.TenantID != nil {
+			if tenant, tenantErr := s.repo.GetTenant(ctx, *user.TenantID); tenantErr == nil {
+				view.TenantName = tenant.Name
+			}
+		}
+		out = append(out, view)
 	}
 	return out, nil
 }
 
-func (s *IdentityService) CreateUser(ctx context.Context, actor dbrepo.Principal, req dto.CreateUserRequest) (*dto.UserView, error) {
+func (s *IdentityService) CreateUser(ctx context.Context, actor dbrepo.Principal, req dto.CreateUserRequest) (*dto.CreateUserResult, error) {
 	username := strings.ToLower(strings.TrimSpace(req.Username))
-	if username == "" || len(req.Password) < MinimumPasswordLength {
+	if username == "" {
 		return nil, ErrInvalidIdentity
 	}
 	if actor.Role == dbrepo.RoleTenantAdmin {
@@ -122,16 +128,97 @@ func (s *IdentityService) CreateUser(ctx context.Context, actor dbrepo.Principal
 	if (req.Role == dbrepo.RoleSystemAdmin) != (req.TenantID == nil) || (req.Role != dbrepo.RoleSystemAdmin && req.Role != dbrepo.RoleTenantAdmin && req.Role != dbrepo.RoleViewer) {
 		return nil, ErrInvalidIdentity
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if req.TenantID != nil {
+		tenant, err := s.repo.GetTenant(ctx, *req.TenantID)
+		if err != nil {
+			return nil, ErrInvalidIdentity
+		}
+		if tenant.Status != dbrepo.UserStatusActive {
+			return nil, ErrInvalidIdentity
+		}
+	}
+	settings, err := s.repo.GetSecuritySettings(ctx)
 	if err != nil {
 		return nil, err
 	}
-	user := &dbrepo.User{Username: username, PasswordHash: string(hash), Role: req.Role, Status: dbrepo.UserStatusActive, TenantID: req.TenantID}
-	if err := s.repo.CreateUser(ctx, user); err != nil {
+	code, tokenHash, err := newSessionToken()
+	if err != nil {
+		return nil, err
+	}
+	expiresAt := s.now().Add(time.Duration(settings.ActivationLifetimeHours) * time.Hour)
+	user := &dbrepo.User{Username: username, Role: req.Role, Status: dbrepo.UserStatusActive, TenantID: req.TenantID}
+	if err := s.repo.CreateUserWithActivation(ctx, user, &dbrepo.UserActivationToken{TokenHash: tokenHash, ExpiresAt: expiresAt}); err != nil {
 		return nil, err
 	}
 	view := userView(*user)
-	return &view, nil
+	if user.TenantID != nil {
+		if tenant, tenantErr := s.repo.GetTenant(ctx, *user.TenantID); tenantErr == nil {
+			view.TenantName = tenant.Name
+		}
+	}
+	return &dto.CreateUserResult{User: view, ActivationCode: code, ActivationExpiresAt: expiresAt}, nil
+}
+
+func (s *IdentityService) RegenerateActivation(ctx context.Context, actor dbrepo.Principal, userID int64) (*dto.ActivationResult, error) {
+	target, err := s.authorizedUser(ctx, actor, userID)
+	if err != nil {
+		return nil, err
+	}
+	if actor.Role == dbrepo.RoleTenantAdmin && target.Role != dbrepo.RoleViewer {
+		return nil, ErrForbidden
+	}
+	if target.PasswordHash != "" {
+		return nil, ErrInvalidIdentity
+	}
+	settings, err := s.repo.GetSecuritySettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	code, tokenHash, err := newSessionToken()
+	if err != nil {
+		return nil, err
+	}
+	expiresAt := s.now().Add(time.Duration(settings.ActivationLifetimeHours) * time.Hour)
+	if err := s.repo.ReplaceActivationToken(ctx, target.ID, &dbrepo.UserActivationToken{TokenHash: tokenHash, ExpiresAt: expiresAt}, s.now()); err != nil {
+		return nil, err
+	}
+	return &dto.ActivationResult{ActivationCode: code, ActivationExpiresAt: expiresAt}, nil
+}
+
+func (s *IdentityService) UnlockUser(ctx context.Context, actor dbrepo.Principal, userID int64) error {
+	target, err := s.authorizedUser(ctx, actor, userID)
+	if err != nil {
+		return err
+	}
+	if actor.Role == dbrepo.RoleTenantAdmin && target.Role != dbrepo.RoleViewer {
+		return ErrForbidden
+	}
+	return s.repo.UnlockUser(ctx, userID, s.now())
+}
+
+func (s *IdentityService) ForceLogout(ctx context.Context, actor dbrepo.Principal, userID int64) error {
+	target, err := s.authorizedUser(ctx, actor, userID)
+	if err != nil {
+		return err
+	}
+	if actor.Role == dbrepo.RoleTenantAdmin && target.Role != dbrepo.RoleViewer {
+		return ErrForbidden
+	}
+	return s.repo.RevokeUserSessions(ctx, userID)
+}
+
+func (s *IdentityService) ForcePasswordChange(ctx context.Context, actor dbrepo.Principal, userID int64) error {
+	target, err := s.authorizedUser(ctx, actor, userID)
+	if err != nil {
+		return err
+	}
+	if actor.Role == dbrepo.RoleTenantAdmin && target.Role != dbrepo.RoleViewer {
+		return ErrForbidden
+	}
+	if target.PasswordHash == "" {
+		return ErrInvalidIdentity
+	}
+	return s.repo.RequirePasswordChange(ctx, userID, s.now())
 }
 
 func (s *IdentityService) SetUserStatus(ctx context.Context, actor dbrepo.Principal, userID int64, status dbrepo.UserStatus) error {
@@ -202,7 +289,7 @@ func tenantView(tenant dbrepo.Tenant) dto.TenantView {
 }
 
 func userView(user dbrepo.User) dto.UserView {
-	return dto.UserView{ID: user.ID, Username: user.Username, Role: user.Role, Status: user.Status, TenantID: user.TenantID}
+	return dto.UserView{ID: user.ID, Username: user.Username, Role: user.Role, Status: user.Status, TenantID: user.TenantID, LastLoginAt: user.LastLoginAt, LastLoginIP: user.LastLoginIP, PasswordChangedAt: user.PasswordChangedAt, MustChangePassword: user.MustChangePassword, FailedLoginCount: user.FailedLoginCount, LockedUntil: user.LockedUntil, Activated: user.PasswordHash != ""}
 }
 
 func validStatus(status dbrepo.UserStatus) bool {

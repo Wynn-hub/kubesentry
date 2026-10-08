@@ -249,6 +249,9 @@ func systemAdminOnlyRoute(r *http.Request) bool {
 	if path == "/api/v1/install-records" || path == "/api/v1/platform/settings" {
 		return true
 	}
+	if path == "/api/v1/security-settings" {
+		return true
+	}
 	if path == "/api/v1/admission-event-settings" {
 		return r.Method != http.MethodGet
 	}

@@ -57,9 +57,14 @@ func TestTenantPolicyResourceBoundaries(t *testing.T) {
 	}
 	first, second := createTenant("policy-first"), createTenant("policy-second")
 	createUser := func(username string, role dbrepo.Role, tenantID int64) *http.Cookie {
-		rec := request(http.MethodPost, "/api/v1/users", dto.CreateUserRequest{Username: username, Password: password, Role: role, TenantID: &tenantID}, admin, true)
+		rec := request(http.MethodPost, "/api/v1/users", dto.CreateUserRequest{Username: username, Role: role, TenantID: &tenantID}, admin, true)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("create user %s = %d %s", username, rec.Code, rec.Body.String())
+		}
+		result := responseData[dto.CreateUserResult](t, rec.Body.Bytes())
+		activated := request(http.MethodPost, "/api/v1/auth/activate", dto.ActivateInput{Code: result.ActivationCode, Password: password}, nil, false)
+		if activated.Code != http.StatusOK {
+			t.Fatalf("activate user %s = %d %s", username, activated.Code, activated.Body.String())
 		}
 		return loginCookie(t, h, username, password)
 	}

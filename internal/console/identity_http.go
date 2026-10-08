@@ -1,6 +1,7 @@
 package console
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -12,7 +13,10 @@ import (
 	dbrepo "github.com/Wynn-hub/kubesentry/internal/database/repository"
 )
 
-type identityHTTP struct{ service *service.IdentityService }
+type identityHTTP struct {
+	service  *service.IdentityService
+	security *service.SecuritySettingsService
+}
 
 func (h identityHTTP) listTenants(w http.ResponseWriter, r *http.Request) {
 	items, err := h.service.ListTenants(r.Context(), requestPrincipal(r))
@@ -116,6 +120,65 @@ func (h identityHTTP) deleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success"})
+}
+
+func (h identityHTTP) regenerateActivation(w http.ResponseWriter, r *http.Request) {
+	id, ok := identityPathID(w, r)
+	if !ok {
+		return
+	}
+	result, err := h.service.RegenerateActivation(r.Context(), requestPrincipal(r), id)
+	if err != nil {
+		writeIdentityError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success", Data: result})
+}
+
+func (h identityHTTP) unlockUser(w http.ResponseWriter, r *http.Request) {
+	h.userAction(w, r, h.service.UnlockUser)
+}
+
+func (h identityHTTP) forceLogout(w http.ResponseWriter, r *http.Request) {
+	h.userAction(w, r, h.service.ForceLogout)
+}
+
+func (h identityHTTP) forcePasswordChange(w http.ResponseWriter, r *http.Request) {
+	h.userAction(w, r, h.service.ForcePasswordChange)
+}
+
+func (h identityHTTP) userAction(w http.ResponseWriter, r *http.Request, action func(context.Context, dbrepo.Principal, int64) error) {
+	id, ok := identityPathID(w, r)
+	if !ok {
+		return
+	}
+	if err := action(r.Context(), requestPrincipal(r), id); err != nil {
+		writeIdentityError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success"})
+}
+
+func (h identityHTTP) getSecuritySettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.security.Get(r.Context(), requestPrincipal(r))
+	if err != nil {
+		writeIdentityError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success", Data: settings})
+}
+
+func (h identityHTTP) updateSecuritySettings(w http.ResponseWriter, r *http.Request) {
+	var input dto.SecuritySettingsInput
+	if !decodeAuthJSON(w, r, &input) {
+		return
+	}
+	settings, err := h.security.Update(r.Context(), requestPrincipal(r), input)
+	if err != nil {
+		writeIdentityError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success", Data: settings})
 }
 
 func requestPrincipal(r *http.Request) dbrepo.Principal {

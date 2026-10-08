@@ -57,6 +57,10 @@ func TestIdentityHTTPRoleBoundariesAndSessionRevocation(t *testing.T) {
 		return responseData[dto.TenantView](t, rec.Body.Bytes())
 	}
 	first, second := createTenant("first"), createTenant("second")
+	settings := authRequest(t, h, http.MethodGet, "/api/v1/security-settings", nil, adminCookie, false)
+	if settings.Code != http.StatusOK {
+		t.Fatalf("get security settings = %d %s", settings.Code, settings.Body.String())
+	}
 
 	createUser := func(cookie *http.Cookie, request dto.CreateUserRequest, want int) dto.UserView {
 		rec := authRequest(t, h, http.MethodPost, "/api/v1/users", request, cookie, true)
@@ -66,12 +70,24 @@ func TestIdentityHTTPRoleBoundariesAndSessionRevocation(t *testing.T) {
 		if want != http.StatusOK {
 			return dto.UserView{}
 		}
-		return responseData[dto.UserView](t, rec.Body.Bytes())
+		result := responseData[dto.CreateUserResult](t, rec.Body.Bytes())
+		activate := authRequest(t, h, http.MethodPost, "/api/v1/auth/activate", dto.ActivateInput{Code: result.ActivationCode, Password: password}, nil, false)
+		if activate.Code != http.StatusOK {
+			t.Fatalf("activate user %s = %d %s", request.Username, activate.Code, activate.Body.String())
+		}
+		return result.User
 	}
-	tenantAdmin := createUser(adminCookie, dto.CreateUserRequest{Username: "tenant-admin", Password: password, Role: dbrepo.RoleTenantAdmin, TenantID: &first.ID}, http.StatusOK)
+	tenantAdmin := createUser(adminCookie, dto.CreateUserRequest{Username: "tenant-admin", Role: dbrepo.RoleTenantAdmin, TenantID: &first.ID}, http.StatusOK)
 	_ = tenantAdmin
-	viewer := createUser(adminCookie, dto.CreateUserRequest{Username: "viewer", Password: password, Role: dbrepo.RoleViewer, TenantID: &first.ID}, http.StatusOK)
-	otherViewer := createUser(adminCookie, dto.CreateUserRequest{Username: "other-viewer", Password: password, Role: dbrepo.RoleViewer, TenantID: &second.ID}, http.StatusOK)
+	systemAdmin := createUser(adminCookie, dto.CreateUserRequest{Username: "system-admin", Role: dbrepo.RoleSystemAdmin}, http.StatusOK)
+	if systemAdmin.TenantID != nil || systemAdmin.Role != dbrepo.RoleSystemAdmin {
+		t.Fatalf("system admin = %+v", systemAdmin)
+	}
+	viewer := createUser(adminCookie, dto.CreateUserRequest{Username: "viewer", Role: dbrepo.RoleViewer, TenantID: &first.ID}, http.StatusOK)
+	if viewer.TenantName != first.Name {
+		t.Fatalf("viewer tenant = %+v", viewer)
+	}
+	otherViewer := createUser(adminCookie, dto.CreateUserRequest{Username: "other-viewer", Role: dbrepo.RoleViewer, TenantID: &second.ID}, http.StatusOK)
 
 	tenantCookie := loginCookie(t, h, "tenant-admin", password)
 	list := authRequest(t, h, http.MethodGet, "/api/v1/users", nil, tenantCookie, false)
@@ -79,13 +95,19 @@ func TestIdentityHTTPRoleBoundariesAndSessionRevocation(t *testing.T) {
 	if list.Code != http.StatusOK || len(users) != 2 {
 		t.Fatalf("tenant user list = %d %+v", list.Code, users)
 	}
-	createUser(tenantCookie, dto.CreateUserRequest{Username: "tenant-viewer", Password: password, Role: dbrepo.RoleViewer, TenantID: &first.ID}, http.StatusOK)
-	createUser(tenantCookie, dto.CreateUserRequest{Username: "forbidden-admin", Password: password, Role: dbrepo.RoleTenantAdmin, TenantID: &first.ID}, http.StatusForbidden)
+	createUser(tenantCookie, dto.CreateUserRequest{Username: "tenant-viewer", Role: dbrepo.RoleViewer, TenantID: &first.ID}, http.StatusOK)
+	createUser(tenantCookie, dto.CreateUserRequest{Username: "forbidden-admin", Role: dbrepo.RoleTenantAdmin, TenantID: &first.ID}, http.StatusForbidden)
 	if rec := authRequest(t, h, http.MethodPut, "/api/v1/users/"+itoa(otherViewer.ID)+"/status", dto.UserStatusRequest{Status: dbrepo.UserStatusDisabled}, tenantCookie, true); rec.Code != http.StatusNotFound {
 		t.Fatalf("cross-tenant status = %d %s", rec.Code, rec.Body.String())
 	}
 
 	viewerCookie := loginCookie(t, h, "viewer", password)
+	if rec := authRequest(t, h, http.MethodGet, "/api/v1/security-settings", nil, viewerCookie, false); rec.Code != http.StatusForbidden {
+		t.Fatalf("viewer security settings = %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := authRequest(t, h, http.MethodPost, "/api/v1/users/"+itoa(viewer.ID)+"/force-password-change", nil, adminCookie, true); rec.Code != http.StatusOK {
+		t.Fatalf("force password change = %d %s", rec.Code, rec.Body.String())
+	}
 	if rec := authRequest(t, h, http.MethodGet, "/api/v1/users", nil, viewerCookie, false); rec.Code != http.StatusForbidden {
 		t.Fatalf("viewer list = %d %s", rec.Code, rec.Body.String())
 	}

@@ -33,9 +33,13 @@ func TestClusterScopePlatformAuthAndAdmissionScope(t *testing.T) {
 	}
 	first, second := createTenant("cluster-first"), createTenant("cluster-second")
 	createViewer := func(name string, tenantID int64) {
-		rec := authRequest(t, h, http.MethodPost, "/api/v1/users", dto.CreateUserRequest{Username: name, Password: password, Role: dbrepo.RoleViewer, TenantID: &tenantID}, adminCookie, true)
+		rec := authRequest(t, h, http.MethodPost, "/api/v1/users", dto.CreateUserRequest{Username: name, Role: dbrepo.RoleViewer, TenantID: &tenantID}, adminCookie, true)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("create viewer = %d %s", rec.Code, rec.Body.String())
+		}
+		result := responseData[dto.CreateUserResult](t, rec.Body.Bytes())
+		if activated := authRequest(t, h, http.MethodPost, "/api/v1/auth/activate", dto.ActivateInput{Code: result.ActivationCode, Password: password}, nil, false); activated.Code != http.StatusOK {
+			t.Fatalf("activate viewer = %d %s", activated.Code, activated.Body.String())
 		}
 	}
 	createViewer("cluster-viewer", first.ID)

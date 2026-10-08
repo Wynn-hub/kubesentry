@@ -110,7 +110,7 @@ func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Han
 		protected.HandleFunc("POST /api/v1/auth/logout", auth.logout)
 		protected.HandleFunc("POST /api/v1/auth/change-password", auth.changePassword)
 		protected.HandleFunc("GET /api/v1/me", auth.me)
-		identity := identityHTTP{service: svcs.Identity}
+		identity := identityHTTP{service: svcs.Identity, security: svcs.SecuritySettings}
 		protected.HandleFunc("GET /api/v1/tenants", identity.listTenants)
 		protected.HandleFunc("POST /api/v1/tenants", identity.createTenant)
 		protected.HandleFunc("PUT /api/v1/tenants/{id}/status", identity.setTenantStatus)
@@ -118,7 +118,13 @@ func newServer(h *Handlers, ready func() bool, protectedMiddleware func(http.Han
 		protected.HandleFunc("POST /api/v1/users", identity.createUser)
 		protected.HandleFunc("PUT /api/v1/users/{id}/status", identity.setUserStatus)
 		protected.HandleFunc("POST /api/v1/users/{id}/reset-password", identity.resetPassword)
+		protected.HandleFunc("POST /api/v1/users/{id}/activation", identity.regenerateActivation)
+		protected.HandleFunc("POST /api/v1/users/{id}/unlock", identity.unlockUser)
+		protected.HandleFunc("POST /api/v1/users/{id}/logout", identity.forceLogout)
+		protected.HandleFunc("POST /api/v1/users/{id}/force-password-change", identity.forcePasswordChange)
 		protected.HandleFunc("DELETE /api/v1/users/{id}", identity.deleteUser)
+		protected.HandleFunc("GET /api/v1/security-settings", identity.getSecuritySettings)
+		protected.HandleFunc("PUT /api/v1/security-settings", identity.updateSecuritySettings)
 		protected.HandleFunc("PUT /api/v1/clusters/{name}/tenant", func(w http.ResponseWriter, r *http.Request) {
 			var input dto.ClusterTenantRequest
 			if !decodeAuthJSON(w, r, &input) {

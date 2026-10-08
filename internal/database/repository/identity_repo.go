@@ -176,7 +176,19 @@ func (r *IdentityRepo) GetSecuritySettings(ctx context.Context) (*SecuritySettin
 
 func (r *IdentityRepo) UpdateSecuritySettings(ctx context.Context, settings *SecuritySettings) error {
 	settings.ID = 1
-	return r.db.WithContext(ctx).Model(&SecuritySettings{}).Where("id = 1").Updates(settings).Error
+	return r.db.WithContext(ctx).Model(&SecuritySettings{}).Where("id = 1").Updates(map[string]any{
+		"activation_lifetime_hours": settings.ActivationLifetimeHours,
+		"password_lifetime_days":    settings.PasswordLifetimeDays,
+		"password_min_length":       settings.PasswordMinLength,
+		"password_history_count":    settings.PasswordHistoryCount,
+		"max_failed_login_attempts": settings.MaxFailedLoginAttempts,
+		"lockout_duration_minutes":  settings.LockoutDurationMinutes,
+		"session_idle_minutes":      settings.SessionIdleMinutes,
+		"session_absolute_minutes":  settings.SessionAbsoluteMinutes,
+		"allow_concurrent_sessions": settings.AllowConcurrentSessions,
+		"updated_by":                settings.UpdatedBy,
+		"updated_at":                time.Now(),
+	}).Error
 }
 
 func (r *IdentityRepo) UnlockUser(ctx context.Context, userID int64, at time.Time) error {
