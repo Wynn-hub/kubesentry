@@ -128,14 +128,56 @@ func (Tenant) TableName() string { return "kubesentry.tenants" }
 
 type User struct {
 	model.Base
-	Username     string
-	PasswordHash string
-	Role         Role
-	Status       UserStatus
-	TenantID     *int64
+	Username           string
+	PasswordHash       string
+	Role               Role
+	Status             UserStatus
+	TenantID           *int64
+	LastLoginAt        *time.Time
+	LastLoginIP        string
+	PasswordChangedAt  *time.Time
+	MustChangePassword bool
+	FailedLoginCount   int
+	LockedUntil        *time.Time
 }
 
 func (User) TableName() string { return "kubesentry.users" }
+
+type UserActivationToken struct {
+	model.Base
+	UserID    int64
+	TokenHash string
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+}
+
+func (UserActivationToken) TableName() string { return "kubesentry.user_activation_tokens" }
+
+type PasswordHistory struct {
+	model.Base
+	UserID       int64
+	PasswordHash string
+}
+
+func (PasswordHistory) TableName() string { return "kubesentry.password_history" }
+
+type SecuritySettings struct {
+	ID                      int64 `gorm:"primaryKey;autoIncrement:false"`
+	ActivationLifetimeHours int
+	PasswordLifetimeDays    int
+	PasswordMinLength       int
+	PasswordHistoryCount    int
+	MaxFailedLoginAttempts  int
+	LockoutDurationMinutes  int
+	SessionIdleMinutes      int
+	SessionAbsoluteMinutes  int
+	AllowConcurrentSessions bool
+	UpdatedBy               *int64
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+}
+
+func (SecuritySettings) TableName() string { return "kubesentry.security_settings" }
 
 type Session struct {
 	model.Base
@@ -149,10 +191,13 @@ type Session struct {
 func (Session) TableName() string { return "kubesentry.sessions" }
 
 type Principal struct {
-	UserID   int64
-	Username string
-	Role     Role
-	TenantID *int64
+	UserID             int64
+	Username           string
+	Role               Role
+	TenantID           *int64
+	LastLoginAt        *time.Time
+	PasswordExpiresAt  *time.Time
+	MustChangePassword bool
 }
 
 type principalContextKey struct{}

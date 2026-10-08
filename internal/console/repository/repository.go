@@ -110,6 +110,22 @@ type IdentityRepository interface {
 	RevokeUserSessions(context.Context, int64) error
 }
 
+type IdentitySecurityRepository interface {
+	IdentityRepository
+	CreateUserWithActivation(context.Context, *dbrepo.User, *dbrepo.UserActivationToken) error
+	ReplaceActivationToken(context.Context, int64, *dbrepo.UserActivationToken, time.Time) error
+	GetActivationToken(context.Context, string) (*dbrepo.UserActivationToken, error)
+	ActivateUser(context.Context, int64, string, string, time.Time) error
+	ListPasswordHashes(context.Context, int64, int) ([]string, error)
+	RecordLoginFailure(context.Context, int64, int, int, time.Time) error
+	LoginSucceeded(context.Context, int64, *dbrepo.Session, time.Time, string, bool) error
+	ChangePassword(context.Context, int64, string, *int64, time.Time) error
+	GetSecuritySettings(context.Context) (*dbrepo.SecuritySettings, error)
+	UpdateSecuritySettings(context.Context, *dbrepo.SecuritySettings) error
+	UnlockUser(context.Context, int64, time.Time) error
+	RequirePasswordChange(context.Context, int64, time.Time) error
+}
+
 // ExceptionUnitOfWork commits an exception mutation and its managed scope
 // distribution as one database transaction. The callback receives repositories
 // bound to the same transaction.
@@ -151,7 +167,7 @@ type Repositories struct {
 	Incidents      *dbrepo.IncidentRepo
 	Admission      *dbrepo.AdmissionRepo
 	Platform       *dbrepo.PlatformObservabilityRepo
-	Identity       IdentityRepository
+	Identity       IdentitySecurityRepository
 	ExceptionUOW   ExceptionUnitOfWork
 	ClusterUOW     ClusterUnitOfWork
 }

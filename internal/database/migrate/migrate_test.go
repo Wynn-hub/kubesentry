@@ -42,13 +42,23 @@ func TestMigrateCreatesAllTables(t *testing.T) {
 	defer db.Close()
 
 	wantTables := []string{
-		"tenants", "users", "sessions",
+		"tenants", "users", "sessions", "user_activation_tokens", "password_history", "security_settings",
 		"clusters", "policies", "policy_versions", "policy_groups",
 		"policy_exceptions", "policy_distributions", "distribution_cluster_status",
 		"cluster_install_records", "cluster_uninstall_tasks",
 		"admission_event_settings", "admission_storage_policies", "admission_events",
 		"platform_observability_settings", "admission_link_incidents",
 		"platform_component_samples", "platform_leadership_events",
+	}
+
+	var activationHours, passwordDays, minLength, historyCount, attempts, lockoutMinutes int
+	var concurrent bool
+	if err := db.QueryRow(`SELECT activation_lifetime_hours, password_lifetime_days, password_min_length, password_history_count, max_failed_login_attempts, lockout_duration_minutes, allow_concurrent_sessions FROM kubesentry.security_settings WHERE id = 1`).
+		Scan(&activationHours, &passwordDays, &minLength, &historyCount, &attempts, &lockoutMinutes, &concurrent); err != nil {
+		t.Fatalf("query security settings: %v", err)
+	}
+	if activationHours != 24 || passwordDays != 0 || minLength != 12 || historyCount != 5 || attempts != 5 || lockoutMinutes != 15 || concurrent {
+		t.Fatalf("security defaults = (%d,%d,%d,%d,%d,%d,%v)", activationHours, passwordDays, minLength, historyCount, attempts, lockoutMinutes, concurrent)
 	}
 
 	var username, role, passwordHash string

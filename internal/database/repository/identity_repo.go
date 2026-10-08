@@ -52,6 +52,137 @@ func (r *IdentityRepo) CreateUser(ctx context.Context, user *User) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }
 
+func (r *IdentityRepo) CreateUserWithActivation(ctx context.Context, user *User, token *UserActivationToken) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(user).Error; err != nil {
+			return err
+		}
+		token.UserID = user.ID
+		return tx.Create(token).Error
+	})
+}
+
+func (r *IdentityRepo) ReplaceActivationToken(ctx context.Context, userID int64, token *UserActivationToken, at time.Time) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&UserActivationToken{}).Where("user_id = ? AND used_at IS NULL", userID).Update("used_at", at).Error; err != nil {
+			return err
+		}
+		token.UserID = userID
+		return tx.Create(token).Error
+	})
+}
+
+func (r *IdentityRepo) GetActivationToken(ctx context.Context, tokenHash string) (*UserActivationToken, error) {
+	var token UserActivationToken
+	if err := r.db.WithContext(ctx).Where("token_hash = ? AND used_at IS NULL", tokenHash).First(&token).Error; err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+func (r *IdentityRepo) ActivateUser(ctx context.Context, userID int64, tokenHash, passwordHash string, at time.Time) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var token UserActivationToken
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ? AND token_hash = ? AND used_at IS NULL AND expires_at > ?", userID, tokenHash, at).First(&token).Error; err != nil {
+			return err
+		}
+		result := tx.Model(&User{}).Where("id = ? AND status = ? AND password_hash = ''", userID, UserStatusActive).
+			Updates(map[string]any{"password_hash": passwordHash, "password_changed_at": at, "must_change_password": false, "failed_login_count": 0, "locked_until": nil, "updated_at": at})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
+		}
+		if err := tx.Create(&PasswordHistory{UserID: userID, PasswordHash: passwordHash}).Error; err != nil {
+			return err
+		}
+		return tx.Model(&token).Updates(map[string]any{"used_at": at, "updated_at": at}).Error
+	})
+}
+
+func (r *IdentityRepo) ListPasswordHashes(ctx context.Context, userID int64, limit int) ([]string, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	var rows []PasswordHistory
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC, id DESC").Limit(limit).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	hashes := make([]string, 0, len(rows))
+	for _, row := range rows {
+		hashes = append(hashes, row.PasswordHash)
+	}
+	return hashes, nil
+}
+
+func (r *IdentityRepo) RecordLoginFailure(ctx context.Context, userID int64, maxAttempts, lockoutMinutes int, at time.Time) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var user User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
+			return err
+		}
+		user.FailedLoginCount++
+		updates := map[string]any{"failed_login_count": user.FailedLoginCount, "updated_at": at}
+		if user.FailedLoginCount >= maxAttempts {
+			updates["locked_until"] = at.Add(time.Duration(lockoutMinutes) * time.Minute)
+		}
+		return tx.Model(&user).Updates(updates).Error
+	})
+}
+
+func (r *IdentityRepo) LoginSucceeded(ctx context.Context, userID int64, session *Session, at time.Time, remoteIP string, allowConcurrent bool) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if !allowConcurrent {
+			if err := tx.Model(&Session{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", at).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Model(&User{}).Where("id = ?", userID).Updates(map[string]any{"last_login_at": at, "last_login_ip": remoteIP, "failed_login_count": 0, "locked_until": nil, "updated_at": at}).Error; err != nil {
+			return err
+		}
+		session.UserID = userID
+		return tx.Create(session).Error
+	})
+}
+
+func (r *IdentityRepo) ChangePassword(ctx context.Context, userID int64, passwordHash string, keepSessionID *int64, at time.Time) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&User{}).Where("id = ?", userID).Updates(map[string]any{"password_hash": passwordHash, "password_changed_at": at, "must_change_password": false, "failed_login_count": 0, "locked_until": nil, "updated_at": at}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&PasswordHistory{UserID: userID, PasswordHash: passwordHash}).Error; err != nil {
+			return err
+		}
+		query := tx.Model(&Session{}).Where("user_id = ? AND revoked_at IS NULL", userID)
+		if keepSessionID != nil {
+			query = query.Where("id <> ?", *keepSessionID)
+		}
+		return query.Update("revoked_at", at).Error
+	})
+}
+
+func (r *IdentityRepo) GetSecuritySettings(ctx context.Context) (*SecuritySettings, error) {
+	var settings SecuritySettings
+	if err := r.db.WithContext(ctx).First(&settings, 1).Error; err != nil {
+		return nil, err
+	}
+	return &settings, nil
+}
+
+func (r *IdentityRepo) UpdateSecuritySettings(ctx context.Context, settings *SecuritySettings) error {
+	settings.ID = 1
+	return r.db.WithContext(ctx).Model(&SecuritySettings{}).Where("id = 1").Updates(settings).Error
+}
+
+func (r *IdentityRepo) UnlockUser(ctx context.Context, userID int64, at time.Time) error {
+	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Updates(map[string]any{"failed_login_count": 0, "locked_until": nil, "updated_at": at}).Error
+}
+
+func (r *IdentityRepo) RequirePasswordChange(ctx context.Context, userID int64, at time.Time) error {
+	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Updates(map[string]any{"must_change_password": true, "updated_at": at}).Error
+}
+
 func (r *IdentityRepo) GetUserByUsername(ctx context.Context, username string) (*User, error) {
 	var user User
 	if err := r.db.WithContext(ctx).Where("username = ?", username).First(&user).Error; err != nil {

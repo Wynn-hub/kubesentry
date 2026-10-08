@@ -92,3 +92,59 @@ func TestIdentitySessionLifecycle(t *testing.T) {
 		t.Fatalf("expired session error = %v", err)
 	}
 }
+
+func TestIdentityActivationAndSecuritySettings(t *testing.T) {
+	db := newTestDB(t)
+	repo := repository.NewIdentityRepo(db)
+	ctx := t.Context()
+	now := time.Now().UTC()
+	tenant := &repository.Tenant{Name: "activation", Status: repository.UserStatusActive}
+	if err := repo.CreateTenant(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	user := &repository.User{Username: "new-user", Role: repository.RoleViewer, Status: repository.UserStatusActive, TenantID: &tenant.ID}
+	token := &repository.UserActivationToken{TokenHash: "activation-hash", ExpiresAt: now.Add(time.Hour)}
+	if err := repo.CreateUserWithActivation(ctx, user, token); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.ActivateUser(ctx, user.ID, token.TokenHash, "password-hash", now); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.GetUser(ctx, user.ID)
+	if err != nil || got.PasswordHash != "password-hash" || got.PasswordChangedAt == nil {
+		t.Fatalf("activated user = %#v, %v", got, err)
+	}
+	hashes, err := repo.ListPasswordHashes(ctx, user.ID, 5)
+	if err != nil || len(hashes) != 1 || hashes[0] != "password-hash" {
+		t.Fatalf("password history = %#v, %v", hashes, err)
+	}
+	settings, err := repo.GetSecuritySettings(ctx)
+	if err != nil || settings.ActivationLifetimeHours != 24 || settings.AllowConcurrentSessions {
+		t.Fatalf("security settings = %#v, %v", settings, err)
+	}
+}
+
+func TestIdentityLoginSucceededReplacesExistingSession(t *testing.T) {
+	db := newTestDB(t)
+	repo := repository.NewIdentityRepo(db)
+	ctx := t.Context()
+	now := time.Now().UTC()
+	admin, err := repo.GetUserByUsername(ctx, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := &repository.Session{TokenHash: "first", ExpiresAt: now.Add(time.Hour), LastSeenAt: now}
+	if err := repo.LoginSucceeded(ctx, admin.ID, first, now, "127.0.0.1", false); err != nil {
+		t.Fatal(err)
+	}
+	second := &repository.Session{TokenHash: "second", ExpiresAt: now.Add(time.Hour), LastSeenAt: now}
+	if err := repo.LoginSucceeded(ctx, admin.ID, second, now.Add(time.Second), "127.0.0.2", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := repo.GetActiveSession(ctx, "first", now); !errors.Is(err, repository.ErrInactiveSession) {
+		t.Fatalf("first session error = %v", err)
+	}
+	if _, _, _, err := repo.GetActiveSession(ctx, "second", now); err != nil {
+		t.Fatalf("second session error = %v", err)
+	}
+}
