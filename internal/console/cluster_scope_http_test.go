@@ -90,6 +90,12 @@ func TestClusterScopePlatformAuthAndAdmissionScope(t *testing.T) {
 	if rec := authRequest(t, h, http.MethodGet, "/api/v1/platform/settings", nil, viewerCookie, false); rec.Code != http.StatusForbidden {
 		t.Fatalf("viewer platform settings = %d %s", rec.Code, rec.Body.String())
 	}
+	if rec := authRequest(t, h, http.MethodGet, "/api/v1/admission-event-settings", nil, viewerCookie, false); rec.Code != http.StatusOK {
+		t.Fatalf("viewer admission settings read = %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := authRequest(t, h, http.MethodPut, "/api/v1/admission-event-settings", map[string]any{"defaultRetentionDays": 14}, viewerCookie, true); rec.Code != http.StatusForbidden {
+		t.Fatalf("viewer admission settings update = %d %s", rec.Code, rec.Body.String())
+	}
 
 	now := time.Now().UTC()
 	for i, cluster := range []*dbrepo.Cluster{clusterA, clusterB} {

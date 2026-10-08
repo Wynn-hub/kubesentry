@@ -129,3 +129,21 @@ func TestAdmissionUpdateSettingsRejectsVersionedGVRBeforeWrite(t *testing.T) {
 		t.Fatalf("error=%v updateCalled=%v, want validation before write", err, repo.updateCalled)
 	}
 }
+
+func TestAdmissionSettingsAreReadOnlyForTenantUsers(t *testing.T) {
+	for _, role := range []dbrepo.Role{dbrepo.RoleTenantAdmin, dbrepo.RoleViewer} {
+		t.Run(string(role), func(t *testing.T) {
+			repo := &admissionRepositoryStub{settings: dbrepo.AdmissionEventSettings{DefaultRetentionDays: 14}}
+			svc := NewAdmissionService(repo, nil)
+			tenantID := int64(7)
+			ctx := dbrepo.WithPrincipal(t.Context(), dbrepo.Principal{Role: role, TenantID: &tenantID})
+			if _, err := svc.Settings(ctx); err != nil {
+				t.Fatalf("read settings: %v", err)
+			}
+			_, err := svc.UpdateSettings(ctx, &dto.AdmissionSettingsInput{DefaultRetentionDays: 30})
+			if !errors.Is(err, ErrForbidden) || repo.updateCalled {
+				t.Fatalf("update error=%v updateCalled=%v", err, repo.updateCalled)
+			}
+		})
+	}
+}
