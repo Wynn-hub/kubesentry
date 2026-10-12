@@ -51,3 +51,15 @@ func TestCodeForStatusUnmapped(t *testing.T) {
 		t.Fatalf("codeForStatus(200) = %d, want 0", got)
 	}
 }
+
+func TestWriteCodedErr(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeCodedErr(rec, 409, "PASSWORD_REUSED", "password was used recently")
+	var env Envelope
+	if err := json.Unmarshal(rec.Body.Bytes(), &env); err != nil {
+		t.Fatal(err)
+	}
+	if env.ErrorCode != "PASSWORD_REUSED" {
+		t.Fatalf("errorCode = %q, want PASSWORD_REUSED", env.ErrorCode)
+	}
+}

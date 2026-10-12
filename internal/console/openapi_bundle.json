@@ -2367,6 +2367,10 @@
                         },
                         "type": "array"
                     },
+                    "errorCode": {
+                        "example": "INVALID_REQUEST",
+                        "type": "string"
+                    },
                     "message": {
                         "example": "invalid request",
                         "type": "string"

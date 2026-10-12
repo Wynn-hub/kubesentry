@@ -1,4 +1,18 @@
 export default {
+  errors: {
+    PASSWORD_REUSED: '该密码近期使用过，请选择其他密码',
+    INVALID_PASSWORD: '密码不符合安全要求',
+    ALREADY_INITIALIZED: '系统管理员已经初始化',
+    INVALID_CREDENTIALS: '用户名或密码错误',
+    LOGIN_RATE_LIMITED: '登录尝试过于频繁，请稍后重试',
+    ACCOUNT_LOCKED: '账号已锁定，请稍后重试或联系管理员',
+    ACTIVATION_INVALID: '激活信息无效或已过期',
+    SESSION_INVALID: '登录状态已失效，请重新登录',
+    PASSWORD_CHANGE_REQUIRED: '需要修改密码后才能继续操作',
+    CSRF_INVALID: '请求安全校验失败，请刷新页面后重试',
+    FORBIDDEN: '没有权限执行此操作',
+    INVALID_REQUEST: '请求内容无效',
+  },
   auth: { loginTitle: '登录 KubeSentry', loginHint: '使用平台账号进入云原生安全控制中心。', username: '用户名', password: '密码', confirmPassword: '确认密码', passwordMismatch: '两次输入的密码不一致', login: '登录', logout: '退出登录', setupTitle: '初始化管理员', setupHint: '首次部署需要为默认 admin 用户设置密码。', initialize: '完成初始化', brandTitle: '让集群准入安全清晰可控', brandDescription: '集中管理策略、租户与集群，在一个控制面中持续观察并保护每一次 Kubernetes 准入请求。', activateTitle: '激活账号', activateHint: '输入管理员提供的一次性激活码，并设置你的登录密码。', activationCode: '激活码', activate: '激活并登录', changePasswordTitle: '修改密码', changePasswordHint: '设置一个新的安全密码。', changeRequiredHint: '当前密码已过期或管理员要求修改，完成后可继续使用平台。', changePassword: '修改密码', passwordChangeRequired: '需要修改密码', profile: '用户资料', lastLogin: '上次登录', roles: { system_admin: '系统管理员', tenant_admin: '租户管理员', viewer: '普通用户' } },
   nav: {
     overview: '平台概览', policies: '策略', groups: '策略组', exceptions: '豁免', distributions: '策略下发',

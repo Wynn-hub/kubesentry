@@ -2,7 +2,7 @@ import { createI18n } from 'vue-i18n'
 import zhCN from './zh-CN'
 import enUS from './en-US'
 
-const stored = localStorage.getItem('kubesentry-locale')
+const stored = typeof localStorage === 'undefined' ? null : localStorage.getItem('kubesentry-locale')
 
 export const i18n = createI18n({
   legacy: false,
@@ -13,5 +13,5 @@ export const i18n = createI18n({
 
 export function setLocale(l: 'zh-CN' | 'en-US') {
   i18n.global.locale.value = l
-  localStorage.setItem('kubesentry-locale', l)
+  if (typeof localStorage !== 'undefined') localStorage.setItem('kubesentry-locale', l)
 }

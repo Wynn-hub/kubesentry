@@ -1,4 +1,5 @@
 import type { components, operations } from './generated/console-api'
+import { i18n } from '../locales'
 
 type OperationResponse<Operation extends keyof operations> =
   operations[Operation]['responses'][200] extends { content: { 'application/json': infer Response } }
@@ -19,12 +20,19 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: number,
+    public errorCode?: string,
     public data?: components['schemas']['dto.SwagErrorResponse']['data'],
     public details?: components['schemas']['dto.SwagErrorResponse']['details'],
   ) {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+function localizedMessage(errorCode: string | undefined, fallback: string) {
+  if (!errorCode) return fallback
+  const key = `errors.${errorCode}`
+  return i18n.global.te(key) ? i18n.global.t(key) : fallback
 }
 
 let unauthorizedHandler: (() => void) | undefined
@@ -45,7 +53,14 @@ export function unwrap<Operation extends keyof operations>(
     return (env as OperationResponse<Operation> & { data?: OperationData<Operation> }).data as OperationData<Operation>
   }
   const error = env as components['schemas']['dto.SwagErrorResponse'] | undefined
-  throw new ApiError(status, envelope?.message ?? fallbackMsg, envelope?.code, error?.data, error?.details)
+  throw new ApiError(
+    status,
+    localizedMessage(error?.errorCode, envelope?.message ?? fallbackMsg),
+    envelope?.code,
+    error?.errorCode,
+    error?.data,
+    error?.details,
+  )
 }
 
 export async function extract<Operation extends keyof operations>(

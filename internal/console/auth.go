@@ -62,9 +62,9 @@ func (a *authHTTP) setupAdmin(w http.ResponseWriter, r *http.Request) {
 	err := a.service.InitializeAdmin(r.Context(), input.Password)
 	switch {
 	case errors.Is(err, service.ErrInvalidPassword):
-		writeErr(w, http.StatusBadRequest, err.Error())
+		writeCodedErr(w, http.StatusBadRequest, "INVALID_PASSWORD", err.Error())
 	case errors.Is(err, service.ErrAlreadyInitialized):
-		writeErr(w, http.StatusConflict, err.Error())
+		writeCodedErr(w, http.StatusConflict, "ALREADY_INITIALIZED", err.Error())
 	case err != nil:
 		writeErr(w, http.StatusInternalServerError, "request failed")
 	default:
@@ -80,7 +80,7 @@ func (a *authHTTP) login(w http.ResponseWriter, r *http.Request) {
 	}
 	username := strings.ToLower(strings.TrimSpace(input.Username))
 	if !a.allowLogin(username + "\x00" + remoteIP(r)) {
-		writeErr(w, http.StatusTooManyRequests, "too many login attempts")
+		writeCodedErr(w, http.StatusTooManyRequests, "LOGIN_RATE_LIMITED", "too many login attempts")
 		return
 	}
 	token, _, err := a.service.Login(r.Context(), username, input.Password, remoteIP(r))
@@ -90,7 +90,7 @@ func (a *authHTTP) login(w http.ResponseWriter, r *http.Request) {
 			writeCodedErr(w, http.StatusLocked, "ACCOUNT_LOCKED", err.Error())
 			return
 		}
-		writeErr(w, http.StatusUnauthorized, service.ErrInvalidCredentials.Error())
+		writeCodedErr(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", service.ErrInvalidCredentials.Error())
 		return
 	}
 	a.setSessionCookie(w, r, token, a.service.SessionAbsoluteDuration(r.Context()))
@@ -106,7 +106,7 @@ func (a *authHTTP) activate(w http.ResponseWriter, r *http.Request) {
 	err := a.service.Activate(r.Context(), input.Code, input.Password)
 	switch {
 	case errors.Is(err, service.ErrInvalidPassword):
-		writeErr(w, http.StatusBadRequest, err.Error())
+		writeCodedErr(w, http.StatusBadRequest, "INVALID_PASSWORD", err.Error())
 	case errors.Is(err, service.ErrActivationInvalid):
 		writeCodedErr(w, http.StatusBadRequest, "ACTIVATION_INVALID", err.Error())
 	case err != nil:
@@ -134,7 +134,7 @@ func (a *authHTTP) changePassword(w http.ResponseWriter, r *http.Request) {
 	err = a.service.ChangePassword(r.Context(), principal, cookie.Value, input.Password)
 	switch {
 	case errors.Is(err, service.ErrInvalidPassword):
-		writeErr(w, http.StatusBadRequest, err.Error())
+		writeCodedErr(w, http.StatusBadRequest, "INVALID_PASSWORD", err.Error())
 	case errors.Is(err, service.ErrPasswordReused):
 		writeCodedErr(w, http.StatusConflict, "PASSWORD_REUSED", err.Error())
 	case errors.Is(err, service.ErrAuthentication):
@@ -157,7 +157,7 @@ func (a *authHTTP) logout(w http.ResponseWriter, r *http.Request) {
 func (a *authHTTP) me(w http.ResponseWriter, r *http.Request) {
 	p, ok := PrincipalFromContext(r.Context())
 	if !ok {
-		writeErr(w, http.StatusUnauthorized, "authentication required")
+		writeCodedErr(w, http.StatusUnauthorized, "SESSION_INVALID", "authentication required")
 		return
 	}
 	writeJSON(w, http.StatusOK, Envelope{Code: 0, Message: "success", Data: dto.MeView{ID: p.UserID, Username: p.Username, Role: p.Role, TenantID: p.TenantID, LastLoginAt: p.LastLoginAt, PasswordExpiresAt: p.PasswordExpiresAt, MustChangePassword: p.MustChangePassword}})
@@ -167,7 +167,7 @@ func (a *authHTTP) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie(sessionCookieName)
 		if err != nil {
-			writeErr(w, http.StatusUnauthorized, "authentication required")
+			writeCodedErr(w, http.StatusUnauthorized, "SESSION_INVALID", "authentication required")
 			return
 		}
 		principal, err := a.service.Authenticate(r.Context(), cookie.Value)
@@ -176,11 +176,11 @@ func (a *authHTTP) middleware(next http.Handler) http.Handler {
 			return
 		}
 		if !isSafeMethod(r.Method) && (r.Header.Get("X-KubeSentry-CSRF") != "1" || !sameOrigin(r)) {
-			writeErr(w, http.StatusForbidden, "csrf validation failed")
+			writeCodedErr(w, http.StatusForbidden, "CSRF_INVALID", "csrf validation failed")
 			return
 		}
 		if systemAdminOnlyRoute(r) && principal.Role != dbrepo.RoleSystemAdmin {
-			writeErr(w, http.StatusForbidden, "forbidden")
+			writeCodedErr(w, http.StatusForbidden, "FORBIDDEN", "forbidden")
 			return
 		}
 		if principal.MustChangePassword && !restrictedSessionRoute(r) {
@@ -230,7 +230,7 @@ func decodeAuthJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid request body")
+		writeCodedErr(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
 		return false
 	}
 	return true

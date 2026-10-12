@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { apiClient } from '../generated/client'
 import { ApiError, extract, unwrap } from '../http'
+import { i18n } from '../../locales'
 
 // An arbitrary API path must never cross the browser transport boundary.
 function assertReviewedPathsOnly() {
@@ -36,6 +37,23 @@ describe('unwrap', () => {
       expect(err.code).toBe(40900)
       expect(err.message).toBe('referenced')
       expect(err.data).toEqual({ referencedBy: ['g'] })
+    }
+  })
+
+  it('localizes stable API error codes and preserves unknown messages', () => {
+    i18n.global.locale.value = 'zh-CN'
+    expect(() => unwrap<'changePassword'>(409, {
+      code: 40900,
+      message: 'password was used recently',
+      errorCode: 'PASSWORD_REUSED',
+    }, 'x')).toThrow('该密码近期使用过，请选择其他密码')
+
+    try {
+      unwrap<'getSummary'>(500, { code: 50000, message: 'diagnostic detail', errorCode: 'UNKNOWN' }, 'x')
+      expect.unreachable()
+    } catch (e) {
+      expect((e as ApiError).message).toBe('diagnostic detail')
+      expect((e as ApiError).errorCode).toBe('UNKNOWN')
     }
   })
 

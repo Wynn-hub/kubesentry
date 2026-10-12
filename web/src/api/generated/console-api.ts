@@ -1756,6 +1756,8 @@ export interface components {
             code: number;
             data?: components["schemas"]["dto.SwagReferencedByData"];
             details?: string[];
+            /** @example INVALID_REQUEST */
+            errorCode?: string;
             /** @example invalid request */
             message: string;
         };

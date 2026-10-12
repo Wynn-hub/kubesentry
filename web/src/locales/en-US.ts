@@ -1,4 +1,18 @@
 export default {
+  errors: {
+    PASSWORD_REUSED: 'This password was used recently. Choose a different password.',
+    INVALID_PASSWORD: 'The password does not meet the security requirements.',
+    ALREADY_INITIALIZED: 'The system administrator is already initialized.',
+    INVALID_CREDENTIALS: 'Incorrect username or password.',
+    LOGIN_RATE_LIMITED: 'Too many sign-in attempts. Try again later.',
+    ACCOUNT_LOCKED: 'The account is locked. Try again later or contact an administrator.',
+    ACTIVATION_INVALID: 'The activation details are invalid or expired.',
+    SESSION_INVALID: 'Your session has expired. Sign in again.',
+    PASSWORD_CHANGE_REQUIRED: 'Change your password before continuing.',
+    CSRF_INVALID: 'Security validation failed. Refresh the page and try again.',
+    FORBIDDEN: 'You do not have permission to perform this action.',
+    INVALID_REQUEST: 'The request is invalid.',
+  },
   auth: { loginTitle: 'Sign in to KubeSentry', loginHint: 'Use your platform account to enter the cloud-native security control center.', username: 'Username', password: 'Password', confirmPassword: 'Confirm password', passwordMismatch: 'Passwords do not match', login: 'Sign in', logout: 'Sign out', setupTitle: 'Initialize administrator', setupHint: 'Set the password for the default admin user to finish first-time setup.', initialize: 'Finish setup', brandTitle: 'Clear, controlled admission security', brandDescription: 'Manage policies, tenants, and clusters centrally while observing and protecting every Kubernetes admission request.', activateTitle: 'Activate account', activateHint: 'Enter the one-time activation code from your administrator and choose a password.', activationCode: 'Activation code', activate: 'Activate account', changePasswordTitle: 'Change password', changePasswordHint: 'Choose a new secure password.', changeRequiredHint: 'Your password has expired or an administrator requires a change. Update it to continue.', changePassword: 'Change password', passwordChangeRequired: 'Password change required', profile: 'User profile', lastLogin: 'Last login', roles: { system_admin: 'System administrator', tenant_admin: 'Tenant administrator', viewer: 'Viewer' } },
   nav: {
     overview: 'Overview', policies: 'Policies', groups: 'Policy Groups', exceptions: 'Exceptions', distributions: 'Distribution',

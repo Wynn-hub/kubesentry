@@ -27,10 +27,11 @@ type SwagPolicyListItem struct {
 }
 
 type SwagErrorResponse struct {
-	Code    int                   `json:"code" binding:"required" example:"40000"`
-	Message string                `json:"message" binding:"required" example:"invalid request"`
-	Details []string              `json:"details,omitempty"`
-	Data    *SwagReferencedByData `json:"data,omitempty"`
+	Code      int                   `json:"code" binding:"required" example:"40000"`
+	Message   string                `json:"message" binding:"required" example:"invalid request"`
+	ErrorCode string                `json:"errorCode,omitempty" example:"INVALID_REQUEST"`
+	Details   []string              `json:"details,omitempty"`
+	Data      *SwagReferencedByData `json:"data,omitempty"`
 }
 
 type SwagReferencedByData struct {
