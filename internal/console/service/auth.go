@@ -19,13 +19,14 @@ import (
 const MinimumPasswordLength = 12
 
 var (
-	ErrInvalidCredentials = errors.New("invalid username or password")
-	ErrInvalidPassword    = errors.New("password does not meet the minimum length requirement")
-	ErrAlreadyInitialized = errors.New("administrator password is already initialized")
-	ErrAuthentication     = errors.New("authentication required")
-	ErrActivationInvalid  = errors.New("activation code is invalid or expired")
-	ErrAccountLocked      = errors.New("account is temporarily locked")
-	ErrPasswordReused     = errors.New("password was used recently")
+	ErrInvalidCredentials       = errors.New("invalid username or password")
+	ErrInvalidPassword          = errors.New("password does not meet the minimum length requirement")
+	ErrAlreadyInitialized       = errors.New("administrator password is already initialized")
+	ErrAuthentication           = errors.New("authentication required")
+	ErrActivationInvalid        = errors.New("activation code is invalid or expired")
+	ErrAccountLocked            = errors.New("account is temporarily locked")
+	ErrPasswordReused           = errors.New("password was used recently")
+	ErrCurrentPasswordIncorrect = errors.New("current password is incorrect")
 )
 
 type AuthService struct {
@@ -186,26 +187,29 @@ func (s *AuthService) Activate(ctx context.Context, code, password string) error
 	return nil
 }
 
-func (s *AuthService) ChangePassword(ctx context.Context, principal dbrepo.Principal, sessionToken, password string) error {
+func (s *AuthService) ChangePassword(ctx context.Context, principal dbrepo.Principal, sessionToken, currentPassword, newPassword string) error {
 	settings, err := s.securitySettings(ctx)
 	if err != nil {
-		return err
-	}
-	if err := validatePasswordLength(password, settings); err != nil {
 		return err
 	}
 	user, err := s.repo.GetUser(ctx, principal.UserID)
 	if err != nil {
 		return err
 	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)) != nil {
+		return ErrCurrentPasswordIncorrect
+	}
+	if err := validatePasswordLength(newPassword, settings); err != nil {
+		return err
+	}
 	hashes, err := s.repo.ListPasswordHashes(ctx, user.ID, settings.PasswordHistoryCount)
 	if err != nil {
 		return err
 	}
-	if passwordWasUsed(password, append(hashes, user.PasswordHash)) {
+	if passwordWasUsed(newPassword, append(hashes, user.PasswordHash)) {
 		return ErrPasswordReused
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}

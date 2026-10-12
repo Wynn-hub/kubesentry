@@ -446,7 +446,10 @@
             },
             "dto.ChangePasswordInput": {
                 "properties": {
-                    "password": {
+                    "currentPassword": {
+                        "type": "string"
+                    },
+                    "newPassword": {
                         "type": "string"
                     }
                 },
@@ -4266,7 +4269,7 @@
                             }
                         }
                     },
-                    "description": "新密码",
+                    "description": "当前密码和新密码",
                     "required": true
                 },
                 "responses": {

@@ -19,7 +19,8 @@ type ActivateInput struct {
 }
 
 type ChangePasswordInput struct {
-	Password string `json:"password"`
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
 }
 
 type SetupStatusView struct {

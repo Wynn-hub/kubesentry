@@ -1242,7 +1242,8 @@ export interface components {
             verdict: "audit" | "deny";
         };
         "dto.ChangePasswordInput": {
-            password?: string;
+            currentPassword?: string;
+            newPassword?: string;
         };
         "dto.ClusterCommandView": {
             command: string;
@@ -2617,7 +2618,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description 新密码 */
+        /** @description 当前密码和新密码 */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["dto.ChangePasswordInput"];

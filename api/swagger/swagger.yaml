@@ -290,7 +290,9 @@ definitions:
     type: object
   dto.ChangePasswordInput:
     properties:
-      password:
+      currentPassword:
+        type: string
+      newPassword:
         type: string
     type: object
   dto.ClusterCommandView:
@@ -2788,7 +2790,7 @@ paths:
       description: 修改当前用户密码并保留当前会话、撤销其它会话。
       operationId: changePassword
       parameters:
-      - description: 新密码
+      - description: 当前密码和新密码
         in: body
         name: body
         required: true

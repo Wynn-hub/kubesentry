@@ -131,8 +131,10 @@ func (a *authHTTP) changePassword(w http.ResponseWriter, r *http.Request) {
 		writeCodedErr(w, http.StatusUnauthorized, "SESSION_INVALID", "authentication required")
 		return
 	}
-	err = a.service.ChangePassword(r.Context(), principal, cookie.Value, input.Password)
+	err = a.service.ChangePassword(r.Context(), principal, cookie.Value, input.CurrentPassword, input.NewPassword)
 	switch {
+	case errors.Is(err, service.ErrCurrentPasswordIncorrect):
+		writeCodedErr(w, http.StatusBadRequest, "CURRENT_PASSWORD_INCORRECT", err.Error())
 	case errors.Is(err, service.ErrInvalidPassword):
 		writeCodedErr(w, http.StatusBadRequest, "INVALID_PASSWORD", err.Error())
 	case errors.Is(err, service.ErrPasswordReused):

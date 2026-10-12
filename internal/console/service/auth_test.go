@@ -329,11 +329,25 @@ func TestAuthPasswordChangeKeepsCurrentSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.ChangePassword(t.Context(), principal, token, "another secure password"); err != nil {
+	if err := svc.ChangePassword(t.Context(), principal, token, "correct horse battery staple", "another secure password"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.Authenticate(t.Context(), token); err != nil {
 		t.Fatalf("current session error = %v", err)
+	}
+}
+
+func TestAuthPasswordChangeRejectsIncorrectCurrentPassword(t *testing.T) {
+	repo := newAuthRepoFake(t, "correct horse battery staple")
+	svc := NewAuthService(repo)
+	principal := dbrepo.Principal{UserID: repo.admin.ID}
+
+	err := svc.ChangePassword(t.Context(), principal, "", "wrong current password", "another secure password")
+	if !errors.Is(err, ErrCurrentPasswordIncorrect) {
+		t.Fatalf("change password error = %v, want ErrCurrentPasswordIncorrect", err)
+	}
+	if bcrypt.CompareHashAndPassword([]byte(repo.admin.PasswordHash), []byte("correct horse battery staple")) != nil {
+		t.Fatal("password changed after incorrect current password")
 	}
 }
 
@@ -422,10 +436,10 @@ func TestPasswordPolicyHistoryAndExpiry(t *testing.T) {
 	if err != nil || !principal.MustChangePassword || principal.PasswordExpiresAt == nil {
 		t.Fatalf("expired principal = %+v, %v", principal, err)
 	}
-	if err := svc.ChangePassword(t.Context(), principal, token, "correct horse battery staple"); !errors.Is(err, ErrPasswordReused) {
+	if err := svc.ChangePassword(t.Context(), principal, token, "correct horse battery staple", "correct horse battery staple"); !errors.Is(err, ErrPasswordReused) {
 		t.Fatalf("reused password error = %v", err)
 	}
-	if err := svc.ChangePassword(t.Context(), principal, token, "another secure password"); err != nil {
+	if err := svc.ChangePassword(t.Context(), principal, token, "correct horse battery staple", "another secure password"); err != nil {
 		t.Fatal(err)
 	}
 }

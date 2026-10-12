@@ -7,6 +7,7 @@ import { authState, avatarInitials } from '../../auth/session'
 import { i18n } from '../../locales'
 import router from '../../router'
 import loginView from '../LoginView.vue?raw'
+import ChangePasswordView from '../ChangePasswordView.vue'
 
 describe('authentication experience', () => {
   afterEach(() => document.body.replaceChildren())
@@ -33,6 +34,17 @@ describe('authentication experience', () => {
     await router.push('/')
     await router.push('/change-password')
     expect(router.currentRoute.value.name).toBe('change-password')
+  })
+
+  it('asks for the current password before a new password', async () => {
+    authState.status = 'authenticated'
+    authState.me = { id: '1', username: 'admin', role: 'system_admin', mustChangePassword: false }
+    const target = document.createElement('div')
+    createApp(ChangePasswordView).use(i18n).use(ElementPlus).use(router).mount(target)
+    await nextTick()
+
+    expect(target.textContent).toContain('当前密码')
+    expect(target.querySelectorAll('input[type="password"]')).toHaveLength(3)
   })
 
   it('submits login when Enter is pressed in the password field', () => {

@@ -66,7 +66,7 @@ func activate() {}
 // @Accept json
 // @Produce json
 // @Security SessionCookie
-// @Param body body dto.ChangePasswordInput true "新密码"
+// @Param body body dto.ChangePasswordInput true "当前密码和新密码"
 // @Success 200 {object} dto.SwagEmptyResponse
 // @Failure 400 {object} dto.SwagErrorResponse
 // @Failure 409 {object} dto.SwagErrorResponse
