@@ -159,6 +159,7 @@ api-bundle:
 api-lint:
 	python3 scripts/check_openapi_contract.py
 	python3 scripts/bundle_openapi_test.py
+	python3 scripts/chart_templates_test.py
 	python3 scripts/bundle_openapi.py --check
 	$(MAKE) api-ts-check
 	cd web && npx redocly lint --config ../redocly.yaml ../internal/console/openapi_bundle.json ../api/openapi.yaml
