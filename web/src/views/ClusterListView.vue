@@ -113,7 +113,7 @@
   <el-dialog v-model="createDialogOpen" :title="$t('cluster.createTitle')" width="560px" @closed="resetCreateForm">
     <template v-if="createStep === 'basic'">
       <p style="color: var(--el-text-color-secondary); margin-top: 0">{{ $t('cluster.createHint') }}</p>
-      <el-form :model="createForm" label-width="80px">
+      <el-form :model="createForm" label-width="80px" @submit.prevent="nextCreateStep">
         <el-form-item :label="$t('cluster.name')" required>
           <el-input v-model="createForm.name" />
         </el-form-item>
@@ -134,7 +134,7 @@
     <template #footer>
       <template v-if="createStep === 'basic'">
         <el-button @click="createDialogOpen = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="createStep = 'install'">{{ $t('cluster.next') }}</el-button>
+        <el-button type="primary" @click="nextCreateStep">{{ $t('cluster.next') }}</el-button>
       </template>
       <template v-else-if="createStep === 'install'">
         <el-button @click="createStep = 'basic'">{{ $t('cluster.prev') }}</el-button>
@@ -345,6 +345,10 @@ function resetCreateForm() {
   createForm.labels = {}
   generatedCommand.value = ''
   Object.assign(installParams, structuredClone(DEFAULT_INSTALL_PARAMS))
+}
+
+function nextCreateStep() {
+  createStep.value = 'install'
 }
 
 async function onCreate() {
