@@ -45,7 +45,6 @@ router.beforeEach(async (to) => {
   const anonymousRoute = to.name === 'login' || to.name === 'activate'
   if (authState.status === 'anonymous' && !anonymousRoute) return { name: 'login', query: { redirect: to.fullPath } }
   if (authState.status === 'authenticated' && authState.me?.mustChangePassword && to.name !== 'change-password') return { name: 'change-password' }
-  if (authState.status === 'authenticated' && !authState.me?.mustChangePassword && to.name === 'change-password') return { name: 'overview' }
   if (authState.status === 'authenticated' && (to.name === 'login' || to.name === 'setup' || to.name === 'activate')) return { name: 'overview' }
   const capability = to.meta.capability as Capability | undefined
   if (authState.status === 'authenticated' && capability && !can(capability)) return { name: 'overview' }
