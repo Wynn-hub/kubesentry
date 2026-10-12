@@ -3,7 +3,7 @@ export GOROOT := /opt/homebrew/opt/go/libexec
 .PHONY: build build-linux image image-push helm-package helm-push release login clean \
         test lint test-report test-e2e test-e2e-report test-all build-image-e2e tools help \
         build-image-local deploy-local undeploy-local web-build test-web dev-local \
-        proto api-ts-check api-bundle api-lint swagger swagger-check
+        proto api-ts-check api-bundle api-lint swagger swagger-check check-container-engine
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 REGISTRY ?= wynnhub
@@ -19,6 +19,20 @@ REPORT_DIR = $(DIST_DIR)/test-reports
 # TEST_PACKAGE_PARALLELISM only when the local Docker daemon has capacity.
 TEST_PACKAGE_PARALLELISM ?= 1
 SWAG_VERSION ?= v2.0.0-rc5
+
+# Local and E2E image builds use Docker when its daemon is available, otherwise
+# Rancher Desktop's containerd via nerdctl. Override with
+# CONTAINER_ENGINE=docker or CONTAINER_ENGINE=nerdctl when needed.
+ifndef CONTAINER_ENGINE
+CONTAINER_ENGINE := $(shell if docker info >/dev/null 2>&1; then echo docker; elif nerdctl --namespace k8s.io info >/dev/null 2>&1; then echo nerdctl; fi)
+endif
+CONTAINER = $(if $(filter nerdctl,$(CONTAINER_ENGINE)),nerdctl --namespace k8s.io,$(CONTAINER_ENGINE))
+
+check-container-engine:
+	@if [ "$(CONTAINER_ENGINE)" != "docker" ] && [ "$(CONTAINER_ENGINE)" != "nerdctl" ]; then \
+		echo "No usable container engine found. Start Docker or nerdctl, or set CONTAINER_ENGINE=docker|nerdctl." >&2; \
+		exit 1; \
+	fi
 
 # VERSION is the single source of truth for all artifact naming.
 # Override at the command line: make release VERSION=v0.1.0
@@ -78,12 +92,12 @@ build:
 # Uses a Go container so the build env is isolated from the local toolchain.
 GO_IMAGE ?= golang:1.26-alpine
 
-build-linux: web-build
+build-linux: check-container-engine web-build
 	@mkdir -p $(HOME)/go/pkg/mod
 	@for arch in amd64 arm64; do \
 	  echo "→ building linux/$$arch in container"; \
 	  mkdir -p bin/linux-$$arch; \
-	  docker run --rm \
+	  $(CONTAINER) run --rm \
 	    -v "$(CURDIR)":/app \
 	    -v "$(HOME)/go/pkg/mod":/go/pkg/mod \
 	    -w /app \
@@ -169,12 +183,12 @@ lint:
 # Depends on build-linux so e2e images are built from the same binaries
 # that will be published — the test validates the exact release artifact.
 build-image-e2e: build-linux
-	docker build -f Dockerfile.webhook -t wynnhub/kubesentry-webhook:e2e-test .
-	docker build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
-	docker build -f Dockerfile.console -t wynnhub/kubesentry-console:e2e-test .
-	docker build -f Dockerfile.gateway -t wynnhub/kubesentry-gateway:e2e-test .
-	docker build -f Dockerfile.db -t wynnhub/kubesentry-db:e2e-test .
-	docker build -f Dockerfile.console-web -t wynnhub/kubesentry-console-web:e2e-test .
+	$(CONTAINER) build -f Dockerfile.webhook -t wynnhub/kubesentry-webhook:e2e-test .
+	$(CONTAINER) build -f Dockerfile.operator -t wynnhub/kubesentry-operator:e2e-test .
+	$(CONTAINER) build -f Dockerfile.console -t wynnhub/kubesentry-console:e2e-test .
+	$(CONTAINER) build -f Dockerfile.gateway -t wynnhub/kubesentry-gateway:e2e-test .
+	$(CONTAINER) build -f Dockerfile.db -t wynnhub/kubesentry-db:e2e-test .
+	$(CONTAINER) build -f Dockerfile.console-web -t wynnhub/kubesentry-console-web:e2e-test .
 
 # E2E traffic must bypass any local HTTP(S) proxy (e.g. clash): kubectl and
 # client-go honor https_proxy, and a proxied connection to the local API
@@ -230,7 +244,8 @@ test-all: api-lint test-report test-web build-image-e2e test-e2e-report
 
 # ── Local Deploy ──────────────────────────────────────────────────────────────
 # One-shot: build → image → helm upgrade --install to the current kubectl context.
-# Targets docker-desktop / kind / minikube where kubelet shares the local image store.
+# Targets Docker Desktop / Rancher Desktop / kind / minikube where kubelet
+# shares the selected container engine's local image store.
 # Uses tag "local" with pullPolicy=Never so kubelet never tries to pull from a registry.
 LOCAL_TAG        ?= local
 LOCAL_NAMESPACE  ?= kubesentry-system
@@ -243,12 +258,12 @@ LOCAL_CONSOLE_WEB_IMAGE = $(REGISTRY)/kubesentry-console-web:$(LOCAL_TAG)
 
 # Build single-arch images (host arch only) for local k8s — faster than buildx.
 build-image-local: build-linux
-	docker build -f Dockerfile.webhook  -t $(LOCAL_WEBHOOK_IMAGE)  .
-	docker build -f Dockerfile.operator -t $(LOCAL_OPERATOR_IMAGE) .
-	docker build -f Dockerfile.console  -t $(LOCAL_CONSOLE_IMAGE)  .
-	docker build -f Dockerfile.gateway  -t $(LOCAL_GATEWAY_IMAGE)  .
-	docker build -f Dockerfile.db       -t $(LOCAL_DB_IMAGE)       .
-	docker build -f Dockerfile.console-web -t $(LOCAL_CONSOLE_WEB_IMAGE) .
+	$(CONTAINER) build -f Dockerfile.webhook  -t $(LOCAL_WEBHOOK_IMAGE)  .
+	$(CONTAINER) build -f Dockerfile.operator -t $(LOCAL_OPERATOR_IMAGE) .
+	$(CONTAINER) build -f Dockerfile.console  -t $(LOCAL_CONSOLE_IMAGE)  .
+	$(CONTAINER) build -f Dockerfile.gateway  -t $(LOCAL_GATEWAY_IMAGE)  .
+	$(CONTAINER) build -f Dockerfile.db       -t $(LOCAL_DB_IMAGE)       .
+	$(CONTAINER) build -f Dockerfile.console-web -t $(LOCAL_CONSOLE_WEB_IMAGE) .
 
 # Build images + helm install/upgrade in one shot.
 # Two chart installs into the same namespace: kubesentry-gateway (gateway +
@@ -457,6 +472,7 @@ help:
 	@printf "  %-20s %s\n" "REGISTRY" "Image registry prefix (default: wynnhub)"
 	@printf "  %-20s %s\n" "PLATFORMS" "Target platforms (default: linux/amd64,linux/arm64)"
 	@printf "  %-20s %s\n" "GO_IMAGE" "Go builder image (default: golang:1.26-alpine)"
+	@printf "  %-20s %s\n" "CONTAINER_ENGINE" "Local image engine (auto-detected: docker or nerdctl)"
 	@echo ""
 	@echo "Development:"
 	@printf "  %-22s %s\n" "build"           "Compile for local arch → bin/webhook, bin/operator"
