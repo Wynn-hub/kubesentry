@@ -72,6 +72,20 @@ func TestClusterScopePlatformAuthAndAdmissionScope(t *testing.T) {
 	if list.Code != http.StatusOK || page.Total != 1 || len(page.Items) != 1 || page.Items[0].Name != "cluster-a" {
 		t.Fatalf("tenant cluster list = %d %+v", list.Code, page)
 	}
+	if page.Items[0].TenantName != first.Name {
+		t.Fatalf("cluster tenant name = %q, want %q", page.Items[0].TenantName, first.Name)
+	}
+	tenantList := authRequest(t, h, http.MethodGet, "/api/v1/tenants", nil, adminCookie, false)
+	tenantViews := responseData[[]dto.TenantView](t, tenantList.Body.Bytes())
+	var firstView *dto.TenantView
+	for i := range tenantViews {
+		if tenantViews[i].ID == first.ID {
+			firstView = &tenantViews[i]
+		}
+	}
+	if tenantList.Code != http.StatusOK || firstView == nil || len(firstView.ClusterNames) != 1 || firstView.ClusterNames[0] != "cluster-a" {
+		t.Fatalf("tenant cluster names = %d %+v", tenantList.Code, tenantViews)
+	}
 	if rec := authRequest(t, h, http.MethodGet, "/api/v1/clusters/cluster-b", nil, viewerCookie, false); rec.Code != http.StatusNotFound {
 		t.Fatalf("cross-tenant cluster get = %d %s", rec.Code, rec.Body.String())
 	}
@@ -137,8 +151,12 @@ func TestClusterScopePlatformAuthAndAdmissionScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	transfer := authRequest(t, h, http.MethodPut, "/api/v1/clusters/cluster-a/tenant", dto.ClusterTenantRequest{TenantID: &second.ID}, adminCookie, true)
-	if transfer.Code != http.StatusConflict {
+	if transfer.Code != http.StatusOK {
 		t.Fatalf("targeted cluster transfer = %d %s", transfer.Code, transfer.Body.String())
+	}
+	transferred, err := repos.Clusters.GetByName(t.Context(), "cluster-a")
+	if err != nil || transferred.TenantID == nil || *transferred.TenantID != second.ID {
+		t.Fatalf("transferred cluster = %+v, %v", transferred, err)
 	}
 	assign := authRequest(t, h, http.MethodPut, "/api/v1/clusters/unassigned/tenant", dto.ClusterTenantRequest{TenantID: &first.ID}, adminCookie, true)
 	if assign.Code != http.StatusOK {

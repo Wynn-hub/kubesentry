@@ -458,7 +458,7 @@ func TestPasswordPolicyHistoryAndExpiry(t *testing.T) {
 
 func TestTenantStatusChangeRevokesSessions(t *testing.T) {
 	repo := newAuthRepoFake(t, "correct horse battery staple")
-	svc := NewIdentityService(repo)
+	svc := NewIdentityService(repo, nil)
 	if err := svc.SetTenantStatus(t.Context(), dbrepo.Principal{Role: dbrepo.RoleSystemAdmin}, 7, dbrepo.UserStatusDisabled); err != nil {
 		t.Fatal(err)
 	}

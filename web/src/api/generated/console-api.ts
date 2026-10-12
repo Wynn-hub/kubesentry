@@ -1285,6 +1285,7 @@ export interface components {
             readyNodeCount: number;
             /** @example  */
             tenantId?: string;
+            tenantName?: string;
         };
         "dto.ClusterLabelsInput": {
             labels: {
@@ -1999,6 +2000,7 @@ export interface components {
             status?: "active" | "disabled";
         };
         "dto.TenantView": {
+            clusterNames?: string[];
             /** @example  */
             id?: string;
             name?: string;

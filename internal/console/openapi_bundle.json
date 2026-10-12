@@ -586,6 +586,9 @@
                     "tenantId": {
                         "example": "",
                         "type": "string"
+                    },
+                    "tenantName": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -3155,6 +3158,12 @@
             },
             "dto.TenantView": {
                 "properties": {
+                    "clusterNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "id": {
                         "example": "",
                         "type": "string"

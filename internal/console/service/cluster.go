@@ -44,9 +44,22 @@ func (s *ClusterService) List(ctx context.Context, page, pageSize int, sortBy, s
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
 	items := make([]dto.ClusterItem, 0, len(rows))
+	tenantNames := map[int64]string{}
 	for i := range rows {
 		c := rows[i]
-		items = append(items, dto.ClusterItem{Name: c.Name, Phase: c.Phase, OperatorVersion: c.OperatorVersion, KubernetesVersion: c.KubernetesVersion, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, LastHeartbeatAt: c.LastHeartbeatAt, CreatedAt: c.CreatedAt, TenantID: c.TenantID})
+		var tenantName string
+		if c.TenantID != nil {
+			tenantName = tenantNames[*c.TenantID]
+			if tenantName == "" {
+				tenant, tenantErr := s.repos.Identity.GetTenant(ctx, *c.TenantID)
+				if tenantErr != nil {
+					return nil, fmt.Errorf("get cluster tenant: %w", tenantErr)
+				}
+				tenantName = tenant.Name
+				tenantNames[*c.TenantID] = tenantName
+			}
+		}
+		items = append(items, dto.ClusterItem{Name: c.Name, Phase: c.Phase, OperatorVersion: c.OperatorVersion, KubernetesVersion: c.KubernetesVersion, NodeCount: c.NodeCount, ReadyNodeCount: c.ReadyNodeCount, LastHeartbeatAt: c.LastHeartbeatAt, CreatedAt: c.CreatedAt, TenantID: c.TenantID, TenantName: tenantName})
 	}
 	return &dto.ClusterPageView{Items: items, Total: int(total), Page: page, PageSize: pageSize}, nil
 }
@@ -289,11 +302,9 @@ func (s *ClusterService) AssignTenant(ctx context.Context, name string, tenantID
 		}
 	}
 	if err := s.repos.Clusters.AssignTenant(ctx, cluster.ID, tenantID); err != nil {
-		if errors.Is(err, dbrepo.ErrClusterTenantInUse) {
-			return newConflict("%s", err.Error())
-		}
 		return err
 	}
+	s.notify(ctx, "cluster-tenant")
 	return nil
 }
 

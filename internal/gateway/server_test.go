@@ -368,3 +368,21 @@ func TestReRegisterSameUIDRotatesToken(t *testing.T) {
 		t.Fatalf("re-register failed: %v", err)
 	}
 }
+
+func TestDistributionsForClusterKeepsOnlySystemAndOwningTenant(t *testing.T) {
+	tenantID, otherTenantID := int64(1), int64(2)
+	distributions := []dbrepo.PolicyDistribution{
+		{Name: "system", ResourceOwnerType: "system"},
+		{Name: "own", ResourceOwnerType: "tenant", TenantID: &tenantID},
+		{Name: "other", ResourceOwnerType: "tenant", TenantID: &otherTenantID},
+	}
+
+	got := distributionsForCluster(distributions, &tenantID)
+	if len(got) != 2 || got[0].Name != "system" || got[1].Name != "own" {
+		t.Fatalf("tenant distributions = %#v", got)
+	}
+	got = distributionsForCluster(distributions, nil)
+	if len(got) != 1 || got[0].Name != "system" {
+		t.Fatalf("unassigned distributions = %#v", got)
+	}
+}

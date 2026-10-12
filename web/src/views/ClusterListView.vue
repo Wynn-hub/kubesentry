@@ -30,7 +30,7 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column :label="$t('cluster.tenant')" width="150"><template #default="{ row }">{{ tenantName(row.tenantId) }}</template></el-table-column>
+        <el-table-column :label="$t('cluster.tenant')" width="150"><template #default="{ row }">{{ row.tenantName || tenantName(row.tenantId) }}</template></el-table-column>
         <el-table-column :label="$t('cluster.lastHeartbeatAt')" prop="lastHeartbeatAt" sortable="custom" :sort-orders="sortOrders" width="175">
           <template #default="{ row }">
             {{ row.lastHeartbeatAt ? relTime(row.lastHeartbeatAt, locale) : $t('cluster.neverHeartbeat') }}

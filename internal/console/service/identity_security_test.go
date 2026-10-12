@@ -11,7 +11,7 @@ import (
 
 func TestIdentityCreateUserReturnsOneTimeActivation(t *testing.T) {
 	repo := newAuthRepoFake(t, "correct horse battery staple")
-	svc := NewIdentityService(repo)
+	svc := NewIdentityService(repo, nil)
 	now := time.Now().UTC()
 	svc.now = func() time.Time { return now }
 	actor := dbrepo.Principal{UserID: 1, Role: dbrepo.RoleSystemAdmin}
@@ -33,7 +33,7 @@ func TestIdentityCreateUserReturnsOneTimeActivation(t *testing.T) {
 
 func TestIdentityCreateUserRoleAndTenantRules(t *testing.T) {
 	repo := newAuthRepoFake(t, "correct horse battery staple")
-	svc := NewIdentityService(repo)
+	svc := NewIdentityService(repo, nil)
 	tenantID := int64(9)
 	tenantActor := dbrepo.Principal{Role: dbrepo.RoleTenantAdmin, TenantID: &tenantID}
 	if _, err := svc.CreateUser(t.Context(), tenantActor, dto.CreateUserRequest{Username: "viewer", Role: dbrepo.RoleViewer, TenantID: &tenantID}); err != nil {
@@ -71,7 +71,7 @@ func TestIdentityAdministrativeActions(t *testing.T) {
 	locked := time.Now().UTC().Add(time.Hour)
 	repo.admin.FailedLoginCount = 5
 	repo.admin.LockedUntil = &locked
-	svc := NewIdentityService(repo)
+	svc := NewIdentityService(repo, nil)
 	actor := dbrepo.Principal{UserID: 99, Role: dbrepo.RoleSystemAdmin}
 	if err := svc.UnlockUser(t.Context(), actor, repo.admin.ID); err != nil {
 		t.Fatal(err)

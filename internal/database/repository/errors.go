@@ -13,7 +13,6 @@ var ErrConflict = errors.New("dbrepo: row was modified since it was read")
 
 var (
 	ErrLastSystemAdmin               = errors.New("at least one enabled system administrator is required")
-	ErrClusterTenantInUse            = errors.New("cluster is targeted by an existing tenant distribution")
 	ErrClusterNotFound               = errors.New("cluster not found")
 	ErrClusterTenantTransferRequired = errors.New("cluster belongs to another tenant")
 	ErrInactiveTenant                = errors.New("tenant is inactive")

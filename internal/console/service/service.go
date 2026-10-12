@@ -44,8 +44,8 @@ func New(repos repository.Repositories, notifier Notifier) Services {
 		Platform:         NewPlatformService(repos.Platform, repos.Clusters, notifier),
 		Admission:        NewAdmissionService(repos.Admission, notifier),
 		Auth:             NewAuthService(repos.Identity),
-		Identity:         NewIdentityService(repos.Identity),
+		Identity:         NewIdentityService(repos.Identity, repos.Clusters),
 		SecuritySettings: NewSecuritySettingsService(repos.Identity),
-		TenantCluster:    NewTenantClusterService(repos.Clusters),
+		TenantCluster:    NewTenantClusterService(repos.Clusters, notifier),
 	}
 }

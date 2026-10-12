@@ -16,7 +16,7 @@ import { login } from '../api/auth'
 import { refreshAuth } from '../auth/session'
 import AuthLayout from '../layouts/AuthLayout.vue'
 const route = useRoute(), router = useRouter()
-const username = ref(''), password = ref(''), error = ref(''), loading = ref(false)
+const username = ref(typeof route.query.username === 'string' ? route.query.username : ''), password = ref(''), error = ref(''), loading = ref(false)
 async function submit() {
   if (loading.value) return
   loading.value = true; error.value = ''

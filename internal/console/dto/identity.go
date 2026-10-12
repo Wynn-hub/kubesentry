@@ -13,9 +13,10 @@ type TenantStatusRequest struct {
 }
 
 type TenantView struct {
-	ID     int64             `json:"id,string" swaggertype:"string"`
-	Name   string            `json:"name"`
-	Status dbrepo.UserStatus `json:"status" swaggertype:"string" enums:"active,disabled"`
+	ID           int64             `json:"id,string" swaggertype:"string"`
+	Name         string            `json:"name"`
+	Status       dbrepo.UserStatus `json:"status" swaggertype:"string" enums:"active,disabled"`
+	ClusterNames []string          `json:"clusterNames"`
 }
 
 type CreateUserRequest struct {

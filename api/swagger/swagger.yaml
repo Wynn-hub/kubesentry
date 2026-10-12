@@ -388,6 +388,8 @@ definitions:
       tenantId:
         example: ""
         type: string
+      tenantName:
+        type: string
     required:
     - createdAt
     - kubernetesVersion
@@ -2197,6 +2199,10 @@ definitions:
     type: object
   dto.TenantView:
     properties:
+      clusterNames:
+        items:
+          type: string
+        type: array
       id:
         example: ""
         type: string

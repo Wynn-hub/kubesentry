@@ -7,7 +7,10 @@ import clusterDialog from '../../components/ClusterTenantDialog.vue?raw'
 describe('tenant cluster assignment', () => {
   it('offers assignment from both management surfaces', () => {
     expect(tenantView).toContain('TenantClusterDialog')
+    expect(tenantView).toContain('row.clusterNames')
+    expect(tenantView).toContain("'tenant.disable'")
     expect(clusterView).toContain('ClusterTenantDialog')
+    expect(clusterView).toContain('row.tenantName')
     expect(clusterView).toContain("command=\"tenant\"")
   })
 

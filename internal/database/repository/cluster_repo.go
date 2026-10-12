@@ -61,7 +61,7 @@ func (r *ClusterRepo) List(ctx context.Context) ([]Cluster, error) {
 
 func (r *ClusterRepo) ListForTenant(ctx context.Context, tenantID int64) ([]Cluster, error) {
 	var out []Cluster
-	if err := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID).Find(&out).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID).Order("name ASC").Find(&out).Error; err != nil {
 		return nil, fmt.Errorf("list tenant clusters: %w", err)
 	}
 	return out, nil
@@ -201,24 +201,7 @@ func (r *ClusterRepo) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *ClusterRepo) AssignTenant(ctx context.Context, id int64, tenantID *int64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var cluster Cluster
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&cluster, id).Error; err != nil {
-			return err
-		}
-		if cluster.TenantID != nil && (tenantID == nil || *cluster.TenantID != *tenantID) {
-			var distributions []PolicyDistribution
-			if err := tx.Where("tenant_id = ?", *cluster.TenantID).Find(&distributions).Error; err != nil {
-				return err
-			}
-			for _, distribution := range distributions {
-				if distributionTargetsCluster(distribution, cluster) {
-					return ErrClusterTenantInUse
-				}
-			}
-		}
-		return tx.Model(&cluster).Update("tenant_id", tenantID).Error
-	})
+	return r.db.WithContext(ctx).Model(&Cluster{}).Where("id = ?", id).Update("tenant_id", tenantID).Error
 }
 
 func (r *ClusterRepo) SyncTenantClusters(ctx context.Context, tenantID int64, names []string, allowTransfer bool) error {

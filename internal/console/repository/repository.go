@@ -45,6 +45,10 @@ type PlatformClusterRepository interface {
 	GetByNameForTenant(context.Context, int64, string) (*dbrepo.Cluster, error)
 }
 
+type TenantClusterReader interface {
+	ListForTenant(context.Context, int64) ([]dbrepo.Cluster, error)
+}
+
 type PlatformRepository interface {
 	GetSettings(context.Context) (*dbrepo.PlatformObservabilitySettings, error)
 	UpdateSettings(context.Context, bool, int) error

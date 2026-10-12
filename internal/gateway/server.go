@@ -348,7 +348,7 @@ func (s *Server) renderFor(ctx context.Context, cluster string) (RenderResult, e
 			return RenderResult{}, err
 		}
 	}
-	res := RenderWithExceptions(toGatewayCluster(cl), toGatewayDists(dists), toV1alpha1Groups(groups), toV1alpha1Policies(policies), toV1alpha1Exceptions(exceptions))
+	res := RenderWithExceptions(toGatewayCluster(cl), toGatewayDists(distributionsForCluster(dists, cl.TenantID)), toV1alpha1Groups(groups), toV1alpha1Policies(policies), toV1alpha1Exceptions(exceptions))
 	if s.repos.UninstallTasks == nil || cl.ID == 0 {
 		return s.withAdmissionEventConfig(ctx, res)
 	}
@@ -359,6 +359,16 @@ func (s *Server) renderFor(ctx context.Context, cluster string) (RenderResult, e
 	res.UninstallTasks = ToProtoUninstallTasks(tasks)
 	res.Hash = hashWithUninstallTasks(res.Hash, res.UninstallTasks)
 	return s.withAdmissionEventConfig(ctx, res)
+}
+
+func distributionsForCluster(distributions []dbrepo.PolicyDistribution, tenantID *int64) []dbrepo.PolicyDistribution {
+	visible := make([]dbrepo.PolicyDistribution, 0, len(distributions))
+	for _, distribution := range distributions {
+		if distribution.ResourceOwnerType == "system" || tenantID != nil && distribution.TenantID != nil && *distribution.TenantID == *tenantID {
+			visible = append(visible, distribution)
+		}
+	}
+	return visible
 }
 
 func (s *Server) withAdmissionEventConfig(ctx context.Context, res RenderResult) (RenderResult, error) {

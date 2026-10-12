@@ -289,6 +289,7 @@ type ClusterItem struct {
 	LastHeartbeatAt   *time.Time `json:"lastHeartbeatAt,omitempty" format:"date-time"`
 	CreatedAt         time.Time  `json:"createdAt" binding:"required" format:"date-time"`
 	TenantID          *int64     `json:"tenantId,omitempty,string" swaggertype:"string"`
+	TenantName        string     `json:"tenantName,omitempty"`
 }
 
 type ClusterView struct {

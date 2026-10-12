@@ -22,12 +22,13 @@ var (
 )
 
 type IdentityService struct {
-	repo repository.IdentitySecurityRepository
-	now  func() time.Time
+	repo     repository.IdentitySecurityRepository
+	clusters repository.TenantClusterReader
+	now      func() time.Time
 }
 
-func NewIdentityService(repo repository.IdentitySecurityRepository) *IdentityService {
-	return &IdentityService{repo: repo, now: time.Now}
+func NewIdentityService(repo repository.IdentitySecurityRepository, clusters repository.TenantClusterReader) *IdentityService {
+	return &IdentityService{repo: repo, clusters: clusters, now: time.Now}
 }
 
 func (s *IdentityService) ListTenants(ctx context.Context, actor dbrepo.Principal) ([]dto.TenantView, error) {
@@ -52,7 +53,17 @@ func (s *IdentityService) ListTenants(ctx context.Context, actor dbrepo.Principa
 	}
 	out := make([]dto.TenantView, 0, len(tenants))
 	for _, tenant := range tenants {
-		out = append(out, tenantView(tenant))
+		view := tenantView(tenant)
+		if s.clusters != nil {
+			clusters, err := s.clusters.ListForTenant(ctx, tenant.ID)
+			if err != nil {
+				return nil, err
+			}
+			for _, cluster := range clusters {
+				view.ClusterNames = append(view.ClusterNames, cluster.Name)
+			}
+		}
+		out = append(out, view)
 	}
 	return out, nil
 }
@@ -285,7 +296,7 @@ func (s *IdentityService) authorizedUser(ctx context.Context, actor dbrepo.Princ
 }
 
 func tenantView(tenant dbrepo.Tenant) dto.TenantView {
-	return dto.TenantView{ID: tenant.ID, Name: tenant.Name, Status: tenant.Status}
+	return dto.TenantView{ID: tenant.ID, Name: tenant.Name, Status: tenant.Status, ClusterNames: []string{}}
 }
 
 func userView(user dbrepo.User) dto.UserView {
