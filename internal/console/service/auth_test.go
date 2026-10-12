@@ -351,6 +351,18 @@ func TestAuthPasswordChangeRejectsIncorrectCurrentPassword(t *testing.T) {
 	}
 }
 
+func TestAuthPasswordChangeAllowsReuseWhenHistoryDisabled(t *testing.T) {
+	repo := newAuthRepoFake(t, "correct horse battery staple")
+	repo.settings.PasswordHistoryCount = 0
+	repo.passwordHashes = []string{repo.admin.PasswordHash}
+	svc := NewAuthService(repo)
+	principal := dbrepo.Principal{UserID: repo.admin.ID}
+
+	if err := svc.ChangePassword(t.Context(), principal, "", "correct horse battery staple", "correct horse battery staple"); err != nil {
+		t.Fatalf("change password with disabled history: %v", err)
+	}
+}
+
 func TestAuthActivationHonorsExpiryAndConsumesCode(t *testing.T) {
 	repo := newAuthRepoFake(t, "")
 	now := time.Now().UTC()

@@ -7,4 +7,9 @@ import App from './App.vue'
 import router from './router'
 import { i18n } from './locales'
 
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  window.location.reload()
+})
+
 createApp(App).use(router).use(i18n).use(ElementPlus).mount('#app')

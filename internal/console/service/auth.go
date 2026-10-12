@@ -202,12 +202,14 @@ func (s *AuthService) ChangePassword(ctx context.Context, principal dbrepo.Princ
 	if err := validatePasswordLength(newPassword, settings); err != nil {
 		return err
 	}
-	hashes, err := s.repo.ListPasswordHashes(ctx, user.ID, settings.PasswordHistoryCount)
-	if err != nil {
-		return err
-	}
-	if passwordWasUsed(newPassword, append(hashes, user.PasswordHash)) {
-		return ErrPasswordReused
+	if settings.PasswordHistoryCount > 0 {
+		hashes, err := s.repo.ListPasswordHashes(ctx, user.ID, settings.PasswordHistoryCount)
+		if err != nil {
+			return err
+		}
+		if passwordWasUsed(newPassword, append(hashes, user.PasswordHash)) {
+			return ErrPasswordReused
+		}
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
