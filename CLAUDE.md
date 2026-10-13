@@ -170,6 +170,24 @@ semantics before using it.
 
 The gopls LSP may report false-positive "undefined" errors for symbols defined in the same compilation (e.g. after a `go build` succeeds). Always verify with `go build ./...` or `go test ./...` — if the compiler is happy, the IDE error is a stale cache and can be ignored.
 
+## Documentation Maintenance
+
+Documentation is a required deliverable, not a follow-up. Apply the matrix in
+`docs/zh-CN/documentation-maintenance.md` (English mirror:
+`docs/en-US/documentation-maintenance.md`) whenever changing user-visible
+features, permissions, APIs, components, data/control flows, Helm values,
+ports, network direction, installation, upgrade, uninstall, or built-in rules.
+
+- Chinese is the primary documentation language; update the English mirror in
+  the same change.
+- User-facing behavior must update the authenticated Help Center and both
+  locales.
+- Architecture changes must update the editable `.drawio` source and its SVG.
+- Network or Helm changes must update both READMEs, the network guide, Help
+  Center, and the relevant chart README.
+- Verify links, locale key parity, frontend tests/build, and Helm lint before
+  completion. Do not include real credentials or environment-specific secrets.
+
 ## Branching & Release Rules
 
 These rules apply to every git operation in this repository.
