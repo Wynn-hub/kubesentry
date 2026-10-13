@@ -50,6 +50,35 @@ describe('application navigation', () => {
     expect(router.currentRoute.value.fullPath).toBe('/system/api-docs')
   })
 
+  it('navigates to the authenticated help center from the AppLayout menu', async () => {
+    authState.status = 'authenticated'
+    authState.me = { id: '1', username: 'admin', role: 'system_admin' }
+    await router.push('/')
+    await router.isReady()
+    const target = document.createElement('div')
+    const app = createApp(AppLayout).use(router).use(i18n).use(ElementPlus)
+    unmount = app.unmount
+    app.mount(target)
+    await nextTick()
+
+    const menuItem = Array.from(target.querySelectorAll<HTMLElement>('.el-menu-item'))
+      .find((item) => item.textContent?.includes(i18n.global.t('nav.help')))
+    expect(menuItem).not.toBeNull()
+
+    const navigated = new Promise<void>((resolve) => {
+      const removeAfterEach = router.afterEach((to) => {
+        if (to.fullPath === '/help') {
+          removeAfterEach()
+          resolve()
+        }
+      })
+    })
+    menuItem?.click()
+    await navigated
+
+    expect(router.currentRoute.value.fullPath).toBe('/help')
+  })
+
   it('navigates to user management from the AppLayout menu', async () => {
     authState.status = 'authenticated'
     authState.me = { id: '1', username: 'admin', role: 'system_admin' }

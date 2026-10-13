@@ -28,6 +28,7 @@ const router = createRouter({
         { path: 'clusters', name: 'clusters', component: () => import('../views/ClusterListView.vue') },
         { path: 'clusters/:name', name: 'cluster-detail', component: () => import('../views/ClusterDetailView.vue'), meta: { backFallback: { name: 'clusters' } } },
         { path: 'system/api-docs', name: 'api-docs', component: () => import('../views/ApiDocsView.vue') },
+        { path: 'help', name: 'help', component: () => import('../views/HelpCenterView.vue') },
         { path: 'tenants', name: 'tenants', component: () => import('../views/TenantListView.vue'), meta: { capability: 'platform.manage' } },
         { path: 'users', name: 'users', component: () => import('../views/UserListView.vue'), meta: { capability: 'tenant.manage' } },
         { path: 'events', name: 'events', component: () => import('../views/AdmissionEventsView.vue') },

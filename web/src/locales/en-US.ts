@@ -20,7 +20,7 @@ export default {
     clusters: 'Clusters', tenants: 'Tenants', users: 'Users',
     observability: 'Platform Observability', events: 'Admission Events', audit: 'K8s Audit', alerts: 'Alert Rules',
     groupPlatform: 'Platform', groupProtection: 'Policy Protection', groupObservability: 'Audit & Alerting', groupSystem: 'System',
-    apiDocs: 'API Documentation',
+    apiDocs: 'API Documentation', help: 'Help Center',
     clusterTip: 'Single-cluster mode; multi-cluster arrives in roadmap Phase 1',
     soon: 'Planned', home: 'Go to the KubeSentry home page',
   },

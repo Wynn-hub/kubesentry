@@ -91,6 +91,12 @@
           {{ $t('nav.alerts') }}<span class="soon-badge">{{ $t('nav.soon') }}</span>
         </el-menu-item>
         <div class="nav-group-title">{{ $t('nav.groupSystem') }}</div>
+        <el-menu-item index="/help">
+          <svg aria-hidden="true" class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9" /><path d="M9.8 9a2.4 2.4 0 1 1 3.4 2.2c-.8.4-1.2.9-1.2 1.8M12 17h.01" stroke-linecap="round" />
+          </svg>
+          {{ $t('nav.help') }}
+        </el-menu-item>
         <el-menu-item index="/system/api-docs">
           <svg aria-hidden="true" class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16.5A1.5 1.5 0 0 0 18.5 18H6.5A2.5 2.5 0 0 0 4 20.5v-15Z" stroke-linejoin="round" />

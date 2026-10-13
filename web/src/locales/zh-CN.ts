@@ -20,7 +20,7 @@ export default {
     clusters: '集群管理', tenants: '租户管理', users: '用户管理',
     observability: '平台观测', events: '准入事件', audit: 'K8s 审计', alerts: '告警规则',
     groupPlatform: '平台', groupProtection: '策略防护', groupObservability: '审计与告警', groupSystem: '系统',
-    apiDocs: 'API 文档',
+    apiDocs: 'API 文档', help: '帮助中心',
     clusterTip: '当前为单集群模式；多集群管理在路线图阶段 1 建设',
     soon: '规划中', home: '返回 KubeSentry 首页',
   },
