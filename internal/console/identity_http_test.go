@@ -118,6 +118,9 @@ func TestIdentityHTTPRoleBoundariesAndSessionRevocation(t *testing.T) {
 		t.Fatalf("old viewer session = %d %s", rec.Code, rec.Body.String())
 	}
 
+	if rec := authRequest(t, h, http.MethodPut, "/api/v1/users/"+itoa(systemAdmin.ID)+"/status", dto.UserStatusRequest{Status: dbrepo.UserStatusDisabled}, adminCookie, true); rec.Code != http.StatusOK {
+		t.Fatalf("disable second admin = %d %s", rec.Code, rec.Body.String())
+	}
 	adminID := responseData[dto.MeView](t, authRequest(t, h, http.MethodGet, "/api/v1/me", nil, adminCookie, false).Body.Bytes()).ID
 	if rec := authRequest(t, h, http.MethodPut, "/api/v1/users/"+itoa(adminID)+"/status", dto.UserStatusRequest{Status: dbrepo.UserStatusDisabled}, adminCookie, true); rec.Code != http.StatusConflict {
 		t.Fatalf("disable last admin = %d %s", rec.Code, rec.Body.String())

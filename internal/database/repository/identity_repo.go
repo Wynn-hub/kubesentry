@@ -310,7 +310,7 @@ func (r *IdentityRepo) SetUserStatusAndRevoke(ctx context.Context, userID int64,
 		}
 		if user.Role == RoleSystemAdmin && status == UserStatusDisabled {
 			var enabled []User
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("role = ? AND status = ?", RoleSystemAdmin, UserStatusActive).Find(&enabled).Error; err != nil {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("role = ? AND status = ? AND password_hash <> ''", RoleSystemAdmin, UserStatusActive).Find(&enabled).Error; err != nil {
 				return err
 			}
 			if len(enabled) <= 1 {
@@ -349,7 +349,7 @@ func (r *IdentityRepo) DeleteUserAndRevoke(ctx context.Context, userID int64, at
 		}
 		if user.Role == RoleSystemAdmin && user.Status == UserStatusActive {
 			var enabled []User
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("role = ? AND status = ?", RoleSystemAdmin, UserStatusActive).Find(&enabled).Error; err != nil {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("role = ? AND status = ? AND password_hash <> ''", RoleSystemAdmin, UserStatusActive).Find(&enabled).Error; err != nil {
 				return err
 			}
 			if len(enabled) <= 1 {

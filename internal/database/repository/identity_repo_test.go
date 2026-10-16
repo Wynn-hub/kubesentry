@@ -57,6 +57,25 @@ func TestIdentityInitializeAdminIsAtomic(t *testing.T) {
 	}
 }
 
+func TestIdentityUnactivatedAdminDoesNotAllowDisablingLastUsableAdmin(t *testing.T) {
+	db := newTestDB(t)
+	repo := repository.NewIdentityRepo(db)
+	ctx := t.Context()
+	admin, err := repo.GetUserByUsername(ctx, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.InitializeAdmin(ctx, "password-hash", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.CreateUser(ctx, &repository.User{Username: "pending-admin", Role: repository.RoleSystemAdmin, Status: repository.UserStatusActive}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SetUserStatusAndRevoke(ctx, admin.ID, repository.UserStatusDisabled, time.Now()); !errors.Is(err, repository.ErrLastSystemAdmin) {
+		t.Fatalf("SetUserStatusAndRevoke() error = %v, want %v", err, repository.ErrLastSystemAdmin)
+	}
+}
+
 func TestIdentitySessionLifecycle(t *testing.T) {
 	db := newTestDB(t)
 	repo := repository.NewIdentityRepo(db)
