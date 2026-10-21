@@ -137,23 +137,29 @@ func TestT9_MultitenantAccess(t *testing.T) {
 		t.Fatalf("create tenant: %d %+v", code, env)
 	}
 	var tenant struct {
-		ID int64 `json:"id"`
+		ID string `json:"id"`
 	}
 	if err := json.Unmarshal(env.Data, &tenant); err != nil {
 		t.Fatal(err)
 	}
-	defer consoleDo(t, http.MethodPut, "/api/v1/tenants/"+strconv.FormatInt(tenant.ID, 10)+"/status", map[string]string{"status": "disabled"})
-	code, env = consoleDo(t, http.MethodPost, "/api/v1/users", map[string]any{"username": username, "password": consoleAdminPassword, "role": "viewer", "tenantId": tenant.ID})
+	defer consoleDo(t, http.MethodPut, "/api/v1/tenants/"+tenant.ID+"/status", map[string]string{"status": "disabled"})
+	code, env = consoleDo(t, http.MethodPost, "/api/v1/users", map[string]any{"username": username, "role": "viewer", "tenantId": tenant.ID})
 	if code != http.StatusOK {
 		t.Fatalf("create viewer: %d %+v", code, env)
 	}
-	var user struct {
-		ID int64 `json:"id"`
+	var result struct {
+		User struct {
+			ID string `json:"id"`
+		} `json:"user"`
+		ActivationCode string `json:"activationCode"`
 	}
-	if err := json.Unmarshal(env.Data, &user); err != nil {
+	if err := json.Unmarshal(env.Data, &result); err != nil {
 		t.Fatal(err)
 	}
-	defer consoleDo(t, http.MethodDelete, "/api/v1/users/"+strconv.FormatInt(user.ID, 10), nil)
+	defer consoleDo(t, http.MethodDelete, "/api/v1/users/"+result.User.ID, nil)
+	if code, env = consoleRequest(t, http.DefaultClient, http.MethodPost, "/api/v1/auth/activate", map[string]string{"code": result.ActivationCode, "password": consoleAdminPassword}); code != http.StatusOK {
+		t.Fatalf("activate viewer: %d %+v", code, env)
+	}
 	if code, env = consoleDo(t, http.MethodPut, "/api/v1/clusters/local/tenant", map[string]any{"tenantId": tenant.ID}); code != http.StatusOK {
 		t.Fatalf("assign cluster: %d %+v", code, env)
 	}

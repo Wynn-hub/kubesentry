@@ -38,19 +38,6 @@ func waitForManagedDistributionObjects(t *testing.T, ctx context.Context) {
 	}
 }
 
-func waitForDistributionObjectsPruned(t *testing.T, ctx context.Context) {
-	t.Helper()
-	if err := wait.PollUntilContextTimeout(ctx, 3*time.Second, 2*time.Minute, false, func(ctx context.Context) (bool, error) {
-		var policy v1alpha1.Policy
-		policyErr := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-dist-policy"}, &policy)
-		var group v1alpha1.PolicyGroup
-		groupErr := k8sClient.Get(ctx, types.NamespacedName{Name: "e2e-dist-group"}, &group)
-		return apierrors.IsNotFound(policyErr) && apierrors.IsNotFound(groupErr), nil
-	}); err != nil {
-		t.Fatalf("distribution objects were not pruned from the member cluster: %v", err)
-	}
-}
-
 // TestT11DistributionPipeline exercises the database-backed distribution
 // pipeline end to end. Gateway-side library objects are created through the
 // console API; only the rendered Policy and PolicyGroup are materialized as
@@ -87,8 +74,10 @@ func TestT11DistributionPipeline(t *testing.T) {
 	t.Cleanup(func() { consoleDo(t, http.MethodDelete, "/api/v1/policies/e2e-dist-policy?force=true", nil) })
 
 	groupBody := map[string]any{
-		"name":    "e2e-dist-group",
-		"enabled": true,
+		"name":         "e2e-dist-group",
+		"enabled":      true,
+		"allClusters":  false,
+		"clusterNames": []string{"local"},
 		"policies": map[string]any{
 			"byName": []map[string]any{{"name": "e2e-dist-policy", "enforcementMode": "audit"}},
 		},
@@ -148,13 +137,14 @@ func TestT11DistributionPipeline(t *testing.T) {
 		}
 	}
 
-	// Removing the only distribution reference prunes its member-side
-	// materializations, while the gateway library rows remain intact.
+	// Removing the explicit distribution keeps the member-side objects in
+	// place because the policy group's cluster scope owns a managed
+	// distribution for local. The gateway library rows also remain intact.
 	if code, env := consoleDo(t, http.MethodDelete, "/api/v1/distributions/e2e-dist", nil); code != http.StatusOK {
 		t.Fatalf("delete distribution via console-api: status %d env=%+v", code, env)
 	}
 	distDeleted = true
-	waitForDistributionObjectsPruned(t, ctx)
+	waitForManagedDistributionObjects(t, ctx)
 	if code, env := consoleDo(t, http.MethodGet, "/api/v1/policies/e2e-dist-policy", nil); code != http.StatusOK {
 		t.Fatalf("library policy did not survive distribution deletion: status %d env=%+v", code, env)
 	}
