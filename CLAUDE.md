@@ -210,6 +210,13 @@ These rules apply to every git operation in this repository.
 - `main` `values.yaml` always has `tag: "latest"` — never change to a specific version
 - On release branch only: pin both image tags to `"vx.y.z"`, commit as `chore(helm): pin image tags to vx.y.z for release` — this commit must NOT be cherry-picked to `main`
 
+**Release command discipline:**
+- Always publish through the existing Makefile targets, normally `make release VERSION=vx.y.z`; do not expand the workflow into direct `docker buildx`, `helm push`, or replacement Dockerfiles/build paths.
+- If a Makefile release target succeeds, continue the checklist without introducing extra release steps.
+- If it fails, diagnose the reported error first. Fix confirmed code or Makefile defects through the normal development workflow, or configure the user's local proxy and retry the same Makefile target for network failures.
+- If the cause is unclear or recovery would bypass or replace the Makefile workflow, stop and ask the user how to proceed. Do not invent an alternative publishing path.
+- Keep release command output concise; report milestones and actionable errors instead of streaming verbose build logs into the conversation.
+
 **Release checklist (run on `main`):**
 1. `make test-all` passes (unit tests + e2e — `make release` enforces this automatically)
 2. **Fresh-install verification (MANDATORY, has bitten us more than once):** on the local cluster run the full uninstall → clean install cycle against the packaged chart, and confirm all pods become Ready and the 37 builtin policies reach `Ready`:
