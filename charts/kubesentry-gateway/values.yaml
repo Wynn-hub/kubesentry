@@ -13,7 +13,7 @@ gateway:
   replicas: 1
   image:
     repository: wynnhub/kubesentry-gateway
-    tag: "latest"
+    tag: "v1.2.0"
     pullPolicy: IfNotPresent
   grpc:
     port: 9443
@@ -45,13 +45,13 @@ console:
   # api container: the Go REST API only (no embedded frontend, Task 13).
   image:
     repository: wynnhub/kubesentry-console
-    tag: "latest"
+    tag: "v1.2.0"
     pullPolicy: IfNotPresent
   # web container: nginx serving the built Vue SPA, proxying /api/* and
   # /healthz to the api container over localhost within the same pod.
   webImage:
     repository: wynnhub/kubesentry-console-web
-    tag: "latest"
+    tag: "v1.2.0"
     pullPolicy: IfNotPresent
   # Runtime ports used by the nginx ConfigMap and both sidecar containers.
   # Override them through Helm values without rebuilding the web image.
@@ -92,7 +92,7 @@ postgres:
 db:
   image:
     repository: wynnhub/kubesentry-db
-    tag: "latest"
+    tag: "v1.2.0"
 
 tls:
   secretName: kubesentry-gateway-tls
